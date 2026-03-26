@@ -71,3 +71,10 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `05076cd`.
 ---
 
+## Iteration 11 - T014
+- Upgraded the sign-in.tsx scaffold from a bare functional skeleton to a styled, production-quality registration form using the design system (dark green theme, input icons via Lucide, tab switcher, keyboard avoidance). Added structured logging via logger for signup submit/success/failure events.
+- The T012/T013 TDD tests already passed against the scaffold created in iteration 10, so T014 was primarily a styling/design-system upgrade. All 11 registration tests remain green with 86% statement coverage.
+- `KeyboardAvoidingView` with `behavior={Platform.OS === 'ios' ? 'padding' : undefined}` is the standard pattern for Expo — Android handles keyboard avoidance natively in most cases.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `35f4f6b`.
+---
+
