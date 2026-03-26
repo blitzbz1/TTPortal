@@ -115,7 +115,7 @@
 
 ### TDD Tests for User Story 4
 
-- [ ] T024 [P] [US4] Write Apple Sign-In tests in `src/app/__tests__/sign-in.apple.test.tsx` — test: (1) Apple button renders on auth screen; (2) tapping Apple button calls `signInWithApple`; (3) successful Apple auth navigates to map; (4) Apple "Hide My Email" relay address is stored and functions normally; (5) Apple auth failure shows localized error
+- [x] T024 [P] [US4] Write Apple Sign-In tests in `src/app/__tests__/sign-in.apple.test.tsx` — test: (1) Apple button renders on auth screen; (2) tapping Apple button calls `signInWithApple`; (3) successful Apple auth navigates to map; (4) Apple "Hide My Email" relay address is stored and functions normally; (5) Apple auth failure shows localized error
 
 ### Implementation for User Story 4
 

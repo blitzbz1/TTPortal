@@ -33,7 +33,7 @@ export default function SignInScreen() {
     initialTab?: 'signup' | 'login';
   }>();
   const router = useRouter();
-  const { signUp, signIn, signInWithGoogle } = useSession();
+  const { signUp, signIn, signInWithGoogle, signInWithApple } = useSession();
   const { s } = useI18n();
 
   const [activeTab, setActiveTab] = useState<'signup' | 'login'>(
@@ -114,6 +114,27 @@ export default function SignInScreen() {
       setLoading(false);
     }
   }, [signInWithGoogle, s, router, returnTo]);
+
+  const handleAppleSignIn = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      logger.track('apple_signin_submit');
+      const { error: authError } = await signInWithApple();
+      if (authError) {
+        logger.warn('Apple sign-in failed', { code: authError.code });
+        setError(s(mapAuthErrorToKey(authError)));
+        return;
+      }
+      logger.info('Apple sign-in success');
+      router.replace(returnTo || '/(tabs)/');
+    } catch (err) {
+      logger.error('Apple sign-in exception', err);
+      setError(s('errorNetwork'));
+    } finally {
+      setLoading(false);
+    }
+  }, [signInWithApple, s, router, returnTo]);
 
   return (
     <KeyboardAvoidingView
@@ -328,6 +349,7 @@ export default function SignInScreen() {
               <Pressable
                 style={[styles.appleBtn, loading && styles.socialBtnDisabled]}
                 accessibilityRole="button"
+                onPress={handleAppleSignIn}
                 disabled={loading}
                 testID="apple-button"
               >
