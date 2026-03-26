@@ -42,6 +42,11 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
   },
 }));
 
+jest.mock('expo-apple-authentication', () => ({
+  signInAsync: jest.fn(),
+  AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+}));
+
 // eslint-disable-next-line import/first
 import React from 'react';
 // eslint-disable-next-line import/first

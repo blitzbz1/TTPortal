@@ -41,6 +41,16 @@ const mockOnAuthStateChange = jest.fn(
 
 const mockUpsert = jest.fn().mockResolvedValue({ data: null, error: null });
 
+const mockSignInWithOAuth = jest.fn().mockResolvedValue({
+  data: { provider: 'apple', url: 'https://apple.auth' },
+  error: null,
+});
+
+const mockUpdateUser = jest.fn().mockResolvedValue({
+  data: { user: null },
+  error: null,
+});
+
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     auth: {
@@ -48,6 +58,8 @@ jest.mock('../../lib/supabase', () => ({
       signUp: (...a: any[]) => mockSignUp(...a),
       signInWithPassword: (...a: any[]) => mockSignInWithPassword(...a),
       signInWithIdToken: (...a: any[]) => mockSignInWithIdToken(...a),
+      signInWithOAuth: (...a: any[]) => mockSignInWithOAuth(...a),
+      updateUser: (...a: any[]) => mockUpdateUser(...a),
       signOut: (...a: any[]) => mockSignOut(...a),
       resetPasswordForEmail: (...a: any[]) => mockResetPasswordForEmail(...a),
       onAuthStateChange: (...a: any[]) => mockOnAuthStateChange(...a),
@@ -64,6 +76,13 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
     signIn: (...a: any[]) => mockGoogleSignIn(...a),
     hasPlayServices: jest.fn().mockResolvedValue(true),
   },
+}));
+
+const mockAppleSignIn = jest.fn();
+
+jest.mock('expo-apple-authentication', () => ({
+  signInAsync: (...a: any[]) => mockAppleSignIn(...a),
+  AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
 }));
 
 jest.mock('../../lib/logger', () => ({
@@ -488,43 +507,152 @@ describe('SessionProvider', () => {
     expect(mockUpsert).not.toHaveBeenCalled();
   });
 
-  it('signInWithApple throws "not yet implemented"', async () => {
-    let caughtError: Error | null = null;
+  it('signInWithApple on iOS calls AppleAuthentication.signInAsync and supabase.auth.signInWithIdToken', async () => {
+    jest.replaceProperty(require('react-native').Platform, 'OS', 'ios');
+    mockAppleSignIn.mockResolvedValue({
+      identityToken: 'apple-id-token-123',
+      fullName: { givenName: 'Jane', familyName: 'Doe' },
+    });
+    mockSignInWithIdToken.mockResolvedValue({
+      data: { user: fakeUser, session: fakeSession },
+      error: null,
+    });
+
+    let result: { error: unknown } | null = null;
 
     function AppleTestConsumer() {
       const ctx = useSession();
       return (
-        <Pressable
-          testID="apple"
-          onPress={async () => {
-            try {
-              await ctx.signInWithApple();
-            } catch (err) {
-              caughtError = err as Error;
-            }
-          }}
-        >
+        <Pressable testID="apple" onPress={async () => { result = await ctx.signInWithApple(); }}>
           <Text>Apple</Text>
         </Pressable>
       );
     }
 
     const user = userEvent.setup();
-
-    render(
-      <SessionProvider>
-        <AppleTestConsumer />
-      </SessionProvider>,
-    );
-
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-
+    render(<SessionProvider><AppleTestConsumer /></SessionProvider>);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
     await user.press(screen.getByTestId('apple'));
 
-    expect(caughtError).toBeInstanceOf(Error);
-    expect(caughtError!.message).toBe('signInWithApple not yet implemented');
+    expect(mockAppleSignIn).toHaveBeenCalledTimes(1);
+    expect(mockSignInWithIdToken).toHaveBeenCalledWith({ provider: 'apple', token: 'apple-id-token-123' });
+    expect(result).toEqual({ error: null });
+  });
+
+  it('signInWithApple on iOS captures fullName and calls updateUser', async () => {
+    jest.replaceProperty(require('react-native').Platform, 'OS', 'ios');
+    mockAppleSignIn.mockResolvedValue({
+      identityToken: 'apple-id-token-name',
+      fullName: { givenName: 'Maria', familyName: 'Popescu' },
+    });
+    mockSignInWithIdToken.mockResolvedValue({
+      data: { user: fakeUser, session: fakeSession },
+      error: null,
+    });
+
+    function AppleTestConsumer() {
+      const ctx = useSession();
+      return (
+        <Pressable testID="apple" onPress={() => ctx.signInWithApple()}>
+          <Text>Apple</Text>
+        </Pressable>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(<SessionProvider><AppleTestConsumer /></SessionProvider>);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+    await user.press(screen.getByTestId('apple'));
+
+    await waitFor(() => {
+      expect(mockUpdateUser).toHaveBeenCalledWith({ data: { full_name: 'Maria Popescu' } });
+    });
+  });
+
+  it('signInWithApple on iOS upserts profile with auth_provider apple', async () => {
+    jest.replaceProperty(require('react-native').Platform, 'OS', 'ios');
+    mockAppleSignIn.mockResolvedValue({
+      identityToken: 'apple-id-token-profile',
+      fullName: { givenName: 'Ion', familyName: 'Ionescu' },
+    });
+    mockSignInWithIdToken.mockResolvedValue({
+      data: { user: fakeUser, session: fakeSession },
+      error: null,
+    });
+
+    function AppleTestConsumer() {
+      const ctx = useSession();
+      return (
+        <Pressable testID="apple" onPress={() => ctx.signInWithApple()}>
+          <Text>Apple</Text>
+        </Pressable>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(<SessionProvider><AppleTestConsumer /></SessionProvider>);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+    await user.press(screen.getByTestId('apple'));
+
+    await waitFor(() => {
+      expect(mockUpsert).toHaveBeenCalledWith(
+        { id: 'user-123', full_name: 'Ion Ionescu', email: 'test@example.com', auth_provider: 'apple' },
+        { onConflict: 'id' },
+      );
+    });
+  });
+
+  it('signInWithApple on iOS returns error when signInWithIdToken fails', async () => {
+    jest.replaceProperty(require('react-native').Platform, 'OS', 'ios');
+    const authError = { code: 'unexpected_failure', message: 'Server error', name: 'AuthApiError', status: 500 };
+    mockAppleSignIn.mockResolvedValue({
+      identityToken: 'apple-id-token-fail',
+      fullName: null,
+    });
+    mockSignInWithIdToken.mockResolvedValue({ data: { user: null, session: null }, error: authError });
+
+    let result: { error: unknown } | null = null;
+
+    function AppleTestConsumer() {
+      const ctx = useSession();
+      return (
+        <Pressable testID="apple" onPress={async () => { result = await ctx.signInWithApple(); }}>
+          <Text>Apple</Text>
+        </Pressable>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(<SessionProvider><AppleTestConsumer /></SessionProvider>);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+    await user.press(screen.getByTestId('apple'));
+
+    expect(result).toEqual({ error: authError });
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+
+  it('signInWithApple on Android falls back to signInWithOAuth', async () => {
+    jest.replaceProperty(require('react-native').Platform, 'OS', 'android');
+
+    let result: { error: unknown } | null = null;
+
+    function AppleTestConsumer() {
+      const ctx = useSession();
+      return (
+        <Pressable testID="apple" onPress={async () => { result = await ctx.signInWithApple(); }}>
+          <Text>Apple</Text>
+        </Pressable>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(<SessionProvider><AppleTestConsumer /></SessionProvider>);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+    await user.press(screen.getByTestId('apple'));
+
+    expect(mockSignInWithOAuth).toHaveBeenCalledWith({ provider: 'apple' });
+    expect(mockAppleSignIn).not.toHaveBeenCalled();
+    expect(result).toEqual({ error: null });
   });
 
   it('signUp returns error when supabase returns an error', async () => {

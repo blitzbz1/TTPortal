@@ -8,6 +8,7 @@ import React, {
 import { Platform } from 'react-native';
 import type { AuthError, Session, User } from '@supabase/supabase-js';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 
@@ -34,7 +35,7 @@ export interface SessionContextValue {
   signIn: (email: string, password: string) => Promise<AuthResult>;
   /** Google OAuth flow via native Google Sign-In + Supabase signInWithIdToken. */
   signInWithGoogle: () => Promise<AuthResult>;
-  /** Apple auth flow (stub — not yet implemented until US4). */
+  /** Apple auth flow — native on iOS, OAuth web fallback on Android. */
   signInWithApple: () => Promise<AuthResult>;
   /** End current session. */
   signOut: () => Promise<AuthResult>;
@@ -158,7 +159,55 @@ export function SessionProvider({ children }: SessionProviderProps) {
   }, []);
 
   const signInWithApple = useCallback(async (): Promise<AuthResult> => {
-    throw new Error('signInWithApple not yet implemented');
+    if (Platform.OS !== 'ios') {
+      const { error } = await supabase.auth.signInWithOAuth({ provider: 'apple' });
+      if (error) {
+        logger.warn('Apple sign-in OAuth failed', { code: error.code });
+      } else {
+        logger.info('Apple sign-in OAuth initiated (Android)');
+      }
+      return { error: error ?? null };
+    }
+
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+    if (!credential.identityToken) {
+      logger.warn('Apple sign-in: no identityToken received');
+      return { error: { message: 'No identity token from Apple', name: 'AuthApiError', status: 0 } as unknown as AuthError };
+    }
+
+    const { data, error } = await supabase.auth.signInWithIdToken({
+      provider: 'apple',
+      token: credential.identityToken,
+    });
+    if (error) {
+      logger.warn('Apple sign-in failed', { code: error.code });
+      return { error };
+    }
+
+    const givenName = credential.fullName?.givenName || '';
+    const familyName = credential.fullName?.familyName || '';
+    const appleName = [givenName, familyName].filter(Boolean).join(' ');
+    if (appleName) {
+      await supabase.auth.updateUser({ data: { full_name: appleName } });
+    }
+
+    if (data.user) {
+      const profileName = appleName || data.user.user_metadata?.full_name || '';
+      const { error: profileError } = await supabase.from('profiles').upsert(
+        { id: data.user.id, full_name: profileName, email: data.user.email || '', auth_provider: 'apple' },
+        { onConflict: 'id' },
+      );
+      if (profileError) {
+        logger.warn('Profile upsert failed after Apple sign-in', { error: profileError.message });
+      }
+    }
+    logger.info('Apple sign-in success', { userId: data.user?.id });
+    return { error: null };
   }, []);
 
   const signOut = useCallback(async (): Promise<AuthResult> => {

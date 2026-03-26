@@ -119,7 +119,7 @@
 
 ### Implementation for User Story 4
 
-- [ ] T025 [US4] Implement `signInWithApple` in `src/contexts/SessionProvider.tsx` — on iOS: use `expo-apple-authentication` to call `AppleAuthentication.signInAsync`, extract `identityToken`, pass to `supabase.auth.signInWithIdToken({ provider: 'apple', token })`. Capture `credential.fullName` on first sign-in and store via `supabase.auth.updateUser({ data: { full_name } })` (Apple only sends name once). On Android: fall back to `supabase.auth.signInWithOAuth({ provider: 'apple' })`. Upsert profile with `auth_provider: 'apple'`. **Test**: T024 tests pass (green)
+- [x] T025 [US4] Implement `signInWithApple` in `src/contexts/SessionProvider.tsx` — on iOS: use `expo-apple-authentication` to call `AppleAuthentication.signInAsync`, extract `identityToken`, pass to `supabase.auth.signInWithIdToken({ provider: 'apple', token })`. Capture `credential.fullName` on first sign-in and store via `supabase.auth.updateUser({ data: { full_name } })` (Apple only sends name once). On Android: fall back to `supabase.auth.signInWithOAuth({ provider: 'apple' })`. Upsert profile with `auth_provider: 'apple'`. **Test**: T024 tests pass (green)
 - [ ] T026 [US4] Handle Apple name capture edge case in `src/contexts/SessionProvider.tsx` — if `credential.fullName` is null (repeat sign-in), skip name update. If name was captured, update both `auth.users.user_metadata` and `profiles.full_name`. **Test**: write `src/contexts/__tests__/SessionProvider.apple-name.test.tsx` — mock first Apple sign-in with fullName present, verify profile updated; mock repeat sign-in with fullName null, verify profile name unchanged
 
 **Checkpoint**: Apple Sign-In works on iOS (native) and Android (web fallback). Relay emails supported.
