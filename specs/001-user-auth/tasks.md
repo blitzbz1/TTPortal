@@ -81,7 +81,7 @@
 ### Implementation for User Story 2
 
 - [x] T018 [US2] Implement login tab in `src/app/sign-in.tsx` — reuse form structure from US1; login tab hides name field, submit calls `signIn` instead of `signUp`. Tab switcher clears `error` state on toggle. **Test**: T016 tests pass (green)
-- [ ] T019 [US2] Wire login success redirect and generic error messages in `src/app/sign-in.tsx` — map `invalid_credentials` Supabase error to generic localized message (FR-007: not revealing whether email exists). Honor `returnTo` param. **Test**: T017 tests pass (green)
+- [x] T019 [US2] Wire login success redirect and generic error messages in `src/app/sign-in.tsx` — map `invalid_credentials` Supabase error to generic localized message (FR-007: not revealing whether email exists). Honor `returnTo` param. **Test**: T017 tests pass (green)
 - [ ] T020 [US2] Verify session persistence in `src/contexts/__tests__/SessionProvider.persistence.test.tsx` — test that `SessionProvider` on mount restores a previously stored session from `expo-sqlite`. Mock storage to return a valid session token, verify `session` is non-null after `isLoading` resolves to false. Verify session survives simulated app restart (unmount + remount provider). **Test**: this test file itself must pass green
 
 **Checkpoint**: Full email auth cycle works. Users can register, log out, log back in, and sessions persist.
