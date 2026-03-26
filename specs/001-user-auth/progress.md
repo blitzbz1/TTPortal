@@ -96,3 +96,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `34f786d`.
 ---
 
+## Iteration 15 - T018
+- Login tab functionality was already fully implemented during T012-T016 scaffold iterations. All 5 T016 tests pass green with 94.8% coverage. Task was a verification pass — no code changes needed.
+- Pattern: when TDD scaffold builds functional code incrementally across multiple tasks, later "implementation" tasks may be no-ops if the scaffold already satisfies all test requirements. Always verify tests pass before assuming work is needed.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `e78919c`.
+---
+
