@@ -63,3 +63,11 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `c78e10b`.
 ---
 
+## Iteration 10 - T012, T013
+- Wrote 6 registration form validation tests (T012) and 5 registration flow tests (T013) for the sign-in screen. Created a minimal `src/app/sign-in.tsx` scaffold (functional skeleton with validation, signUp call, error mapping, password toggle, loading state) so the TDD tests can import and test against a real component. Coverage: 90% statements, 93% branches.
+- Gotcha: TDD test tasks (T012/T013) are test-only but quality gates require all tests pass — resolved by providing a minimal functional scaffold alongside the tests. T014/T015 will upgrade this scaffold with full styling and design system integration.
+- The `userEvent` from `@testing-library/react-native` v13.x supports `user.type(element, text)` for TextInput and `user.press(element)` for Pressable. `userEvent.setup()` is called once per describe block (not per test).
+- For Supabase `AuthError` mapping: `user_already_exists` code or "already registered" message → duplicate email; `AuthRetryableFetchError` name or "Failed to fetch" message → network error.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `05076cd`.
+---
+
