@@ -145,6 +145,13 @@ export function SessionProvider({ children }: SessionProviderProps) {
       if (profileError) {
         logger.warn('Profile upsert failed after Google sign-in', { error: profileError.message });
       }
+      const providers = data.user.app_metadata?.providers as string[] | undefined;
+      if (providers && providers.includes('email') && providers.includes('google')) {
+        logger.info('Google account linked to existing email account', {
+          userId: data.user.id,
+          providers,
+        });
+      }
     }
     logger.info('Google sign-in success', { userId: data.user?.id });
     return { error: null };

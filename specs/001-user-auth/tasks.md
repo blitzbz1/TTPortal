@@ -101,7 +101,7 @@
 ### Implementation for User Story 3
 
 - [x] T022 [US3] Install `@react-native-google-signin/google-signin`, configure Expo config plugin in `app.json`. Add Google Web Client ID to environment variables. Implement `signInWithGoogle` in `src/contexts/SessionProvider.tsx` — call `GoogleSignin.signIn()`, extract `idToken`, pass to `supabase.auth.signInWithIdToken({ provider: 'google', token: idToken })`. On success, upsert profile in `profiles` table with `auth_provider: 'google'`. **Test**: T021 tests pass (green)
-- [ ] T023 [US3] Implement Google-to-email account linking in `src/contexts/SessionProvider.tsx` — when Google signIn returns a user whose email matches an existing `profiles` row, Supabase automatically links the identity. Verify the profile row is updated (not duplicated) with `auth_provider` reflecting the latest method. **Test**: write `src/contexts/__tests__/SessionProvider.google-linking.test.tsx` — mock scenario where email-registered user signs in with Google; verify single profile row exists, `auth_provider` updated to `'google'`
+- [x] T023 [US3] Implement Google-to-email account linking in `src/contexts/SessionProvider.tsx` — when Google signIn returns a user whose email matches an existing `profiles` row, Supabase automatically links the identity. Verify the profile row is updated (not duplicated) with `auth_provider` reflecting the latest method. **Test**: write `src/contexts/__tests__/SessionProvider.google-linking.test.tsx` — mock scenario where email-registered user signs in with Google; verify single profile row exists, `auth_provider` updated to `'google'`
 
 **Checkpoint**: Google OAuth works. Users can sign in with Google; existing email accounts auto-link.
 
