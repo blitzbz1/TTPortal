@@ -53,8 +53,8 @@
 
 > **Write these tests FIRST. They must FAIL (red) before implementation begins.**
 
-- [ ] T012 [P] [US1] Write registration form validation tests in `src/app/__tests__/sign-in.registration.test.tsx` — test: (1) signup tab shows name, email, password fields; (2) submit with empty name shows "Numele este obligatoriu" error; (3) submit with invalid email shows "Email invalid" error; (4) submit with password <8 chars shows "Minim 8 caractere" error; (5) submit with all valid fields calls `signUp(name, email, password)`; (6) password visibility toggle switches between secure and plain text
-- [ ] T013 [P] [US1] Write registration success/error tests in `src/app/__tests__/sign-in.registration-flow.test.tsx` — test: (1) successful signUp navigates to map route (or `returnTo` param if present); (2) duplicate email error from server shows "Acest email este deja folosit"; (3) network error shows "Eroare de conexiune. Încearcă din nou."; (4) loading state disables submit button during signUp call
+- [x] T012 [P] [US1] Write registration form validation tests in `src/app/__tests__/sign-in.registration.test.tsx` — test: (1) signup tab shows name, email, password fields; (2) submit with empty name shows "Numele este obligatoriu" error; (3) submit with invalid email shows "Email invalid" error; (4) submit with password <8 chars shows "Minim 8 caractere" error; (5) submit with all valid fields calls `signUp(name, email, password)`; (6) password visibility toggle switches between secure and plain text
+- [x] T013 [P] [US1] Write registration success/error tests in `src/app/__tests__/sign-in.registration-flow.test.tsx` — test: (1) successful signUp navigates to map route (or `returnTo` param if present); (2) duplicate email error from server shows "Acest email este deja folosit"; (3) network error shows "Eroare de conexiune. Încearcă din nou."; (4) loading state disables submit button during signUp call
 
 ### Implementation for User Story 1
 
