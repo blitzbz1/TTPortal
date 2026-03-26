@@ -115,3 +115,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `af27b8c`.
 ---
 
+## Iteration 18 - T021
+- Wrote 5 Google Sign-In tests covering button rendering, signInWithGoogle call, success navigation, error display, and loading state disabling all auth buttons. Wired Google button in sign-in.tsx with testID, onPress, and disabled props. Also added testID/disabled to Apple button for loading state test.
+- Extracted `isValidEmail` and `mapAuthErrorToKey` to `src/lib/auth-utils.ts` and styles to `src/app/sign-in.styles.ts` to keep sign-in.tsx under the 500-line limit (was 555 → now 343). This refactor pattern will be needed as more features are added to sign-in.tsx.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `06a80a1`.
+---
+
