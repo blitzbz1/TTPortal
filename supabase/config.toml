@@ -1,0 +1,27 @@
+# Supabase project configuration
+# Apply these settings in the Supabase Dashboard > Authentication > Settings
+# or via supabase CLI when running locally.
+
+[project]
+id = "vzewwlaqqgukjkqjyfoq"
+
+[auth]
+# JWT expiry: 3600s (1 hour). Combined with refresh token rotation,
+# this supports SC-008 (>=7 days session persistence). The client SDK
+# auto-refreshes before expiry using the refresh token.
+jwt_expiry = 3600
+
+# Enable refresh token rotation for security. Each refresh request
+# issues a new refresh token and invalidates the old one.
+refresh_token_rotation_enabled = true
+
+# Reuse interval (seconds) to handle concurrent refresh requests
+# during the rotation window without invalidating a still-in-flight token.
+refresh_token_reuse_interval = 10
+
+# Rate limiting on auth endpoints (Supabase defaults).
+# These are enforced server-side by Supabase and cannot be disabled.
+# - Sign-up/Sign-in: 30 requests per 5 minutes per IP
+# - Token refresh: 150 requests per 5 minutes per IP
+# - Password reset: 30 requests per 5 minutes per IP
+# No custom configuration needed — defaults satisfy SC-009.
