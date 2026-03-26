@@ -75,8 +75,8 @@
 
 ### TDD Tests for User Story 2
 
-- [ ] T016 [P] [US2] Write login form validation tests in `src/app/__tests__/sign-in.login.test.tsx` — test: (1) login tab shows email and password fields (no name field); (2) submit with invalid email shows validation error; (3) submit with password <8 chars shows validation error; (4) submit with valid fields calls `signIn(email, password)`; (5) tab switcher toggles between signup and login, clears errors on switch
-- [ ] T017 [P] [US2] Write login flow tests in `src/app/__tests__/sign-in.login-flow.test.tsx` — test: (1) successful signIn navigates to map route; (2) incorrect credentials show "Email sau parola incorectă" (generic message, not revealing if email exists); (3) session persists — mock `onAuthStateChange` emitting a session, verify `useSession` returns it on next render; (4) `returnTo` param is honored after successful login
+- [x] T016 [P] [US2] Write login form validation tests in `src/app/__tests__/sign-in.login.test.tsx` — test: (1) login tab shows email and password fields (no name field); (2) submit with invalid email shows validation error; (3) submit with password <8 chars shows validation error; (4) submit with valid fields calls `signIn(email, password)`; (5) tab switcher toggles between signup and login, clears errors on switch
+- [x] T017 [P] [US2] Write login flow tests in `src/app/__tests__/sign-in.login-flow.test.tsx` — test: (1) successful signIn navigates to map route; (2) incorrect credentials show "Email sau parola incorectă" (generic message, not revealing if email exists); (3) session persists — mock `onAuthStateChange` emitting a session, verify `useSession` returns it on next render; (4) `returnTo` param is honored after successful login
 
 ### Implementation for User Story 2
 

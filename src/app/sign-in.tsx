@@ -36,6 +36,12 @@ function mapAuthErrorToKey(error: AuthError): string {
     return 'errorDuplicateEmail';
   }
   if (
+    error.code === 'invalid_credentials' ||
+    error.message?.includes('Invalid login credentials')
+  ) {
+    return 'errorInvalidCredentials';
+  }
+  if (
     error.name === 'AuthRetryableFetchError' ||
     error.message?.includes('Failed to fetch')
   ) {
@@ -55,7 +61,7 @@ export default function SignInScreen() {
     initialTab?: 'signup' | 'login';
   }>();
   const router = useRouter();
-  const { signUp } = useSession();
+  const { signUp, signIn } = useSession();
   const { s } = useI18n();
 
   const [activeTab, setActiveTab] = useState<'signup' | 'login'>(
@@ -94,22 +100,27 @@ export default function SignInScreen() {
     setError(null);
 
     try {
-      logger.track('signup_submit', { email });
-      const { error: authError } = await signUp(fullName, email, password);
+      const isLogin = activeTab === 'login';
+      logger.track(isLogin ? 'login_submit' : 'signup_submit', { email });
+      const { error: authError } = isLogin
+        ? await signIn(email, password)
+        : await signUp(fullName, email, password);
       if (authError) {
-        logger.warn('signup failed', { code: authError.code });
+        logger.warn(isLogin ? 'login failed' : 'signup failed', {
+          code: authError.code,
+        });
         setError(s(mapAuthErrorToKey(authError)));
         return;
       }
-      logger.info('signup success', { email });
+      logger.info(isLogin ? 'login success' : 'signup success', { email });
       router.replace(returnTo || '/(tabs)/');
     } catch (err) {
-      logger.error('signup exception', err);
+      logger.error(activeTab === 'login' ? 'login exception' : 'signup exception', err);
       setError(s('errorNetwork'));
     } finally {
       setLoading(false);
     }
-  }, [activeTab, fullName, email, password, signUp, s, router, returnTo]);
+  }, [activeTab, fullName, email, password, signUp, signIn, s, router, returnTo]);
 
   return (
     <KeyboardAvoidingView
