@@ -140,3 +140,10 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `c768750`.
 ---
 
+## Iteration 22 - T025
+- Replaced `signInWithApple` stub in SessionProvider.tsx with real implementation: iOS uses `expo-apple-authentication` `signInAsync` → `supabase.auth.signInWithIdToken`, captures `credential.fullName` on first sign-in and stores via `updateUser`. Android falls back to `supabase.auth.signInWithOAuth`. Upserts profile with `auth_provider: 'apple'`. Added 5 new Apple-specific tests in SessionProvider.test.tsx (88% coverage).
+- Gotcha: Any test file that imports SessionProvider.tsx (directly or transitively) must now mock `expo-apple-authentication` in addition to `@react-native-google-signin/google-signin`. Updated 4 test files: SessionProvider.test.tsx, SessionProvider.persistence.test.tsx, SessionProvider.google-linking.test.tsx, sign-in.login-flow.test.tsx.
+- Pattern: `jest.replaceProperty(require('react-native').Platform, 'OS', 'ios')` is the clean way to test platform-specific branches within a single test file. Each test can set the platform independently.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `510a1db`.
+---
+
