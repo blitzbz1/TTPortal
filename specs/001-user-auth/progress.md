@@ -30,3 +30,10 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `bd5c03c`.
 ---
 
+## Iteration 5 - T007
+- Created SessionProvider context wrapping Supabase `onAuthStateChange`, useSession hook, and logger utility. 15 tests covering all contract methods, loading states, auth state changes, and stub OAuth methods.
+- Gotcha: `jest.mock` factory is hoisted above variable declarations even when `const` names start with `mock`. Direct assignment like `getSession: mockGetSession` captures `undefined` because the factory runs before the `const` initializer. Fix: use wrapper functions `(...a: any[]) => mockFn(...a)` so the reference is resolved lazily at call time.
+- The `@typescript-eslint/no-explicit-any` rule is not active in the current eslint config, so eslint-disable comments for `any` types are unnecessary and trigger "Unused eslint-disable directive" warnings.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `2fb1f2c`.
+---
+
