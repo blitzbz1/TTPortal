@@ -260,6 +260,16 @@ export default function SignInScreen() {
               </Pressable>
             </View>
 
+            {/* Forgot password link (login only) */}
+            {activeTab === 'login' && (
+              <Pressable
+                onPress={() => router.push('/forgot-password')}
+                testID="forgot-password-link"
+              >
+                <Text style={styles.forgotLink}>{s('authForgot')}</Text>
+              </Pressable>
+            )}
+
             {/* Error message */}
             {error && (
               <Text

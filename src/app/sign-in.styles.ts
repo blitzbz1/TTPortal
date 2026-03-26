@@ -85,6 +85,12 @@ export const styles = StyleSheet.create({
     height: 48,
     paddingVertical: 0,
   },
+  forgotLink: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.greenDim,
+    textAlign: 'right',
+  },
   errorText: {
     fontFamily: Fonts.body,
     fontSize: 13,
