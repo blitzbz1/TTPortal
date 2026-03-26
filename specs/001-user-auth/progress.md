@@ -84,3 +84,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `21f4acd`.
 ---
 
+## Iteration 13 - T042
+- Added Terms of Service and Privacy Policy touchable text links below the submit button on the signup tab only. Links open external URLs via `Linking.openURL`. Added 4 new i18n keys (`authTermsPrefix`, `authTermsOfServiceLink`, `authTermsConnector`, `authPrivacyPolicyLink`) to both locale files. Wrote 6 tests covering signup-only visibility, tab switching, and URL invocation.
+- Pattern: nested `<Text onPress={...}>` inside a parent `<Text>` is the standard React Native approach for inline tappable links within a sentence. The `testID` on the nested Text works for testing with `getByTestId` + `user.press`.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `d823aee`.
+---
+
