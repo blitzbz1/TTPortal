@@ -108,3 +108,10 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `1612065`.
 ---
 
+## Iteration 17 - T020
+- Created `SessionProvider.persistence.test.tsx` with 5 tests verifying session restoration from expo-sqlite on mount and session survival across simulated app restart (unmount + remount). All tests pass green; 130 total tests across 15 suites.
+- The persistence test is a pure test-only task — coverage on SessionProvider.tsx from this file alone is ~47% because the auth methods (signUp, signIn, etc.) aren't exercised, but the existing `SessionProvider.test.tsx` already covers those paths comprehensively.
+- Pattern: for `jest.mock` factories that capture callbacks into module-scoped variables, if those variables aren't used directly in tests (only used inside mock functions), remove them to avoid lint `no-unused-vars` warnings.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `af27b8c`.
+---
+
