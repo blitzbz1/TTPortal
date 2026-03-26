@@ -24,3 +24,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access to `blitzbz1/TTPortal.git`. Commit saved locally: `0f477df`.
 ---
 
+## Iteration 4 - T006
+- Created I18nProvider context and useI18n hook. Provider loads language from expo-sqlite storage (same DB as Supabase client), exposes `lang`, `setLang`, and `s()` string resolver with English fallback and `{0}`-style interpolation.
+- Gotcha: when mocking `jest.fn(() => null)`, TypeScript infers the return type strictly as `null`, causing `mockReturnValueOnce({...})` to fail typecheck. Fix: explicitly type the mock arrow function return type as a union (e.g., `(): { value: string } | null => null`).
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `bd5c03c`.
+---
+
