@@ -147,3 +147,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `510a1db`.
 ---
 
+## Iteration 23 - T026
+- Handled Apple name capture edge case: refactored `signInWithApple` to conditionally include `full_name` in profile upsert only when `credential.fullName` is present. Wrote 5 tests covering first sign-in (name present), repeat sign-in (fullName null), partial name (givenName only), and empty name fields.
+- Pattern: To conditionally include a field in a Supabase upsert, build the data object with an optional typed field (`full_name?: string`) and only assign it when the value is present. This avoids overwriting existing DB values on update while still supporting insert.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `5dbdad4`.
+---
+
