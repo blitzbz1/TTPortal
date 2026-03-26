@@ -57,3 +57,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `9990567`.
 ---
 
+## Iteration 9 - T011
+- Created `supabase/migrations/001_create_profiles.sql` with profiles table (all columns per data-model.md), RLS enabled, and `handle_new_user` trigger that auto-creates a profile row on auth.users insert. Created `supabase/config.toml` documenting JWT expiry (3600s) and refresh token rotation settings for >=7 day session persistence. Wrote 19 tests validating migration SQL structure and Supabase auth config.
+- This task is purely SQL/config — no runtime TypeScript source to measure coverage against. Tests validate file contents via `fs.readFileSync` and regex matching, which is a pragmatic approach for SQL migration testing in a mocked test environment.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `c78e10b`.
+---
+
