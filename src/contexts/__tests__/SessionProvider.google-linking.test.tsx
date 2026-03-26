@@ -26,7 +26,7 @@ jest.mock('../../lib/supabase', () => ({
       signInWithIdToken: (...a: unknown[]) => mockSignInWithIdToken(...a),
       signOut: jest.fn().mockResolvedValue({ error: null }),
       resetPasswordForEmail: jest.fn().mockResolvedValue({ data: {}, error: null }),
-      onAuthStateChange: (...a: unknown[]) => mockOnAuthStateChange(...a),
+      onAuthStateChange: (...a: Parameters<typeof mockOnAuthStateChange>) => mockOnAuthStateChange(...a),
     },
     from: () => ({ upsert: (...a: unknown[]) => mockUpsert(...a) }),
   },
