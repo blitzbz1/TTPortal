@@ -196,3 +196,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `997267f`.
 ---
 
+## Iteration 31 - T034
+- Verified ProfilePopover implementation — the scaffold from iteration 29 already contained the full implementation (visible/hidden toggle, user name with "User" fallback, email truncation at 25 chars, signOut + onClose, Pressable overlay dismiss). All 7 T031 tests pass green with 100% statement coverage.
+- Pattern confirmed (3rd time): when TDD tests and scaffolds are built together, the subsequent "implementation" task is a verification-only pass. T033 and T034 both followed this pattern from the T030/T031/T032 batch.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `e56e3d5`.
+---
+
