@@ -121,3 +121,16 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `06a80a1`.
 ---
 
+## Iteration 19 - T022
+- Installed `@react-native-google-signin/google-signin`, configured Expo plugin in app.json, added Google Web Client ID env var. Replaced `signInWithGoogle` stub in SessionProvider with real implementation: GoogleSignin.signIn() → extract idToken → supabase.auth.signInWithIdToken → upsert profiles with auth_provider 'google'. Added 4 new SessionProvider tests (success, cancel, error, profile upsert).
+- Gotcha: any test file that imports `SessionProvider.tsx` (directly or transitively) must mock `@react-native-google-signin/google-signin` because the module-level `GoogleSignin.configure()` call triggers a TurboModule lookup that fails in jest. Two existing test files (`SessionProvider.persistence.test.tsx`, `sign-in.login-flow.test.tsx`) needed this mock added.
+- Pattern: `GoogleSignin.configure()` at module level in SessionProvider.tsx is cleanest — runs once on import. In tests, the jest.mock factory (hoisted before imports) replaces it with jest.fn().
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `d124ae6`.
+---
+
+## Iteration 20 - T023
+- Verified Google-to-email account linking: wrote 6 tests confirming that when an email-registered user signs in with Google, the profile upsert (onConflict: 'id') updates the existing row with `auth_provider: 'google'` rather than creating a duplicate. Added account-linking detection logging when `app_metadata.providers` includes both 'email' and 'google'.
+- Pattern: Supabase automatically links OAuth identities to existing email accounts when the email matches. The `app_metadata.providers` array on the user object reliably indicates which identity providers are linked — useful for detecting account linking after the fact.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `12e3b33`.
+---
+
