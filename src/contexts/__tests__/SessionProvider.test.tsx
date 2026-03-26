@@ -20,6 +20,11 @@ const mockSignInWithPassword = jest.fn().mockResolvedValue({
   error: null,
 });
 
+const mockSignInWithIdToken = jest.fn().mockResolvedValue({
+  data: { user: null, session: null },
+  error: null,
+});
+
 const mockSignOut = jest.fn().mockResolvedValue({ error: null });
 
 const mockResetPasswordForEmail = jest.fn().mockResolvedValue({
@@ -34,16 +39,30 @@ const mockOnAuthStateChange = jest.fn(
   },
 );
 
+const mockUpsert = jest.fn().mockResolvedValue({ data: null, error: null });
+
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     auth: {
       getSession: (...a: any[]) => mockGetSession(...a),
       signUp: (...a: any[]) => mockSignUp(...a),
       signInWithPassword: (...a: any[]) => mockSignInWithPassword(...a),
+      signInWithIdToken: (...a: any[]) => mockSignInWithIdToken(...a),
       signOut: (...a: any[]) => mockSignOut(...a),
       resetPasswordForEmail: (...a: any[]) => mockResetPasswordForEmail(...a),
       onAuthStateChange: (...a: any[]) => mockOnAuthStateChange(...a),
     },
+    from: () => ({ upsert: (...a: any[]) => mockUpsert(...a) }),
+  },
+}));
+
+const mockGoogleSignIn = jest.fn();
+
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {
+    configure: jest.fn(),
+    signIn: (...a: any[]) => mockGoogleSignIn(...a),
+    hasPlayServices: jest.fn().mockResolvedValue(true),
   },
 }));
 
@@ -337,43 +356,136 @@ describe('SessionProvider', () => {
     expect(screen.getByTestId('hasSignInWithApple')).toHaveTextContent('yes');
   });
 
-  it('signInWithGoogle throws "not yet implemented"', async () => {
-    let caughtError: Error | null = null;
+  it('signInWithGoogle calls GoogleSignin.signIn and supabase.auth.signInWithIdToken', async () => {
+    mockGoogleSignIn.mockResolvedValue({
+      type: 'success',
+      data: {
+        idToken: 'google-id-token-123',
+        user: { id: 'g1', email: 'g@test.com', name: 'Google User', givenName: 'Google', familyName: 'User', photo: null },
+        accessToken: 'access-token',
+        serverAuthCode: null,
+        scopes: ['email'],
+      },
+    });
+    mockSignInWithIdToken.mockResolvedValue({
+      data: { user: fakeUser, session: fakeSession },
+      error: null,
+    });
+
+    let result: { error: unknown } | null = null;
 
     function GoogleTestConsumer() {
       const ctx = useSession();
       return (
-        <Pressable
-          testID="google"
-          onPress={async () => {
-            try {
-              await ctx.signInWithGoogle();
-            } catch (err) {
-              caughtError = err as Error;
-            }
-          }}
-        >
+        <Pressable testID="google" onPress={async () => { result = await ctx.signInWithGoogle(); }}>
           <Text>Google</Text>
         </Pressable>
       );
     }
 
     const user = userEvent.setup();
-
-    render(
-      <SessionProvider>
-        <GoogleTestConsumer />
-      </SessionProvider>,
-    );
-
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-
+    render(<SessionProvider><GoogleTestConsumer /></SessionProvider>);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
     await user.press(screen.getByTestId('google'));
 
-    expect(caughtError).toBeInstanceOf(Error);
-    expect(caughtError!.message).toBe('signInWithGoogle not yet implemented');
+    expect(mockGoogleSignIn).toHaveBeenCalledTimes(1);
+    expect(mockSignInWithIdToken).toHaveBeenCalledWith({ provider: 'google', token: 'google-id-token-123' });
+    expect(result).toEqual({ error: null });
+  });
+
+  it('signInWithGoogle upserts profile with auth_provider google on success', async () => {
+    mockGoogleSignIn.mockResolvedValue({
+      type: 'success',
+      data: {
+        idToken: 'google-id-token-456',
+        user: { id: 'g2', email: 'g2@test.com', name: 'Jane Doe', givenName: 'Jane', familyName: 'Doe', photo: null },
+        accessToken: 'at',
+        serverAuthCode: null,
+        scopes: ['email'],
+      },
+    });
+    mockSignInWithIdToken.mockResolvedValue({
+      data: { user: fakeUser, session: fakeSession },
+      error: null,
+    });
+
+    function GoogleTestConsumer() {
+      const ctx = useSession();
+      return (
+        <Pressable testID="google" onPress={() => ctx.signInWithGoogle()}>
+          <Text>Google</Text>
+        </Pressable>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(<SessionProvider><GoogleTestConsumer /></SessionProvider>);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+    await user.press(screen.getByTestId('google'));
+
+    await waitFor(() => {
+      expect(mockUpsert).toHaveBeenCalledWith(
+        { id: 'user-123', full_name: 'Jane Doe', email: 'test@example.com', auth_provider: 'google' },
+        { onConflict: 'id' },
+      );
+    });
+  });
+
+  it('signInWithGoogle returns null error when user cancels', async () => {
+    mockGoogleSignIn.mockResolvedValue({ type: 'cancelled' });
+
+    let result: { error: unknown } | null = null;
+
+    function GoogleTestConsumer() {
+      const ctx = useSession();
+      return (
+        <Pressable testID="google" onPress={async () => { result = await ctx.signInWithGoogle(); }}>
+          <Text>Google</Text>
+        </Pressable>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(<SessionProvider><GoogleTestConsumer /></SessionProvider>);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+    await user.press(screen.getByTestId('google'));
+
+    expect(result).toEqual({ error: null });
+    expect(mockSignInWithIdToken).not.toHaveBeenCalled();
+  });
+
+  it('signInWithGoogle returns error when signInWithIdToken fails', async () => {
+    const authError = { code: 'unexpected_failure', message: 'Server error', name: 'AuthApiError', status: 500 };
+    mockGoogleSignIn.mockResolvedValue({
+      type: 'success',
+      data: {
+        idToken: 'google-id-token-789',
+        user: { id: 'g3', email: 'g3@test.com', name: 'Fail User', givenName: 'Fail', familyName: 'User', photo: null },
+        accessToken: 'at',
+        serverAuthCode: null,
+        scopes: ['email'],
+      },
+    });
+    mockSignInWithIdToken.mockResolvedValue({ data: { user: null, session: null }, error: authError });
+
+    let result: { error: unknown } | null = null;
+
+    function GoogleTestConsumer() {
+      const ctx = useSession();
+      return (
+        <Pressable testID="google" onPress={async () => { result = await ctx.signInWithGoogle(); }}>
+          <Text>Google</Text>
+        </Pressable>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(<SessionProvider><GoogleTestConsumer /></SessionProvider>);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+    await user.press(screen.getByTestId('google'));
+
+    expect(result).toEqual({ error: authError });
+    expect(mockUpsert).not.toHaveBeenCalled();
   });
 
   it('signInWithApple throws "not yet implemented"', async () => {

@@ -5,9 +5,15 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import type { AuthError, Session, User } from '@supabase/supabase-js';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
+
+GoogleSignin.configure({
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+});
 
 /** Result type for auth operations that may fail. */
 interface AuthResult {
@@ -26,7 +32,7 @@ export interface SessionContextValue {
   signUp: (name: string, email: string, password: string) => Promise<AuthResult>;
   /** Email login. */
   signIn: (email: string, password: string) => Promise<AuthResult>;
-  /** Google OAuth flow (stub — not yet implemented until US3). */
+  /** Google OAuth flow via native Google Sign-In + Supabase signInWithIdToken. */
   signInWithGoogle: () => Promise<AuthResult>;
   /** Apple auth flow (stub — not yet implemented until US4). */
   signInWithApple: () => Promise<AuthResult>;
@@ -110,7 +116,38 @@ export function SessionProvider({ children }: SessionProviderProps) {
   );
 
   const signInWithGoogle = useCallback(async (): Promise<AuthResult> => {
-    throw new Error('signInWithGoogle not yet implemented');
+    if (Platform.OS === 'android') {
+      await GoogleSignin.hasPlayServices();
+    }
+    const result = await GoogleSignin.signIn();
+    if (result.type !== 'success') {
+      return { error: null };
+    }
+    const idToken = result.data.idToken;
+    if (!idToken) {
+      logger.warn('Google sign-in: no idToken received');
+      return { error: { message: 'No ID token from Google', name: 'AuthApiError', status: 0 } as unknown as AuthError };
+    }
+    const { data, error } = await supabase.auth.signInWithIdToken({
+      provider: 'google',
+      token: idToken,
+    });
+    if (error) {
+      logger.warn('Google sign-in failed', { code: error.code });
+      return { error };
+    }
+    if (data.user) {
+      const fullName = result.data.user.name || data.user.user_metadata?.full_name || '';
+      const { error: profileError } = await supabase.from('profiles').upsert(
+        { id: data.user.id, full_name: fullName, email: data.user.email || '', auth_provider: 'google' },
+        { onConflict: 'id' },
+      );
+      if (profileError) {
+        logger.warn('Profile upsert failed after Google sign-in', { error: profileError.message });
+      }
+    }
+    logger.info('Google sign-in success', { userId: data.user?.id });
+    return { error: null };
   }, []);
 
   const signInWithApple = useCallback(async (): Promise<AuthResult> => {

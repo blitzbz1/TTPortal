@@ -67,6 +67,14 @@ jest.mock('../../lib/logger', () => ({
   },
 }));
 
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {
+    configure: jest.fn(),
+    signIn: jest.fn(),
+    hasPlayServices: jest.fn(),
+  },
+}));
+
 // eslint-disable-next-line import/first
 import SignInScreen from '../sign-in';
 // eslint-disable-next-line import/first

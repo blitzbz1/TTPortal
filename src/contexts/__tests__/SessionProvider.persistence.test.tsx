@@ -7,19 +7,19 @@ const mockGetSession = jest.fn().mockResolvedValue({
   error: null,
 });
 
-const mockOnAuthStateChange = jest.fn(() => {
+const mockOnAuthStateChange = jest.fn((..._args: any[]) => {
   return { data: { subscription: { unsubscribe: mockUnsubscribe } } };
 });
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     auth: {
-      getSession: (...a: unknown[]) => mockGetSession(...a),
+      getSession: (...a: any[]) => mockGetSession(...a),
       signUp: jest.fn().mockResolvedValue({ data: {}, error: null }),
       signInWithPassword: jest.fn().mockResolvedValue({ data: {}, error: null }),
       signOut: jest.fn().mockResolvedValue({ error: null }),
       resetPasswordForEmail: jest.fn().mockResolvedValue({ data: {}, error: null }),
-      onAuthStateChange: (...a: unknown[]) => mockOnAuthStateChange(...a),
+      onAuthStateChange: (...a: any[]) => mockOnAuthStateChange(...a),
     },
   },
 }));
@@ -31,6 +31,14 @@ jest.mock('../../lib/logger', () => ({
     warn: jest.fn(),
     error: jest.fn(),
     track: jest.fn(),
+  },
+}));
+
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {
+    configure: jest.fn(),
+    signIn: jest.fn(),
+    hasPlayServices: jest.fn(),
   },
 }));
 
