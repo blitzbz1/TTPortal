@@ -183,3 +183,10 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `9e8b893`.
 ---
 
+## Iteration 29 - T030, T031, T032
+- Wrote 18 tests across 3 test files for US6 components (HeaderProfileIcon, ProfilePopover, AuthGate) with minimal functional scaffolds. Coverage: 97.8% statements, 80.8% branches. All 191 tests pass.
+- Pattern: `src/components/__tests__/` directory didn't exist — needed `mkdir -p` before writing tests. The `userEvent` import is `{ userEvent }` from `@testing-library/react-native` (named export), not a default import from a sub-path.
+- Pattern: for `jest.mock()` factory referencing mutable state (like pathname), the variable must be prefixed with `mock` (e.g., `mockPathname`) due to Jest's hoisting rules — non-mock-prefixed variables trigger `ReferenceError`.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `cf9f527`.
+---
+
