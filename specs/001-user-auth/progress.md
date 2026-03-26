@@ -37,3 +37,10 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `2fb1f2c`.
 ---
 
+## Iteration 6 - T008
+- Created root layout wrapping app in SessionProvider → I18nProvider, loading Syne and DM Sans fonts via @expo-google-fonts packages, showing splash/loading view while session or fonts load. 8 tests verifying loading states, provider nesting order, and splash screen behavior.
+- Gotcha: `jest.mock` factory variables like `const mockHideAsync = jest.fn()` are hoisted but NOT initialized when the factory runs. For module-level mocks (like `expo-splash-screen`), use inline `jest.fn()` in the factory and reference the mock via `require` or import after the mock. Wrapper function pattern from T007 (`(...a) => mockFn(...a)`) works for lazy resolution, but for `* as Module` imports the mock factory itself must provide the functions.
+- The `@expo-google-fonts/*` packages are ESM with `require()` for font assets. They work fine with Metro and jest-expo transform. The `transformIgnorePatterns` in jest.config.js already includes `@expo-google-fonts/.*` so they're properly transformed in tests.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `f98bb5f`.
+---
+
