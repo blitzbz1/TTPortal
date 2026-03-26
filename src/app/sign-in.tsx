@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSession } from '../hooks/useSession';
@@ -253,12 +254,22 @@ export default function SignInScreen() {
                 loading && styles.submitBtnDisabled,
               ]}
             >
-              <Text style={styles.submitText}>
-                {activeTab === 'signup'
-                  ? s('authSubmitSignup')
-                  : s('authSubmitLogin')}
-              </Text>
-              <Lucide name="arrow-right" size={20} color={Colors.white} />
+              {loading ? (
+                <ActivityIndicator
+                  size="small"
+                  color={Colors.white}
+                  testID="loading-spinner"
+                />
+              ) : (
+                <>
+                  <Text style={styles.submitText}>
+                    {activeTab === 'signup'
+                      ? s('authSubmitSignup')
+                      : s('authSubmitLogin')}
+                  </Text>
+                  <Lucide name="arrow-right" size={20} color={Colors.white} />
+                </>
+              )}
             </Pressable>
 
             {/* Divider */}

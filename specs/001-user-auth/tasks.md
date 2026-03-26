@@ -59,7 +59,7 @@
 ### Implementation for User Story 1
 
 - [x] T014 [US1] Implement registration form in `src/app/sign-in.tsx` — upgrade existing `SignupLoginScreen` scaffold to use real `TextInput` components with controlled state, client-side validation per contracts, show/hide password toggle via `secureTextEntry` prop, call `signUp` from `useSession` on submit. Include all i18n strings via `useI18n`. Parse `returnTo` and `initialTab` from route params. **Test**: T012 tests pass (green)
-- [ ] T015 [US1] Wire registration success redirect and server error handling in `src/app/sign-in.tsx` — on successful `signUp`, navigate to `/(app)/(tabs)/` (or `returnTo` if present). Map Supabase error codes to localized error messages per validation contract. Show loading spinner during async call. **Test**: T013 tests pass (green)
+- [x] T015 [US1] Wire registration success redirect and server error handling in `src/app/sign-in.tsx` — on successful `signUp`, navigate to `/(app)/(tabs)/` (or `returnTo` if present). Map Supabase error codes to localized error messages per validation contract. Show loading spinner during async call. **Test**: T013 tests pass (green)
 
 - [ ] T042 [US1] Add Terms of Service and Privacy Policy links to signup tab in `src/app/sign-in.tsx` — render touchable text links below the submit button per FR-018 ("Prin înregistrare, accepți Termenii și condițiile și Politica de confidențialitate"). Tap opens external URL via `Linking.openURL`. Both strings via `useI18n`. **Test**: write `src/app/__tests__/sign-in.terms.test.tsx` — verify links render on signup tab only (not login tab); verify tap calls `Linking.openURL` with correct URLs
 
