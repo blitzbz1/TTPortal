@@ -50,3 +50,10 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `acbc874`.
 ---
 
+## Iteration 8 - T010
+- Created tab layout with 5 tabs (Harta, Evenimente, Clasament, Favorite, Profil) matching TabBar.tsx design, plus HeaderProfileIcon stub in header-right. Created placeholder tab screens (events, leaderboard, favorites, profile). 14 tests covering tab rendering, order, styling colors, and header integration.
+- Parenthesized directory names like `(tabs)` need regex-based `--testPathPattern` when running jest directly — the literal path with parens doesn't match. Use `npx jest --testPathPattern='tabs.*_layout'` instead of passing the file path.
+- The `Tabs.Screen` `tabBarIcon` callback receives `{ color }` which is set by `tabBarActiveTintColor`/`tabBarInactiveTintColor` — pass it through to the icon component rather than hardcoding colors per tab.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `9990567`.
+---
+
