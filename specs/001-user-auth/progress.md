@@ -208,3 +208,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `39346e7`.
 ---
 
+## Iteration 33 - T036
+- Wrote 7 header integration tests verifying HeaderProfileIcon renders in the tab layout header-right area in both anonymous (generic user icon, navigate to /sign-in on tap) and authenticated (initials circle with correct colors, popover on tap) states. 100% coverage on `_layout.tsx`. HeaderProfileIcon was already integrated from T010 — this task added the dedicated integration test file.
+- Pattern: when testing a component that shares a testID with a tab icon (e.g., `lucide-icon-user` appears in both HeaderProfileIcon and the Profil tab), use `within()` from `@testing-library/react-native` to scope queries to the header-right container.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `b6c678f`.
+---
+
