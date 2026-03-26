@@ -214,3 +214,10 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `b6c678f`.
 ---
 
+## Iteration 34 - T037, T038
+- T037: Fixed hardcoded "Mese Tenis România" in sign-in.tsx (replaced with `s('brandSubtitle')`), added `brandSubtitle` key to both locale files. Wrote 16 i18n completeness tests using `fs.readFileSync` to scan auth screen source files for Romanian diacritics, HTML entities, and hardcoded JSX text nodes. T038: Wrote 9 edge case tests covering OAuth network failure + retry, session expiry re-auth with returnTo preservation, OAuth-linked email duplicate error with suggestion, and used password reset token. Enhanced `errorDuplicateEmail` message to suggest trying Google/Apple.
+- Pattern: for i18n audit testing, `fs.readFileSync` + regex scanning of source files is effective. Check for Romanian diacritics (`/[ăâîșțĂÂÎȘȚ]/`), HTML entities (`/&#(226|259|238|537|539);/`), and hardcoded JSX text (`/>([^<{}]+)<\//g` minus allowed brand names). The JSX text node regex reliably catches hardcoded strings while ignoring `{s('...')}` expressions.
+- When updating locale string values (e.g., enhancing `errorDuplicateEmail` to include OAuth suggestion), update the assertion in any test that checks for the exact old text — the i18n mock reads from real locale files via `require()`.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `702c603`.
+---
+
