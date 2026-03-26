@@ -1,85 +1,173 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
-import { Colors, Fonts, Radius } from '../theme';
+import { Colors, Fonts } from '../theme';
+import { useSession } from '../hooks/useSession';
+import { getFavorites, removeFavorite } from '../services/favorites';
 
-const FAVORITES = [
-  {
-    name: 'Parcul Her\u0103str\u0103u',
-    type: '\uD83C\uDF33 Parc',
-    typeBg: Colors.greenDim,
-    condition: 'Bun\u0103',
-    conditionColor: Colors.greenLight,
-    stars: '\u2605 4.3',
-    sub: 'Bucure\u0219ti \u00B7 2 mese \u00B7 Salvat acum 3 zile',
-    iconColor: Colors.greenLight,
-    iconBg: Colors.greenPale,
-  },
-  {
-    name: 'Ping Pong Academy',
-    type: '\uD83C\uDFE2 Sal\u0103',
-    typeBg: Colors.bluePale,
-    condition: 'Profesional\u0103',
-    conditionColor: Colors.blue,
-    conditionDot: '#1a5080',
-    stars: '\u2605 4.8',
-    sub: 'Bucure\u0219ti \u00B7 12 mese \u00B7 Salvat acum 1 s\u0103pt\u0103m\u00e2n\u0103',
-    iconColor: Colors.blue,
-    iconBg: Colors.bluePale,
-  },
-  {
-    name: 'Parcul Titan',
-    type: '\uD83C\uDF33 Parc',
-    typeBg: Colors.greenDim,
-    condition: 'Bun\u0103',
-    conditionColor: Colors.greenLight,
-    stars: '\u2605 4.1',
-    sub: 'Bucure\u0219ti \u00B7 6 mese \u00B7 Salvat acum 2 s\u0103pt\u0103m\u00e2ni',
-    iconColor: Colors.greenLight,
-    iconBg: Colors.greenPale,
-  },
-];
+type SortMode = 'recent' | 'name';
 
-export function FavoritesScreen() {
+interface FavoritesScreenProps {
+  hideTabBar?: boolean;
+}
+
+export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
+  const [favorites, setFavorites] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sortMode, setSortMode] = useState<SortMode>('recent');
+  const { user } = useSession();
+  const router = useRouter();
+
+  const fetchFavorites = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const { data, error } = await getFavorites(user.id);
+      if (error) {
+        Alert.alert('Eroare', 'Nu s-au putut încărca favoritele.');
+      } else {
+        setFavorites(data ?? []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchFavorites();
+  }, [fetchFavorites]);
+
+  const handleRemove = useCallback(async (venueId: number) => {
+    if (!user) return;
+    const { error } = await removeFavorite(user.id, venueId);
+    if (error) {
+      Alert.alert('Eroare', 'Nu s-a putut elimina favoritul.');
+      return;
+    }
+    setFavorites((prev) => prev.filter((f) => f.venue_id !== venueId));
+  }, [user]);
+
+  const handleToggleSort = useCallback(() => {
+    setSortMode((prev) => (prev === 'recent' ? 'name' : 'recent'));
+  }, []);
+
+  const sortedFavorites = [...favorites].sort((a, b) => {
+    if (sortMode === 'name') {
+      const nameA = a.venues?.name ?? '';
+      const nameB = b.venues?.name ?? '';
+      return nameA.localeCompare(nameB, 'ro');
+    }
+    // 'recent' — sort by created_at descending (already default from API)
+    return 0;
+  });
+
+  const getVenueTypeInfo = (venue: any) => {
+    const type = venue?.type;
+    if (type === 'park' || type === 'outdoor') {
+      return {
+        label: '\uD83C\uDF33 Parc',
+        bg: Colors.greenDim,
+        iconColor: Colors.greenLight,
+        iconBg: Colors.greenPale,
+      };
+    }
+    if (type === 'club' || type === 'indoor') {
+      return {
+        label: '\uD83C\uDFE2 Sală',
+        bg: Colors.bluePale,
+        iconColor: Colors.blue,
+        iconBg: Colors.bluePale,
+      };
+    }
+    return {
+      label: '\uD83D\uDCCD Loc',
+      bg: Colors.greenDim,
+      iconColor: Colors.greenLight,
+      iconBg: Colors.greenPale,
+    };
+  };
+
+  const getConditionInfo = (venue: any) => {
+    const rating = venue?.venue_stats?.[0]?.avg_rating ?? venue?.venue_stats?.avg_rating;
+    if (rating && rating >= 4.5) {
+      return { label: 'Profesională', color: Colors.blue, dot: '#1a5080' };
+    }
+    if (rating && rating >= 3.5) {
+      return { label: 'Bună', color: Colors.greenLight, dot: Colors.greenLight };
+    }
+    return { label: 'Medie', color: Colors.orange, dot: Colors.orange };
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Lucide name="arrow-left" size={24} color={Colors.ink} />
+        <TouchableOpacity onPress={() => router.back()}>
+          <Lucide name="arrow-left" size={24} color={Colors.ink} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Favorite</Text>
-        <TouchableOpacity style={styles.sortBtn}>
+        <TouchableOpacity style={styles.sortBtn} onPress={handleToggleSort}>
           <Lucide name="arrow-up-down" size={14} color={Colors.inkMuted} />
-          <Text style={styles.sortText}>Recent</Text>
+          <Text style={styles.sortText}>{sortMode === 'recent' ? 'Recent' : 'Nume'}</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {FAVORITES.map((fav) => (
-          <TouchableOpacity key={fav.name} style={styles.favCard}>
-            <View style={[styles.favIcon, { backgroundColor: fav.iconBg }]}>
-              <Lucide name="map-pin" size={22} color={fav.iconColor} />
-            </View>
-            <View style={styles.favInfo}>
-              <Text style={styles.favName}>{fav.name}</Text>
-              <View style={styles.favMeta}>
-                <View style={[styles.favType, { backgroundColor: fav.typeBg }]}>
-                  <Text style={styles.favTypeText}>{fav.type}</Text>
+        {loading ? (
+          <ActivityIndicator size="large" color={Colors.orangeBright} style={{ marginTop: 40 }} />
+        ) : sortedFavorites.length === 0 ? (
+          <View style={{ alignItems: 'center', marginTop: 40, padding: 16 }}>
+            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
+              Niciun favorit salvat
+            </Text>
+          </View>
+        ) : (
+          sortedFavorites.map((fav) => {
+            const venue = fav.venues;
+            const typeInfo = getVenueTypeInfo(venue);
+            const condInfo = getConditionInfo(venue);
+            const rating = venue?.venue_stats?.[0]?.avg_rating ?? venue?.venue_stats?.avg_rating;
+            const savedDate = new Date(fav.created_at).toLocaleDateString('ro-RO');
+
+            return (
+              <TouchableOpacity
+                key={fav.id}
+                style={styles.favCard}
+                onPress={() => router.push(`/venue/${fav.venue_id}` as any)}
+              >
+                <View style={[styles.favIcon, { backgroundColor: typeInfo.iconBg }]}>
+                  <Lucide name="map-pin" size={22} color={typeInfo.iconColor} />
                 </View>
-                <View style={[styles.conditionDot, { backgroundColor: fav.conditionDot || fav.conditionColor }]} />
-                <Text style={[styles.favCondition, { color: fav.conditionColor }]}>
-                  {fav.condition}
-                </Text>
-                <Text style={styles.favStars}>{fav.stars}</Text>
-              </View>
-              <Text style={styles.favSub}>{fav.sub}</Text>
-            </View>
-            <Lucide name="heart" size={22} color={Colors.red} />
-          </TouchableOpacity>
-        ))}
+                <View style={styles.favInfo}>
+                  <Text style={styles.favName}>{venue?.name ?? 'Locație'}</Text>
+                  <View style={styles.favMeta}>
+                    <View style={[styles.favType, { backgroundColor: typeInfo.bg }]}>
+                      <Text style={styles.favTypeText}>{typeInfo.label}</Text>
+                    </View>
+                    <View style={[styles.conditionDot, { backgroundColor: condInfo.dot }]} />
+                    <Text style={[styles.favCondition, { color: condInfo.color }]}>
+                      {condInfo.label}
+                    </Text>
+                    {rating != null && (
+                      <Text style={styles.favStars}>{'\u2605'} {Number(rating).toFixed(1)}</Text>
+                    )}
+                  </View>
+                  <Text style={styles.favSub}>
+                    {venue?.city ?? ''} {'\u00B7'} Salvat {savedDate}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => handleRemove(fav.venue_id)}>
+                  <Lucide name="heart" size={22} color={Colors.red} />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
 
-      <TabBar activeTab="favorites" />
+      {!hideTabBar && <TabBar activeTab="favorites" />}
     </View>
   );
 }

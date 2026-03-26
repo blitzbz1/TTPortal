@@ -1,20 +1,137 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking, Share, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { Colors, Fonts, Radius } from '../theme';
+import { useSession } from '../hooks/useSession';
+import { getVenueById } from '../services/venues';
+import { getReviewsForVenue } from '../services/reviews';
+import { checkin } from '../services/checkins';
+import { isFavorite, addFavorite, removeFavorite } from '../services/favorites';
+import type { Venue, Review, VenueStats } from '../types/database';
 
-export function VenueDetailScreen() {
+interface Props {
+  venueId?: string;
+}
+
+export function VenueDetailScreen({ venueId }: Props) {
+  const router = useRouter();
+  const { user } = useSession();
+  const [venue, setVenue] = useState<(Venue & { venue_stats: VenueStats | null }) | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [favorited, setFavorited] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [checkinLoading, setCheckinLoading] = useState(false);
+
+  useEffect(() => {
+    if (!venueId) return;
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      const [venueRes, reviewsRes] = await Promise.all([
+        getVenueById(Number(venueId)),
+        getReviewsForVenue(Number(venueId)),
+      ]);
+      if (cancelled) return;
+      if (venueRes.data) setVenue(venueRes.data as any);
+      if (reviewsRes.data) setReviews(reviewsRes.data as Review[]);
+
+      if (user) {
+        const favRes = await isFavorite(user.id, Number(venueId));
+        if (!cancelled && favRes.data !== undefined) setFavorited(favRes.data);
+      }
+      setLoading(false);
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, [venueId, user]);
+
+  const handleShare = useCallback(() => {
+    if (!venue) return;
+    Share.share({ message: venue.name + ' - ' + (venue.address || '') });
+  }, [venue]);
+
+  const handleCheckin = useCallback(async () => {
+    if (!user || !venueId) return;
+    setCheckinLoading(true);
+    const { error } = await checkin({ user_id: user.id, venue_id: Number(venueId), table_number: null, started_at: new Date().toISOString(), ended_at: null, friends: null });
+    setCheckinLoading(false);
+    if (error) { Alert.alert('Eroare', error.message); return; }
+    Alert.alert('Succes', 'Check-in realizat cu succes!');
+  }, [user, venueId]);
+
+  const handleToggleFavorite = useCallback(async () => {
+    if (!user || !venueId) return;
+    if (favorited) {
+      const { error } = await removeFavorite(user.id, Number(venueId));
+      if (error) { Alert.alert('Eroare', error.message); return; }
+      setFavorited(false);
+    } else {
+      const { error } = await addFavorite(user.id, Number(venueId));
+      if (error) { Alert.alert('Eroare', error.message); return; }
+      setFavorited(true);
+    }
+  }, [user, venueId, favorited]);
+
+  const handleDirectionGoogle = useCallback(() => {
+    if (!venue) return;
+    Linking.openURL('https://maps.google.com/?q=' + venue.lat + ',' + venue.lng);
+  }, [venue]);
+
+  const handleDirectionApple = useCallback(() => {
+    if (!venue) return;
+    Linking.openURL('https://maps.apple.com/?q=' + venue.lat + ',' + venue.lng);
+  }, [venue]);
+
+  const handleDirectionWaze = useCallback(() => {
+    if (!venue) return;
+    Linking.openURL('https://waze.com/ul?ll=' + venue.lat + ',' + venue.lng + '&navigate=yes');
+  }, [venue]);
+
+  const renderStars = (rating: number) => {
+    const full = Math.floor(rating);
+    const empty = 5 - full;
+    return '\u2605'.repeat(full) + '\u2606'.repeat(empty);
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={Colors.green} />
+      </View>
+    );
+  }
+
+  if (!venue) {
+    return (
+      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+        <Text style={{ color: Colors.inkMuted }}>Locatia nu a fost gasita.</Text>
+      </View>
+    );
+  }
+
+  const stats = venue.venue_stats;
+  const avgRating = stats?.avg_rating ?? 0;
+  const reviewCount = stats?.review_count ?? 0;
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Lucide name="arrow-left" size={20} color={Colors.ink} />
-          <Text style={styles.backText}>&#206;napoi</Text>
+          <Text style={styles.backText}>{'Înapoi'}</Text>
         </TouchableOpacity>
         <View style={styles.headerActions}>
-          <Lucide name="pencil" size={20} color={Colors.inkFaint} />
-          <Lucide name="share-2" size={20} color={Colors.inkFaint} />
+          <TouchableOpacity onPress={handleToggleFavorite}>
+            <Lucide name={favorited ? 'heart' : 'heart'} size={20} color={favorited ? Colors.red : Colors.inkFaint} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleShare}>
+            <Lucide name="share-2" size={20} color={Colors.inkFaint} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -24,7 +141,7 @@ export function VenueDetailScreen() {
           <View style={styles.photoPlaceholder} />
           <View style={styles.photoCount}>
             <Lucide name="image" size={12} color={Colors.white} />
-            <Text style={styles.photoCountText}>3 poze</Text>
+            <Text style={styles.photoCountText}>{(venue.photos?.length ?? 0) + ' poze'}</Text>
           </View>
         </View>
 
@@ -32,20 +149,24 @@ export function VenueDetailScreen() {
         <View style={styles.venueInfo}>
           <View style={styles.infoTop}>
             <View style={styles.infoTitleGroup}>
-              <Text style={styles.infoTitle}>Parcul Na&#539;ional</Text>
+              <Text style={styles.infoTitle}>{venue.name}</Text>
               <View style={styles.infoBadges}>
-                <View style={styles.badgeVerified}>
-                  <Lucide name="check" size={10} color={Colors.greenMid} />
-                  <Text style={styles.badgeVerifiedText}>Verificat</Text>
-                </View>
-                <View style={styles.badgeFree}>
-                  <Text style={styles.badgeFreeText}>Gratuit</Text>
-                </View>
+                {venue.verified && (
+                  <View style={styles.badgeVerified}>
+                    <Lucide name="check" size={10} color={Colors.greenMid} />
+                    <Text style={styles.badgeVerifiedText}>Verificat</Text>
+                  </View>
+                )}
+                {venue.free_access && (
+                  <View style={styles.badgeFree}>
+                    <Text style={styles.badgeFreeText}>Gratuit</Text>
+                  </View>
+                )}
               </View>
             </View>
             <View style={styles.infoRating}>
-              <Text style={styles.ratingStars}>{'\u2605\u2605\u2605\u2605\u2605'}</Text>
-              <Text style={styles.ratingCount}>4.5 (12)</Text>
+              <Text style={styles.ratingStars}>{renderStars(avgRating)}</Text>
+              <Text style={styles.ratingCount}>{avgRating.toFixed(1) + ' (' + reviewCount + ')'}</Text>
             </View>
           </View>
 
@@ -54,26 +175,28 @@ export function VenueDetailScreen() {
           <View style={styles.infoGrid}>
             <View style={styles.infoRow}>
               <Lucide name="map-pin" size={16} color={Colors.inkFaint} />
-              <Text style={styles.infoRowText}>Bd. Mihail Kog&#259;lniceanu, Sector 5</Text>
+              <Text style={styles.infoRowText}>{venue.address || 'Adresa necunoscuta'}</Text>
             </View>
             <View style={styles.infoRow}>
               <Lucide name="table-2" size={16} color={Colors.inkFaint} />
-              <Text style={styles.infoRowText}>4 mese &#183; Stare: Bun&#259;</Text>
+              <Text style={styles.infoRowText}>{(venue.tables_count ?? '?') + ' mese \u00B7 Stare: ' + (venue.condition ?? 'Necunoscută')}</Text>
             </View>
             <View style={styles.infoRow}>
               <Lucide name="clock" size={16} color={Colors.inkFaint} />
-              <Text style={styles.infoRowText}>Acces liber &#183; 24/7</Text>
+              <Text style={styles.infoRowText}>{venue.hours || 'Acces liber \u00B7 24/7'}</Text>
             </View>
             <View style={styles.infoRow}>
               <Lucide name="lamp-floor" size={16} color={Colors.inkFaint} />
-              <Text style={styles.infoRowText}>Iluminare nocturn&#259; &#183; Fileuri prezente</Text>
+              <Text style={styles.infoRowText}>
+                {(venue.night_lighting ? 'Iluminare nocturnă' : 'Fără iluminare') + ' \u00B7 ' + (venue.nets ? 'Fileuri prezente' : 'Fără fileuri')}
+              </Text>
             </View>
           </View>
 
           {/* Evaluate Condition */}
-          <TouchableOpacity style={styles.evalBtn}>
+          <TouchableOpacity style={styles.evalBtn} onPress={() => router.push(`/(protected)/condition-vote/${venueId}` as any)}>
             <Lucide name="vote" size={16} color={Colors.greenMid} />
-            <Text style={styles.evalText}>Evalueaz&#259; starea mesei</Text>
+            <Text style={styles.evalText}>{'Evaluează starea mesei'}</Text>
             <Lucide name="chevron-right" size={14} color={Colors.greenMid} />
           </TouchableOpacity>
         </View>
@@ -93,9 +216,15 @@ export function VenueDetailScreen() {
               <Text style={styles.checkinTime}>Check-in acum 15 min</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.checkinBtn}>
-            <Lucide name="map-pin" size={16} color={Colors.white} />
-            <Text style={styles.checkinBtnText}>Check-in aici</Text>
+          <TouchableOpacity style={styles.checkinBtn} onPress={handleCheckin} disabled={checkinLoading}>
+            {checkinLoading ? (
+              <ActivityIndicator size="small" color={Colors.white} />
+            ) : (
+              <>
+                <Lucide name="map-pin" size={16} color={Colors.white} />
+                <Text style={styles.checkinBtnText}>Check-in aici</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -103,14 +232,14 @@ export function VenueDetailScreen() {
         <View style={styles.directionsSection}>
           <Text style={styles.directionsTitle}>Navigare</Text>
           <View style={styles.directionsRow}>
-            <TouchableOpacity style={styles.dirGoogle}>
+            <TouchableOpacity style={styles.dirGoogle} onPress={handleDirectionGoogle}>
               <Lucide name="navigation" size={14} color={Colors.greenMid} />
               <Text style={styles.dirGoogleText}>Google</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.dirOther}>
+            <TouchableOpacity style={styles.dirOther} onPress={handleDirectionApple}>
               <Text style={styles.dirOtherText}>Apple</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.dirOther}>
+            <TouchableOpacity style={styles.dirOther} onPress={handleDirectionWaze}>
               <Text style={styles.dirOtherText}>Waze</Text>
             </TouchableOpacity>
           </View>
@@ -119,39 +248,30 @@ export function VenueDetailScreen() {
         {/* Reviews */}
         <View style={styles.reviewsSection}>
           <View style={styles.reviewsHeader}>
-            <Text style={styles.reviewsTitle}>Recenzii (12)</Text>
-            <TouchableOpacity style={styles.writeReviewBtn}>
+            <Text style={styles.reviewsTitle}>{'Recenzii (' + reviews.length + ')'}</Text>
+            <TouchableOpacity style={styles.writeReviewBtn} onPress={() => router.push(`/(protected)/review/${venueId}` as any)}>
               <Lucide name="pen-line" size={12} color={Colors.greenMid} />
               <Text style={styles.writeReviewText}>Scrie</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Review 1 */}
-          <View style={styles.reviewCard}>
-            <View style={styles.reviewTop}>
-              <Text style={styles.reviewAuthor}>Andrei M.</Text>
-              <Text style={styles.reviewStars}>{'\u2605\u2605\u2605\u2605\u2605'}</Text>
-            </View>
-            <Text style={styles.reviewText}>
-              Mese &#238;n stare foarte bun&#259;, loc umbrit vara. Recomand!
-            </Text>
-            <Text style={styles.reviewDate}>acum 3 zile</Text>
-          </View>
+          {reviews.length === 0 && (
+            <Text style={styles.reviewText}>{'Nicio recenzie încă. Fii primul care scrie una!'}</Text>
+          )}
 
-          {/* Review 2 */}
-          <View style={styles.reviewCard}>
-            <View style={styles.reviewTop}>
-              <Text style={styles.reviewAuthor}>Maria P.</Text>
-              <Text style={styles.reviewStars}>{'\u2605\u2605\u2605\u2605\u2606'}</Text>
+          {reviews.map((review) => (
+            <View key={review.id} style={styles.reviewCard}>
+              <View style={styles.reviewTop}>
+                <Text style={styles.reviewAuthor}>{review.reviewer_name || 'Anonim'}</Text>
+                <Text style={styles.reviewStars}>{renderStars(review.rating)}</Text>
+              </View>
+              <Text style={styles.reviewText}>{review.body || ''}</Text>
+              <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString('ro-RO')}</Text>
             </View>
-            <Text style={styles.reviewText}>
-              Bine &#238;ntre&#539;inut dar fileurile lipsesc. Am adus noi de acas&#259;.
-            </Text>
-            <Text style={styles.reviewDate}>acum 1 s&#259;pt&#259;m&#226;n&#259;</Text>
-          </View>
+          ))}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

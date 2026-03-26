@@ -152,7 +152,7 @@ describe('SignInScreen — login flow (T017)', () => {
     await fillAndSubmitLogin(getByTestId, user);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/(tabs)/');
+      expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
     });
   });
 

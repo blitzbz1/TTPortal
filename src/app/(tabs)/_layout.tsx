@@ -29,6 +29,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: Colors.green,
         tabBarInactiveTintColor: Colors.inkFaint,
         tabBarLabelStyle: {
@@ -36,7 +37,6 @@ export default function TabLayout() {
           fontSize: 10,
           fontWeight: '500',
         },
-        headerRight: () => <HeaderProfileIcon />,
       }}
     >
       {TAB_CONFIG.map((tab) => (

@@ -1,34 +1,105 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
 import { Colors, Fonts, Radius } from '../theme';
-
-const STATS = [
-  { value: '47', label: 'Check-ins' },
-  { value: '12', label: 'Recenzii' },
-  { value: '3', label: 'Loca\u021Bii ad\u0103ugate' },
-];
+import { useSession } from '../hooks/useSession';
+import { useI18n } from '../hooks/useI18n';
+import { getProfile, getProfileStats } from '../services/profiles';
+import type { Profile } from '../types/database';
 
 const QUICK_ACTIONS = [
-  { icon: 'users', label: 'Prieteni', color: Colors.greenMid, bg: Colors.greenPale, border: Colors.greenDim },
-  { icon: 'trophy', label: 'Istoric joc', color: Colors.purple, bg: Colors.purplePale, border: Colors.purpleDim },
-  { icon: 'bookmark', label: 'Favorite', color: Colors.orange, bg: Colors.amberPale, border: Colors.amberDeep },
+  { icon: 'users', label: 'Prieteni', color: Colors.greenMid, bg: Colors.greenPale, border: Colors.greenDim, route: '/(protected)/friends' as const },
+  { icon: 'trophy', label: 'Istoric joc', color: Colors.purple, bg: Colors.purplePale, border: Colors.purpleDim, route: '/(protected)/play-history' as const },
+  { icon: 'bookmark', label: 'Favorite', color: Colors.orange, bg: Colors.amberPale, border: Colors.amberDeep, route: '/(tabs)/favorites' as const },
 ];
 
 const ACTIVITIES = [
-  { icon: 'map-pin', iconColor: Colors.greenMid, bg: Colors.greenDim, text: 'Check-in la Parcul Na\u021Bional', time: 'Azi, 14:30' },
+  { icon: 'map-pin', iconColor: Colors.greenMid, bg: Colors.greenDim, text: 'Check-in la Parcul Național', time: 'Azi, 14:30' },
   { icon: 'star', iconColor: Colors.orange, bg: Colors.amberPale, text: 'Recenzie la Sala Sporturilor', time: 'Ieri, 18:15' },
-  { icon: 'user-plus', iconColor: Colors.purple, bg: Colors.purplePale, text: 'Maria P. a acceptat invita\u021Bia', time: 'Luni, 10:00' },
+  { icon: 'user-plus', iconColor: Colors.purple, bg: Colors.purplePale, text: 'Maria P. a acceptat invitația', time: 'Luni, 10:00' },
 ];
 
-const SETTINGS = [
-  { icon: 'bell', label: 'Notific\u0103ri', chevron: true },
-  { icon: 'globe', label: 'Limb\u0103', value: 'RO' },
-  { icon: 'shield', label: 'Confiden\u021Bialitate', chevron: true },
-];
+interface ProfileScreenProps {
+  hideTabBar?: boolean;
+}
 
-export function ProfileScreen() {
+export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
+  const router = useRouter();
+  const { user, signOut } = useSession();
+  const { lang, setLang } = useI18n();
+
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [stats, setStats] = useState<{ total_checkins: number; unique_venues: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const [profileRes, statsRes] = await Promise.all([
+        getProfile(user.id),
+        getProfileStats(user.id),
+      ]);
+      if (profileRes.data) setProfile(profileRes.data as Profile);
+      if (statsRes.data) setStats(statsRes.data as { total_checkins: number; unique_venues: number });
+    } catch {
+      // silently handle fetch errors
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const fullName = user?.user_metadata?.full_name || profile?.full_name || '';
+  const nameParts = fullName.trim().split(/\s+/);
+  const initials = nameParts.length >= 2
+    ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+    : (nameParts[0]?.[0] || '?').toUpperCase();
+
+  const username = profile?.username ? `@${profile.username}` : '';
+  const city = profile?.city || '';
+  const usernameDisplay = [username, city].filter(Boolean).join(' \u00B7 ');
+
+  const dynamicStats = [
+    { value: String(stats?.total_checkins ?? 0), label: 'Check-ins' },
+    { value: String(stats?.unique_venues ?? 0), label: 'Locații vizitate' },
+  ];
+
+  const handleQuickAction = useCallback((route: string | null) => {
+    if (route) {
+      router.push(route as any);
+    }
+  }, [router]);
+
+  const handleToggleLang = useCallback(() => {
+    setLang(lang === 'ro' ? 'en' : 'ro');
+  }, [lang, setLang]);
+
+  const handleLogout = useCallback(async () => {
+    await signOut();
+    router.replace('/sign-in' as any);
+  }, [signOut, router]);
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Profilul meu</Text>
+          <Lucide name="settings" size={22} color={Colors.inkFaint} />
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={Colors.green} />
+        </View>
+        {!hideTabBar && <TabBar activeTab="profile" />}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -42,16 +113,16 @@ export function ProfileScreen() {
         <View style={styles.hero}>
           <View style={styles.avatarWrap}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>AM</Text>
+              <Text style={styles.avatarText}>{initials}</Text>
             </View>
             <View style={styles.onlineDot} />
           </View>
-          <Text style={styles.name}>Andrei Marinescu</Text>
-          <Text style={styles.username}>@andrei_m &#183; Bucure&#537;ti</Text>
+          <Text style={styles.name}>{fullName || 'Utilizator'}</Text>
+          {usernameDisplay ? <Text style={styles.username}>{usernameDisplay}</Text> : null}
           <View style={styles.badges}>
             <View style={styles.badgeGreen}>
               <Text style={styles.badgeEmoji}>{'\uD83C\uDFD3'}</Text>
-              <Text style={styles.badgeGreenText}>Juc\u0103tor activ</Text>
+              <Text style={styles.badgeGreenText}>Jucător activ</Text>
             </View>
             <View style={styles.badgePurple}>
               <Text style={styles.badgeEmoji}>{'\u2B50'}</Text>
@@ -62,7 +133,7 @@ export function ProfileScreen() {
 
         {/* Stats */}
         <View style={styles.statsRow}>
-          {STATS.map((stat) => (
+          {dynamicStats.map((stat) => (
             <View key={stat.label} style={styles.statCard}>
               <Text style={styles.statValue}>{stat.value}</Text>
               <Text style={styles.statLabel}>{stat.label}</Text>
@@ -72,10 +143,14 @@ export function ProfileScreen() {
 
         {/* Quick Actions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ac&#539;iuni rapide</Text>
+          <Text style={styles.sectionTitle}>Acțiuni rapide</Text>
           <View style={styles.quickRow}>
             {QUICK_ACTIONS.map((action) => (
-              <TouchableOpacity key={action.label} style={[styles.quickBtn, { backgroundColor: action.bg, borderColor: action.border }]}>
+              <TouchableOpacity
+                key={action.label}
+                style={[styles.quickBtn, { backgroundColor: action.bg, borderColor: action.border }]}
+                onPress={() => handleQuickAction(action.route)}
+              >
                 <Lucide name={action.icon} size={22} color={action.color} />
                 <Text style={[styles.quickLabel, { color: action.color }]}>{action.label}</Text>
               </TouchableOpacity>
@@ -85,7 +160,7 @@ export function ProfileScreen() {
 
         {/* Recent Activity */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Activitate recent&#259;</Text>
+          <Text style={styles.sectionTitle}>Activitate recentă</Text>
           {ACTIVITIES.map((act) => (
             <View key={act.text} style={styles.activityCard}>
               <View style={[styles.actIcon, { backgroundColor: act.bg }]}>
@@ -101,44 +176,60 @@ export function ProfileScreen() {
 
         {/* Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Set&#259;ri</Text>
-          {SETTINGS.map((item) => (
-            <TouchableOpacity key={item.label} style={styles.settingsRow}>
-              <View style={styles.settingsLeft}>
-                <Lucide name={item.icon} size={18} color={Colors.inkMuted} />
-                <Text style={styles.settingsLabel}>{item.label}</Text>
-              </View>
-              {item.chevron ? (
-                <Lucide name="chevron-right" size={16} color={Colors.inkFaint} />
-              ) : (
-                <Text style={styles.settingsValue}>{item.value}</Text>
-              )}
-            </TouchableOpacity>
-          ))}
+          <Text style={styles.sectionTitle}>Setări</Text>
 
-          {/* Admin / Moderare */}
-          <TouchableOpacity style={styles.settingsRow}>
+          {/* Notificări */}
+          <TouchableOpacity style={styles.settingsRow} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
             <View style={styles.settingsLeft}>
-              <Lucide name="shield-check" size={18} color={Colors.inkMuted} />
-              <Text style={styles.settingsLabel}>Moderare</Text>
+              <Lucide name="bell" size={18} color={Colors.inkMuted} />
+              <Text style={styles.settingsLabel}>Notificări</Text>
             </View>
-            <View style={styles.adminBadge}>
-              <View style={styles.adminPill}>
-                <Text style={styles.adminPillText}>Admin</Text>
-              </View>
-              <Lucide name="chevron-right" size={16} color={Colors.inkFaint} />
-            </View>
+            <Lucide name="chevron-right" size={16} color={Colors.inkFaint} />
           </TouchableOpacity>
 
+          {/* Limbă */}
+          <TouchableOpacity style={styles.settingsRow} onPress={handleToggleLang}>
+            <View style={styles.settingsLeft}>
+              <Lucide name="globe" size={18} color={Colors.inkMuted} />
+              <Text style={styles.settingsLabel}>Limbă</Text>
+            </View>
+            <Text style={styles.settingsValue}>{lang.toUpperCase()}</Text>
+          </TouchableOpacity>
+
+          {/* Confidențialitate */}
+          <TouchableOpacity style={styles.settingsRow} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
+            <View style={styles.settingsLeft}>
+              <Lucide name="shield" size={18} color={Colors.inkMuted} />
+              <Text style={styles.settingsLabel}>Confidențialitate</Text>
+            </View>
+            <Lucide name="chevron-right" size={16} color={Colors.inkFaint} />
+          </TouchableOpacity>
+
+          {/* Admin / Moderare - only if admin */}
+          {profile?.is_admin && (
+            <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/(protected)/admin' as any)}>
+              <View style={styles.settingsLeft}>
+                <Lucide name="shield-check" size={18} color={Colors.inkMuted} />
+                <Text style={styles.settingsLabel}>Moderare</Text>
+              </View>
+              <View style={styles.adminBadge}>
+                <View style={styles.adminPill}>
+                  <Text style={styles.adminPillText}>Admin</Text>
+                </View>
+                <Lucide name="chevron-right" size={16} color={Colors.inkFaint} />
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Logout */}
-          <TouchableOpacity style={styles.logoutRow}>
+          <TouchableOpacity style={styles.logoutRow} onPress={handleLogout}>
             <Lucide name="log-out" size={18} color={Colors.red} />
             <Text style={styles.logoutText}>Deconectare</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
 
-      <TabBar activeTab="profile" />
+      {!hideTabBar && <TabBar activeTab="profile" />}
     </View>
   );
 }

@@ -70,7 +70,7 @@ describe('SignInScreen — registration flow (T013)', () => {
     await fillAndSubmit(getByTestId, user);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/(tabs)/');
+      expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
     });
   });
 

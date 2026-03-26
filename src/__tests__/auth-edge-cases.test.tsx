@@ -170,7 +170,7 @@ describe('auth edge cases', () => {
       // Retry — succeeds
       await user.press(getByTestId('google-button'));
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith('/(tabs)/');
+        expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
       });
     });
   });

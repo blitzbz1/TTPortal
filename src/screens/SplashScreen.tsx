@@ -4,12 +4,12 @@ import { Lucide } from '../components/Icon';
 import { Colors, Fonts, Radius } from '../theme';
 
 const CITIES = [
-  { name: 'Bucure\u0219ti', count: '54' },
+  { name: 'București', count: '54' },
   { name: 'Cluj-Napoca', count: '23' },
-  { name: 'Timi\u0219oara', count: '19' },
-  { name: 'Ia\u0219i', count: '15' },
-  { name: 'Bra\u0219ov', count: '12' },
-  { name: 'Constan\u021Ba', count: '11' },
+  { name: 'Timișoara', count: '19' },
+  { name: 'Iași', count: '15' },
+  { name: 'Brașov', count: '12' },
+  { name: 'Constanța', count: '11' },
   { name: 'Craiova', count: '8' },
   { name: 'Oradea', count: '7' },
 ];

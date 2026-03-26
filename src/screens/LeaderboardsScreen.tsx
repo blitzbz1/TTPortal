@@ -1,36 +1,92 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
 import { Colors, Fonts, Radius } from '../theme';
+import { useSession } from '../hooks/useSession';
+import { getLeaderboard } from '../services/leaderboard';
 
 type LBTab = 'checkins' | 'reviews' | 'locations';
 
-const PODIUM = [
-  { rank: '\uD83E\uDD48', initials: 'EV', name: 'Elena V.', score: '89 check-ins', color: Colors.greenMid, size: 52 },
-  { rank: '\uD83E\uDD47', initials: 'RC', name: 'Radu C.', score: '124 check-ins', color: Colors.green, size: 64, highlight: true },
-  { rank: '\uD83E\uDD49', initials: 'SN', name: 'Sergiu N.', score: '72 check-ins', color: Colors.orange, size: 52 },
-];
+const TAB_TO_TYPE: Record<LBTab, 'checkins' | 'reviews' | 'venues'> = {
+  checkins: 'checkins',
+  reviews: 'reviews',
+  locations: 'venues',
+};
 
-const RANKS = [
-  { num: '4', initials: 'AT', name: 'Ana Tudor', score: '65 check-ins', color: Colors.purple },
-  { num: '5', initials: 'MI', name: 'Mihai Ionescu', score: '58 check-ins', color: Colors.inkMuted },
-  { num: '6', initials: 'LP', name: 'Laura Popescu', score: '51 check-ins', color: Colors.purpleMid },
-  { num: '7', initials: 'DM', name: 'Dan Marin', score: '44 check-ins', color: Colors.blue },
-];
+const MEDALS = ['\uD83E\uDD48', '\uD83E\uDD47', '\uD83E\uDD49'];
+const PODIUM_COLORS = [Colors.greenMid, Colors.green, Colors.orange];
 
-export function LeaderboardsScreen() {
+interface LeaderboardsScreenProps {
+  hideTabBar?: boolean;
+}
+
+export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenProps) {
   const [activeTab, setActiveTab] = useState<LBTab>('checkins');
+  const [entries, setEntries] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useSession();
+  const router = useRouter();
+
+  const fetchLeaderboard = useCallback(async () => {
+    setLoading(true);
+    try {
+      const type = TAB_TO_TYPE[activeTab];
+      const { data } = await getLeaderboard(type);
+      if (data) {
+        setEntries(data);
+      } else {
+        setEntries([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchLeaderboard();
+  }, [fetchLeaderboard]);
+
+  const getInitials = (name?: string) => {
+    if (!name) return '??';
+    return name
+      .split(' ')
+      .map((w: string) => w[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  };
+
+  const getScoreLabel = (entry: any) => {
+    if (activeTab === 'checkins') return `${entry.total_checkins ?? entry.score ?? 0} check-ins`;
+    if (activeTab === 'reviews') return `${entry.total_reviews ?? entry.score ?? 0} recenzii`;
+    return `${entry.unique_venues ?? entry.score ?? 0} locații`;
+  };
+
+  // Split into top 3 (podium) and rest
+  const podiumEntries = entries.slice(0, 3);
+  const rankEntries = entries.slice(3);
+
+  // Reorder podium for display: [2nd, 1st, 3rd]
+  const podiumDisplay = podiumEntries.length >= 3
+    ? [podiumEntries[1], podiumEntries[0], podiumEntries[2]]
+    : podiumEntries;
+
+  // Find current user's rank
+  const myEntry = entries.find((e) => e.user_id === user?.id);
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Lucide name="arrow-left" size={24} color={Colors.ink} />
+        <TouchableOpacity onPress={() => router.back()}>
+          <Lucide name="arrow-left" size={24} color={Colors.ink} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Clasament</Text>
-        <TouchableOpacity style={styles.filterBtn}>
+        <TouchableOpacity style={styles.filterBtn} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
           <Lucide name="map-pin" size={14} color={Colors.inkMuted} />
-          <Text style={styles.filterText}>Bucure&#537;ti</Text>
+          <Text style={styles.filterText}>București</Text>
         </TouchableOpacity>
       </View>
 
@@ -40,7 +96,7 @@ export function LeaderboardsScreen() {
           {[
             { key: 'checkins' as LBTab, label: 'Check-ins' },
             { key: 'reviews' as LBTab, label: 'Recenzii' },
-            { key: 'locations' as LBTab, label: 'Loca\u021Bii' },
+            { key: 'locations' as LBTab, label: 'Locații' },
           ].map((tab) => (
             <TouchableOpacity
               key={tab.key}
@@ -54,68 +110,97 @@ export function LeaderboardsScreen() {
           ))}
         </View>
 
-        {/* Podium */}
-        <View style={styles.podium}>
-          {[PODIUM[0], PODIUM[1], PODIUM[2]].map((p) => (
-            <View key={p.name} style={[styles.podiumItem, { width: p.highlight ? 100 : 90 }]}>
-              <Text style={styles.podiumRank}>{p.rank}</Text>
-              <View
-                style={[
-                  styles.podiumAvatar,
-                  {
-                    width: p.size,
-                    height: p.size,
-                    borderRadius: p.size / 2,
-                    backgroundColor: p.color,
-                  },
-                  p.highlight && styles.podiumAvatarHighlight,
-                ]}
-              >
-                <Text style={[styles.podiumInitials, { fontSize: p.highlight ? 22 : 18 }]}>
-                  {p.initials}
-                </Text>
-              </View>
-              <Text style={[styles.podiumName, p.highlight && styles.podiumNameHighlight]}>
-                {p.name}
-              </Text>
-              <Text style={[styles.podiumScore, p.highlight && styles.podiumScoreHighlight]}>
-                {p.score}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Rank List */}
-        <View style={styles.rankList}>
-          {RANKS.map((r) => (
-            <View key={r.name} style={styles.rankRow}>
-              <Text style={styles.rankNum}>{r.num}</Text>
-              <View style={[styles.rankAvatar, { backgroundColor: r.color }]}>
-                <Text style={styles.rankInitials}>{r.initials}</Text>
-              </View>
-              <View style={styles.rankInfo}>
-                <Text style={styles.rankName}>{r.name}</Text>
-                <Text style={styles.rankScore}>{r.score}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* My Rank */}
-        <View style={styles.myRank}>
-          <Text style={styles.myNum}>15</Text>
-          <View style={[styles.rankAvatar, { backgroundColor: Colors.green }]}>
-            <Text style={styles.rankInitials}>AM</Text>
+        {loading ? (
+          <ActivityIndicator size="large" color={Colors.green} style={{ marginTop: 40 }} />
+        ) : entries.length === 0 ? (
+          <View style={{ alignItems: 'center', marginTop: 40, padding: 16 }}>
+            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
+              Niciun rezultat în clasament
+            </Text>
           </View>
-          <View style={styles.rankInfo}>
-            <Text style={styles.myName}>Tu &#8212; Andrei Marinescu</Text>
-            <Text style={styles.myScore}>47 check-ins</Text>
-          </View>
-          <Lucide name="trending-up" size={18} color={Colors.greenLight} />
-        </View>
+        ) : (
+          <>
+            {/* Podium */}
+            <View style={styles.podium}>
+              {podiumDisplay.map((p, idx) => {
+                const isHighlight = podiumEntries.length >= 3 && idx === 1; // center = 1st place
+                const originalIdx = podiumEntries.length >= 3
+                  ? (idx === 0 ? 1 : idx === 1 ? 0 : 2)
+                  : idx;
+                const size = isHighlight ? 64 : 52;
+                const color = PODIUM_COLORS[originalIdx] ?? Colors.green;
+
+                return (
+                  <View key={p.user_id ?? idx} style={[styles.podiumItem, { width: isHighlight ? 100 : 90 }]}>
+                    <Text style={styles.podiumRank}>{MEDALS[originalIdx] ?? ''}</Text>
+                    <View
+                      style={[
+                        styles.podiumAvatar,
+                        {
+                          width: size,
+                          height: size,
+                          borderRadius: size / 2,
+                          backgroundColor: color,
+                        },
+                        isHighlight && styles.podiumAvatarHighlight,
+                      ]}
+                    >
+                      <Text style={[styles.podiumInitials, { fontSize: isHighlight ? 22 : 18 }]}>
+                        {getInitials(p.full_name)}
+                      </Text>
+                    </View>
+                    <Text style={[styles.podiumName, isHighlight && styles.podiumNameHighlight]}>
+                      {p.full_name
+                        ? `${p.full_name.split(' ')[0]} ${(p.full_name.split(' ')[1] ?? '')[0] ?? ''}.`
+                        : 'Utilizator'}
+                    </Text>
+                    <Text style={[styles.podiumScore, isHighlight && styles.podiumScoreHighlight]}>
+                      {getScoreLabel(p)}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Rank List */}
+            <View style={styles.rankList}>
+              {rankEntries.map((r, idx) => (
+                <View key={r.user_id ?? idx} style={styles.rankRow}>
+                  <Text style={styles.rankNum}>{r.rank ?? idx + 4}</Text>
+                  <View style={[styles.rankAvatar, { backgroundColor: PODIUM_COLORS[idx % PODIUM_COLORS.length] }]}>
+                    <Text style={styles.rankInitials}>{getInitials(r.full_name)}</Text>
+                  </View>
+                  <View style={styles.rankInfo}>
+                    <Text style={styles.rankName}>{r.full_name ?? 'Utilizator'}</Text>
+                    <Text style={styles.rankScore}>{getScoreLabel(r)}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* My Rank */}
+            {myEntry && (
+              <View style={styles.myRank}>
+                <Text style={styles.myNum}>{myEntry.rank ?? '—'}</Text>
+                <View style={[styles.rankAvatar, { backgroundColor: Colors.green }]}>
+                  <Text style={styles.rankInitials}>
+                    {getInitials(myEntry.full_name ?? user?.user_metadata?.full_name)}
+                  </Text>
+                </View>
+                <View style={styles.rankInfo}>
+                  <Text style={styles.myName}>
+                    Tu — {myEntry.full_name ?? user?.user_metadata?.full_name ?? 'Utilizator'}
+                  </Text>
+                  <Text style={styles.myScore}>{getScoreLabel(myEntry)}</Text>
+                </View>
+                <Lucide name="trending-up" size={18} color={Colors.greenLight} />
+              </View>
+            )}
+          </>
+        )}
       </ScrollView>
 
-      <TabBar activeTab="leaderboard" />
+      {!hideTabBar && <TabBar activeTab="leaderboard" />}
     </View>
   );
 }

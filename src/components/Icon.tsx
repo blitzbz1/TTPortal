@@ -1,16 +1,7 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
+import * as LucideIcons from 'lucide-react-native';
 import { Colors } from '../theme';
-
-/**
- * Placeholder icon component.
- * Replace with actual lucide-react-native icons in production:
- *
- *   import { Map, Calendar, Trophy, Heart, User, ... } from 'lucide-react-native';
- *
- * This stub renders a colored square so screens lay out correctly
- * before the icon library is installed.
- */
 
 interface LucideProps {
   name: string;
@@ -19,25 +10,24 @@ interface LucideProps {
   strokeWidth?: number;
 }
 
-export function Lucide({ size = 24, color = Colors.ink }: LucideProps) {
-  return (
-    <View
-      style={[
-        styles.placeholder,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 4,
-          backgroundColor: color + '22',
-          borderColor: color,
-        },
-      ]}
-    />
-  );
+/**
+ * Convert a kebab-case icon name (e.g. "arrow-left") to
+ * the PascalCase key used by lucide-react-native (e.g. "ArrowLeft").
+ */
+function toPascalCase(kebab: string): string {
+  return kebab
+    .split('-')
+    .map((seg) => seg.charAt(0).toUpperCase() + seg.slice(1))
+    .join('');
 }
 
-const styles = StyleSheet.create({
-  placeholder: {
-    borderWidth: 1.5,
-  },
-});
+export function Lucide({ name, size = 24, color = Colors.ink, strokeWidth }: LucideProps) {
+  const key = toPascalCase(name);
+  const IconComponent = (LucideIcons as unknown as Record<string, React.ComponentType<LucideIcons.LucideProps>>)[key];
+
+  if (!IconComponent) {
+    return <View style={{ width: size, height: size }} />;
+  }
+
+  return <IconComponent size={size} color={color} strokeWidth={strokeWidth} />;
+}

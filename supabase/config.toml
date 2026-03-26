@@ -1,6 +1,15 @@
 # Supabase project configuration
-# Apply these settings in the Supabase Dashboard > Authentication > Settings
-# or via supabase CLI when running locally.
+#
+# Production (hosted):
+#   Project ID: vzewwlaqqgukjkqjyfoq
+#
+# Local development (Docker):
+#   Start:   cd supabase && docker compose up -d
+#   Stop:    cd supabase && docker compose down
+#   Reset:   cd supabase && docker compose down -v && docker compose up -d
+#   Studio:  http://localhost:8000 (supabase / this_password_is_insecure_and_should_be_updated)
+#   API:     http://localhost:8000
+#   DB:      postgresql://postgres:your-super-secret-and-long-postgres-password@localhost:5432/postgres
 
 [project]
 id = "vzewwlaqqgukjkqjyfoq"

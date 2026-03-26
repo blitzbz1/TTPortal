@@ -1,59 +1,116 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
 import { Colors, Fonts, Radius } from '../theme';
+import { useSession } from '../hooks/useSession';
+import { getEvents, joinEvent, leaveEvent } from '../services/events';
 
 type EventTab = 'upcoming' | 'past' | 'mine';
 
-const EVENTS = [
-  {
-    date: 'S\u00e2mb\u0103t\u0103, 29 Mar',
-    time: '16:00',
-    location: 'Parcul Her\u0103str\u0103u \u2014 Masa 3',
-    badge: 'Confirmat',
-    badgeBg: Colors.greenPale,
-    badgeColor: Colors.greenMid,
-    avatars: ['RC', 'EV', 'AM'],
-    joined: true,
-    attendees: '3/6 locuri',
-  },
-  {
-    date: 'Duminic\u0103, 30 Mar',
-    time: '10:00',
-    location: 'Parcul Titan \u2014 Zone principal\u0103',
-    badge: 'Deschis',
-    badgeBg: Colors.amberPale,
-    badgeColor: Colors.orange,
-    avatars: ['SN', 'MI'],
-    joined: false,
-    attendees: '2/8 locuri',
-  },
-  {
-    date: 'Miercuri, 2 Apr',
-    time: '18:30',
-    location: 'Club Sportiv Dinamo \u2014 Sal\u0103',
-    badge: 'Turneu',
-    badgeBg: Colors.bluePale,
-    badgeColor: Colors.blue,
-    avatars: ['LP', 'DM', 'AT'],
-    joined: false,
-    attendees: '3/16 locuri',
-  },
-];
+interface EventSchedulingScreenProps {
+  hideTabBar?: boolean;
+}
 
-export function EventSchedulingScreen() {
+export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScreenProps) {
   const [activeTab, setActiveTab] = useState<EventTab>('upcoming');
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useSession();
+  const router = useRouter();
+
+  const fetchEvents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await getEvents(
+        activeTab,
+        activeTab === 'mine' ? user?.id : undefined,
+      );
+      if (error) {
+        Alert.alert('Eroare', 'Nu s-au putut încărca evenimentele.');
+      } else {
+        setEvents(data ?? []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, user?.id]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  const handleJoin = useCallback(async (event: any) => {
+    if (!user) return;
+    const isJoined = event.event_participants?.some(
+      (p: any) => p.user_id === user.id,
+    );
+    if (isJoined) {
+      const { error } = await leaveEvent(event.id, user.id);
+      if (error) {
+        Alert.alert('Eroare', 'Nu s-a putut anula participarea.');
+        return;
+      }
+    } else {
+      const { error } = await joinEvent(event.id, user.id);
+      if (error) {
+        Alert.alert('Eroare', 'Nu s-a putut înregistra participarea.');
+        return;
+      }
+    }
+    fetchEvents();
+  }, [user, fetchEvents]);
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('ro-RO', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'short',
+    });
+  };
+
+  const formatTime = (dateStr: string) => {
+    return new Date(dateStr).toLocaleTimeString('ro-RO', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getBadgeInfo = (event: any) => {
+    if (event.status === 'confirmed') {
+      return { text: 'Confirmat', bg: Colors.greenPale, color: Colors.greenMid };
+    }
+    if (event.type === 'tournament') {
+      return { text: 'Turneu', bg: Colors.bluePale, color: Colors.blue };
+    }
+    return { text: 'Deschis', bg: Colors.amberPale, color: Colors.orange };
+  };
+
+  const getInitials = (name?: string) => {
+    if (!name) return '??';
+    return name
+      .split(' ')
+      .map((w: string) => w[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  };
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Lucide name="arrow-left" size={24} color={Colors.ink} />
+        <TouchableOpacity onPress={() => router.back()}>
+          <Lucide name="arrow-left" size={24} color={Colors.ink} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Evenimente</Text>
-        <TouchableOpacity style={styles.createBtn}>
+        <TouchableOpacity
+          style={styles.createBtn}
+          onPress={() => router.push('/(protected)/create-event' as any)}
+        >
           <Lucide name="plus" size={14} color={Colors.white} />
-          <Text style={styles.createText}>Creeaz&#259;</Text>
+          <Text style={styles.createText}>Creează</Text>
         </TouchableOpacity>
       </View>
 
@@ -61,7 +118,7 @@ export function EventSchedulingScreen() {
         {/* Tabs */}
         <View style={styles.tabs}>
           {[
-            { key: 'upcoming' as EventTab, label: 'Viitoare (4)' },
+            { key: 'upcoming' as EventTab, label: `Viitoare (${activeTab === 'upcoming' ? events.length : ''})`.replace('()', '') },
             { key: 'past' as EventTab, label: 'Trecute' },
             { key: 'mine' as EventTab, label: 'Ale mele' },
           ].map((tab) => (
@@ -78,63 +135,91 @@ export function EventSchedulingScreen() {
         </View>
 
         {/* Event Cards */}
-        <View style={styles.eventsList}>
-          {EVENTS.map((event) => (
-            <View key={event.location} style={styles.eventCard}>
-              {/* Top */}
-              <View style={styles.eventTop}>
-                <View style={styles.eventDateWrap}>
-                  <Lucide name="calendar" size={14} color={Colors.orangeBright} />
-                  <Text style={styles.eventDate}>{event.date} &#183; {event.time}</Text>
-                </View>
-                <View style={[styles.eventBadge, { backgroundColor: event.badgeBg }]}>
-                  <Text style={[styles.eventBadgeText, { color: event.badgeColor }]}>
-                    {event.badge}
-                  </Text>
-                </View>
-              </View>
+        {loading ? (
+          <ActivityIndicator size="large" color={Colors.orangeBright} style={{ marginTop: 40 }} />
+        ) : events.length === 0 ? (
+          <View style={{ alignItems: 'center', marginTop: 40, padding: 16 }}>
+            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
+              Niciun eveniment găsit
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.eventsList}>
+            {events.map((event) => {
+              const badge = getBadgeInfo(event);
+              const isJoined = event.event_participants?.some(
+                (p: any) => p.user_id === user?.id,
+              );
+              const participants = event.event_participants ?? [];
+              const venueName = event.venues?.name ?? 'Locație necunoscută';
 
-              {/* Location */}
-              <View style={styles.eventMid}>
-                <Lucide name="map-pin" size={14} color={Colors.inkFaint} />
-                <Text style={styles.eventLocation}>{event.location}</Text>
-              </View>
-
-              {/* Bottom */}
-              <View style={styles.eventBot}>
-                <View style={styles.avatarStack}>
-                  {event.avatars.map((init, i) => (
-                    <View
-                      key={init}
-                      style={[
-                        styles.stackAvatar,
-                        { marginLeft: i > 0 ? -8 : 0, zIndex: event.avatars.length - i },
-                      ]}
-                    >
-                      <Text style={styles.stackInitials}>{init}</Text>
+              return (
+                <View key={event.id} style={styles.eventCard}>
+                  {/* Top */}
+                  <View style={styles.eventTop}>
+                    <View style={styles.eventDateWrap}>
+                      <Lucide name="calendar" size={14} color={Colors.orangeBright} />
+                      <Text style={styles.eventDate}>
+                        {formatDate(event.starts_at)} {'\u00B7'} {formatTime(event.starts_at)}
+                      </Text>
                     </View>
-                  ))}
-                  <Text style={styles.attendeesText}>{event.attendees}</Text>
+                    <View style={[styles.eventBadge, { backgroundColor: badge.bg }]}>
+                      <Text style={[styles.eventBadgeText, { color: badge.color }]}>
+                        {badge.text}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Location */}
+                  <View style={styles.eventMid}>
+                    <Lucide name="map-pin" size={14} color={Colors.inkFaint} />
+                    <Text style={styles.eventLocation}>
+                      {event.title ? `${venueName} — ${event.title}` : venueName}
+                    </Text>
+                  </View>
+
+                  {/* Bottom */}
+                  <View style={styles.eventBot}>
+                    <View style={styles.avatarStack}>
+                      {participants.slice(0, 3).map((p: any, i: number) => (
+                        <View
+                          key={p.user_id}
+                          style={[
+                            styles.stackAvatar,
+                            { marginLeft: i > 0 ? -8 : 0, zIndex: 3 - i },
+                          ]}
+                        >
+                          <Text style={styles.stackInitials}>
+                            {getInitials(p.user_id?.slice(0, 2))}
+                          </Text>
+                        </View>
+                      ))}
+                      <Text style={styles.attendeesText}>
+                        {participants.length}/{event.max_participants ?? '∞'} locuri
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.joinBtn, isJoined ? styles.joinedBtn : styles.notJoinedBtn]}
+                      onPress={() => handleJoin(event)}
+                    >
+                      <Lucide
+                        name={isJoined ? 'check' : 'user-plus'}
+                        size={14}
+                        color={isJoined ? Colors.white : Colors.green}
+                      />
+                      <Text style={[styles.joinText, isJoined ? styles.joinedText : styles.notJoinedText]}>
+                        {isJoined ? 'Participi' : 'Participă'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <TouchableOpacity
-                  style={[styles.joinBtn, event.joined ? styles.joinedBtn : styles.notJoinedBtn]}
-                >
-                  <Lucide
-                    name={event.joined ? 'check' : 'user-plus'}
-                    size={14}
-                    color={event.joined ? Colors.white : Colors.green}
-                  />
-                  <Text style={[styles.joinText, event.joined ? styles.joinedText : styles.notJoinedText]}>
-                    {event.joined ? 'Participi' : 'Particip\u0103'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-        </View>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
 
-      <TabBar activeTab="events" />
+      {!hideTabBar && <TabBar activeTab="events" />}
     </View>
   );
 }

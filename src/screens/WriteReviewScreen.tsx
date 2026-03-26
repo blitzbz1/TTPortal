@@ -1,13 +1,58 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { Colors, Fonts, Radius } from '../theme';
+import { useSession } from '../hooks/useSession';
+import { getVenueById } from '../services/venues';
+import { createReview } from '../services/reviews';
 
-export function WriteReviewScreen() {
+interface Props {
+  venueId?: string;
+}
+
+export function WriteReviewScreen({ venueId }: Props) {
+  const router = useRouter();
+  const { user } = useSession();
   const [rating, setRating] = useState(4);
+  const [reviewText, setReviewText] = useState('');
+  const [venueName, setVenueName] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!venueId) return;
+    let cancelled = false;
+    async function load() {
+      const { data } = await getVenueById(Number(venueId));
+      if (!cancelled && data) setVenueName(data.name);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [venueId]);
+
+  const handleSubmit = useCallback(async () => {
+    if (rating < 1) { Alert.alert('Eroare', 'Te rugăm să selectezi un rating.'); return; }
+    if (!reviewText.trim()) { Alert.alert('Eroare', 'Te rugăm să scrii o recenzie.'); return; }
+    if (!user || !venueId) return;
+    setLoading(true);
+    const { error } = await createReview({
+      venue_id: Number(venueId),
+      user_id: user.id,
+      reviewer_name: user?.user_metadata?.full_name || 'Anonim',
+      rating,
+      body: reviewText.trim(),
+      flagged: false,
+      flag_count: 0,
+    });
+    setLoading(false);
+    if (error) { Alert.alert('Eroare', error.message); return; }
+    Alert.alert('Succes', 'Recenzia a fost publicată.');
+    router.back();
+  }, [rating, reviewText, user, venueId, router]);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Dim background */}
       <View style={styles.dimBg} />
 
@@ -21,7 +66,7 @@ export function WriteReviewScreen() {
         {/* Header */}
         <View style={styles.sheetHeader}>
           <Text style={styles.sheetTitle}>Scrie o recenzie</Text>
-          <TouchableOpacity style={styles.closeBtn}>
+          <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
             <Lucide name="x" size={16} color={Colors.inkFaint} />
           </TouchableOpacity>
         </View>
@@ -29,15 +74,15 @@ export function WriteReviewScreen() {
         {/* Venue Name */}
         <View style={styles.venueName}>
           <Lucide name="map-pin" size={14} color={Colors.inkFaint} />
-          <Text style={styles.venueNameText}>Parcul Na&#539;ional</Text>
+          <Text style={styles.venueNameText}>{venueName || 'Se încarcă...'}</Text>
         </View>
 
         <ScrollView style={styles.formScroll}>
           {/* Name Field */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>NUMELE T&#258;U</Text>
+            <Text style={styles.fieldLabel}>{'NUMELE TĂU'}</Text>
             <View style={styles.input}>
-              <Text style={styles.inputPlaceholder}>Anonim</Text>
+              <Text style={styles.inputValue}>{user?.user_metadata?.full_name || 'Anonim'}</Text>
             </View>
           </View>
 
@@ -62,24 +107,36 @@ export function WriteReviewScreen() {
           {/* Review Text */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>RECENZIA TA</Text>
-            <View style={styles.textarea}>
-              <Text style={styles.inputPlaceholder}>Cum a fost experien&#539;a ta?</Text>
-            </View>
+            <TextInput
+              style={[styles.textarea, styles.textareaInput]}
+              placeholder={'Cum a fost experiența ta?'}
+              placeholderTextColor={Colors.inkFaint}
+              value={reviewText}
+              onChangeText={setReviewText}
+              multiline
+              textAlignVertical="top"
+            />
           </View>
 
           {/* Actions */}
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelBtn}>
-              <Text style={styles.cancelText}>Anuleaz&#259;</Text>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
+              <Text style={styles.cancelText}>{'Anulează'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.submitBtn}>
-              <Lucide name="send" size={16} color={Colors.white} />
-              <Text style={styles.submitText}>Public&#259;</Text>
+            <TouchableOpacity style={[styles.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
+              {loading ? (
+                <ActivityIndicator size="small" color={Colors.white} />
+              ) : (
+                <>
+                  <Lucide name="send" size={16} color={Colors.white} />
+                  <Text style={styles.submitText}>{'Publică'}</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -180,6 +237,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.inkFaint,
   },
+  inputValue: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.ink,
+  },
   starsRow: {
     flexDirection: 'row',
     gap: 8,
@@ -216,6 +278,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  textareaInput: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.ink,
+    textAlignVertical: 'top',
   },
   actions: {
     flexDirection: 'row',

@@ -12,9 +12,12 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 
-GoogleSignin.configure({
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-});
+const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+if (googleWebClientId && !googleWebClientId.startsWith('YOUR_')) {
+  GoogleSignin.configure({ webClientId: googleWebClientId });
+} else {
+  logger.warn('Google Sign-In not configured: EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is missing or placeholder');
+}
 
 /** Result type for auth operations that may fail. */
 interface AuthResult {

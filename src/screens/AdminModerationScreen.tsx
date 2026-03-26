@@ -1,105 +1,221 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { Colors, Fonts, Radius } from '../theme';
-
-const STATS = [
-  { value: '8', label: '\u00cen a\u0219teptare', bg: Colors.amberPale, color: Colors.orange },
-  { value: '156', label: 'Aprobate', bg: Colors.greenPale, color: '#15803d' },
-  { value: '3', label: 'Raportate', bg: Colors.redPale, color: Colors.redDeep },
-];
+import {
+  getPendingVenues,
+  approveVenue,
+  rejectVenue,
+  getFlaggedReviews,
+  keepReview,
+  deleteReview,
+} from '../services/admin';
 
 export function AdminModerationScreen() {
+  const [pendingVenues, setPendingVenues] = useState<any[]>([]);
+  const [flaggedReviews, setFlaggedReviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [venuesRes, reviewsRes] = await Promise.all([
+        getPendingVenues(),
+        getFlaggedReviews(),
+      ]);
+      if (venuesRes.data) setPendingVenues(venuesRes.data);
+      if (reviewsRes.data) setFlaggedReviews(reviewsRes.data);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleApprove = useCallback(async (id: number) => {
+    const { error } = await approveVenue(id);
+    if (error) {
+      Alert.alert('Eroare', 'Nu s-a putut aproba locația.');
+      return;
+    }
+    setPendingVenues((prev) => prev.filter((v) => v.id !== id));
+  }, []);
+
+  const handleReject = useCallback(async (id: number) => {
+    const { error } = await rejectVenue(id);
+    if (error) {
+      Alert.alert('Eroare', 'Nu s-a putut respinge locația.');
+      return;
+    }
+    setPendingVenues((prev) => prev.filter((v) => v.id !== id));
+  }, []);
+
+  const handleKeep = useCallback(async (id: number) => {
+    const { error } = await keepReview(id);
+    if (error) {
+      Alert.alert('Eroare', 'Nu s-a putut păstra recenzia.');
+      return;
+    }
+    setFlaggedReviews((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
+  const handleDelete = useCallback(async (id: number) => {
+    const { error } = await deleteReview(id);
+    if (error) {
+      Alert.alert('Eroare', 'Nu s-a putut șterge recenzia.');
+      return;
+    }
+    setFlaggedReviews((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
+  const stats = [
+    { value: String(pendingVenues.length), label: 'În așteptare', bg: Colors.amberPale, color: Colors.orange },
+    { value: '—', label: 'Aprobate', bg: Colors.greenPale, color: '#15803d' },
+    { value: String(flaggedReviews.length), label: 'Raportate', bg: Colors.redPale, color: Colors.redDeep },
+  ];
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Lucide name="arrow-left" size={24} color={Colors.white} />
+        <TouchableOpacity onPress={() => router.back()}>
+          <Lucide name="arrow-left" size={24} color={Colors.white} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Moderare</Text>
         <View style={styles.adminBadge}>
           <Text style={styles.adminBadgeText}>Admin</Text>
         </View>
       </View>
 
-      <ScrollView style={styles.scroll}>
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          {STATS.map((stat) => (
-            <View key={stat.label} style={[styles.statCard, { backgroundColor: stat.bg }]}>
-              <Text style={[styles.statValue, { color: stat.color }]}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Pending Section Label */}
-        <View style={styles.secLabel}>
-          <Text style={styles.secLabelText}>LOCA&#538;II &#206;N A&#536;TEPTARE</Text>
-        </View>
-
-        {/* Moderation Card */}
-        <View style={styles.modList}>
-          <View style={styles.modCard}>
-            <View style={styles.modTop}>
-              <Text style={styles.modTitle}>Parcul Floreasca &#8212; Zona Nord</Text>
-              <View style={styles.modBadge}>
-                <Text style={styles.modBadgeText}>Nou</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color={Colors.green} style={{ flex: 1, marginTop: 40 }} />
+      ) : (
+        <ScrollView style={styles.scroll}>
+          {/* Stats */}
+          <View style={styles.statsRow}>
+            {stats.map((stat) => (
+              <View key={stat.label} style={[styles.statCard, { backgroundColor: stat.bg }]}>
+                <Text style={[styles.statValue, { color: stat.color }]}>{stat.value}</Text>
+                <Text style={styles.statLabel}>{stat.label}</Text>
               </View>
-            </View>
-            <Text style={styles.modMeta}>
-              Ad&#259;ugat de @radu_c &#183; acum 2 ore &#183; Bucure&#537;ti, Sector 1
-            </Text>
-            <View style={styles.modActions}>
-              <TouchableOpacity style={styles.approveBtn}>
-                <Lucide name="check" size={14} color={Colors.white} />
-                <Text style={styles.approveBtnText}>Aprob&#259;</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.editBtn}>
-                <Lucide name="pencil" size={14} color={Colors.inkMuted} />
-                <Text style={styles.editBtnText}>Editeaz&#259;</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.rejectBtn}>
-                <Lucide name="x" size={14} color={Colors.red} />
-                <Text style={styles.rejectBtnText}>Respinge</Text>
-              </TouchableOpacity>
-            </View>
+            ))}
           </View>
-        </View>
 
-        {/* Flagged Reviews Section Label */}
-        <View style={styles.secLabel}>
-          <Text style={styles.secLabelText}>RECENZII RAPORTATE</Text>
-        </View>
-
-        {/* Flagged Review Card */}
-        <View style={styles.flagList}>
-          <View style={styles.flagCard}>
-            <View style={styles.flagTop}>
-              <View style={styles.flagInfo}>
-                <Text style={styles.flagAuthor}>Ion Vasilescu</Text>
-                <Text style={styles.flagMeta}>Parcul Titan &#183; acum 1 zi</Text>
-              </View>
-              <View style={styles.flagBadge}>
-                <Text style={styles.flagBadgeText}>2 raport&#259;ri</Text>
-              </View>
-            </View>
-            <Text style={styles.flagText}>
-              {'"Mesele sunt oribile, nu merit&#259; nici s&#259; te ui&#539;i la ele. Loc de evitat complet."'}
-            </Text>
-            <View style={styles.flagActions}>
-              <TouchableOpacity style={styles.keepBtn}>
-                <Lucide name="check" size={14} color={Colors.inkMuted} />
-                <Text style={styles.keepBtnText}>P&#259;streaz&#259;</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteBtn}>
-                <Lucide name="trash-2" size={14} color={Colors.white} />
-                <Text style={styles.deleteBtnText}>&#536;terge</Text>
-              </TouchableOpacity>
-            </View>
+          {/* Pending Section Label */}
+          <View style={styles.secLabel}>
+            <Text style={styles.secLabelText}>LOCAȚII ÎN AȘTEPTARE</Text>
           </View>
-        </View>
-      </ScrollView>
-    </View>
+
+          {/* Moderation Cards */}
+          <View style={styles.modList}>
+            {pendingVenues.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 16 }}>
+                <Text style={{ fontFamily: Fonts.body, fontSize: 13, color: Colors.inkFaint }}>
+                  Nicio locație în așteptare
+                </Text>
+              </View>
+            ) : (
+              pendingVenues.map((venue) => (
+                <View key={venue.id} style={styles.modCard}>
+                  <View style={styles.modTop}>
+                    <Text style={styles.modTitle}>{venue.name}</Text>
+                    <View style={styles.modBadge}>
+                      <Text style={styles.modBadgeText}>Nou</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.modMeta}>
+                    Adăugat de @{venue.profiles?.full_name ?? 'utilizator'} {'\u00B7'}{' '}
+                    {new Date(venue.created_at).toLocaleDateString('ro-RO')} {'\u00B7'}{' '}
+                    {venue.city ?? ''}{venue.address ? `, ${venue.address}` : ''}
+                  </Text>
+                  <View style={styles.modActions}>
+                    <TouchableOpacity
+                      style={styles.approveBtn}
+                      onPress={() => handleApprove(venue.id)}
+                    >
+                      <Lucide name="check" size={14} color={Colors.white} />
+                      <Text style={styles.approveBtnText}>Aprobă</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.editBtn} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
+                      <Lucide name="pencil" size={14} color={Colors.inkMuted} />
+                      <Text style={styles.editBtnText}>Editează</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.rejectBtn}
+                      onPress={() => handleReject(venue.id)}
+                    >
+                      <Lucide name="x" size={14} color={Colors.red} />
+                      <Text style={styles.rejectBtnText}>Respinge</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+
+          {/* Flagged Reviews Section Label */}
+          <View style={styles.secLabel}>
+            <Text style={styles.secLabelText}>RECENZII RAPORTATE</Text>
+          </View>
+
+          {/* Flagged Review Cards */}
+          <View style={styles.flagList}>
+            {flaggedReviews.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 16 }}>
+                <Text style={{ fontFamily: Fonts.body, fontSize: 13, color: Colors.inkFaint }}>
+                  Nicio recenzie raportată
+                </Text>
+              </View>
+            ) : (
+              flaggedReviews.map((review) => (
+                <View key={review.id} style={styles.flagCard}>
+                  <View style={styles.flagTop}>
+                    <View style={styles.flagInfo}>
+                      <Text style={styles.flagAuthor}>
+                        {review.profiles?.full_name ?? 'Utilizator'}
+                      </Text>
+                      <Text style={styles.flagMeta}>
+                        {review.venues?.name ?? 'Locație'} {'\u00B7'}{' '}
+                        {new Date(review.created_at).toLocaleDateString('ro-RO')}
+                      </Text>
+                    </View>
+                    <View style={styles.flagBadge}>
+                      <Text style={styles.flagBadgeText}>
+                        {review.flag_count ?? 0} raportări
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.flagText}>
+                    {`"${review.body ?? review.text ?? ''}"`}
+                  </Text>
+                  <View style={styles.flagActions}>
+                    <TouchableOpacity
+                      style={styles.keepBtn}
+                      onPress={() => handleKeep(review.id)}
+                    >
+                      <Lucide name="check" size={14} color={Colors.inkMuted} />
+                      <Text style={styles.keepBtnText}>Păstrează</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.deleteBtn}
+                      onPress={() => handleDelete(review.id)}
+                    >
+                      <Lucide name="trash-2" size={14} color={Colors.white} />
+                      <Text style={styles.deleteBtnText}>Șterge</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        </ScrollView>
+      )}
+    </SafeAreaView>
   );
 }
 

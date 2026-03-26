@@ -1,112 +1,229 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
-import { Colors, Fonts, Radius } from '../theme';
+import { Colors, Fonts } from '../theme';
+import { useSession } from '../hooks/useSession';
+import { getPlayHistory, getCheckinStats } from '../services/checkins';
 
-const SUMMARY_STATS = [
-  { value: '47', label: 'Check-ins', bg: Colors.greenPale, color: Colors.green },
-  { value: '18', label: 'Loca\u021Bii', bg: Colors.purplePale, color: Colors.purple },
-  { value: '32h', label: 'Timp jucat', bg: Colors.amberPale, color: Colors.orange },
-];
-
-const TIMELINE = [
-  {
-    dayLabel: 'Azi \u2014 26 Martie',
-    dotColor: Colors.green,
-    entries: [
-      { title: 'Parcul Her\u0103str\u0103u \u2014 Masa 3', time: '14:30', duration: '1h 20min', icon: 'map-pin', iconColor: Colors.greenLight, bg: Colors.greenPale, friends: 'cu Radu C.' },
-      { title: 'Club Sportiv Dinamo \u2014 Indoor', time: '10:00', duration: '2h', icon: 'map-pin', iconColor: Colors.blue, bg: Colors.bluePale },
-    ],
-  },
-  {
-    dayLabel: 'Ieri \u2014 25 Martie',
-    dotColor: Colors.inkFaint,
-    entries: [
-      { title: 'Parcul Titan \u2014 Masa 1', time: '16:00', duration: '45min', icon: 'map-pin', iconColor: Colors.greenLight, bg: Colors.greenPale, friends: 'cu Elena V., Sergiu N.' },
-    ],
-  },
-  {
-    dayLabel: '24 Martie',
-    dotColor: Colors.inkFaint,
-    entries: [
-      { title: 'Parcul Ci\u0219migiu \u2014 Masa 2', time: '11:30', duration: '1h 10min', icon: 'map-pin', iconColor: Colors.greenLight, bg: Colors.greenPale, friends: 'cu Ana T.' },
-    ],
-  },
-];
+const PAGE_SIZE = 20;
 
 export function PlayHistoryScreen() {
+  const [history, setHistory] = useState<any[]>([]);
+  const [stats, setStats] = useState<{ total_checkins: number; unique_venues: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const { user } = useSession();
+  const router = useRouter();
+
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const [historyRes, statsRes] = await Promise.all([
+        getPlayHistory(user.id, PAGE_SIZE, 0),
+        getCheckinStats(user.id),
+      ]);
+      if (historyRes.data) {
+        setHistory(historyRes.data);
+        setOffset(historyRes.data.length);
+        setHasMore(historyRes.data.length >= PAGE_SIZE);
+      }
+      if (statsRes.data) {
+        setStats(statsRes.data);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const loadMore = useCallback(async () => {
+    if (!user || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const { data } = await getPlayHistory(user.id, PAGE_SIZE, offset);
+      if (data && data.length > 0) {
+        setHistory((prev) => [...prev, ...data]);
+        setOffset((prev) => prev + data.length);
+        setHasMore(data.length >= PAGE_SIZE);
+      } else {
+        setHasMore(false);
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [user, offset, loadingMore, hasMore]);
+
+  // Group history entries by day
+  const groupByDay = (entries: any[]) => {
+    const groups: { dayLabel: string; dateKey: string; entries: any[] }[] = [];
+    const today = new Date().toDateString();
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+
+    for (const entry of entries) {
+      const date = new Date(entry.started_at);
+      const dateStr = date.toDateString();
+      let dayLabel: string;
+
+      if (dateStr === today) {
+        dayLabel = `Azi \u2014 ${date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' })}`;
+      } else if (dateStr === yesterday) {
+        dayLabel = `Ieri \u2014 ${date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' })}`;
+      } else {
+        dayLabel = date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' });
+      }
+
+      const existing = groups.find((g) => g.dateKey === dateStr);
+      if (existing) {
+        existing.entries.push(entry);
+      } else {
+        groups.push({ dayLabel, dateKey: dateStr, entries: [entry] });
+      }
+    }
+    return groups;
+  };
+
+  const formatTime = (dateStr: string) => {
+    return new Date(dateStr).toLocaleTimeString('ro-RO', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const formatDuration = (startedAt: string, endedAt?: string | null) => {
+    if (!endedAt) return 'In curs';
+    const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime();
+    const mins = Math.round(ms / 60000);
+    if (mins < 60) return `${mins}min`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h ${m}min` : `${h}h`;
+  };
+
+  const computeTotalTime = () => {
+    let totalMs = 0;
+    for (const entry of history) {
+      if (entry.ended_at) {
+        totalMs += new Date(entry.ended_at).getTime() - new Date(entry.started_at).getTime();
+      }
+    }
+    const hours = Math.round(totalMs / 3600000);
+    return `${hours}h`;
+  };
+
+  const grouped = groupByDay(history);
+
+  const summaryStats = [
+    { value: String(stats?.total_checkins ?? history.length), label: 'Check-ins', bg: Colors.greenPale, color: Colors.green },
+    { value: String(stats?.unique_venues ?? 0), label: 'Locații', bg: Colors.purplePale, color: Colors.purple },
+    { value: computeTotalTime(), label: 'Timp jucat', bg: Colors.amberPale, color: Colors.orange },
+  ];
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Lucide name="arrow-left" size={24} color={Colors.ink} />
+        <TouchableOpacity onPress={() => router.back()}>
+          <Lucide name="arrow-left" size={24} color={Colors.ink} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Istoric joc</Text>
-        <TouchableOpacity style={styles.filterBtn}>
+        <TouchableOpacity style={styles.filterBtn} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
           <Lucide name="calendar" size={14} color={Colors.inkMuted} />
-          <Text style={styles.filterText}>Mar 2026</Text>
+          <Text style={styles.filterText}>
+            {new Date().toLocaleDateString('ro-RO', { month: 'short', year: 'numeric' })}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scroll}>
-        {/* Stats Summary */}
-        <View style={styles.statsRow}>
-          {SUMMARY_STATS.map((stat) => (
-            <View key={stat.label} style={[styles.statCard, { backgroundColor: stat.bg }]}>
-              <Text style={[styles.statValue, { color: stat.color }]}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Streak Bar */}
-        <View style={styles.streakBar}>
-          <Lucide name="flame" size={18} color={Colors.orangeBright} />
-          <Text style={styles.streakText}>Serie activ&#259;: 5 zile consecutive!</Text>
-        </View>
-
-        {/* Timeline */}
-        <View style={styles.timeline}>
-          {TIMELINE.map((day) => (
-            <View key={day.dayLabel}>
-              <View style={styles.dayLabel}>
-                <View style={[styles.dayDot, { backgroundColor: day.dotColor }]} />
-                <Text style={styles.dayText}>{day.dayLabel}</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color={Colors.green} style={{ flex: 1, marginTop: 40 }} />
+      ) : (
+        <ScrollView style={styles.scroll}>
+          {/* Stats Summary */}
+          <View style={styles.statsRow}>
+            {summaryStats.map((stat) => (
+              <View key={stat.label} style={[styles.statCard, { backgroundColor: stat.bg }]}>
+                <Text style={[styles.statValue, { color: stat.color }]}>{stat.value}</Text>
+                <Text style={styles.statLabel}>{stat.label}</Text>
               </View>
-              {day.entries.map((entry) => (
-                <TouchableOpacity key={entry.title} style={styles.entry}>
-                  <View style={[styles.entryIcon, { backgroundColor: entry.bg }]}>
-                    <Lucide name={entry.icon} size={18} color={entry.iconColor} />
-                  </View>
-                  <View style={styles.entryInfo}>
-                    <Text style={styles.entryTitle}>{entry.title}</Text>
-                    <View style={styles.entryDetails}>
-                      <Text style={styles.entryTime}>{entry.time}</Text>
-                      <Text style={styles.entryDot}>{'\u00B7'}</Text>
-                      <Text style={styles.entryDuration}>{entry.duration}</Text>
-                    </View>
-                    {entry.friends && (
-                      <View style={styles.entryFriends}>
-                        <Lucide name="users" size={10} color={Colors.purpleMid} />
-                        <Text style={styles.entryFriendsText}>{entry.friends}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Lucide name="chevron-right" size={18} color={Colors.inkFaint} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          ))}
-
-          {/* Load More */}
-          <View style={styles.loadMore}>
-            <TouchableOpacity style={styles.loadMoreBtn}>
-              <Lucide name="chevrons-down" size={16} color={Colors.inkMuted} />
-              <Text style={styles.loadMoreText}>Mai vechi</Text>
-            </TouchableOpacity>
+            ))}
           </View>
-        </View>
-      </ScrollView>
-    </View>
+
+          {/* Streak Bar */}
+          <View style={styles.streakBar}>
+            <Lucide name="flame" size={18} color={Colors.orangeBright} />
+            <Text style={styles.streakText}>Istoric de joc</Text>
+          </View>
+
+          {/* Timeline */}
+          {history.length === 0 ? (
+            <View style={{ alignItems: 'center', marginTop: 20, padding: 16 }}>
+              <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
+                Niciun check-in încă
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.timeline}>
+              {grouped.map((day, dayIdx) => (
+                <View key={day.dateKey}>
+                  <View style={styles.dayLabel}>
+                    <View style={[styles.dayDot, { backgroundColor: dayIdx === 0 ? Colors.green : Colors.inkFaint }]} />
+                    <Text style={styles.dayText}>{day.dayLabel}</Text>
+                  </View>
+                  {day.entries.map((entry: any) => (
+                    <TouchableOpacity
+                      key={entry.id}
+                      style={styles.entry}
+                      onPress={() => router.push(`/venue/${entry.venue_id}` as any)}
+                    >
+                      <View style={[styles.entryIcon, { backgroundColor: Colors.greenPale }]}>
+                        <Lucide name="map-pin" size={18} color={Colors.greenLight} />
+                      </View>
+                      <View style={styles.entryInfo}>
+                        <Text style={styles.entryTitle}>
+                          {entry.venues?.name ?? 'Locație'}
+                        </Text>
+                        <View style={styles.entryDetails}>
+                          <Text style={styles.entryTime}>{formatTime(entry.started_at)}</Text>
+                          <Text style={styles.entryDot}>{'\u00B7'}</Text>
+                          <Text style={styles.entryDuration}>
+                            {formatDuration(entry.started_at, entry.ended_at)}
+                          </Text>
+                        </View>
+                      </View>
+                      <Lucide name="chevron-right" size={18} color={Colors.inkFaint} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
+
+              {/* Load More */}
+              {hasMore && (
+                <View style={styles.loadMore}>
+                  <TouchableOpacity style={styles.loadMoreBtn} onPress={loadMore} disabled={loadingMore}>
+                    {loadingMore ? (
+                      <ActivityIndicator size="small" color={Colors.inkMuted} />
+                    ) : (
+                      <>
+                        <Lucide name="chevrons-down" size={16} color={Colors.inkMuted} />
+                        <Text style={styles.loadMoreText}>Mai vechi</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+        </ScrollView>
+      )}
+    </SafeAreaView>
   );
 }
 

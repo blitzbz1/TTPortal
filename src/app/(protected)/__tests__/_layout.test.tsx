@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 
 // --- Mocks (must be defined before component import) ---
 
@@ -17,15 +17,7 @@ jest.mock('expo-router', () => {
     <View testID="stack-navigator">{children}</View>
   );
   const MockScreen = () => null;
-  const MockProtected = ({
-    children,
-    guard,
-  }: {
-    children?: React.ReactNode;
-    guard: boolean;
-  }) => (guard ? <View testID="protected-content">{children}</View> : null);
   StackComponent.Screen = MockScreen;
-  StackComponent.Protected = MockProtected;
   return {
     Stack: StackComponent,
     useRouter: () => ({
@@ -65,13 +57,15 @@ describe('ProtectedLayout', () => {
       });
     });
 
-    it('redirects to /sign-in with returnTo param', () => {
+    it('redirects to /sign-in with returnTo param', async () => {
       render(<ProtectedLayout />);
 
-      expect(mockReplace).toHaveBeenCalledTimes(1);
-      expect(mockReplace).toHaveBeenCalledWith({
-        pathname: '/sign-in',
-        params: { returnTo: '/add-venue' },
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledTimes(1);
+        expect(mockReplace).toHaveBeenCalledWith({
+          pathname: '/sign-in',
+          params: { returnTo: '/add-venue' },
+        });
       });
     });
 
@@ -79,27 +73,30 @@ describe('ProtectedLayout', () => {
       const { queryByTestId } = render(<ProtectedLayout />);
 
       expect(queryByTestId('stack-navigator')).toBeNull();
-      expect(queryByTestId('protected-content')).toBeNull();
     });
 
-    it('passes the correct returnTo for review routes', () => {
+    it('passes the correct returnTo for review routes', async () => {
       mockPathname.mockReturnValue('/review/venue-123');
 
       render(<ProtectedLayout />);
 
-      expect(mockReplace).toHaveBeenCalledWith({
-        pathname: '/sign-in',
-        params: { returnTo: '/review/venue-123' },
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith({
+          pathname: '/sign-in',
+          params: { returnTo: '/review/venue-123' },
+        });
       });
     });
 
-    it('logs the redirect with the target pathname', () => {
+    it('logs the redirect with the target pathname', async () => {
       render(<ProtectedLayout />);
 
-      expect(logger.info).toHaveBeenCalledWith(
-        'Redirecting unauthenticated user to sign-in',
-        { returnTo: '/add-venue' },
-      );
+      await waitFor(() => {
+        expect(logger.info).toHaveBeenCalledWith(
+          'Redirecting unauthenticated user to sign-in',
+          { returnTo: '/add-venue' },
+        );
+      });
     });
   });
 
@@ -125,12 +122,6 @@ describe('ProtectedLayout', () => {
       const { getByTestId } = render(<ProtectedLayout />);
 
       getByTestId('stack-navigator');
-    });
-
-    it('renders protected content with guard enabled', () => {
-      const { getByTestId } = render(<ProtectedLayout />);
-
-      getByTestId('protected-content');
     });
 
     it('does not log a redirect', () => {

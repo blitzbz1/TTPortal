@@ -1,35 +1,117 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, Share } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { Colors, Fonts, Radius } from '../theme';
+import { useSession } from '../hooks/useSession';
+import { getFriends, getPendingRequests, acceptRequest, declineRequest } from '../services/friends';
 
 type FriendsTab = 'all' | 'online' | 'pending';
 
-const INVITES = [
-  { initials: 'DM', name: 'Dan Marin', mutual: '5 prieteni \u00een comun', color: Colors.purple },
-  { initials: 'LP', name: 'Laura Popescu', mutual: '2 prieteni \u00een comun', color: Colors.purpleMid },
-];
-
-const FRIENDS = [
-  { initials: 'RC', name: 'Radu Cristescu', status: 'Parcul Herăstrău', online: true, color: Colors.green },
-  { initials: 'EV', name: 'Elena Voicu', status: 'Club Sportiv Dinamo', online: true, color: Colors.greenMid },
-  { initials: 'MI', name: 'Mihai Ionescu', status: 'Ultima activitate: ieri', online: false, color: Colors.inkMuted },
-  { initials: 'AT', name: 'Ana Tudor', status: 'Ultima activitate: acum 3 zile', online: false, color: Colors.purple },
-  { initials: 'SN', name: 'Sergiu Neagu', status: 'Parcul Titan', online: true, color: Colors.orange },
-];
-
 export function FriendsScreen() {
   const [activeTab, setActiveTab] = useState<FriendsTab>('all');
+  const [friends, setFriends] = useState<any[]>([]);
+  const [pending, setPending] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const { user } = useSession();
+  const router = useRouter();
+
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const [friendsRes, pendingRes] = await Promise.all([
+        getFriends(user.id),
+        getPendingRequests(user.id),
+      ]);
+      if (friendsRes.data) {
+        // Normalize: extract the "other" friend profile
+        const normalized = friendsRes.data.map((f: any) => {
+          const isRequester = f.requester_id === user.id;
+          const profile = isRequester ? f.addressee : f.requester;
+          return { ...f, friend: profile };
+        });
+        setFriends(normalized);
+      }
+      if (pendingRes.data) {
+        setPending(pendingRes.data);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleAccept = useCallback(async (id: number) => {
+    const { error } = await acceptRequest(id);
+    if (error) {
+      Alert.alert('Eroare', 'Nu s-a putut accepta cererea.');
+      return;
+    }
+    fetchData();
+  }, [fetchData]);
+
+  const handleDecline = useCallback(async (id: number) => {
+    const { error } = await declineRequest(id);
+    if (error) {
+      Alert.alert('Eroare', 'Nu s-a putut refuza cererea.');
+      return;
+    }
+    setPending((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  const handleInvite = useCallback(async () => {
+    try {
+      await Share.share({ message: 'Alătură-te pe TT Portal!' });
+    } catch {
+      // User cancelled share
+    }
+  }, []);
+
+  const handleShareCard = useCallback(async () => {
+    try {
+      await Share.share({ message: 'Alătură-te pe TT Portal!' });
+    } catch {
+      // User cancelled share
+    }
+  }, []);
+
+  const getInitials = (name?: string) => {
+    if (!name) return '??';
+    return name
+      .split(' ')
+      .map((w: string) => w[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  };
+
+  const AVATAR_COLORS = [Colors.green, Colors.greenMid, Colors.purple, Colors.purpleMid, Colors.orange, Colors.blue, Colors.inkMuted];
+  const getColor = (index: number) => AVATAR_COLORS[index % AVATAR_COLORS.length];
+
+  // Filter friends by search query
+  const filteredFriends = friends.filter((f) => {
+    if (!searchQuery) return true;
+    const name = f.friend?.full_name ?? '';
+    return name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Lucide name="arrow-left" size={24} color={Colors.ink} />
+        <TouchableOpacity onPress={() => router.back()}>
+          <Lucide name="arrow-left" size={24} color={Colors.ink} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Prieteni</Text>
-        <TouchableOpacity style={styles.inviteBtn}>
+        <TouchableOpacity style={styles.inviteBtn} onPress={handleInvite}>
           <Lucide name="user-plus" size={16} color={Colors.white} />
-          <Text style={styles.inviteBtnText}>Invit&#259;</Text>
+          <Text style={styles.inviteBtnText}>Invită</Text>
         </TouchableOpacity>
       </View>
 
@@ -38,16 +120,22 @@ export function FriendsScreen() {
         <View style={styles.searchWrap}>
           <View style={styles.searchBar}>
             <Lucide name="search" size={18} color={Colors.inkFaint} />
-            <Text style={styles.searchPlaceholder}>Caut&#259; prieteni...</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Caută prieteni..."
+              placeholderTextColor={Colors.inkFaint}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
           </View>
         </View>
 
         {/* Tabs */}
         <View style={styles.tabs}>
           {[
-            { key: 'all' as FriendsTab, label: 'To\u021Bi (24)' },
-            { key: 'online' as FriendsTab, label: 'Online (5)' },
-            { key: 'pending' as FriendsTab, label: '\u00cen a\u0219teptare (3)' },
+            { key: 'all' as FriendsTab, label: `Toți (${friends.length})` },
+            { key: 'online' as FriendsTab, label: 'Online' },
+            { key: 'pending' as FriendsTab, label: `În așteptare (${pending.length})` },
           ].map((tab) => (
             <TouchableOpacity
               key={tab.key}
@@ -61,71 +149,106 @@ export function FriendsScreen() {
           ))}
         </View>
 
-        {/* Pending Invites */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Invita&#539;ii primite</Text>
-          {INVITES.map((inv) => (
-            <View key={inv.name} style={styles.inviteCard}>
-              <View style={[styles.inviteAvatar, { backgroundColor: inv.color }]}>
-                <Text style={styles.inviteInitials}>{inv.initials}</Text>
+        {loading ? (
+          <ActivityIndicator size="large" color={Colors.green} style={{ marginTop: 40 }} />
+        ) : (
+          <>
+            {/* Pending Invites */}
+            {pending.length > 0 && (activeTab === 'all' || activeTab === 'pending') && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>Invitații primite</Text>
+                {pending.map((inv) => (
+                  <View key={inv.id} style={styles.inviteCard}>
+                    <View style={[styles.inviteAvatar, { backgroundColor: Colors.purple }]}>
+                      <Text style={styles.inviteInitials}>
+                        {getInitials(inv.requester?.full_name)}
+                      </Text>
+                    </View>
+                    <View style={styles.inviteInfo}>
+                      <Text style={styles.inviteName}>
+                        {inv.requester?.full_name ?? 'Utilizator'}
+                      </Text>
+                      <Text style={styles.inviteMutual}>Cerere de prietenie</Text>
+                    </View>
+                    <View style={styles.inviteActions}>
+                      <TouchableOpacity
+                        style={styles.acceptBtn}
+                        onPress={() => handleAccept(inv.id)}
+                      >
+                        <Text style={styles.acceptText}>Acceptă</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDecline(inv.id)}>
+                        <Lucide name="x" size={20} color={Colors.inkFaint} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
               </View>
-              <View style={styles.inviteInfo}>
-                <Text style={styles.inviteName}>{inv.name}</Text>
-                <Text style={styles.inviteMutual}>{inv.mutual}</Text>
-              </View>
-              <View style={styles.inviteActions}>
-                <TouchableOpacity style={styles.acceptBtn}>
-                  <Text style={styles.acceptText}>Accept&#259;</Text>
-                </TouchableOpacity>
-                <Lucide name="x" size={20} color={Colors.inkFaint} />
-              </View>
-            </View>
-          ))}
-        </View>
+            )}
 
-        {/* Friends List */}
-        <View style={styles.section}>
-          <View style={styles.friendsLabel}>
-            <Text style={styles.sectionLabel}>Prieteni</Text>
-            <View style={styles.onlineCount}>
-              <View style={styles.onlineDot} />
-              <Text style={styles.onlineText}>5 online</Text>
-            </View>
-          </View>
-          {FRIENDS.map((friend) => (
-            <View key={friend.name} style={styles.friendRow}>
-              <View style={styles.friendAvatarWrap}>
-                <View style={[styles.friendAvatar, { backgroundColor: friend.color }]}>
-                  <Text style={styles.friendInitials}>{friend.initials}</Text>
+            {/* Friends List */}
+            {(activeTab === 'all' || activeTab === 'online') && (
+              <View style={styles.section}>
+                <View style={styles.friendsLabel}>
+                  <Text style={styles.sectionLabel}>Prieteni</Text>
+                  <View style={styles.onlineCount}>
+                    <View style={styles.onlineDot} />
+                    <Text style={styles.onlineText}>{friends.length} prieteni</Text>
+                  </View>
                 </View>
-                {friend.online && <View style={styles.friendOnlineDot} />}
+                {filteredFriends.length === 0 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                    <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
+                      {searchQuery ? 'Niciun prieten găsit' : 'Niciun prieten încă'}
+                    </Text>
+                  </View>
+                ) : (
+                  filteredFriends.map((friendItem, index) => {
+                    const profile = friendItem.friend;
+                    return (
+                      <View key={friendItem.id} style={styles.friendRow}>
+                        <View style={styles.friendAvatarWrap}>
+                          <View style={[styles.friendAvatar, { backgroundColor: getColor(index) }]}>
+                            <Text style={styles.friendInitials}>
+                              {getInitials(profile?.full_name)}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.friendInfo}>
+                          <Text style={styles.friendName}>
+                            {profile?.full_name ?? 'Utilizator'}
+                          </Text>
+                          <Text style={styles.friendStatus}>
+                            {profile?.city ?? ''}
+                          </Text>
+                        </View>
+                        <Lucide name="message-circle" size={22} color={Colors.inkFaint} />
+                      </View>
+                    );
+                  })
+                )}
               </View>
-              <View style={styles.friendInfo}>
-                <Text style={styles.friendName}>{friend.name}</Text>
-                <Text style={styles.friendStatus}>{friend.status}</Text>
-              </View>
-              <Lucide name="message-circle" size={22} color={Colors.inkFaint} />
-            </View>
-          ))}
-        </View>
+            )}
 
-        {/* Share Invite */}
-        <View style={styles.shareSection}>
-          <TouchableOpacity style={styles.shareCard}>
-            <View style={styles.shareIconWrap}>
-              <Lucide name="share-2" size={20} color={Colors.white} />
+            {/* Share Invite */}
+            <View style={styles.shareSection}>
+              <TouchableOpacity style={styles.shareCard} onPress={handleShareCard}>
+                <View style={styles.shareIconWrap}>
+                  <Lucide name="share-2" size={20} color={Colors.white} />
+                </View>
+                <View style={styles.shareInfo}>
+                  <Text style={styles.shareTitle}>Invită prieteni</Text>
+                  <Text style={styles.shareDesc}>
+                    Trimite un link de invitație prin WhatsApp, SMS sau email
+                  </Text>
+                </View>
+                <Lucide name="chevron-right" size={20} color={Colors.inkFaint} />
+              </TouchableOpacity>
             </View>
-            <View style={styles.shareInfo}>
-              <Text style={styles.shareTitle}>Invit&#259; prieteni</Text>
-              <Text style={styles.shareDesc}>
-                Trimite un link de invita&#539;ie prin WhatsApp, SMS sau email
-              </Text>
-            </View>
-            <Lucide name="chevron-right" size={20} color={Colors.inkFaint} />
-          </TouchableOpacity>
-        </View>
+          </>
+        )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -183,10 +306,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  searchPlaceholder: {
+  searchInput: {
+    flex: 1,
     fontFamily: Fonts.body,
     fontSize: 14,
-    color: Colors.inkFaint,
+    color: Colors.ink,
+    height: 40,
+    padding: 0,
   },
   tabs: {
     flexDirection: 'row',

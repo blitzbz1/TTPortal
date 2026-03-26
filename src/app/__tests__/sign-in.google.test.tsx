@@ -75,7 +75,7 @@ describe('SignInScreen — Google Sign-In (T021)', () => {
     await user.press(getByTestId('google-button'));
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/(tabs)/');
+      expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
     });
   });
 

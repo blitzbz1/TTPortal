@@ -75,7 +75,7 @@ describe('SignInScreen — Apple Sign-In (T024)', () => {
     await user.press(getByTestId('apple-button'));
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/(tabs)/');
+      expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
     });
   });
 
@@ -116,7 +116,7 @@ describe('SignInScreen — Apple Sign-In (T024)', () => {
 
     await waitFor(() => {
       expect(mockSignInWithApple).toHaveBeenCalledTimes(1);
-      expect(mockReplace).toHaveBeenCalledWith('/(tabs)/');
+      expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
     });
   });
 

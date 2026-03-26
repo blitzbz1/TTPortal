@@ -1,11 +1,60 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { Colors, Fonts, Radius } from '../theme';
+import { useSession } from '../hooks/useSession';
+import { createVenue } from '../services/venues';
+import type { VenueType } from '../types/database';
 
 export function AddVenueScreen() {
+  const router = useRouter();
+  const { user } = useSession();
+  const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
+  const [type, setType] = useState<VenueType>('parc_exterior');
+  const [tablesCount, setTablesCount] = useState('');
+  const [city, setCity] = useState('București');
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = useCallback(async () => {
+    if (!name.trim()) { Alert.alert('Eroare', 'Numele locației este obligatoriu.'); return; }
+    if (!address.trim()) { Alert.alert('Eroare', 'Adresa este obligatorie.'); return; }
+    setLoading(true);
+    const { error } = await createVenue({
+      name: name.trim(),
+      type,
+      city,
+      county: null,
+      sector: null,
+      address: address.trim(),
+      lat: 44.43,
+      lng: 26.10,
+      tables_count: tablesCount ? Number(tablesCount) : null,
+      condition: null,
+      hours: null,
+      description: notes.trim() || null,
+      tags: null,
+      photos: null,
+      free_access: null,
+      night_lighting: null,
+      nets: null,
+      verified: false,
+      tariff: null,
+      website: null,
+      submitted_by: user?.id ?? null,
+      approved: false,
+    });
+    setLoading(false);
+    if (error) { Alert.alert('Eroare', error.message); return; }
+    Alert.alert('Succes', 'Locația a fost trimisă spre aprobare.');
+    router.back();
+  }, [name, address, type, city, tablesCount, notes, user, router]);
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Map background placeholder */}
       <View style={styles.mapBg} />
 
@@ -18,8 +67,8 @@ export function AddVenueScreen() {
 
         {/* Header */}
         <View style={styles.sheetHeader}>
-          <Text style={styles.sheetTitle}>Adaug&#259; loca&#539;ie</Text>
-          <TouchableOpacity style={styles.closeBtn}>
+          <Text style={styles.sheetTitle}>{'Adaugă locație'}</Text>
+          <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
             <Lucide name="x" size={16} color={Colors.inkFaint} />
           </TouchableOpacity>
         </View>
@@ -27,18 +76,36 @@ export function AddVenueScreen() {
         <ScrollView style={styles.formScroll}>
           {/* Name Field */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>NUME LOCA&#538;IE *</Text>
-            <View style={styles.input}>
-              <Text style={styles.inputPlaceholder}>ex: Parcul Tineretului</Text>
-            </View>
+            <Text style={styles.fieldLabel}>{'NUME LOCAȚIE *'}</Text>
+            <TextInput
+              style={[styles.input, styles.inputText]}
+              placeholder="ex: Parcul Tineretului"
+              placeholderTextColor={Colors.inkFaint}
+              value={name}
+              onChangeText={setName}
+            />
           </View>
 
           {/* Type Field */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>TIP</Text>
-            <View style={[styles.input, styles.inputSelect]}>
-              <Text style={styles.inputValue}>{'\uD83C\uDF33'} Parc exterior</Text>
-              <Lucide name="chevron-down" size={16} color={Colors.inkFaint} />
+            <View style={styles.typeRow}>
+              <TouchableOpacity
+                style={[styles.typeBtn, type === 'parc_exterior' && styles.typeBtnActive]}
+                onPress={() => setType('parc_exterior')}
+              >
+                <Text style={[styles.typeBtnText, type === 'parc_exterior' && styles.typeBtnTextActive]}>
+                  {'\uD83C\uDF33 Parc exterior'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typeBtn, type === 'sala_indoor' && styles.typeBtnActive]}
+                onPress={() => setType('sala_indoor')}
+              >
+                <Text style={[styles.typeBtnText, type === 'sala_indoor' && styles.typeBtnTextActive]}>
+                  {'\uD83C\uDFE2 Sală indoor'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -46,14 +113,19 @@ export function AddVenueScreen() {
           <View style={styles.fieldRow}>
             <View style={[styles.field, { flex: 1 }]}>
               <Text style={styles.fieldLabel}>NR. MESE</Text>
-              <View style={styles.input}>
-                <Text style={styles.inputPlaceholder}>2</Text>
-              </View>
+              <TextInput
+                style={[styles.input, styles.inputText]}
+                placeholder="2"
+                placeholderTextColor={Colors.inkFaint}
+                value={tablesCount}
+                onChangeText={setTablesCount}
+                keyboardType="numeric"
+              />
             </View>
             <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.fieldLabel}>ORA&#536; *</Text>
+              <Text style={styles.fieldLabel}>{'ORAȘ *'}</Text>
               <View style={[styles.input, styles.inputSelect]}>
-                <Text style={styles.inputValue}>Bucure&#537;ti</Text>
+                <Text style={styles.inputValue}>{city}</Text>
                 <Lucide name="chevron-down" size={16} color={Colors.inkFaint} />
               </View>
             </View>
@@ -61,14 +133,18 @@ export function AddVenueScreen() {
 
           {/* Address Field */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>ADRES&#258; *</Text>
+            <Text style={styles.fieldLabel}>{'ADRESĂ *'}</Text>
             <View style={styles.addressRow}>
-              <View style={[styles.input, { flex: 1 }]}>
-                <Text style={styles.inputPlaceholder}>Strada, nr&#8230;</Text>
-              </View>
-              <TouchableOpacity style={styles.geocodeBtn}>
+              <TextInput
+                style={[styles.input, styles.inputText, { flex: 1 }]}
+                placeholder={'Strada, nr\u2026'}
+                placeholderTextColor={Colors.inkFaint}
+                value={address}
+                onChangeText={setAddress}
+              />
+              <TouchableOpacity style={styles.geocodeBtn} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
                 <Lucide name="map-pin" size={14} color={Colors.white} />
-                <Text style={styles.geocodeBtnText}>Pin pe hart&#259;</Text>
+                <Text style={styles.geocodeBtnText}>{'Pin pe hartă'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -76,24 +152,36 @@ export function AddVenueScreen() {
           {/* Notes Field */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>NOTE</Text>
-            <View style={styles.textarea}>
-              <Text style={styles.inputPlaceholder}>Detalii adi&#539;ionale...</Text>
-            </View>
+            <TextInput
+              style={[styles.textarea, styles.textareaInput]}
+              placeholder={'Detalii adiționale...'}
+              placeholderTextColor={Colors.inkFaint}
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              textAlignVertical="top"
+            />
           </View>
 
           {/* Actions */}
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelBtn}>
-              <Text style={styles.cancelText}>Anuleaz&#259;</Text>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
+              <Text style={styles.cancelText}>{'Anulează'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.submitBtn}>
-              <Lucide name="plus" size={16} color={Colors.white} />
-              <Text style={styles.submitText}>Adaug&#259;</Text>
+            <TouchableOpacity style={[styles.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
+              {loading ? (
+                <ActivityIndicator size="small" color={Colors.white} />
+              ) : (
+                <>
+                  <Lucide name="plus" size={16} color={Colors.white} />
+                  <Text style={styles.submitText}>{'Adaugă'}</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -182,6 +270,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  inputText: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.ink,
+  },
   inputSelect: {
     justifyContent: 'space-between',
   },
@@ -194,6 +287,33 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.ink,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  typeBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.bg,
+    borderRadius: 8,
+    height: 42,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  typeBtnActive: {
+    backgroundColor: Colors.greenPale,
+    borderColor: Colors.greenDim,
+  },
+  typeBtnText: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.inkMuted,
+  },
+  typeBtnTextActive: {
+    color: Colors.greenMid,
+    fontWeight: '600',
   },
   fieldRow: {
     flexDirection: 'row',
@@ -226,6 +346,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  textareaInput: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.ink,
+    textAlignVertical: 'top',
   },
   actions: {
     flexDirection: 'row',

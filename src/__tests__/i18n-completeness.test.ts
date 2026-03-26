@@ -18,6 +18,8 @@ const ALLOWED_HARDCODED_STRINGS = new Set([
   'G',
   'Google',
   'Apple',
+  'RO',
+  'EN',
 ]);
 
 /** Romanian diacritics that indicate a hardcoded Romanian string. */

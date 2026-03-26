@@ -31,16 +31,18 @@ jest.mock('expo-router', () => {
   }: {
     children: React.ReactNode;
     screenOptions: {
+      headerShown?: boolean;
       tabBarActiveTintColor?: string;
       tabBarInactiveTintColor?: string;
       tabBarLabelStyle?: Record<string, unknown>;
-      headerRight?: () => React.ReactNode;
     };
   }) => {
-    const headerRight = screenOptions?.headerRight?.();
     return (
       <View testID="tabs-navigator">
         <View testID="screen-options">
+          <Text testID="header-shown">
+            {String(screenOptions?.headerShown ?? true)}
+          </Text>
           <Text testID="active-tint-color">
             {screenOptions?.tabBarActiveTintColor}
           </Text>
@@ -54,9 +56,6 @@ jest.mock('expo-router', () => {
             {String(screenOptions?.tabBarLabelStyle?.fontSize)}
           </Text>
         </View>
-        {headerRight && (
-          <View testID="header-right-container">{headerRight}</View>
-        )}
         {children}
       </View>
     );
@@ -76,13 +75,6 @@ jest.mock('../../../components/Icon', () => {
         accessibilityHint={`size:${size},color:${color}`}
       />
     ),
-  };
-});
-
-jest.mock('../../../components/HeaderProfileIcon', () => {
-  const { View } = require('react-native');
-  return {
-    HeaderProfileIcon: () => <View testID="header-profile-icon" />,
   };
 });
 
@@ -174,11 +166,11 @@ describe('TabLayout', () => {
     });
   });
 
-  describe('HeaderProfileIcon', () => {
-    it('renders HeaderProfileIcon in the header-right area', () => {
+  describe('header visibility', () => {
+    it('has headerShown set to false', () => {
       const { getByTestId } = render(<TabLayout />);
-      getByTestId('header-right-container');
-      getByTestId('header-profile-icon');
+      const headerShown = getByTestId('header-shown');
+      expect(headerShown.props.children).toBe('false');
     });
   });
 });

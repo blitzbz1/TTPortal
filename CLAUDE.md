@@ -4,7 +4,7 @@ Auto-generated from all feature plans. Last updated: 2026-03-26
 
 ## Active Technologies
 
-- TypeScript 5.x, React Native 0.76+, React 18 + Expo SDK 53+, expo-router, @supabase/supabase-js, expo-sqlite, @react-native-google-signin/google-signin, expo-apple-authentication (001-user-auth)
+- TypeScript 5.x, React Native 0.76+, React 18 + Expo SDK 54, expo-router, @supabase/supabase-js, expo-sqlite, @react-native-google-signin/google-signin, expo-apple-authentication (001-user-auth)
 
 ## Project Structure
 
@@ -28,7 +28,7 @@ TypeScript 5.x, React Native 0.76+, React 18: Follow standard conventions
 
 ## Recent Changes
 
-- 001-user-auth: Added TypeScript 5.x, React Native 0.76+, React 18 + Expo SDK 53+, expo-router, @supabase/supabase-js, expo-sqlite, @react-native-google-signin/google-signin, expo-apple-authentication
+- 001-user-auth: Added TypeScript 5.x, React Native 0.76+, React 18 + Expo SDK 54, expo-router, @supabase/supabase-js, expo-sqlite, @react-native-google-signin/google-signin, expo-apple-authentication
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
