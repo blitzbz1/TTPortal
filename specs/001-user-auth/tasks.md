@@ -155,9 +155,9 @@
 
 ### TDD Tests for User Story 6
 
-- [ ] T030 [P] [US6] Write HeaderProfileIcon tests in `src/components/__tests__/HeaderProfileIcon.test.tsx` — test: (1) when anonymous, renders generic user icon; (2) when anonymous, tap navigates to `/sign-in`; (3) when authenticated, renders circle with user initials (first letter of first + last name); (4) when authenticated, tap opens popover with user name and "Deconectare" button; (5) initials use `Colors.green` background and `Colors.white` text
-- [ ] T031 [P] [US6] Write profile popover tests in `src/components/__tests__/ProfilePopover.test.tsx` — test: (1) popover shows user full name; (2) popover shows user email (truncated if >25 chars); (3) tapping "Deconectare" calls `signOut`; (4) after signOut, popover closes and icon reverts to anonymous; (5) tapping outside popover closes it
-- [ ] T032 [P] [US6] Write auth gate tests in `src/components/__tests__/AuthGate.test.tsx` — test: (1) when authenticated, children render normally; (2) when anonymous, navigates to `/sign-in?returnTo={currentRoute}`; (3) after auth completes, user is redirected to original `returnTo` route
+- [x] T030 [P] [US6] Write HeaderProfileIcon tests in `src/components/__tests__/HeaderProfileIcon.test.tsx` — test: (1) when anonymous, renders generic user icon; (2) when anonymous, tap navigates to `/sign-in`; (3) when authenticated, renders circle with user initials (first letter of first + last name); (4) when authenticated, tap opens popover with user name and "Deconectare" button; (5) initials use `Colors.green` background and `Colors.white` text
+- [x] T031 [P] [US6] Write profile popover tests in `src/components/__tests__/ProfilePopover.test.tsx` — test: (1) popover shows user full name; (2) popover shows user email (truncated if >25 chars); (3) tapping "Deconectare" calls `signOut`; (4) after signOut, popover closes and icon reverts to anonymous; (5) tapping outside popover closes it
+- [x] T032 [P] [US6] Write auth gate tests in `src/components/__tests__/AuthGate.test.tsx` — test: (1) when authenticated, children render normally; (2) when anonymous, navigates to `/sign-in?returnTo={currentRoute}`; (3) after auth completes, user is redirected to original `returnTo` route
 
 ### Implementation for User Story 6
 
