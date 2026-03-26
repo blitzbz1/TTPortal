@@ -19,6 +19,7 @@ tests/
 - Lint: `npm run lint`
 - TypeCheck: `npm run typecheck`
 - Build validation: `npx expo export --platform web`
+- Test: `npm test`, `npm run test:watch`, `npm run test:coverage`
 - Test + lint: `npm test && npm run lint`
 
 ## Code Style
