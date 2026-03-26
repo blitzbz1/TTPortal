@@ -344,7 +344,9 @@ describe('SessionProvider', () => {
 
     await user.press(screen.getByTestId('resetPassword'));
 
-    expect(mockResetPasswordForEmail).toHaveBeenCalledWith('john@example.com');
+    expect(mockResetPasswordForEmail).toHaveBeenCalledWith('john@example.com', {
+      redirectTo: 'ttportal://reset-password',
+    });
   });
 
   it('signInWithGoogle exists as a function on the context', async () => {

@@ -229,7 +229,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
   const resetPassword = useCallback(
     async (email: string): Promise<AuthResult> => {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'ttportal://reset-password',
+      });
       if (error) {
         logger.warn('Reset password failed', { email, code: error.code });
       } else {
