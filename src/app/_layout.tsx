@@ -1,9 +1,22 @@
 import { useFonts } from 'expo-font';
+import {
+  Syne_400Regular,
+  Syne_700Bold,
+} from '@expo-google-fonts/syne';
+import {
+  DMSans_400Regular,
+  DMSans_500Medium,
+} from '@expo-google-fonts/dm-sans';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
+import { SessionProvider } from '../contexts/SessionProvider';
+import { I18nProvider } from '../contexts/I18nProvider';
+import { useSession } from '../hooks/useSession';
+import { Colors } from '../theme';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -13,24 +26,50 @@ export const unstable_settings = {
 
 SplashScreen.preventAutoHideAsync();
 
-/** Root layout — loads fonts and renders the navigation stack. */
+/**
+ * Root layout — wraps the app in SessionProvider → I18nProvider,
+ * loads Syne + DM Sans fonts, and renders the navigation stack.
+ * While session or fonts are loading, a splash view is shown to prevent auth flicker.
+ */
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../../assets/fonts/SpaceMono-Regular.ttf'),
+  return (
+    <SessionProvider>
+      <I18nProvider>
+        <RootNavigator />
+      </I18nProvider>
+    </SessionProvider>
+  );
+}
+
+/**
+ * Inner navigator that handles font loading, auth loading state,
+ * and renders the Stack navigator once ready.
+ */
+function RootNavigator() {
+  const { isLoading } = useSession();
+  const [fontsLoaded, fontError] = useFonts({
+    Syne_400Regular,
+    Syne_700Bold,
+    DMSans_400Regular,
+    DMSans_500Medium,
   });
 
   useEffect(() => {
-    if (error) throw error;
-  }, [error]);
+    if (fontError) throw fontError;
+  }, [fontError]);
 
   useEffect(() => {
-    if (loaded) {
+    if (fontsLoaded && !isLoading) {
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+  }, [fontsLoaded, isLoading]);
 
-  if (!loaded) {
-    return null;
+  if (!fontsLoaded || isLoading) {
+    return (
+      <View style={styles.splash} testID="splash-loading">
+        <ActivityIndicator size="large" color={Colors.green} />
+      </View>
+    );
   }
 
   return (
@@ -42,3 +81,12 @@ export default function RootLayout() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  splash: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.bg,
+  },
+});
