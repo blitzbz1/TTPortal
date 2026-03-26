@@ -78,3 +78,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `35f4f6b`.
 ---
 
+## Iteration 12 - T015
+- Added ActivityIndicator loading spinner to submit button during async signUp call. Registration success redirect (`router.replace` to `/(tabs)/` or `returnTo`) and server error mapping (`mapAuthErrorToKey`) were already functional from the T012/T013 scaffold (iteration 10). All 5 T013 tests pass green; 86% coverage on sign-in.tsx.
+- Pattern: when TDD scaffold tests are written alongside a functional scaffold, later "implementation" tasks may only need UI polish (e.g., adding a spinner) since the core logic already exists to satisfy the tests.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `21f4acd`.
+---
+
