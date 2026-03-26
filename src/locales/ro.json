@@ -67,5 +67,10 @@
   "authTermsConnector": " și ",
   "authPrivacyPolicyLink": "Politica de confidențialitate",
   "authResetPasswordTitle": "Resetează parola",
-  "authNewPassword": "Parola nouă"
+  "authNewPassword": "Parola nouă",
+  "resetPasswordConfirmBtn": "Confirmă parola nouă",
+  "resetPasswordSuccess": "Parola a fost actualizată cu succes.",
+  "resetPasswordExpired": "Link-ul a expirat sau este invalid.",
+  "resetPasswordUsed": "Acest link a fost deja utilizat.",
+  "resetPasswordRequestNew": "Solicită un link nou"
 }

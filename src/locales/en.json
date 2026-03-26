@@ -67,5 +67,10 @@
   "authTermsConnector": " and ",
   "authPrivacyPolicyLink": "Privacy Policy",
   "authResetPasswordTitle": "Reset password",
-  "authNewPassword": "New password"
+  "authNewPassword": "New password",
+  "resetPasswordConfirmBtn": "Confirm new password",
+  "resetPasswordSuccess": "Password updated successfully.",
+  "resetPasswordExpired": "The link has expired or is invalid.",
+  "resetPasswordUsed": "This link has already been used.",
+  "resetPasswordRequestNew": "Request a new link"
 }
