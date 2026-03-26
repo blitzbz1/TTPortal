@@ -102,3 +102,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `e78919c`.
 ---
 
+## Iteration 16 - T019
+- Login success redirect (`router.replace` to `/(tabs)/` or `returnTo`), generic error messages (`invalid_credentials` → `errorInvalidCredentials`), and loading state were already implemented in the scaffold from iterations 10-14. All 4 T017 tests pass green with 94.8% coverage. No code changes needed — verification pass only.
+- Pattern confirmed: three consecutive tasks (T018, T019) were no-ops because the TDD scaffold built during T012-T016 already contained all the functional logic. This is expected when TDD tests are written alongside a functional scaffold rather than pure stubs.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `1612065`.
+---
+
