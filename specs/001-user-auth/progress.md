@@ -165,3 +165,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `205a722`.
 ---
 
+## Iteration 26 - T029
+- Added "Ai uitat parola?" touchable link below the password field on the login tab only, navigating to `/forgot-password`. Added `forgotLink` style (muted greenDim text, right-aligned). Wrote 4 tests verifying login-only visibility, tab switching, and navigation.
+- Simple feature — no gotchas. The `router.push` (not `replace`) is correct here since the user should be able to go back to the login screen from the forgot-password screen.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `1be7da8`.
+---
+
