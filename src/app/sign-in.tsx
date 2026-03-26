@@ -148,7 +148,7 @@ export default function SignInScreen() {
         <View testID="sign-in-screen">
           {/* Branding */}
           <View style={styles.branding}>
-            <Text style={styles.brandSubtitle}>Mese Tenis Rom&#226;nia</Text>
+            <Text style={styles.brandSubtitle}>{s('brandSubtitle')}</Text>
             <Text style={styles.brandLogo}>TT PORTAL</Text>
             <Text style={styles.brandTagline}>
               {s('splashSub')}

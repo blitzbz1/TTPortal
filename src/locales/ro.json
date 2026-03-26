@@ -47,7 +47,7 @@
   "validationEmailInvalid": "Email invalid",
   "validationPasswordMin": "Minim 8 caractere",
   "validationNameRequired": "Numele este obligatoriu",
-  "errorDuplicateEmail": "Acest email este deja folosit",
+  "errorDuplicateEmail": "Acest email este deja folosit. Încearcă conectarea cu Google sau Apple.",
   "errorInvalidCredentials": "Email sau parola incorectă",
   "errorNetwork": "Eroare de conexiune. Încearcă din nou.",
   "logout": "Deconectare",
@@ -72,5 +72,6 @@
   "resetPasswordSuccess": "Parola a fost actualizată cu succes.",
   "resetPasswordExpired": "Link-ul a expirat sau este invalid.",
   "resetPasswordUsed": "Acest link a fost deja utilizat.",
-  "resetPasswordRequestNew": "Solicită un link nou"
+  "resetPasswordRequestNew": "Solicită un link nou",
+  "brandSubtitle": "Mese Tenis România"
 }

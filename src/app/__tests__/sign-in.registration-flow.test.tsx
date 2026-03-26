@@ -86,7 +86,7 @@ describe('SignInScreen — registration flow (T013)', () => {
     });
   });
 
-  it('duplicate email error from server shows "Acest email este deja folosit"', async () => {
+  it('duplicate email error from server shows account exists message with OAuth suggestion', async () => {
     mockSignUp.mockResolvedValue({
       error: {
         message: 'User already registered',
@@ -101,7 +101,7 @@ describe('SignInScreen — registration flow (T013)', () => {
     await fillAndSubmit(getByTestId, user);
 
     await waitFor(() => {
-      expect(getByText('Acest email este deja folosit')).toBeTruthy();
+      expect(getByText('Acest email este deja folosit. Încearcă conectarea cu Google sau Apple.')).toBeTruthy();
     });
     expect(mockReplace).not.toHaveBeenCalled();
   });

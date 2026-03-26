@@ -47,7 +47,7 @@
   "validationEmailInvalid": "Invalid email",
   "validationPasswordMin": "Minimum 8 characters",
   "validationNameRequired": "Name is required",
-  "errorDuplicateEmail": "This email is already in use",
+  "errorDuplicateEmail": "This email is already in use. Try signing in with Google or Apple.",
   "errorInvalidCredentials": "Incorrect email or password",
   "errorNetwork": "Connection error. Try again.",
   "logout": "Sign out",
@@ -72,5 +72,6 @@
   "resetPasswordSuccess": "Password updated successfully.",
   "resetPasswordExpired": "The link has expired or is invalid.",
   "resetPasswordUsed": "This link has already been used.",
-  "resetPasswordRequestNew": "Request a new link"
+  "resetPasswordRequestNew": "Request a new link",
+  "brandSubtitle": "Table Tennis Romania"
 }
