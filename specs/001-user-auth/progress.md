@@ -18,3 +18,9 @@ Iteration learnings and patterns discovered during implementation.
 - Commit saved locally: `853bcb2 feat(T002): install core auth dependencies`
 ---
 
+## Iteration 3 - T003, T004, T005
+- Configured jest with jest-expo preset, installed @testing-library/react-native. Created Supabase client with expo-sqlite storage adapter. Extracted i18n strings from js/ui.js to JSON locale files with all auth keys from ui-contracts.md.
+- Gotcha: `react-test-renderer` must be pinned to match exact react version (19.2.0) or npm ERESOLVE fails. Also, env vars for Supabase must be set in a jest setupFiles script (jest.setup.js) — setting them at top of test file runs too late because ES imports are hoisted above assignments.
+- Push still blocked: SSH key `tavigm` lacks write access to `blitzbz1/TTPortal.git`. Commit saved locally: `0f477df`.
+---
+
