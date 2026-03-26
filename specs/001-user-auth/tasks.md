@@ -96,7 +96,7 @@
 
 ### TDD Tests for User Story 3
 
-- [ ] T021 [P] [US3] Write Google Sign-In tests in `src/app/__tests__/sign-in.google.test.tsx` — test: (1) Google button renders on auth screen; (2) tapping Google button calls `signInWithGoogle`; (3) successful Google auth navigates to map; (4) Google auth failure shows localized error message; (5) loading state during Google flow disables all auth buttons
+- [x] T021 [P] [US3] Write Google Sign-In tests in `src/app/__tests__/sign-in.google.test.tsx` — test: (1) Google button renders on auth screen; (2) tapping Google button calls `signInWithGoogle`; (3) successful Google auth navigates to map; (4) Google auth failure shows localized error message; (5) loading state during Google flow disables all auth buttons
 
 ### Implementation for User Story 3
 
