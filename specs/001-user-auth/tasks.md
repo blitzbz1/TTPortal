@@ -134,7 +134,7 @@
 
 ### TDD Tests for User Story 5
 
-- [ ] T027 [P] [US5] Write forgot password screen tests in `src/app/__tests__/forgot-password.test.tsx` — test: (1) screen renders with email input and submit button; (2) submit with invalid email shows validation error; (3) successful submission shows success message "Verifică inbox-ul și folderul spam. Link-ul expiră în 60 de minute."; (4) same success message shown for non-existent email (enumeration protection); (5) "Înapoi la conectare" link navigates to `/sign-in` with `initialTab: 'login'`; (6) loading state disables submit during request
+- [x] T027 [P] [US5] Write forgot password screen tests in `src/app/__tests__/forgot-password.test.tsx` — test: (1) screen renders with email input and submit button; (2) submit with invalid email shows validation error; (3) successful submission shows success message "Verifică inbox-ul și folderul spam. Link-ul expiră în 60 de minute."; (4) same success message shown for non-existent email (enumeration protection); (5) "Înapoi la conectare" link navigates to `/sign-in` with `initialTab: 'login'`; (6) loading state disables submit during request
 
 ### Implementation for User Story 5
 
