@@ -197,9 +197,16 @@ export function SessionProvider({ children }: SessionProviderProps) {
     }
 
     if (data.user) {
-      const profileName = appleName || data.user.user_metadata?.full_name || '';
+      const profileData: { id: string; email: string; auth_provider: string; full_name?: string } = {
+        id: data.user.id,
+        email: data.user.email || '',
+        auth_provider: 'apple',
+      };
+      if (appleName) {
+        profileData.full_name = appleName;
+      }
       const { error: profileError } = await supabase.from('profiles').upsert(
-        { id: data.user.id, full_name: profileName, email: data.user.email || '', auth_provider: 'apple' },
+        profileData,
         { onConflict: 'id' },
       );
       if (profileError) {
