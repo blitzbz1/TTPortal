@@ -190,3 +190,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `cf9f527`.
 ---
 
+## Iteration 30 - T033
+- Verified HeaderProfileIcon implementation — the scaffold from iteration 29 already contained the full implementation (anonymous user icon with navigate to /sign-in, authenticated 32px initials circle with green bg/white text, popover toggle). All 5 T030 tests pass green with 95% statement coverage.
+- Pattern confirmed: when TDD tests and scaffolds are built together (T030 in iteration 29), the subsequent "implementation" task is a verification pass — no code changes needed beyond marking the task complete.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `997267f`.
+---
+
