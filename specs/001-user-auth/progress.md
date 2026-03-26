@@ -159,3 +159,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `be2b83b`.
 ---
 
+## Iteration 25 - T028
+- Verified forgot-password screen implementation — screen was already fully built during T027. Fixed pre-existing TypeScript error in `SessionProvider.google-linking.test.tsx` (spread of `unknown[]` into typed mock function — fix: use `Parameters<typeof mockFn>` for the rest parameter type).
+- Pattern: when TDD tests and implementation are done together in a single iteration, the subsequent "implementation" task may be a verification-only pass. Always run the full quality gate suite to catch pre-existing issues in other files.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `205a722`.
+---
+
