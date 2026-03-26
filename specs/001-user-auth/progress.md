@@ -153,3 +153,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `5dbdad4`.
 ---
 
+## Iteration 24 - T027
+- Created forgot-password screen (`src/app/forgot-password.tsx`) and 6 tests covering rendering, email validation, success message, enumeration protection (same success for non-existent email), back-to-login navigation, and loading state. 100% statement/line/function coverage.
+- Pattern: for enumeration protection (FR-007), the forgot-password screen always shows the success message whether `resetPassword` resolves or rejects — uses `try/catch` with `setSent(true)` in both paths. This ensures no information leaks about email existence.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `be2b83b`.
+---
+
