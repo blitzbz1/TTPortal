@@ -176,7 +176,7 @@
 
 - [x] T037 [P] Run full i18n audit — verify every user-facing string in auth screens uses `useI18n`, no hardcoded Romanian or English strings. Verify `ro.json` and `en.json` have identical key sets. **Test**: write `src/__tests__/i18n-completeness.test.ts` — programmatically compare keys of both locale files; grep auth screen files for string literals that should be i18n keys
 - [x] T038 [P] Write edge case tests in `src/__tests__/auth-edge-cases.test.tsx` — test: (1) network drop during OAuth shows connection error and allows retry; (2) session expiry during active use prompts re-auth without losing map context; (3) registering with an OAuth-linked email shows "account exists" message suggesting the OAuth provider; (4) password reset link used twice shows "already used" message
-- [ ] T039 Run `quickstart.md` verification checklist — validate: Expo starts without errors, dev build installs, Supabase connects, fonts load, navigation works between splash → sign-in → map, all screens render. **Test**: all previous tests pass (`npm test` exits 0 with no failures)
+- [x] T039 Run `quickstart.md` verification checklist — validate: Expo starts without errors, dev build installs, Supabase connects, fonts load, navigation works between splash → sign-in → map, all screens render. **Test**: all previous tests pass (`npm test` exits 0 with no failures)
 
 ---
 
