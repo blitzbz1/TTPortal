@@ -90,3 +90,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `d823aee`.
 ---
 
+## Iteration 14 - T016, T017
+- Wrote 5 login form validation tests (T016) and 4 login flow tests (T017). Updated sign-in.tsx to support login flow: `handleSubmit` now branches on `activeTab` to call `signIn` vs `signUp`, and `mapAuthErrorToKey` handles `invalid_credentials` error code.
+- For T017 session persistence test: `jest.mock('../../hooks/useSession')` replaces the hook for ALL components in the file, including test consumers. Fix: use `useContext(SessionContext)` directly in the test consumer to bypass the mocked hook and read real SessionProvider state.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `34f786d`.
+---
+
