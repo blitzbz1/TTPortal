@@ -134,3 +134,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `12e3b33`.
 ---
 
+## Iteration 21 - T024
+- Wrote 5 Apple Sign-In tests and wired Apple button's `onPress` handler in sign-in.tsx (following the same pattern as Google: `handleAppleSignIn` callback with loading/error state). Test for "Hide My Email" verifies relay email addresses flow through normally.
+- Pattern: Apple and Google OAuth buttons follow identical UI-level patterns (mock `signInWith*`, verify navigation/error). The implementation-level differences (native vs web fallback, name capture) are tested in SessionProvider tests (T025/T026), not sign-in screen tests.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `c768750`.
+---
+
