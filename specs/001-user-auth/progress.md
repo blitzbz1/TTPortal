@@ -202,3 +202,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `e56e3d5`.
 ---
 
+## Iteration 32 - T035
+- Verified AuthGate implementation — the scaffold from iteration 29 already contained the full implementation (session check via useSession, useEffect redirect to /sign-in with returnTo param, null render while anonymous, children render when authenticated). All 6 T032 tests pass green with 100% coverage.
+- Pattern confirmed (4th time): when TDD tests and scaffolds are built together in a batch (T030/T031/T032 in iteration 29), all subsequent "implementation" tasks (T033, T034, T035) are verification-only passes.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `39346e7`.
+---
+
