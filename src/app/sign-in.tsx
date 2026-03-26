@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSession } from '../hooks/useSession';
@@ -17,6 +18,9 @@ import { Lucide } from '../components/Icon';
 import { Colors, Fonts, Radius } from '../theme';
 import { logger } from '../lib/logger';
 import type { AuthError } from '@supabase/supabase-js';
+
+const TERMS_URL = 'https://ttportal.ro/terms';
+const PRIVACY_URL = 'https://ttportal.ro/privacy';
 
 /** Validates email format using basic RFC 5322 pattern. */
 function isValidEmail(email: string): boolean {
@@ -272,6 +276,30 @@ export default function SignInScreen() {
               )}
             </Pressable>
 
+            {/* Terms and Privacy links (signup only) */}
+            {activeTab === 'signup' && (
+              <Text style={styles.termsText} testID="terms-container">
+                {s('authTermsPrefix')}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => Linking.openURL(TERMS_URL)}
+                  accessibilityRole="link"
+                  testID="terms-link"
+                >
+                  {s('authTermsOfServiceLink')}
+                </Text>
+                {s('authTermsConnector')}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => Linking.openURL(PRIVACY_URL)}
+                  accessibilityRole="link"
+                  testID="privacy-link"
+                >
+                  {s('authPrivacyPolicyLink')}
+                </Text>
+              </Text>
+            )}
+
             {/* Divider */}
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
@@ -405,6 +433,17 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 16,
     fontWeight: '700',
+    color: Colors.white,
+  },
+  termsText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.greenDim,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  termsLink: {
+    textDecorationLine: 'underline',
     color: Colors.white,
   },
   divider: {

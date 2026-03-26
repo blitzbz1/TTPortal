@@ -62,6 +62,10 @@
   "authBackToLogin": "Back to login",
   "authOrContinueWith": "or continue with",
   "authTerms": "By signing up, you accept the Terms of Service and Privacy Policy",
+  "authTermsPrefix": "By signing up, you accept the ",
+  "authTermsOfServiceLink": "Terms of Service",
+  "authTermsConnector": " and ",
+  "authPrivacyPolicyLink": "Privacy Policy",
   "authResetPasswordTitle": "Reset password",
   "authNewPassword": "New password"
 }

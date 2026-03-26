@@ -62,6 +62,10 @@
   "authBackToLogin": "Înapoi la conectare",
   "authOrContinueWith": "sau continuă cu",
   "authTerms": "Prin înregistrare, accepți Termenii și condițiile și Politica de confidențialitate",
+  "authTermsPrefix": "Prin înregistrare, accepți ",
+  "authTermsOfServiceLink": "Termenii și condițiile",
+  "authTermsConnector": " și ",
+  "authPrivacyPolicyLink": "Politica de confidențialitate",
   "authResetPasswordTitle": "Resetează parola",
   "authNewPassword": "Parola nouă"
 }
