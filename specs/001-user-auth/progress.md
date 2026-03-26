@@ -171,3 +171,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `1be7da8`.
 ---
 
+## Iteration 27 - T040
+- Wrote 5 reset-password screen tests and a minimal functional scaffold (`reset-password.tsx`) with token exchange, password validation, success/error states. Added 5 i18n keys for the reset-password flow to both locale files. 87.5% statement coverage.
+- Pattern: for screens that validate tokens on mount (deep link flows), use `useEffect` + `supabase.auth.exchangeCodeForSession(code)` and distinguish "already used" from "expired" by checking if the error message contains "already". The `useLocalSearchParams` from expo-router provides the `code` from deep link URL params.
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `9e8b893`.
+---
+
