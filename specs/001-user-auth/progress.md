@@ -44,3 +44,9 @@ Iteration learnings and patterns discovered during implementation.
 - Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `f98bb5f`.
 ---
 
+## Iteration 7 - T009
+- Created protected route group `src/app/(protected)/_layout.tsx` using `Stack.Protected` with `guard={!!session}` and `useEffect`-based redirect to `/sign-in?returnTo=<pathname>` when unauthenticated. Returns `null` before redirect to prevent content flash. 8 tests at 100% coverage.
+- `Stack.Protected` exists in expo-router and accepts `guard: boolean`. Under the hood it's the `Group` primitive — when guard is false the wrapped `Stack.Screen` entries are unregistered from the navigator. Combine with an imperative `router.replace` in a `useEffect` for the actual redirect (no `<Redirect>` component in expo-router).
+- Push still blocked: SSH key `tavigm` lacks write access. Commit saved locally: `acbc874`.
+---
+
