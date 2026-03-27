@@ -1,10 +1,14 @@
--- Migration: 010_notification_triggers
+-- Migration: 009_notification_triggers
 -- Database triggers that create in-app notifications AND send push notifications
 -- via pg_net → Expo Push API when relevant events occur.
 
+-- Enable pg_net for HTTP requests (pre-installed on Supabase hosted)
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA net;
+
 -- ============================================================
 -- Helper: send push notification via Expo Push API
--- Looks up all push tokens for a user and sends via pg_net
+-- Looks up all push tokens for a user and sends via pg_net.
+-- Errors are caught so push failures never roll back the parent transaction.
 -- ============================================================
 CREATE OR REPLACE FUNCTION public.send_push_notification(
   p_recipient_id UUID,
@@ -19,23 +23,28 @@ BEGIN
   FOR token_record IN
     SELECT token FROM public.push_tokens WHERE user_id = p_recipient_id
   LOOP
-    payload := jsonb_build_object(
-      'to', token_record.token,
-      'title', p_title,
-      'body', p_body,
-      'data', p_data,
-      'sound', 'default',
-      'badge', (SELECT COUNT(*)::int FROM public.notifications WHERE recipient_id = p_recipient_id AND read = false)
-    );
+    BEGIN
+      payload := jsonb_build_object(
+        'to', token_record.token,
+        'title', p_title,
+        'body', p_body,
+        'data', p_data,
+        'sound', 'default',
+        'badge', (SELECT COUNT(*)::int FROM public.notifications WHERE recipient_id = p_recipient_id AND read = false)
+      );
 
-    PERFORM net.http_post(
-      url := 'https://exp.host/--/api/v2/push/send',
-      headers := jsonb_build_object(
-        'Content-Type', 'application/json',
-        'Accept', 'application/json'
-      ),
-      body := payload
-    );
+      PERFORM net.http_post(
+        url := 'https://exp.host/--/api/v2/push/send',
+        headers := jsonb_build_object(
+          'Content-Type', 'application/json',
+          'Accept', 'application/json'
+        ),
+        body := payload
+      );
+    EXCEPTION WHEN OTHERS THEN
+      -- Push failure must never block the parent transaction
+      NULL;
+    END;
   END LOOP;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -274,4 +283,12 @@ CREATE TRIGGER on_checkin_created
 -- ============================================================
 -- 6. Enable Supabase Realtime on notifications table
 -- ============================================================
-ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'notifications'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+  END IF;
+END $$;

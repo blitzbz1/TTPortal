@@ -1,4 +1,4 @@
--- Migration: 009_notifications
+-- Migration: 008_notifications
 -- Push notification tokens and in-app notification history.
 
 -- Push tokens: stores Expo push tokens per user/device
@@ -54,5 +54,5 @@ CREATE POLICY "Users can update own notifications" ON public.notifications FOR U
   USING (auth.uid() = recipient_id);
 CREATE POLICY "Users can delete own notifications" ON public.notifications FOR DELETE TO authenticated
   USING (auth.uid() = recipient_id);
-CREATE POLICY "Service role can insert notifications" ON public.notifications FOR INSERT
+CREATE POLICY "Service role can insert notifications" ON public.notifications FOR INSERT TO service_role
   WITH CHECK (true);

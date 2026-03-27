@@ -1,4 +1,4 @@
--- Migration: 008_cloud_venues_sync
+-- Migration: 007_cloud_venues_sync
 -- Synced 52 venues from cloud Supabase (deduplicated).
 -- Original cloud had 119 total entries.
 
@@ -150,24 +150,10 @@ INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, 
 VALUES ('Sală de tenis de masă Set 11', 'sala_indoor', 'Sibiu', 'Sibiu', NULL, 'Strada August Treboniu Laurian, 2-4', 45.8016044, 24.1668087, NULL, 'profesionala', NULL, NULL, ARRAY['osm', 'way/95993443'], false, false, NULL, false, '35 RON', 'https://www.b-52.ro/', true, '2026-03-21T09:10:23.997809+00:00')
 ON CONFLICT (name, city) DO NOTHING;
 
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Sală tenis de masă', 'sala_indoor', NULL, NULL, NULL, NULL, 44.1770235, 28.6324879, NULL, 'profesionala', NULL, NULL, ARRAY['osm', 'way/436907322'], true, false, NULL, false, NULL, NULL, true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
+-- Removed 4 venues with NULL city/address (Sală tenis de masă, CS Top Team Tulcea, Table tennis Ioanid park, Ping Pong Table)
 
 INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
 VALUES ('Masă tenis de masă', 'parc_exterior', 'Agăș', 'Bacău', NULL, 'Strada Principală, 116', 46.4846352, 26.2203157, NULL, 'necunoscuta', NULL, NULL, ARRAY['osm', 'acoperit', 'way/1308638798'], true, false, NULL, false, NULL, NULL, true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('CS Top Team Tulcea', 'parc_exterior', NULL, NULL, NULL, NULL, 45.1799085, 28.7962194, NULL, 'buna', NULL, NULL, ARRAY['osm', 'node/11758664238'], true, false, NULL, false, NULL, NULL, true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Table tennis Ioanid park', 'parc_exterior', NULL, NULL, NULL, NULL, 44.4457989, 26.1044655, NULL, 'buna', NULL, NULL, ARRAY['osm', 'node/13339236700'], true, false, NULL, false, NULL, NULL, true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Ping Pong Table', 'parc_exterior', NULL, NULL, NULL, NULL, 45.6957004, 27.1818558, NULL, 'buna', NULL, NULL, ARRAY['osm', 'way/414755063'], true, false, NULL, false, NULL, NULL, true, '2026-03-21T09:10:23.997809+00:00')
 ON CONFLICT (name, city) DO NOTHING;
 
 INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)

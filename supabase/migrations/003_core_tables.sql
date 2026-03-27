@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS public.venues (
   verified BOOLEAN DEFAULT false,
   tariff TEXT,
   website TEXT,
-  submitted_by UUID REFERENCES auth.users(id),
+  submitted_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   approved BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

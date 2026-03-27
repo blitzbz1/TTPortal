@@ -45,7 +45,7 @@ ALTER TABLE public.checkins ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can read own checkins" ON public.checkins FOR SELECT TO authenticated
   USING (auth.uid() = user_id);
 CREATE POLICY "Active checkins are readable" ON public.checkins FOR SELECT TO authenticated
-  USING (ended_at IS NULL);
+  USING (ended_at > now());
 CREATE POLICY "Users can insert own checkins" ON public.checkins FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own checkins" ON public.checkins FOR UPDATE TO authenticated
