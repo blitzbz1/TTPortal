@@ -1,7 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Lucide } from '../../components/Icon';
-import { HeaderProfileIcon } from '../../components/HeaderProfileIcon';
 import { Colors, Fonts } from '../../theme';
 
 /**

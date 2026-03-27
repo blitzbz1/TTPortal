@@ -139,6 +139,6 @@ describe('Supabase auth config supports session refresh', () => {
     );
     const config = fs.readFileSync(configPath, 'utf-8');
     expect(config).toMatch(/jwt_expiry\s*=\s*3600/);
-    expect(config).toMatch(/refresh_token_rotation_enabled\s*=\s*true/);
+    expect(config).toMatch(/refresh_token_reuse_interval\s*=\s*10/);
   });
 });

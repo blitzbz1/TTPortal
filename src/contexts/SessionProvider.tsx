@@ -17,7 +17,7 @@ try {
   GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
   const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
   if (googleWebClientId && !googleWebClientId.startsWith('YOUR_')) {
-    GoogleSignin.configure({ webClientId: googleWebClientId });
+    GoogleSignin!.configure({ webClientId: googleWebClientId });
   } else {
     logger.warn('Google Sign-In not configured: EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is missing or placeholder');
   }

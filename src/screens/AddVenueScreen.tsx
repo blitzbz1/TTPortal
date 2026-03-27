@@ -17,7 +17,7 @@ export function AddVenueScreen() {
   const [address, setAddress] = useState('');
   const [type, setType] = useState<VenueType>('parc_exterior');
   const [tablesCount, setTablesCount] = useState('');
-  const [city, setCity] = useState('București');
+  const [city, _setCity] = useState('București');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [geoLat, setGeoLat] = useState<number | null>(null);

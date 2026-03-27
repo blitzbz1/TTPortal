@@ -44,6 +44,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     } finally {
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, user?.id]);
 
   useEffect(() => {
@@ -100,6 +101,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       const { data } = await getEventParticipants(event.id);
       setDetailParticipants(data ?? []);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, fetchEvents, selectedEvent]);
 
   const formatDate = (dateStr: string) => {

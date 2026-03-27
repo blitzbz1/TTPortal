@@ -56,6 +56,19 @@ jest.mock('expo-status-bar', () => ({
 
 jest.mock('react-native-reanimated', () => ({}));
 
+jest.mock('../../contexts/NotificationProvider', () => {
+  const { View } = require('react-native');
+  return {
+    NotificationProvider: ({ children }: { children: React.ReactNode }) => (
+      <View testID="notification-provider">{children}</View>
+    ),
+  };
+});
+
+jest.mock('../../hooks/useNotifications', () => ({
+  useNotifications: () => ({ unreadCount: 0, refreshUnreadCount: jest.fn() }),
+}));
+
 jest.mock('@expo-google-fonts/syne', () => ({
   Syne_400Regular: 'syne-400-asset',
   Syne_700Bold: 'syne-700-asset',

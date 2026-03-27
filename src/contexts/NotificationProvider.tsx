@@ -62,7 +62,7 @@ export function NotificationProvider({ children }: Props) {
             logger.info('Push token registered', { userId: user.id });
           }
         } catch (err) {
-          logger.warn('Push token registration failed', err);
+          logger.warn('Push token registration failed', err as Record<string, unknown>);
         }
       })();
       refreshUnreadCount();
@@ -77,7 +77,7 @@ export function NotificationProvider({ children }: Props) {
           setUnreadCount(0);
           logger.info('Push token removed on sign-out');
         } catch (err) {
-          logger.warn('Push token removal failed', err);
+          logger.warn('Push token removal failed', err as Record<string, unknown>);
         }
       })();
     }
