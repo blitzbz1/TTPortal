@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
 import { CityPickerModal } from '../components/CityPickerModal';
@@ -18,7 +17,9 @@ const TAB_TO_TYPE: Record<LBTab, 'checkins' | 'reviews' | 'venues'> = {
   locations: 'venues',
 };
 
-const MEDALS = ['\uD83E\uDD48', '\uD83E\uDD47', '\uD83E\uDD49'];
+// Medal by rank value (1=gold, 2=silver, 3=bronze)
+const MEDAL_BY_RANK: Record<number, string> = { 1: '\uD83E\uDD47', 2: '\uD83E\uDD48', 3: '\uD83E\uDD49' };
+const COLOR_BY_RANK: Record<number, string> = { 1: Colors.green, 2: Colors.greenMid, 3: Colors.orange };
 const PODIUM_COLORS = [Colors.greenMid, Colors.green, Colors.orange];
 
 interface LeaderboardsScreenProps {
@@ -26,7 +27,6 @@ interface LeaderboardsScreenProps {
 }
 
 export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenProps) {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<LBTab>('checkins');
   const [entries, setEntries] = useState<any[]>([]);
@@ -87,12 +87,9 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Lucide name="arrow-left" size={24} color={Colors.ink} />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('leaderboard')}</Text>
         <TouchableOpacity style={styles.filterBtn} onPress={() => setCityModalVisible(true)}>
-          <Lucide name="map-pin" size={14} color={Colors.inkMuted} />
+          <Lucide name="map-pin" size={14} color={Colors.white} />
           <Text style={styles.filterText}>{selectedCity || 'București'}</Text>
         </TouchableOpacity>
       </View>
@@ -130,16 +127,14 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
             {/* Podium */}
             <View style={styles.podium}>
               {podiumDisplay.map((p, idx) => {
-                const isHighlight = podiumEntries.length >= 3 && idx === 1; // center = 1st place
-                const originalIdx = podiumEntries.length >= 3
-                  ? (idx === 0 ? 1 : idx === 1 ? 0 : 2)
-                  : idx;
+                const rank = p.rank ?? (idx + 1);
+                const isHighlight = rank === 1;
                 const size = isHighlight ? 64 : 52;
-                const color = PODIUM_COLORS[originalIdx] ?? Colors.green;
+                const color = COLOR_BY_RANK[rank] ?? Colors.green;
 
                 return (
                   <View key={p.user_id ?? idx} style={[styles.podiumItem, { width: isHighlight ? 100 : 90 }]}>
-                    <Text style={styles.podiumRank}>{MEDALS[originalIdx] ?? ''}</Text>
+                    <Text style={styles.podiumRank}>{MEDAL_BY_RANK[rank] ?? ''}</Text>
                     <View
                       style={[
                         styles.podiumAvatar,
@@ -228,34 +223,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.white,
-    paddingBottom: 10,
+    backgroundColor: Colors.green,
+    paddingVertical: 10,
+    minHeight: 52,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   headerTitle: {
     fontFamily: Fonts.heading,
     fontSize: 18,
     fontWeight: '700',
-    color: Colors.ink,
+    color: Colors.white,
   },
   filterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.bgDark,
-    borderRadius: 16,
-    paddingVertical: 6,
+    backgroundColor: Colors.orangeBright,
+    borderRadius: 8,
+    paddingVertical: 5,
     paddingHorizontal: 10,
     gap: 4,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
   filterText: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    fontWeight: '500',
-    color: Colors.inkMuted,
+    fontWeight: '600',
+    color: Colors.white,
   },
   scroll: {
     flex: 1,

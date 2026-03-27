@@ -15,12 +15,49 @@ export async function checkout(checkinId: number) {
 }
 
 export async function getActiveCheckins(venueId: number) {
+  const now = new Date().toISOString();
   return supabase
     .from('checkins')
     .select('*, profiles(full_name, avatar_url)')
     .eq('venue_id', venueId)
-    .is('ended_at', null)
+    .gt('ended_at', now)
     .order('started_at', { ascending: false });
+}
+
+export async function getActiveFriendCheckins(friendIds: string[]) {
+  if (!friendIds.length) return { data: [], error: null };
+  const now = new Date().toISOString();
+  return supabase
+    .from('checkins')
+    .select('user_id, venue_id, started_at, venues(name, city)')
+    .in('user_id', friendIds)
+    .gt('ended_at', now)
+    .order('started_at', { ascending: false });
+}
+
+export async function getUserActiveCheckin(userId: string, venueId: number) {
+  const now = new Date().toISOString();
+  const { data } = await supabase
+    .from('checkins')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('venue_id', venueId)
+    .gt('ended_at', now)
+    .order('started_at', { ascending: false })
+    .limit(1);
+  return { data: data?.[0] ?? null, error: null };
+}
+
+export async function getUserAnyActiveCheckin(userId: string) {
+  const now = new Date().toISOString();
+  const { data } = await supabase
+    .from('checkins')
+    .select('*, venues(name)')
+    .eq('user_id', userId)
+    .gt('ended_at', now)
+    .order('started_at', { ascending: false })
+    .limit(1);
+  return { data: data?.[0] ?? null, error: null };
 }
 
 export async function getPlayHistory(

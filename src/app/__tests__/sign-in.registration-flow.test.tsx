@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, userEvent, waitFor } from '@testing-library/react-native';
 
 // --- Mocks (must be defined before component import) ---
 
@@ -66,6 +66,7 @@ describe('SignInScreen — registration flow (T013)', () => {
 
   it('successful signUp navigates to /(tabs)/ by default', async () => {
     const { getByTestId } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
     await fillAndSubmit(getByTestId, user);
 
@@ -78,6 +79,7 @@ describe('SignInScreen — registration flow (T013)', () => {
     mockSearchParams.mockReturnValue({ returnTo: '/add-venue' });
 
     const { getByTestId } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
     await fillAndSubmit(getByTestId, user);
 
@@ -97,6 +99,7 @@ describe('SignInScreen — registration flow (T013)', () => {
     });
 
     const { getByTestId, getByText } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
     await fillAndSubmit(getByTestId, user);
 
@@ -116,6 +119,7 @@ describe('SignInScreen — registration flow (T013)', () => {
     });
 
     const { getByTestId, getByText } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
     await fillAndSubmit(getByTestId, user);
 
@@ -136,6 +140,7 @@ describe('SignInScreen — registration flow (T013)', () => {
     );
 
     const { getByTestId } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
     await user.type(getByTestId('input-name'), 'John Doe');
     await user.type(getByTestId('input-email'), 'john@example.com');

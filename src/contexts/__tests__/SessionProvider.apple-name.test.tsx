@@ -2,6 +2,7 @@ import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 
 type AuthCallback = (event: AuthChangeEvent, session: Session | null) => void;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let authCallback: AuthCallback | null = null;
 
 const mockGetSession = jest.fn().mockResolvedValue({

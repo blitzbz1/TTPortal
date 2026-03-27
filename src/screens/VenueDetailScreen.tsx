@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking, Share, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking, Share, ActivityIndicator, Platform, Modal, Pressable, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -8,7 +8,7 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getVenueById } from '../services/venues';
 import { getReviewsForVenue } from '../services/reviews';
-import { checkin } from '../services/checkins';
+import { checkin, checkout, getUserActiveCheckin, getUserAnyActiveCheckin } from '../services/checkins';
 import { isFavorite, addFavorite, removeFavorite } from '../services/favorites';
 import type { Venue, Review, VenueStats } from '../types/database';
 
@@ -25,6 +25,12 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [favorited, setFavorited] = useState(false);
   const [loading, setLoading] = useState(true);
   const [checkinLoading, setCheckinLoading] = useState(false);
+  const [activeCheckin, setActiveCheckin] = useState<any>(null);
+  const [checkinModalVisible, setCheckinModalVisible] = useState(false);
+  const [customMode, setCustomMode] = useState<'none' | 'minutes' | 'until'>('none');
+  const [customMinutes, setCustomMinutes] = useState('');
+  const [untilHour, setUntilHour] = useState('');
+  const [untilMinute, setUntilMinute] = useState('');
 
   useEffect(() => {
     if (!venueId) return;
@@ -41,8 +47,14 @@ export function VenueDetailScreen({ venueId }: Props) {
       if (reviewsRes.data) setReviews(reviewsRes.data as Review[]);
 
       if (user) {
-        const favRes = await isFavorite(user.id, Number(venueId));
-        if (!cancelled && favRes.data !== undefined) setFavorited(favRes.data);
+        const [favRes, checkinRes] = await Promise.all([
+          isFavorite(user.id, Number(venueId)),
+          getUserActiveCheckin(user.id, Number(venueId)),
+        ]);
+        if (!cancelled) {
+          if (favRes.data !== undefined) setFavorited(favRes.data);
+          setActiveCheckin(checkinRes.data ?? null);
+        }
       }
       setLoading(false);
     }
@@ -56,14 +68,95 @@ export function VenueDetailScreen({ venueId }: Props) {
     Share.share({ message: venue.name + ' - ' + (venue.address || '') });
   }, [venue]);
 
-  const handleCheckin = useCallback(async () => {
+  const showAlert = useCallback((title: string, msg: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n${msg}`);
+    } else {
+      Alert.alert(title, msg);
+    }
+  }, []);
+
+  const showDurationModal = useCallback(() => {
+    setCustomMode('none');
+    setCustomMinutes('');
+    setUntilHour('');
+    setUntilMinute('');
+    setCheckinModalVisible(true);
+  }, []);
+
+  const openCheckinModal = useCallback(async () => {
+    if (!user) return;
+    // Check if user has an active checkin at a DIFFERENT venue
+    const { data: existing } = await getUserAnyActiveCheckin(user.id);
+    if (existing && existing.venue_id !== Number(venueId)) {
+      const venueName = existing.venues?.name ?? '';
+      const msg = `${s('alreadyCheckedIn')} ${venueName}. ${s('checkoutAndContinue')}`;
+      if (Platform.OS === 'web') {
+        if (!window.confirm(msg)) return;
+        await checkout(existing.id);
+      } else {
+        return new Promise<void>((resolve) => {
+          Alert.alert(s('alreadyCheckedIn') + ' ' + venueName, s('checkoutAndContinue'), [
+            { text: s('cancel'), style: 'cancel', onPress: () => resolve() },
+            { text: s('yes'), onPress: async () => { await checkout(existing.id); showDurationModal(); resolve(); } },
+          ]);
+        });
+      }
+    }
+    showDurationModal();
+  }, [user, venueId, showDurationModal]);
+
+  const doCheckin = useCallback(async (durationMinutes: number) => {
     if (!user || !venueId) return;
+    setCheckinModalVisible(false);
     setCheckinLoading(true);
-    const { error } = await checkin({ user_id: user.id, venue_id: Number(venueId), table_number: null, started_at: new Date().toISOString(), ended_at: null, friends: null });
+    const now = new Date();
+    const endedAt = new Date(now.getTime() + durationMinutes * 60_000);
+    const { error } = await checkin({
+      user_id: user.id,
+      venue_id: Number(venueId),
+      table_number: null,
+      started_at: now.toISOString(),
+      ended_at: endedAt.toISOString(),
+      friends: [],
+    });
     setCheckinLoading(false);
-    if (error) { Alert.alert(s('error'), error.message); return; }
-    Alert.alert(s('success'), s('checkinSuccess'));
-  }, [user, venueId]);
+    if (error) { showAlert(s('error'), error.message); return; }
+    // Refresh active checkin state
+    const { data: active } = await getUserActiveCheckin(user.id, Number(venueId));
+    setActiveCheckin(active ?? null);
+    showAlert(s('success'), s('checkinSuccess'));
+  }, [user, venueId, showAlert]);
+
+  const handleCustomConfirm = useCallback(() => {
+    if (customMode === 'minutes') {
+      const mins = parseInt(customMinutes, 10);
+      if (!mins || mins < 1) return;
+      doCheckin(mins);
+    } else if (customMode === 'until') {
+      const h = parseInt(untilHour, 10);
+      const m = parseInt(untilMinute || '0', 10);
+      if (isNaN(h) || h < 0 || h > 23) return;
+      const now = new Date();
+      const target = new Date(now);
+      target.setHours(h, m, 0, 0);
+      if (target <= now) {
+        showAlert(s('error'), s('endTimeInPast'));
+        return;
+      }
+      const diffMin = Math.round((target.getTime() - now.getTime()) / 60_000);
+      doCheckin(diffMin);
+    }
+  }, [customMode, customMinutes, untilHour, untilMinute, doCheckin, showAlert]);
+
+  const handleCheckout = useCallback(async () => {
+    if (!activeCheckin) return;
+    setCheckinLoading(true);
+    const { error } = await checkout(activeCheckin.id);
+    setCheckinLoading(false);
+    if (error) { showAlert(s('error'), error.message); return; }
+    setActiveCheckin(null);
+  }, [activeCheckin, showAlert]);
 
   const handleToggleFavorite = useCallback(async () => {
     if (!user || !venueId) return;
@@ -218,16 +311,36 @@ export function VenueDetailScreen({ venueId }: Props) {
               <Text style={styles.checkinTime}>Check-in acum 15 min</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.checkinBtn} onPress={handleCheckin} disabled={checkinLoading}>
-            {checkinLoading ? (
-              <ActivityIndicator size="small" color={Colors.white} />
-            ) : (
-              <>
-                <Lucide name="map-pin" size={16} color={Colors.white} />
-                <Text style={styles.checkinBtnText}>{s('checkinHere')}</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {activeCheckin ? (
+            <View style={styles.activeCheckinWrap}>
+              <View style={styles.activeCheckinInfo}>
+                <Lucide name="check-circle" size={16} color={Colors.greenLight} />
+                <Text style={styles.activeCheckinText}>
+                  {s('checkinSuccess').replace('!', '')} {activeCheckin.ended_at
+                    ? `· ${s('untilTime')} ${new Date(activeCheckin.ended_at).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}`
+                    : ''}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.checkoutBtn} onPress={handleCheckout} disabled={checkinLoading}>
+                {checkinLoading ? (
+                  <ActivityIndicator size="small" color={Colors.red} />
+                ) : (
+                  <Text style={styles.checkoutBtnText}>Checkout</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.checkinBtn} onPress={openCheckinModal} disabled={checkinLoading}>
+              {checkinLoading ? (
+                <ActivityIndicator size="small" color={Colors.white} />
+              ) : (
+                <>
+                  <Lucide name="map-pin" size={16} color={Colors.white} />
+                  <Text style={styles.checkinBtnText}>{s('checkinHere')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Directions */}
@@ -273,9 +386,130 @@ export function VenueDetailScreen({ venueId }: Props) {
           ))}
         </View>
       </ScrollView>
+
+      {/* Checkin Duration Modal */}
+      <Modal visible={checkinModalVisible} transparent animationType="slide" onRequestClose={() => setCheckinModalVisible(false)}>
+        <Pressable style={cm.overlay} onPress={() => setCheckinModalVisible(false)}>
+          <Pressable style={cm.sheet} onPress={() => {}}>
+            {/* Handle */}
+            <View style={cm.handleWrap}><View style={cm.handle} /></View>
+
+            <Text style={cm.title}>{s('checkinDuration')}</Text>
+
+            {customMode === 'none' && (
+              <View style={cm.options}>
+                <TouchableOpacity style={cm.optionBtn} onPress={() => doCheckin(60)}>
+                  <Lucide name="clock" size={18} color={Colors.green} />
+                  <Text style={cm.optionText}>{s('oneHour')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={cm.optionBtn} onPress={() => doCheckin(120)}>
+                  <Lucide name="clock" size={18} color={Colors.green} />
+                  <Text style={cm.optionText}>{s('twoHours')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={cm.optionBtn} onPress={() => doCheckin(180)}>
+                  <Lucide name="clock" size={18} color={Colors.green} />
+                  <Text style={cm.optionText}>{s('threeHours')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={cm.optionBtn} onPress={() => setCustomMode('minutes')}>
+                  <Lucide name="timer" size={18} color={Colors.orangeBright} />
+                  <Text style={cm.optionText}>{s('customTime')}</Text>
+                  <View style={{ marginLeft: 'auto' }}><Lucide name="chevron-right" size={14} color={Colors.inkFaint} /></View>
+                </TouchableOpacity>
+                <TouchableOpacity style={cm.optionBtn} onPress={() => setCustomMode('until')}>
+                  <Lucide name="alarm-clock" size={18} color={Colors.purple} />
+                  <Text style={cm.optionText}>{s('untilTime')}</Text>
+                  <View style={{ marginLeft: 'auto' }}><Lucide name="chevron-right" size={14} color={Colors.inkFaint} /></View>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {customMode === 'minutes' && (
+              <View style={cm.customSection}>
+                <Text style={cm.customLabel}>{s('customMinutes')}</Text>
+                <TextInput
+                  style={cm.input}
+                  keyboardType="number-pad"
+                  placeholder="e.g. 90"
+                  placeholderTextColor={Colors.inkFaint}
+                  value={customMinutes}
+                  onChangeText={setCustomMinutes}
+                  autoFocus
+                />
+                <View style={cm.customActions}>
+                  <TouchableOpacity style={cm.backBtn} onPress={() => setCustomMode('none')}>
+                    <Text style={cm.backBtnText}>{s('cancel')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={cm.confirmBtn} onPress={handleCustomConfirm}>
+                    <Text style={cm.confirmBtnText}>{s('confirm')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {customMode === 'until' && (
+              <View style={cm.customSection}>
+                <Text style={cm.customLabel}>{s('selectEndTime')}</Text>
+                <View style={cm.timeRow}>
+                  <TextInput
+                    style={[cm.input, cm.timeInput]}
+                    keyboardType="number-pad"
+                    placeholder="HH"
+                    placeholderTextColor={Colors.inkFaint}
+                    value={untilHour}
+                    onChangeText={(t) => setUntilHour(t.replace(/\D/g, '').slice(0, 2))}
+                    maxLength={2}
+                    autoFocus
+                  />
+                  <Text style={cm.timeSep}>:</Text>
+                  <TextInput
+                    style={[cm.input, cm.timeInput]}
+                    keyboardType="number-pad"
+                    placeholder="MM"
+                    placeholderTextColor={Colors.inkFaint}
+                    value={untilMinute}
+                    onChangeText={(t) => setUntilMinute(t.replace(/\D/g, '').slice(0, 2))}
+                    maxLength={2}
+                  />
+                </View>
+                <View style={cm.customActions}>
+                  <TouchableOpacity style={cm.backBtn} onPress={() => setCustomMode('none')}>
+                    <Text style={cm.backBtnText}>{s('cancel')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={cm.confirmBtn} onPress={handleCustomConfirm}>
+                    <Text style={cm.confirmBtnText}>{s('confirm')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
+
+/* ── Checkin modal styles ── */
+const cm = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', alignItems: 'center' },
+  sheet: { backgroundColor: Colors.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingBottom: 32, width: '100%', maxWidth: 430 },
+  handleWrap: { alignItems: 'center', paddingVertical: 10 },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: Colors.border },
+  title: { fontFamily: Fonts.heading, fontSize: 18, fontWeight: '700', color: Colors.ink, marginBottom: 16 },
+  options: { gap: 8 },
+  optionBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.bg, borderRadius: Radius.md, padding: 14, borderWidth: 1, borderColor: Colors.borderLight },
+  optionText: { fontFamily: Fonts.body, fontSize: 15, fontWeight: '500', color: Colors.ink },
+  customSection: { gap: 12 },
+  customLabel: { fontFamily: Fonts.body, fontSize: 13, fontWeight: '600', color: Colors.inkMuted },
+  input: { borderWidth: 1.5, borderColor: Colors.border, borderRadius: Radius.md, padding: 12, fontFamily: Fonts.body, fontSize: 16, color: Colors.ink, backgroundColor: Colors.white },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  timeInput: { flex: 1, textAlign: 'center' },
+  timeSep: { fontFamily: Fonts.heading, fontSize: 22, fontWeight: '700', color: Colors.ink },
+  customActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  backBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, borderWidth: 1, borderColor: Colors.border },
+  backBtnText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: Colors.inkMuted },
+  confirmBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, backgroundColor: Colors.green },
+  confirmBtnText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: Colors.white },
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -497,6 +731,41 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: Colors.white,
+  },
+  activeCheckinWrap: {
+    gap: 8,
+  },
+  activeCheckinInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.greenPale,
+    borderRadius: Radius.md,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.greenDim,
+  },
+  activeCheckinText: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    fontWeight: '500',
+    color: Colors.greenMid,
+    flex: 1,
+  },
+  checkoutBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.md,
+    height: 40,
+    borderWidth: 1.5,
+    borderColor: Colors.red,
+    backgroundColor: Colors.redPale,
+  },
+  checkoutBtnText: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.red,
   },
   directionsSection: {
     backgroundColor: Colors.white,

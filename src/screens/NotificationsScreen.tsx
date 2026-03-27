@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Animated, PanResponder, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -7,7 +7,7 @@ import { Colors, Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useNotifications } from '../hooks/useNotifications';
 import { useI18n } from '../hooks/useI18n';
-import { getNotifications, markAsRead } from '../services/notifications';
+import { getNotifications, markAsRead, deleteNotification, deleteAllNotifications } from '../services/notifications';
 
 const ICON_MAP: Record<string, { name: string; color: string; bg: string }> = {
   friend_request: { name: 'user-plus', color: Colors.purple, bg: Colors.purplePale },
@@ -18,6 +18,38 @@ const ICON_MAP: Record<string, { name: string; color: string; bg: string }> = {
   checkin_nearby: { name: 'map-pin', color: Colors.blue, bg: Colors.bluePale },
   review_on_venue: { name: 'star', color: Colors.orange, bg: Colors.amberPale },
 };
+
+const DELETE_THRESHOLD = -80;
+
+function SwipeableRow({ children, onDelete }: { children: React.ReactNode; onDelete: () => void }) {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderMove: (_, g) => {
+        if (g.dx < 0) translateX.setValue(g.dx);
+      },
+      onPanResponderRelease: (_, g) => {
+        if (g.dx < DELETE_THRESHOLD) {
+          Animated.timing(translateX, { toValue: -300, duration: 200, useNativeDriver: true }).start(onDelete);
+        } else {
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+        }
+      },
+    }),
+  ).current;
+
+  return (
+    <View style={sw.container}>
+      <View style={sw.deleteBackground}>
+        <Lucide name="trash-2" size={18} color={Colors.white} />
+      </View>
+      <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
+        {children}
+      </Animated.View>
+    </View>
+  );
+}
 
 export function NotificationsScreen() {
   const { user } = useSession();
@@ -54,6 +86,29 @@ export function NotificationsScreen() {
     }
   }, [router, refreshUnreadCount]);
 
+  const handleDelete = useCallback(async (id: number) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    await deleteNotification(id);
+    refreshUnreadCount();
+  }, [refreshUnreadCount]);
+
+  const handleDeleteAll = useCallback(async () => {
+    if (!user) return;
+    const doDelete = async () => {
+      setNotifications([]);
+      await deleteAllNotifications(user.id);
+      refreshUnreadCount();
+    };
+    if (Platform.OS === 'web') {
+      if (window.confirm(s('deleteAllConfirm'))) await doDelete();
+    } else {
+      Alert.alert(s('deleteAllNotifications'), s('deleteAllConfirm'), [
+        { text: s('cancel'), style: 'cancel' },
+        { text: s('deleteNotification'), style: 'destructive', onPress: doDelete },
+      ]);
+    }
+  }, [user, refreshUnreadCount]);
+
   const handleClearAll = useCallback(async () => {
     await clearAll();
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -76,16 +131,21 @@ export function NotificationsScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Lucide name="arrow-left" size={24} color={Colors.ink} />
+          <Lucide name="arrow-left" size={24} color={Colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('notifications')}</Text>
-        {unreadCount > 0 ? (
-          <TouchableOpacity onPress={handleClearAll}>
-            <Text style={styles.clearText}>{s('markAllRead')}</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 60 }} />
-        )}
+        <View style={styles.headerActions}>
+          {unreadCount > 0 && (
+            <TouchableOpacity onPress={handleClearAll}>
+              <Text style={styles.actionText}>{s('markAllRead')}</Text>
+            </TouchableOpacity>
+          )}
+          {notifications.length > 0 && (
+            <TouchableOpacity onPress={handleDeleteAll}>
+              <Lucide name="trash-2" size={18} color={Colors.white} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {loading ? (
@@ -100,23 +160,25 @@ export function NotificationsScreen() {
           {notifications.map((n) => {
             const icon = ICON_MAP[n.type] || ICON_MAP.friend_request;
             return (
-              <TouchableOpacity
-                key={n.id}
-                style={[styles.card, !n.read && styles.cardUnread]}
-                onPress={() => handleTap(n)}
-              >
-                <View style={[styles.iconWrap, { backgroundColor: icon.bg }]}>
-                  <Lucide name={icon.name} size={20} color={icon.color} />
-                </View>
-                <View style={styles.cardContent}>
-                  <Text style={[styles.cardTitle, !n.read && styles.cardTitleUnread]}>
-                    {n.title}
-                  </Text>
-                  <Text style={styles.cardBody}>{n.body}</Text>
-                  <Text style={styles.cardTime}>{formatTime(n.created_at)}</Text>
-                </View>
-                {!n.read && <View style={styles.unreadDot} />}
-              </TouchableOpacity>
+              <SwipeableRow key={n.id} onDelete={() => handleDelete(n.id)}>
+                <TouchableOpacity
+                  style={[styles.card, !n.read && styles.cardUnread]}
+                  onPress={() => handleTap(n)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.iconWrap, { backgroundColor: icon.bg }]}>
+                    <Lucide name={icon.name} size={20} color={icon.color} />
+                  </View>
+                  <View style={styles.cardContent}>
+                    <Text style={[styles.cardTitle, !n.read && styles.cardTitleUnread]}>
+                      {n.title}
+                    </Text>
+                    <Text style={styles.cardBody}>{n.body}</Text>
+                    <Text style={styles.cardTime}>{formatTime(n.created_at)}</Text>
+                  </View>
+                  {!n.read && <View style={styles.unreadDot} />}
+                </TouchableOpacity>
+              </SwipeableRow>
             );
           })}
         </ScrollView>
@@ -124,6 +186,23 @@ export function NotificationsScreen() {
     </SafeAreaView>
   );
 }
+
+const sw = StyleSheet.create({
+  container: {
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  deleteBackground: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 80,
+    backgroundColor: Colors.red,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -134,23 +213,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.white,
-    height: 52,
+    backgroundColor: Colors.green,
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    minHeight: 52,
   },
   headerTitle: {
     fontFamily: Fonts.heading,
     fontSize: 18,
     fontWeight: '700',
-    color: Colors.ink,
+    color: Colors.white,
   },
-  clearText: {
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  actionText: {
     fontFamily: Fonts.body,
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.greenMid,
+    color: Colors.white,
   },
   scroll: {
     flex: 1,
@@ -174,6 +257,7 @@ const styles = StyleSheet.create({
     gap: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderLight,
+    backgroundColor: Colors.bg,
   },
   cardUnread: {
     backgroundColor: Colors.greenPale,

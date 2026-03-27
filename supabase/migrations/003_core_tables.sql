@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS public.checkins (
   venue_id INT NOT NULL REFERENCES public.venues(id) ON DELETE CASCADE,
   table_number INT,
   started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  ended_at TIMESTAMPTZ,
+  ended_at TIMESTAMPTZ NOT NULL DEFAULT (now() + INTERVAL '1 hour'),
   friends UUID[] DEFAULT '{}'
 );
 
@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS public.event_participants (
 CREATE INDEX IF NOT EXISTS idx_venues_city ON public.venues(city);
 CREATE INDEX IF NOT EXISTS idx_venues_type ON public.venues(type);
 CREATE INDEX IF NOT EXISTS idx_venues_approved ON public.venues(approved);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_venues_name_city ON public.venues(name, city);
 CREATE INDEX IF NOT EXISTS idx_reviews_venue ON public.reviews(venue_id);
 CREATE INDEX IF NOT EXISTS idx_favorites_user ON public.favorites(user_id);
 CREATE INDEX IF NOT EXISTS idx_checkins_user ON public.checkins(user_id);

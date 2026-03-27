@@ -70,20 +70,20 @@ describe('SignInScreen — forgot password link (T029)', () => {
     expect(queryByTestId('forgot-password-link')).toBeNull();
   });
 
-  it('forgot password link appears after switching from signup to login tab', async () => {
+  it('forgot password link disappears after switching from login to signup tab', async () => {
     mockSearchParams.mockReturnValue({});
     const { getByTestId, queryByTestId } = render(<SignInScreen />);
 
-    // Default is signup — no forgot link
-    expect(queryByTestId('forgot-password-link')).toBeNull();
-
-    // Switch to login tab
-    await user.press(getByTestId('tab-login'));
+    // Default is login — forgot link visible
     expect(getByTestId('forgot-password-link')).toBeTruthy();
 
-    // Switch back to signup — link should disappear
+    // Switch to signup tab — link should disappear
     await user.press(getByTestId('tab-signup'));
     expect(queryByTestId('forgot-password-link')).toBeNull();
+
+    // Switch back to login — link should reappear
+    await user.press(getByTestId('tab-login'));
+    expect(getByTestId('forgot-password-link')).toBeTruthy();
   });
 
   it('tapping the forgot password link navigates to /forgot-password', async () => {

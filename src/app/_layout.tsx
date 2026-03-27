@@ -11,7 +11,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ActivityIndicator, LogBox, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, LogBox, Platform, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
 // Suppress LogBox in development to prevent overlay from blocking tab bar during E2E tests
@@ -80,7 +80,7 @@ function RootNavigator() {
     );
   }
 
-  return (
+  const nav = (
     <>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -93,6 +93,16 @@ function RootNavigator() {
       <StatusBar style="auto" />
     </>
   );
+
+  if (Platform.OS !== 'web') return nav;
+
+  return (
+    <View style={styles.webOuter}>
+      <View style={styles.webFrame}>
+        {nav}
+      </View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -101,5 +111,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.bg,
+  },
+  webOuter: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: '#e8ebe5',
+  },
+  webFrame: {
+    width: '100%',
+    maxWidth: 430,
+    flex: 1,
+    backgroundColor: Colors.bg,
+    // @ts-ignore web-only shadow
+    boxShadow: '0 0 40px rgba(0,0,0,0.12)',
+    overflow: 'hidden',
   },
 });

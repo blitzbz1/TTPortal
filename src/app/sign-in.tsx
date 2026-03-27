@@ -34,7 +34,7 @@ export default function SignInScreen() {
   const { s, lang, setLang } = useI18n();
 
   const [activeTab, setActiveTab] = useState<'signup' | 'login'>(
-    (initialTab as 'signup' | 'login') || 'signup',
+    (initialTab as 'signup' | 'login') || 'login',
   );
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -151,17 +151,6 @@ export default function SignInScreen() {
           {/* Tabs */}
           <View style={styles.authTabs}>
             <Pressable
-              style={[styles.authTab, activeTab === 'signup' && styles.authTabActive]}
-              onPress={() => handleTabSwitch('signup')}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: activeTab === 'signup' }}
-              testID="tab-signup"
-            >
-              <Text style={[styles.authTabText, activeTab === 'signup' && styles.authTabTextActive]}>
-                {s('authSignup')}
-              </Text>
-            </Pressable>
-            <Pressable
               style={[styles.authTab, activeTab === 'login' && styles.authTabActive]}
               onPress={() => handleTabSwitch('login')}
               accessibilityRole="tab"
@@ -170,6 +159,17 @@ export default function SignInScreen() {
             >
               <Text style={[styles.authTabText, activeTab === 'login' && styles.authTabTextActive]}>
                 {s('authLogin')}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.authTab, activeTab === 'signup' && styles.authTabActive]}
+              onPress={() => handleTabSwitch('signup')}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === 'signup' }}
+              testID="tab-signup"
+            >
+              <Text style={[styles.authTabText, activeTab === 'signup' && styles.authTabTextActive]}>
+                {s('authSignup')}
               </Text>
             </Pressable>
           </View>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, userEvent, waitFor } from '@testing-library/react-native';
 
 // --- Mocks (must be defined before component import) ---
 
@@ -110,7 +110,11 @@ describe('SignInScreen — login form validation (T016)', () => {
       <SignInScreen />,
     );
 
-    // Default is signup tab — name field visible
+    // Default is login tab — name field hidden
+    expect(queryByTestId('input-name')).toBeNull();
+
+    // Switch to signup tab — name field visible
+    fireEvent.press(getByTestId('tab-signup'));
     expect(getByTestId('input-name')).toBeTruthy();
 
     // Trigger a validation error on signup tab

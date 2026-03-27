@@ -66,6 +66,10 @@ jest.mock('expo-router', () => {
   return { Tabs: TabsComponent };
 });
 
+jest.mock('../../../hooks/useSession', () => ({
+  useSession: () => ({ session: { user: { id: 'test-user' } }, user: { id: 'test-user' }, isLoading: false }),
+}));
+
 jest.mock('../../../components/Icon', () => {
   const { View } = require('react-native');
   return {

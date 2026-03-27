@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Lucide } from './Icon';
 import { Colors, Fonts } from '../theme';
 import { useI18n } from '../hooks/useI18n';
+import { useSession } from '../hooks/useSession';
 
 export type TabKey = 'map' | 'events' | 'leaderboard' | 'favorites' | 'profile';
+
+const AUTH_ONLY_TABS: Set<TabKey> = new Set(['leaderboard', 'favorites', 'profile']);
 
 interface TabBarProps {
   activeTab: TabKey;
@@ -13,14 +16,19 @@ interface TabBarProps {
 
 export function TabBar({ activeTab, onTabPress }: TabBarProps) {
   const { s } = useI18n();
+  const { session } = useSession();
 
-  const TABS: { key: TabKey; icon: string; label: string }[] = [
+  const ALL_TABS: { key: TabKey; icon: string; label: string }[] = [
     { key: 'map', icon: 'map', label: s('tabMap') },
     { key: 'events', icon: 'calendar', label: s('tabEvents') },
     { key: 'leaderboard', icon: 'trophy', label: s('tabLeaderboard') },
     { key: 'favorites', icon: 'heart', label: s('tabFavorites') },
-    { key: 'profile', icon: 'user', label: s('tabProfile') },
   ];
+
+  const TABS = useMemo(
+    () => session ? ALL_TABS : ALL_TABS.filter((t) => !AUTH_ONLY_TABS.has(t.key)),
+    [session, ALL_TABS],
+  );
   return (
     <View style={styles.container}>
       {TABS.map((tab) => {

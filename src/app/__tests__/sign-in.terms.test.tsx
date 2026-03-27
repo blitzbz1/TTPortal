@@ -1,6 +1,6 @@
 import React from 'react';
 import { Linking } from 'react-native';
-import { render, userEvent } from '@testing-library/react-native';
+import { fireEvent, render, userEvent } from '@testing-library/react-native';
 
 // --- Mocks ---
 
@@ -52,6 +52,7 @@ describe('SignInScreen — Terms and Privacy links (T042)', () => {
 
   it('renders terms and privacy links on signup tab', () => {
     const { getByTestId, getByText } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
     expect(getByTestId('terms-container')).toBeTruthy();
     expect(getByText('Termenii și condițiile')).toBeTruthy();
@@ -67,8 +68,9 @@ describe('SignInScreen — Terms and Privacy links (T042)', () => {
 
   it('hides terms links when switching from signup to login tab', async () => {
     const { getByTestId, queryByTestId } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
-    // Initially on signup tab — terms visible
+    // On signup tab — terms visible
     expect(getByTestId('terms-container')).toBeTruthy();
 
     // Switch to login tab
@@ -92,6 +94,7 @@ describe('SignInScreen — Terms and Privacy links (T042)', () => {
 
   it('opens Terms of Service URL when tapping terms link', async () => {
     const { getByTestId } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
     await user.press(getByTestId('terms-link'));
 
@@ -101,6 +104,7 @@ describe('SignInScreen — Terms and Privacy links (T042)', () => {
 
   it('opens Privacy Policy URL when tapping privacy link', async () => {
     const { getByTestId } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
     await user.press(getByTestId('privacy-link'));
 

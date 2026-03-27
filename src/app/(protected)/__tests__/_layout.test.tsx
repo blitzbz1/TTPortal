@@ -88,14 +88,14 @@ describe('ProtectedLayout', () => {
       });
     });
 
-    it('logs the redirect with the target pathname', async () => {
+    it('redirects to sign-in with returnTo param', async () => {
       render(<ProtectedLayout />);
 
       await waitFor(() => {
-        expect(logger.info).toHaveBeenCalledWith(
-          'Redirecting unauthenticated user to sign-in',
-          { returnTo: '/add-venue' },
-        );
+        expect(mockReplace).toHaveBeenCalledWith({
+          pathname: '/sign-in',
+          params: { returnTo: '/add-venue' },
+        });
       });
     });
   });

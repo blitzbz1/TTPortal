@@ -7,13 +7,15 @@ import { Colors, Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getFriends, getPendingRequests, acceptRequest, declineRequest } from '../services/friends';
+import { getActiveFriendCheckins } from '../services/checkins';
 
-type FriendsTab = 'all' | 'online' | 'pending';
+type FriendsTab = 'all' | 'playing' | 'pending';
 
 export function FriendsScreen() {
   const [activeTab, setActiveTab] = useState<FriendsTab>('all');
   const [friends, setFriends] = useState<any[]>([]);
   const [pending, setPending] = useState<any[]>([]);
+  const [playingFriends, setPlayingFriends] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const { user } = useSession();
@@ -28,17 +30,46 @@ export function FriendsScreen() {
         getFriends(user.id),
         getPendingRequests(user.id),
       ]);
+
+      let normalizedFriends: any[] = [];
       if (friendsRes.data) {
-        // Normalize: extract the "other" friend profile
-        const normalized = friendsRes.data.map((f: any) => {
+        normalizedFriends = friendsRes.data.map((f: any) => {
           const isRequester = f.requester_id === user.id;
           const profile = isRequester ? f.addressee : f.requester;
           return { ...f, friend: profile };
         });
-        setFriends(normalized);
+        setFriends(normalizedFriends);
       }
       if (pendingRes.data) {
         setPending(pendingRes.data);
+      }
+
+      // Fetch active checkins for friends
+      if (normalizedFriends.length > 0) {
+        const friendIds = normalizedFriends.map((f: any) =>
+          f.requester_id === user.id ? f.addressee_id : f.requester_id,
+        );
+        const { data: checkins } = await getActiveFriendCheckins(friendIds);
+        if (checkins?.length) {
+          // Build a map: friend user_id -> checkin info
+          const checkinMap = new Map<string, any>();
+          for (const c of checkins) {
+            if (!checkinMap.has(c.user_id)) checkinMap.set(c.user_id, c);
+          }
+          // Match with friend profiles
+          const playing = normalizedFriends
+            .filter((f: any) => {
+              const fid = f.requester_id === user.id ? f.addressee_id : f.requester_id;
+              return checkinMap.has(fid);
+            })
+            .map((f: any) => {
+              const fid = f.requester_id === user.id ? f.addressee_id : f.requester_id;
+              return { ...f, checkin: checkinMap.get(fid) };
+            });
+          setPlayingFriends(playing);
+        } else {
+          setPlayingFriends([]);
+        }
       }
     } finally {
       setLoading(false);
@@ -137,7 +168,7 @@ export function FriendsScreen() {
         <View style={styles.tabs}>
           {[
             { key: 'all' as FriendsTab, label: `${s('allFriends')} (${friends.length})` },
-            { key: 'online' as FriendsTab, label: s('online') },
+            { key: 'playing' as FriendsTab, label: `${s('online')} (${playingFriends.length})` },
             { key: 'pending' as FriendsTab, label: `${s('pending')} (${pending.length})` },
           ].map((tab) => (
             <TouchableOpacity
@@ -189,8 +220,8 @@ export function FriendsScreen() {
               </View>
             )}
 
-            {/* Friends List */}
-            {(activeTab === 'all' || activeTab === 'online') && (
+            {/* Friends List (All tab) */}
+            {activeTab === 'all' && (
               <View style={styles.section}>
                 <View style={styles.friendsLabel}>
                   <Text style={styles.sectionLabel}>{s('friendsTitle')}</Text>
@@ -225,7 +256,56 @@ export function FriendsScreen() {
                             {profile?.city ?? ''}
                           </Text>
                         </View>
-                        <Lucide name="message-circle" size={22} color={Colors.inkFaint} />
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+            )}
+
+            {/* Playing Friends (La joc tab) */}
+            {activeTab === 'playing' && (
+              <View style={styles.section}>
+                {playingFriends.length === 0 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                    <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
+                      {s('noFriendsPlaying')}
+                    </Text>
+                  </View>
+                ) : (
+                  playingFriends.map((friendItem, index) => {
+                    const profile = friendItem.friend;
+                    const ci = friendItem.checkin;
+                    const venueName = ci?.venues?.name ?? '';
+                    const venueCity = ci?.venues?.city ?? '';
+                    const startedAt = ci?.started_at ? new Date(ci.started_at) : null;
+                    const timeStr = startedAt
+                      ? startedAt.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
+                      : '';
+                    return (
+                      <View key={friendItem.id} style={styles.friendRow}>
+                        <View style={styles.friendAvatarWrap}>
+                          <View style={[styles.friendAvatar, { backgroundColor: getColor(index) }]}>
+                            <Text style={styles.friendInitials}>
+                              {getInitials(profile?.full_name)}
+                            </Text>
+                          </View>
+                          <View style={styles.playingDot} />
+                        </View>
+                        <View style={styles.friendInfo}>
+                          <Text style={styles.friendName}>
+                            {profile?.full_name ?? s('user')}
+                          </Text>
+                          <Text style={styles.playingVenue} numberOfLines={1}>
+                            📍 {venueName}{venueCity ? `, ${venueCity}` : ''}
+                          </Text>
+                          <Text style={styles.playingTime}>
+                            {s('checkedInSince')} {timeStr}
+                          </Text>
+                        </View>
+                        <View style={styles.playingBadge}>
+                          <Text style={styles.playingBadgeText}>🏓</Text>
+                        </View>
                       </View>
                     );
                   })
@@ -482,6 +562,39 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.inkFaint,
+  },
+  playingDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: Colors.greenLight,
+    borderWidth: 2,
+    borderColor: Colors.bg,
+  },
+  playingVenue: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.greenMid,
+  },
+  playingTime: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.inkFaint,
+  },
+  playingBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.greenPale,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playingBadgeText: {
+    fontSize: 16,
   },
   shareSection: {
     padding: 16,

@@ -79,7 +79,10 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   }, []);
 
   const handleJoin = useCallback(async (event: any) => {
-    if (!user) return;
+    if (!user) {
+      router.push('/sign-in');
+      return;
+    }
     const isJoined = event.event_participants?.some(
       (p: any) => p.user_id === user.id,
     );
@@ -165,13 +168,19 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={styles.headerTitle}>{s('events')}</Text>
-        <TouchableOpacity
-          style={styles.createBtn}
-          onPress={() => router.push('/(protected)/create-event' as any)}
-        >
-          <Lucide name="plus" size={14} color={Colors.white} />
-          <Text style={styles.createText}>{s('create')}</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {user ? (
+            <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/(protected)/create-event' as any)}>
+              <Lucide name="plus" size={14} color={Colors.white} />
+              <Text style={styles.createText}>{s('create')}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/sign-in')}>
+              <Lucide name="log-in" size={14} color={Colors.white} />
+              <Text style={styles.createText}>{s('authLogin')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <ScrollView style={styles.scroll}>
@@ -180,7 +189,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
           {[
             { key: 'upcoming' as EventTab, label: `${s('upcoming')} (${activeTab === 'upcoming' ? events.length : ''})`.replace('()', '').trim() },
             { key: 'past' as EventTab, label: s('past') },
-            { key: 'mine' as EventTab, label: s('mine') },
+            ...(user ? [{ key: 'mine' as EventTab, label: s('mine') }] : []),
           ].map((tab) => (
             <TouchableOpacity
               key={tab.key}
@@ -466,30 +475,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.white,
-    paddingBottom: 10,
+    backgroundColor: Colors.green,
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    minHeight: 52,
   },
   headerTitle: {
     fontFamily: Fonts.heading,
     fontSize: 18,
     fontWeight: '700',
-    color: Colors.ink,
+    color: Colors.white,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  profileBtn: {
+    padding: 4,
+  },
+  bellBtn: {
+    position: 'relative',
+    padding: 4,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: Colors.red,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: {
+    fontFamily: Fonts.body,
+    fontSize: 9,
+    fontWeight: '700',
+    color: Colors.white,
   },
   createBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.orangeBright,
-    borderRadius: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    gap: 6,
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    gap: 4,
   },
   createText: {
     fontFamily: Fonts.body,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: Colors.white,
   },

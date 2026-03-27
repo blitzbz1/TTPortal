@@ -64,8 +64,8 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
       const nameB = b.venues?.name ?? '';
       return nameA.localeCompare(nameB, 'ro');
     }
-    // 'recent' — sort by created_at descending (already default from API)
-    return 0;
+    // 'recent' — sort by created_at descending
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
   const getVenueTypeInfo = (venue: any) => {
@@ -111,7 +111,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={styles.headerTitle}>{s('favorites')}</Text>
         <TouchableOpacity style={styles.sortBtn} onPress={handleToggleSort}>
-          <Lucide name="arrow-up-down" size={14} color={Colors.inkMuted} />
+          <Lucide name="arrow-up-down" size={14} color={Colors.white} />
           <Text style={styles.sortText}>{sortMode === 'recent' ? s('sortRecent') : s('sortName')}</Text>
         </TouchableOpacity>
       </View>
@@ -184,34 +184,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.white,
-    paddingBottom: 10,
+    backgroundColor: Colors.green,
+    paddingVertical: 10,
+    minHeight: 52,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   headerTitle: {
     fontFamily: Fonts.heading,
     fontSize: 18,
     fontWeight: '700',
-    color: Colors.ink,
+    color: Colors.white,
   },
   sortBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.bgDark,
-    borderRadius: 16,
-    paddingVertical: 6,
+    backgroundColor: Colors.orangeBright,
+    borderRadius: 8,
+    paddingVertical: 5,
     paddingHorizontal: 10,
     gap: 4,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
   sortText: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    fontWeight: '500',
-    color: Colors.inkMuted,
+    fontWeight: '600',
+    color: Colors.white,
   },
   scroll: {
     flex: 1,

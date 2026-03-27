@@ -27,20 +27,59 @@ export async function declineRequest(id: number) {
 }
 
 export async function getFriends(userId: string) {
-  return supabase
+  const { data: friendships, error } = await supabase
     .from('friendships')
-    .select('*, requester:profiles!requester_id(*), addressee:profiles!addressee_id(*)')
+    .select('*')
     .eq('status', 'accepted')
     .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
+
+  if (error || !friendships?.length) return { data: friendships ?? [], error };
+
+  const userIds = new Set<string>();
+  for (const f of friendships) {
+    userIds.add(f.requester_id);
+    userIds.add(f.addressee_id);
+  }
+  userIds.delete(userId);
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url, city, username')
+    .in('id', [...userIds]);
+
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+  const merged = friendships.map((f) => ({
+    ...f,
+    requester: profileMap.get(f.requester_id) ?? null,
+    addressee: profileMap.get(f.addressee_id) ?? null,
+  }));
+
+  return { data: merged, error: null };
 }
 
 export async function getPendingRequests(userId: string) {
-  return supabase
+  const { data: pending, error } = await supabase
     .from('friendships')
-    .select('*, requester:profiles!requester_id(id, full_name, avatar_url)')
+    .select('*')
     .eq('addressee_id', userId)
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
+
+  if (error || !pending?.length) return { data: pending ?? [], error };
+
+  const requesterIds = pending.map((p) => p.requester_id);
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url')
+    .in('id', requesterIds);
+
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+  const merged = pending.map((p) => ({
+    ...p,
+    requester: profileMap.get(p.requester_id) ?? null,
+  }));
+
+  return { data: merged, error: null };
 }
 
 export async function searchUsers(query: string) {

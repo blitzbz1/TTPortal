@@ -52,5 +52,7 @@ CREATE POLICY "Users can view own notifications" ON public.notifications FOR SEL
   USING (auth.uid() = recipient_id);
 CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE TO authenticated
   USING (auth.uid() = recipient_id);
+CREATE POLICY "Users can delete own notifications" ON public.notifications FOR DELETE TO authenticated
+  USING (auth.uid() = recipient_id);
 CREATE POLICY "Service role can insert notifications" ON public.notifications FOR INSERT
   WITH CHECK (true);

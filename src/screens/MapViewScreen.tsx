@@ -9,6 +9,11 @@ import { TabBar } from '../components/TabBar';
 import { CityPickerModal } from '../components/CityPickerModal';
 import { Colors, Fonts, Radius } from '../theme';
 import { getVenues } from '../services/venues';
+import { getCities } from '../services/cities';
+import { getActiveFriendCheckins } from '../services/checkins';
+import { getFriends } from '../services/friends';
+import { useSession } from '../hooks/useSession';
+import { useNotifications } from '../hooks/useNotifications';
 import { useI18n } from '../hooks/useI18n';
 import type { Venue, VenueCondition } from '../types/database';
 
@@ -32,12 +37,16 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { s } = useI18n();
+  const { user } = useSession();
+  const { unreadCount } = useNotifications();
   const [venues, setVenues] = useState<VenueWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterKey>('toate');
   const [cityModalVisible, setCityModalVisible] = useState(false);
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string>('București');
+  const [friendCheckinVenueIds, setFriendCheckinVenueIds] = useState<Set<number>>(new Set());
+  const [activeFriendsCount, setActiveFriendsCount] = useState(0);
   const mapRef = useRef<MapView>(null);
 
   const filters: { key: FilterKey; label: string; icon?: string }[] = [
@@ -68,7 +77,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const fetchVenues = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await getVenues(selectedCity ?? undefined);
+      const { data } = await getVenues(selectedCity);
       if (data) setVenues(data as VenueWithStats[]);
     } catch {
       // silently handle fetch errors
@@ -80,6 +89,53 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   useEffect(() => {
     fetchVenues();
   }, [fetchVenues]);
+
+  // Reposition map when city changes
+  useEffect(() => {
+    if (!selectedCity) return;
+    (async () => {
+      const { data: cities } = await getCities();
+      const city = cities?.find((c: any) => c.name === selectedCity);
+      if (city && mapRef.current) {
+        mapRef.current.animateToRegion({
+          latitude: city.lat,
+          longitude: city.lng,
+          latitudeDelta: city.zoom ? 360 / Math.pow(2, city.zoom) : 0.08,
+          longitudeDelta: city.zoom ? 360 / Math.pow(2, city.zoom) : 0.08,
+        }, 500);
+      }
+    })();
+  }, [selectedCity]);
+
+  // Fetch active friend checkins
+  useEffect(() => {
+    if (!user?.id) {
+      setFriendCheckinVenueIds(new Set());
+      setActiveFriendsCount(0);
+      return;
+    }
+    (async () => {
+      const { data: friendships } = await getFriends(user.id);
+      if (!friendships?.length) {
+        setFriendCheckinVenueIds(new Set());
+        setActiveFriendsCount(0);
+        return;
+      }
+      const fIds = friendships.map((f) =>
+        f.requester_id === user.id ? f.addressee_id : f.requester_id,
+      );
+      const { data: checkins } = await getActiveFriendCheckins(fIds);
+      if (!checkins?.length) {
+        setFriendCheckinVenueIds(new Set());
+        setActiveFriendsCount(0);
+        return;
+      }
+      const venueIds = new Set(checkins.map((c: any) => c.venue_id as number));
+      const uniqueFriends = new Set(checkins.map((c: any) => c.user_id as string));
+      setFriendCheckinVenueIds(venueIds);
+      setActiveFriendsCount(uniqueFriends.size);
+    })();
+  }, [user?.id]);
 
   const handleNearMe = useCallback(async () => {
     try {
@@ -135,13 +191,31 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
           <Text style={styles.headerTitle}>TT PORTAL</Text>
         </View>
         <TouchableOpacity style={styles.cityPicker} onPress={() => setCityModalVisible(true)}>
-          <Text style={styles.cityText}>{selectedCity || 'București'}</Text>
+          <Text style={styles.cityText}>{selectedCity}</Text>
           <Lucide name="chevron-down" size={14} color="#ffffffaa" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/(protected)/add-venue' as any)}>
-          <Lucide name="plus" size={14} color={Colors.white} />
-          <Text style={styles.addBtnText}>{s('addBtn')}</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {user ? (
+            <>
+              <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(protected)/notifications' as any)}>
+                <Lucide name="bell" size={18} color={Colors.white} />
+                {unreadCount > 0 && (
+                  <View style={styles.bellBadge}>
+                    <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.profileBtn} onPress={() => router.push('/(tabs)/profile' as any)}>
+                <Lucide name="user" size={18} color={Colors.white} />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity style={styles.loginBtn} onPress={() => router.push('/sign-in')}>
+              <Lucide name="log-in" size={14} color={Colors.white} />
+              <Text style={styles.addBtnText}>{s('authLogin')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Map Area */}
@@ -161,6 +235,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
             if (!venue.lat || !venue.lng) return null;
             const condInfo = conditionLabel(venue.condition);
             const isIndoor = venue.type === 'sala_indoor';
+            const hasFriend = friendCheckinVenueIds.has(venue.id);
             return (
               <Marker
                 key={venue.id}
@@ -171,12 +246,20 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
                   <View style={[pinStyles.wrap, { backgroundColor: condInfo.color }]}>
                     <Text style={pinStyles.icon}>{isIndoor ? '🏢' : '🏓'}</Text>
                   </View>
+                  {hasFriend && (
+                    <View style={pinStyles.friendBadge}>
+                      <Text style={pinStyles.friendBadgeIcon}>👋</Text>
+                    </View>
+                  )}
                   <View style={pinStyles.arrow} />
                 </View>
                 <Callout tooltip onPress={() => router.push(`/venue/${venue.id}` as any)}>
                   <View style={pinStyles.callout}>
                     <Text style={pinStyles.calloutTitle} numberOfLines={1}>{venue.name}</Text>
-                    <Text style={pinStyles.calloutSub}>{typeLabel(venue.type)} · {condInfo.label}</Text>
+                    <Text style={pinStyles.calloutSub}>
+                      {typeLabel(venue.type)} · {condInfo.label}
+                      {hasFriend ? ` · 👋 ${s('friendsActive')}` : ''}
+                    </Text>
                   </View>
                 </Callout>
               </Marker>
@@ -225,10 +308,12 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
               returnKeyType="search"
             />
           </View>
-          <TouchableOpacity style={styles.nearMeListBtn} onPress={handleNearMe}>
-            <Lucide name="locate" size={16} color={Colors.greenMid} />
-            <Text style={styles.nearMeListText}>{s('nearbyBtn')}</Text>
-          </TouchableOpacity>
+          {user && (
+            <TouchableOpacity style={styles.addChip} onPress={() => router.push('/(protected)/add-venue' as any)}>
+              <Lucide name="plus" size={14} color={Colors.white} />
+              <Text style={styles.addChipText}>{s('addBtn')}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Filters */}
@@ -252,10 +337,12 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
         {/* List Header */}
         <View style={styles.listHeader}>
           <Text style={styles.listHeaderText} testID="venues-count">{filteredVenues.length} {s('venuesShown')}</Text>
-          <View style={styles.friendsOnline}>
-            <View style={[styles.friendsDot, { backgroundColor: Colors.purpleMid }]} />
-            <Text style={styles.friendsText}>2 {s('friendsActive')}</Text>
-          </View>
+          {activeFriendsCount > 0 && (
+            <View style={styles.friendsOnline}>
+              <View style={[styles.friendsDot, { backgroundColor: Colors.purpleMid }]} />
+              <Text style={styles.friendsText}>{activeFriendsCount} {s('friendsActive')}</Text>
+            </View>
+          )}
         </View>
 
         {/* Venue Cards */}
@@ -318,7 +405,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
       <CityPickerModal
         visible={cityModalVisible}
         selectedCity={selectedCity}
-        onSelect={(c) => { setSelectedCity(c); setCityModalVisible(false); }}
+        onSelect={(c) => { if (c) setSelectedCity(c); setCityModalVisible(false); }}
         onClose={() => setCityModalVisible(false)}
       />
     </View>
@@ -335,8 +422,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: Colors.green,
-    paddingBottom: 10,
+    paddingVertical: 10,
     paddingHorizontal: 16,
+    minHeight: 52,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -381,6 +469,45 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12,
     fontWeight: '600',
+    color: Colors.white,
+  },
+  loginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.orangeBright,
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    gap: 4,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  profileBtn: {
+    padding: 4,
+  },
+  bellBtn: {
+    position: 'relative',
+    padding: 4,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: Colors.red,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: {
+    fontFamily: Fonts.body,
+    fontSize: 9,
+    fontWeight: '700',
     color: Colors.white,
   },
   mapArea: {
@@ -551,6 +678,21 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#1a1c19',
   },
+  addChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.orangeBright,
+    borderRadius: Radius.md,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  addChipText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.white,
+  },
   filterTextActive: {
     color: Colors.white,
     fontWeight: '600',
@@ -686,6 +828,23 @@ const pinStyles = StyleSheet.create({
   icon: {
     fontSize: 13,
     lineHeight: 16,
+  },
+  friendBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.purpleMid,
+    borderWidth: 1.5,
+    borderColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  friendBadgeIcon: {
+    fontSize: 8,
+    lineHeight: 10,
   },
   arrow: {
     width: 0,

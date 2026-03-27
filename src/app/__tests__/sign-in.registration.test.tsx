@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, userEvent, waitFor } from '@testing-library/react-native';
 
 // --- Mocks (must be defined before component import) ---
 
@@ -55,6 +55,7 @@ describe('SignInScreen — registration form validation (T012)', () => {
 
   it('signup tab shows name, email, password fields', () => {
     const { getByTestId } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
     expect(getByTestId('input-name')).toBeTruthy();
     expect(getByTestId('input-email')).toBeTruthy();
@@ -63,6 +64,7 @@ describe('SignInScreen — registration form validation (T012)', () => {
 
   it('submit with empty name shows "Numele este obligatoriu" error', async () => {
     const { getByTestId, getByText } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
     // Fill email and password but leave name empty
     await user.type(getByTestId('input-email'), 'test@example.com');
@@ -77,6 +79,7 @@ describe('SignInScreen — registration form validation (T012)', () => {
 
   it('submit with invalid email shows "Email invalid" error', async () => {
     const { getByTestId, getByText } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
     await user.type(getByTestId('input-name'), 'John Doe');
     await user.type(getByTestId('input-email'), 'not-an-email');
@@ -91,6 +94,7 @@ describe('SignInScreen — registration form validation (T012)', () => {
 
   it('submit with password <8 chars shows "Minim 8 caractere" error', async () => {
     const { getByTestId, getByText } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
     await user.type(getByTestId('input-name'), 'John Doe');
     await user.type(getByTestId('input-email'), 'test@example.com');
@@ -105,6 +109,7 @@ describe('SignInScreen — registration form validation (T012)', () => {
 
   it('submit with all valid fields calls signUp(name, email, password)', async () => {
     const { getByTestId } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
     await user.type(getByTestId('input-name'), 'John Doe');
     await user.type(getByTestId('input-email'), 'john@example.com');
@@ -122,6 +127,7 @@ describe('SignInScreen — registration form validation (T012)', () => {
 
   it('password visibility toggle switches between secure and plain text', async () => {
     const { getByTestId } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
 
     const passwordInput = getByTestId('input-password');
     const toggleButton = getByTestId('toggle-password');

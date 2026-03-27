@@ -12,8 +12,9 @@ export async function getEvents(
 
   if (filter === 'upcoming') {
     query = query.gte('starts_at', now).neq('status', 'cancelled');
-  } else if (filter === 'past' && userId) {
-    query = query.lt('starts_at', now).eq('event_participants.user_id', userId);
+  } else if (filter === 'past') {
+    query = query.lt('starts_at', now);
+    if (userId) query = query.eq('event_participants.user_id', userId);
   } else if (filter === 'mine' && userId) {
     query = query.eq('organizer_id', userId);
   }

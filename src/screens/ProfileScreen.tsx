@@ -100,8 +100,11 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
     return (
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: insets.top }]}>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/' as any)}>
+            <Lucide name="arrow-left" size={22} color={Colors.white} />
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>{s('myProfile')}</Text>
-          <Lucide name="settings" size={22} color={Colors.inkFaint} />
+          <View style={{ width: 22 }} />
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={Colors.green} />
@@ -114,9 +117,12 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/' as any)}>
+          <Lucide name="arrow-left" size={22} color={Colors.white} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('myProfile')}</Text>
-        <Lucide name="settings" size={22} color={Colors.inkFaint} />
+        <View style={{ width: 22 }} />
       </View>
 
       <ScrollView style={styles.scroll}>
@@ -254,17 +260,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.white,
-    paddingBottom: 10,
+    backgroundColor: Colors.green,
+    paddingVertical: 10,
+    minHeight: 52,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   headerTitle: {
     fontFamily: Fonts.heading,
     fontSize: 18,
     fontWeight: '700',
-    color: Colors.ink,
+    color: Colors.white,
   },
   scroll: {
     flex: 1,

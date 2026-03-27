@@ -2,29 +2,21 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Lucide } from '../../components/Icon';
 import { Colors, Fonts } from '../../theme';
+import { useSession } from '../../hooks/useSession';
 
-/**
- * Tab configuration matching the existing TabBar.tsx design.
- * Each entry maps a file-based route name to its label and icon.
- */
 const TAB_CONFIG = [
-  { name: 'index', label: 'Hartă', icon: 'map' },
-  { name: 'events', label: 'Evenimente', icon: 'calendar' },
-  { name: 'leaderboard', label: 'Clasament', icon: 'trophy' },
-  { name: 'favorites', label: 'Favorite', icon: 'heart' },
-  { name: 'profile', label: 'Profil', icon: 'user' },
+  { name: 'index', label: 'Hartă', icon: 'map', authOnly: false },
+  { name: 'events', label: 'Evenimente', icon: 'calendar', authOnly: false },
+  { name: 'leaderboard', label: 'Clasament', icon: 'trophy', authOnly: true },
+  { name: 'favorites', label: 'Favorite', icon: 'heart', authOnly: true },
+  { name: 'profile', label: 'Profil', icon: 'user', authOnly: true, hidden: true },
 ] as const;
 
-/** Icon size matching the existing TabBar component. */
 const TAB_ICON_SIZE = 22;
 
-/**
- * Tab navigator layout — publicly accessible for anonymous browsing.
- * Configures 5 tabs (Harta, Evenimente, Clasament, Favorite, Profil)
- * with dark green active color and muted gray inactive color.
- * Includes HeaderProfileIcon in the header-right area.
- */
 export default function TabLayout() {
+  const { session } = useSession();
+
   return (
     <Tabs
       screenOptions={{
@@ -48,6 +40,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color }: { color: string }) => (
               <Lucide name={tab.icon} size={TAB_ICON_SIZE} color={color} />
             ),
+            href: ('hidden' in tab && tab.hidden) || (tab.authOnly && !session) ? null : undefined,
           } as any}
         />
       ))}

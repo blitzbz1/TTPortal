@@ -59,6 +59,10 @@ jest.mock('expo-router', () => {
   };
 });
 
+jest.mock('../../../hooks/useSession', () => ({
+  useSession: () => ({ session: { user: { id: 'test-user' } }, user: { id: 'test-user' }, isLoading: false }),
+}));
+
 jest.mock('../../../components/Icon', () => {
   const { View } = require('react-native');
   return {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text } from 'react-native';
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, userEvent, waitFor } from '@testing-library/react-native';
 
 // --- Sign-in screen mocks ---
 
@@ -252,6 +252,7 @@ describe('auth edge cases', () => {
       });
 
       const { getByTestId, getByText } = render(<SignInScreen />);
+      fireEvent.press(getByTestId('tab-signup'));
 
       // Fill signup form
       await user.type(getByTestId('input-name'), 'Test User');
@@ -280,6 +281,7 @@ describe('auth edge cases', () => {
       });
 
       const { getByTestId } = render(<SignInScreen />);
+      fireEvent.press(getByTestId('tab-signup'));
 
       await user.type(getByTestId('input-name'), 'Test User');
       await user.type(getByTestId('input-email'), 'linked@example.com');

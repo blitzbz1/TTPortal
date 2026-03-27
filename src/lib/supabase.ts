@@ -1,52 +1,63 @@
 import 'react-native-url-polyfill/auto';
+import { Platform } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
-import { openDatabaseSync } from 'expo-sqlite';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 /**
- * SQLite-backed storage adapter for Supabase auth session persistence.
- * Uses expo-sqlite to store key-value pairs in a local database,
- * enabling session persistence across app restarts.
+ * Storage adapter factory.
+ * - Native (iOS/Android): uses expo-sqlite for persistent storage.
+ * - Web: uses localStorage (no SharedArrayBuffer requirement).
  */
-class ExpoSQLiteStorage {
-  private db: ReturnType<typeof openDatabaseSync>;
-
-  constructor() {
-    this.db = openDatabaseSync('supabase-storage.db');
-    this.db.execSync(
-      'CREATE TABLE IF NOT EXISTS storage (key TEXT PRIMARY KEY, value TEXT);'
-    );
+function createStorage() {
+  if (Platform.OS === 'web') {
+    // localStorage is unavailable during SSR; use in-memory fallback
+    const memoryStore = new Map<string, string>();
+    const hasLocalStorage = typeof localStorage !== 'undefined';
+    return {
+      getItem: (key: string) =>
+        hasLocalStorage ? localStorage.getItem(key) : (memoryStore.get(key) ?? null),
+      setItem: (key: string, value: string) => {
+        hasLocalStorage ? localStorage.setItem(key, value) : memoryStore.set(key, value);
+      },
+      removeItem: (key: string) => {
+        hasLocalStorage ? localStorage.removeItem(key) : memoryStore.delete(key);
+      },
+    };
   }
 
-  /** Retrieve a value by key from SQLite storage. */
-  getItem(key: string): string | null {
-    const row = this.db.getFirstSync<{ value: string }>(
-      'SELECT value FROM storage WHERE key = ?;',
-      [key]
-    );
-    return row?.value ?? null;
-  }
+  // Native: use expo-sqlite
+  const { openDatabaseSync } = require('expo-sqlite');
+  const db = openDatabaseSync('supabase-storage.db');
+  db.execSync(
+    'CREATE TABLE IF NOT EXISTS storage (key TEXT PRIMARY KEY, value TEXT);'
+  );
 
-  /** Store a key-value pair in SQLite storage. */
-  setItem(key: string, value: string): void {
-    this.db.runSync(
-      'INSERT OR REPLACE INTO storage (key, value) VALUES (?, ?);',
-      [key, value]
-    );
-  }
-
-  /** Remove a key-value pair from SQLite storage. */
-  removeItem(key: string): void {
-    this.db.runSync('DELETE FROM storage WHERE key = ?;', [key]);
-  }
+  return {
+    getItem(key: string): string | null {
+      const row = db.getFirstSync(
+        'SELECT value FROM storage WHERE key = ?;',
+        [key]
+      );
+      return row?.value ?? null;
+    },
+    setItem(key: string, value: string): void {
+      db.runSync(
+        'INSERT OR REPLACE INTO storage (key, value) VALUES (?, ?);',
+        [key, value]
+      );
+    },
+    removeItem(key: string): void {
+      db.runSync('DELETE FROM storage WHERE key = ?;', [key]);
+    },
+  };
 }
 
-const storage = new ExpoSQLiteStorage();
+const storage = createStorage();
 
 /**
- * Supabase client configured with expo-sqlite session storage.
+ * Supabase client configured with platform-appropriate session storage.
  * Reads URL and anon key from EXPO_PUBLIC_ environment variables.
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
