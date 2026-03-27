@@ -11,7 +11,7 @@ import { Colors, Fonts, Radius } from '../theme';
 import { getVenues } from '../services/venues';
 import { getCities } from '../services/cities';
 import { getActiveFriendCheckins } from '../services/checkins';
-import { getFriends } from '../services/friends';
+import { getFriendIds } from '../services/friends';
 import { useSession } from '../hooks/useSession';
 import { useNotifications } from '../hooks/useNotifications';
 import { useI18n } from '../hooks/useI18n';
@@ -115,15 +115,12 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
       return;
     }
     (async () => {
-      const { data: friendships } = await getFriends(user.id);
-      if (!friendships?.length) {
+      const fIds = await getFriendIds(user.id);
+      if (!fIds.length) {
         setFriendCheckinVenueIds(new Set());
         setActiveFriendsCount(0);
         return;
       }
-      const fIds = friendships.map((f) =>
-        f.requester_id === user.id ? f.addressee_id : f.requester_id,
-      );
       const { data: checkins } = await getActiveFriendCheckins(fIds);
       if (!checkins?.length) {
         setFriendCheckinVenueIds(new Set());
@@ -231,16 +228,19 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
             longitudeDelta: 0.08,
           }}
         >
-          {filteredVenues.map((venue) => {
+          {venues.map((venue) => {
             if (!venue.lat || !venue.lng) return null;
             const condInfo = conditionLabel(venue.condition);
             const isIndoor = venue.type === 'sala_indoor';
             const hasFriend = friendCheckinVenueIds.has(venue.id);
+            const isVisible = filteredVenues.includes(venue);
             return (
               <Marker
                 key={venue.id}
                 coordinate={{ latitude: venue.lat, longitude: venue.lng }}
                 tracksViewChanges={false}
+                opacity={isVisible ? 1 : 0}
+                tappable={isVisible}
               >
                 <View style={pinStyles.outer}>
                   <View style={[pinStyles.wrap, { backgroundColor: condInfo.color }]}>

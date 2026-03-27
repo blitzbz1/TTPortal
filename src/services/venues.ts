@@ -4,13 +4,13 @@ import type { VenueInsert, VenueType } from '../types/database';
 export async function getVenues(city?: string, type?: VenueType) {
   let query = supabase
     .from('venues')
-    .select('*')
+    .select('id, name, type, city, address, lat, lng, tables_count, condition, free_access, night_lighting, nets, verified, approved')
     .eq('approved', true);
 
   if (city) query = query.eq('city', city);
   if (type) query = query.eq('type', type);
 
-  const { data: venues, error } = await query.order('name');
+  const { data: venues, error } = await query.order('name').limit(300);
   if (error || !venues?.length) return { data: venues ?? [], error };
 
   const venueIds = venues.map((v) => v.id);
@@ -53,7 +53,7 @@ export async function createVenue(data: VenueInsert) {
 export async function searchVenues(query: string) {
   return supabase
     .from('venues')
-    .select('*')
+    .select('id, name, type, city, lat, lng, condition')
     .eq('approved', true)
     .ilike('name', `%${query}%`)
     .order('name')

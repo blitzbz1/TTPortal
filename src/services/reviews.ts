@@ -4,9 +4,10 @@ import type { ReviewInsert } from '../types/database';
 export async function getReviewsForVenue(venueId: number) {
   return supabase
     .from('reviews')
-    .select('*')
+    .select('id, venue_id, user_id, reviewer_name, rating, body, created_at')
     .eq('venue_id', venueId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(50);
 }
 
 export async function createReview(data: ReviewInsert) {

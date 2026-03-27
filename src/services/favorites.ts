@@ -3,9 +3,10 @@ import { supabase } from '../lib/supabase';
 export async function getFavorites(userId: string) {
   return supabase
     .from('favorites')
-    .select('*, venues(*)')
+    .select('id, venue_id, created_at, venues(id, name, city, type, condition)')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(100);
 }
 
 export async function addFavorite(userId: string, venueId: number) {

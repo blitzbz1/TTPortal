@@ -82,6 +82,16 @@ export async function getPendingRequests(userId: string) {
   return { data: merged, error: null };
 }
 
+export async function getFriendIds(userId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from('friendships')
+    .select('requester_id, addressee_id')
+    .eq('status', 'accepted')
+    .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
+  if (!data?.length) return [];
+  return data.map((f) => f.requester_id === userId ? f.addressee_id : f.requester_id);
+}
+
 export async function searchUsers(query: string) {
   return supabase
     .from('profiles')

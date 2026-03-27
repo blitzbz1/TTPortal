@@ -19,7 +19,7 @@ export async function getEvents(
     query = query.eq('organizer_id', userId);
   }
 
-  return query.order('starts_at', { ascending: filter === 'upcoming' });
+  return query.order('starts_at', { ascending: filter === 'upcoming' }).limit(50);
 }
 
 export async function getEventParticipants(eventId: number) {

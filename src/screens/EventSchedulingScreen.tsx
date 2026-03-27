@@ -8,7 +8,7 @@ import { Colors, Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getEvents, getEventParticipants, joinEvent, leaveEvent } from '../services/events';
-import { getFriends } from '../services/friends';
+import { getFriendIds } from '../services/friends';
 
 type EventTab = 'upcoming' | 'past' | 'mine';
 
@@ -54,14 +54,8 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   // Fetch friends list once
   useEffect(() => {
     if (!user?.id) return;
-    getFriends(user.id).then(({ data }) => {
-      if (!data) return;
-      const ids = new Set<string>();
-      for (const f of data) {
-        const fid = f.requester_id === user.id ? f.addressee_id : f.requester_id;
-        ids.add(fid);
-      }
-      setFriendIds(ids);
+    getFriendIds(user.id).then((ids) => {
+      setFriendIds(new Set(ids));
     });
   }, [user?.id]);
 
