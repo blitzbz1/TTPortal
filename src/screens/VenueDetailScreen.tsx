@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { Colors, Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
+import { useI18n } from '../hooks/useI18n';
 import { getVenueById } from '../services/venues';
 import { getReviewsForVenue } from '../services/reviews';
 import { checkin } from '../services/checkins';
@@ -18,6 +19,7 @@ interface Props {
 export function VenueDetailScreen({ venueId }: Props) {
   const router = useRouter();
   const { user } = useSession();
+  const { s } = useI18n();
   const [venue, setVenue] = useState<(Venue & { venue_stats: VenueStats | null }) | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [favorited, setFavorited] = useState(false);
@@ -59,19 +61,19 @@ export function VenueDetailScreen({ venueId }: Props) {
     setCheckinLoading(true);
     const { error } = await checkin({ user_id: user.id, venue_id: Number(venueId), table_number: null, started_at: new Date().toISOString(), ended_at: null, friends: null });
     setCheckinLoading(false);
-    if (error) { Alert.alert('Eroare', error.message); return; }
-    Alert.alert('Succes', 'Check-in realizat cu succes!');
+    if (error) { Alert.alert(s('error'), error.message); return; }
+    Alert.alert(s('success'), s('checkinSuccess'));
   }, [user, venueId]);
 
   const handleToggleFavorite = useCallback(async () => {
     if (!user || !venueId) return;
     if (favorited) {
       const { error } = await removeFavorite(user.id, Number(venueId));
-      if (error) { Alert.alert('Eroare', error.message); return; }
+      if (error) { Alert.alert(s('error'), error.message); return; }
       setFavorited(false);
     } else {
       const { error } = await addFavorite(user.id, Number(venueId));
-      if (error) { Alert.alert('Eroare', error.message); return; }
+      if (error) { Alert.alert(s('error'), error.message); return; }
       setFavorited(true);
     }
   }, [user, venueId, favorited]);
@@ -108,7 +110,7 @@ export function VenueDetailScreen({ venueId }: Props) {
   if (!venue) {
     return (
       <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
-        <Text style={{ color: Colors.inkMuted }}>Locatia nu a fost gasita.</Text>
+        <Text style={{ color: Colors.inkMuted }}>{s('notFound')}</Text>
       </View>
     );
   }
@@ -123,7 +125,7 @@ export function VenueDetailScreen({ venueId }: Props) {
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Lucide name="arrow-left" size={20} color={Colors.ink} />
-          <Text style={styles.backText}>{'Înapoi'}</Text>
+          <Text style={styles.backText}>{s('back')}</Text>
         </TouchableOpacity>
         <View style={styles.headerActions}>
           <TouchableOpacity onPress={handleToggleFavorite}>
@@ -141,7 +143,7 @@ export function VenueDetailScreen({ venueId }: Props) {
           <View style={styles.photoPlaceholder} />
           <View style={styles.photoCount}>
             <Lucide name="image" size={12} color={Colors.white} />
-            <Text style={styles.photoCountText}>{(venue.photos?.length ?? 0) + ' poze'}</Text>
+            <Text style={styles.photoCountText}>{(venue.photos?.length ?? 0) + ' ' + s('photosCount')}</Text>
           </View>
         </View>
 
@@ -154,12 +156,12 @@ export function VenueDetailScreen({ venueId }: Props) {
                 {venue.verified && (
                   <View style={styles.badgeVerified}>
                     <Lucide name="check" size={10} color={Colors.greenMid} />
-                    <Text style={styles.badgeVerifiedText}>Verificat</Text>
+                    <Text style={styles.badgeVerifiedText}>{s('verified')}</Text>
                   </View>
                 )}
                 {venue.free_access && (
                   <View style={styles.badgeFree}>
-                    <Text style={styles.badgeFreeText}>Gratuit</Text>
+                    <Text style={styles.badgeFreeText}>{s('freeLabel')}</Text>
                   </View>
                 )}
               </View>
@@ -175,20 +177,20 @@ export function VenueDetailScreen({ venueId }: Props) {
           <View style={styles.infoGrid}>
             <View style={styles.infoRow}>
               <Lucide name="map-pin" size={16} color={Colors.inkFaint} />
-              <Text style={styles.infoRowText}>{venue.address || 'Adresa necunoscuta'}</Text>
+              <Text style={styles.infoRowText}>{venue.address || s('addressUnknown')}</Text>
             </View>
             <View style={styles.infoRow}>
               <Lucide name="table-2" size={16} color={Colors.inkFaint} />
-              <Text style={styles.infoRowText}>{(venue.tables_count ?? '?') + ' mese \u00B7 Stare: ' + (venue.condition ?? 'Necunoscută')}</Text>
+              <Text style={styles.infoRowText}>{(venue.tables_count ?? '?') + ' ' + s('tablesState') + ' ' + (venue.condition ?? s('conditionUnknown'))}</Text>
             </View>
             <View style={styles.infoRow}>
               <Lucide name="clock" size={16} color={Colors.inkFaint} />
-              <Text style={styles.infoRowText}>{venue.hours || 'Acces liber \u00B7 24/7'}</Text>
+              <Text style={styles.infoRowText}>{venue.hours || s('freeAccess247')}</Text>
             </View>
             <View style={styles.infoRow}>
               <Lucide name="lamp-floor" size={16} color={Colors.inkFaint} />
               <Text style={styles.infoRowText}>
-                {(venue.night_lighting ? 'Iluminare nocturnă' : 'Fără iluminare') + ' \u00B7 ' + (venue.nets ? 'Fileuri prezente' : 'Fără fileuri')}
+                {(venue.night_lighting ? s('nightLighting') : s('noLighting')) + ' \u00B7 ' + (venue.nets ? s('netsPresent') : s('noNets'))}
               </Text>
             </View>
           </View>
@@ -196,7 +198,7 @@ export function VenueDetailScreen({ venueId }: Props) {
           {/* Evaluate Condition */}
           <TouchableOpacity style={styles.evalBtn} onPress={() => router.push(`/(protected)/condition-vote/${venueId}` as any)}>
             <Lucide name="vote" size={16} color={Colors.greenMid} />
-            <Text style={styles.evalText}>{'Evaluează starea mesei'}</Text>
+            <Text style={styles.evalText}>{s('evaluateCondition')}</Text>
             <Lucide name="chevron-right" size={14} color={Colors.greenMid} />
           </TouchableOpacity>
         </View>
@@ -205,7 +207,7 @@ export function VenueDetailScreen({ venueId }: Props) {
         <View style={styles.friendsSection}>
           <View style={styles.friendsTitle}>
             <Lucide name="users" size={14} color={Colors.purple} />
-            <Text style={styles.friendsTitleText}>Prieteni aici acum</Text>
+            <Text style={styles.friendsTitleText}>{s('friendsHereNow')}</Text>
           </View>
           <View style={styles.checkinRow}>
             <View style={styles.checkinAvatar}>
@@ -222,7 +224,7 @@ export function VenueDetailScreen({ venueId }: Props) {
             ) : (
               <>
                 <Lucide name="map-pin" size={16} color={Colors.white} />
-                <Text style={styles.checkinBtnText}>Check-in aici</Text>
+                <Text style={styles.checkinBtnText}>{s('checkinHere')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -230,7 +232,7 @@ export function VenueDetailScreen({ venueId }: Props) {
 
         {/* Directions */}
         <View style={styles.directionsSection}>
-          <Text style={styles.directionsTitle}>Navigare</Text>
+          <Text style={styles.directionsTitle}>{s('navigation')}</Text>
           <View style={styles.directionsRow}>
             <TouchableOpacity style={styles.dirGoogle} onPress={handleDirectionGoogle}>
               <Lucide name="navigation" size={14} color={Colors.greenMid} />
@@ -248,21 +250,21 @@ export function VenueDetailScreen({ venueId }: Props) {
         {/* Reviews */}
         <View style={styles.reviewsSection}>
           <View style={styles.reviewsHeader}>
-            <Text style={styles.reviewsTitle}>{'Recenzii (' + reviews.length + ')'}</Text>
-            <TouchableOpacity style={styles.writeReviewBtn} onPress={() => router.push(`/(protected)/review/${venueId}` as any)}>
+            <Text style={styles.reviewsTitle}>{s('reviewsCount') + ' (' + reviews.length + ')'}</Text>
+            <TouchableOpacity style={styles.writeReviewBtn} onPress={() => router.push(`/(protected)/review/${venueId}` as any)} testID="write-review-btn" accessibilityLabel="Scrie recenzie">
               <Lucide name="pen-line" size={12} color={Colors.greenMid} />
-              <Text style={styles.writeReviewText}>Scrie</Text>
+              <Text style={styles.writeReviewText}>{s('writeBtn')}</Text>
             </TouchableOpacity>
           </View>
 
           {reviews.length === 0 && (
-            <Text style={styles.reviewText}>{'Nicio recenzie încă. Fii primul care scrie una!'}</Text>
+            <Text style={styles.reviewText}>{s('noReviewsYet')}</Text>
           )}
 
           {reviews.map((review) => (
             <View key={review.id} style={styles.reviewCard}>
               <View style={styles.reviewTop}>
-                <Text style={styles.reviewAuthor}>{review.reviewer_name || 'Anonim'}</Text>
+                <Text style={styles.reviewAuthor}>{review.reviewer_name || s('anon')}</Text>
                 <Text style={styles.reviewStars}>{renderStars(review.rating)}</Text>
               </View>
               <Text style={styles.reviewText}>{review.body || ''}</Text>

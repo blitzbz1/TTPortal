@@ -7,16 +7,22 @@ import React, {
 } from 'react';
 import { Platform } from 'react-native';
 import type { AuthError, Session, User } from '@supabase/supabase-js';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 
-const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-if (googleWebClientId && !googleWebClientId.startsWith('YOUR_')) {
-  GoogleSignin.configure({ webClientId: googleWebClientId });
-} else {
-  logger.warn('Google Sign-In not configured: EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is missing or placeholder');
+// Lazy-load GoogleSignin to avoid crashing in Expo Go where native module is unavailable
+let GoogleSignin: typeof import('@react-native-google-signin/google-signin').GoogleSignin | null = null;
+try {
+  GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+  const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  if (googleWebClientId && !googleWebClientId.startsWith('YOUR_')) {
+    GoogleSignin.configure({ webClientId: googleWebClientId });
+  } else {
+    logger.warn('Google Sign-In not configured: EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is missing or placeholder');
+  }
+} catch {
+  logger.warn('Google Sign-In native module not available (Expo Go). Google sign-in will be disabled.');
 }
 
 /** Result type for auth operations that may fail. */
@@ -120,6 +126,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
   );
 
   const signInWithGoogle = useCallback(async (): Promise<AuthResult> => {
+    if (!GoogleSignin) {
+      logger.warn('Google Sign-In unavailable (native module not loaded)');
+      return { error: { message: 'Google Sign-In is not available in Expo Go. Use a development build.', name: 'AuthApiError', status: 0 } as unknown as AuthError };
+    }
     if (Platform.OS === 'android') {
       await GoogleSignin.hasPlayServices();
     }

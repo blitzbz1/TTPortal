@@ -11,9 +11,15 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, LogBox, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
+
+// Suppress LogBox in development to prevent overlay from blocking tab bar during E2E tests
+if (__DEV__) {
+  LogBox.ignoreAllLogs(true);
+}
 import { SessionProvider } from '../contexts/SessionProvider';
+import { NotificationProvider } from '../contexts/NotificationProvider';
 import { I18nProvider } from '../contexts/I18nProvider';
 import { useSession } from '../hooks/useSession';
 import { Colors } from '../theme';
@@ -35,7 +41,9 @@ export default function RootLayout() {
   return (
     <SessionProvider>
       <I18nProvider>
-        <RootNavigator />
+        <NotificationProvider>
+          <RootNavigator />
+        </NotificationProvider>
       </I18nProvider>
     </SessionProvider>
   );

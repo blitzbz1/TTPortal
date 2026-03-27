@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useI18n } from '../hooks/useI18n';
 import { Lucide } from '../components/Icon';
@@ -28,6 +29,7 @@ type TokenStatus = 'loading' | 'valid' | 'expired' | 'used';
  */
 export default function ResetPasswordScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { code } = useLocalSearchParams<{ code: string }>();
   const { s } = useI18n();
 
@@ -147,7 +149,7 @@ export default function ResetPasswordScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
         keyboardShouldPersistTaps="handled"
       >
         <View testID="reset-password-screen">

@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { Colors, Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
+import { useI18n } from '../hooks/useI18n';
 import { getVenueById } from '../services/venues';
 import { createReview } from '../services/reviews';
 
@@ -15,6 +16,7 @@ interface Props {
 export function WriteReviewScreen({ venueId }: Props) {
   const router = useRouter();
   const { user } = useSession();
+  const { s } = useI18n();
   const [rating, setRating] = useState(4);
   const [reviewText, setReviewText] = useState('');
   const [venueName, setVenueName] = useState('');
@@ -32,22 +34,22 @@ export function WriteReviewScreen({ venueId }: Props) {
   }, [venueId]);
 
   const handleSubmit = useCallback(async () => {
-    if (rating < 1) { Alert.alert('Eroare', 'Te rugăm să selectezi un rating.'); return; }
-    if (!reviewText.trim()) { Alert.alert('Eroare', 'Te rugăm să scrii o recenzie.'); return; }
+    if (rating < 1) { Alert.alert(s('error'), s('selectRating')); return; }
+    if (!reviewText.trim()) { Alert.alert(s('error'), s('writeReviewRequired')); return; }
     if (!user || !venueId) return;
     setLoading(true);
     const { error } = await createReview({
       venue_id: Number(venueId),
       user_id: user.id,
-      reviewer_name: user?.user_metadata?.full_name || 'Anonim',
+      reviewer_name: user?.user_metadata?.full_name || s('anon'),
       rating,
       body: reviewText.trim(),
       flagged: false,
       flag_count: 0,
     });
     setLoading(false);
-    if (error) { Alert.alert('Eroare', error.message); return; }
-    Alert.alert('Succes', 'Recenzia a fost publicată.');
+    if (error) { Alert.alert(s('error'), error.message); return; }
+    Alert.alert(s('success'), s('reviewPublished'));
     router.back();
   }, [rating, reviewText, user, venueId, router]);
 
@@ -65,7 +67,7 @@ export function WriteReviewScreen({ venueId }: Props) {
 
         {/* Header */}
         <View style={styles.sheetHeader}>
-          <Text style={styles.sheetTitle}>Scrie o recenzie</Text>
+          <Text style={styles.sheetTitle}>{s('writeReviewTitle')}</Text>
           <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
             <Lucide name="x" size={16} color={Colors.inkFaint} />
           </TouchableOpacity>
@@ -74,21 +76,21 @@ export function WriteReviewScreen({ venueId }: Props) {
         {/* Venue Name */}
         <View style={styles.venueName}>
           <Lucide name="map-pin" size={14} color={Colors.inkFaint} />
-          <Text style={styles.venueNameText}>{venueName || 'Se încarcă...'}</Text>
+          <Text style={styles.venueNameText}>{venueName || s('loading')}</Text>
         </View>
 
         <ScrollView style={styles.formScroll}>
           {/* Name Field */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>{'NUMELE TĂU'}</Text>
+            <Text style={styles.fieldLabel}>{s('fieldYourName')}</Text>
             <View style={styles.input}>
-              <Text style={styles.inputValue}>{user?.user_metadata?.full_name || 'Anonim'}</Text>
+              <Text style={styles.inputValue}>{user?.user_metadata?.full_name || s('anon')}</Text>
             </View>
           </View>
 
           {/* Rating */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>RATING</Text>
+            <Text style={styles.fieldLabel}>{s('fieldRating')}</Text>
             <View style={styles.starsRow}>
               {[1, 2, 3, 4, 5].map((star) => (
                 <TouchableOpacity
@@ -106,10 +108,10 @@ export function WriteReviewScreen({ venueId }: Props) {
 
           {/* Review Text */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>RECENZIA TA</Text>
+            <Text style={styles.fieldLabel}>{s('fieldYourReview')}</Text>
             <TextInput
               style={[styles.textarea, styles.textareaInput]}
-              placeholder={'Cum a fost experiența ta?'}
+              placeholder={s('reviewPlaceholder')}
               placeholderTextColor={Colors.inkFaint}
               value={reviewText}
               onChangeText={setReviewText}
@@ -121,7 +123,7 @@ export function WriteReviewScreen({ venueId }: Props) {
           {/* Actions */}
           <View style={styles.actions}>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
-              <Text style={styles.cancelText}>{'Anulează'}</Text>
+              <Text style={styles.cancelText}>{s('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
               {loading ? (
@@ -129,7 +131,7 @@ export function WriteReviewScreen({ venueId }: Props) {
               ) : (
                 <>
                   <Lucide name="send" size={16} color={Colors.white} />
-                  <Text style={styles.submitText}>{'Publică'}</Text>
+                  <Text style={styles.submitText}>{s('publish')}</Text>
                 </>
               )}
             </TouchableOpacity>

@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
 import { Colors, Fonts } from '../theme';
 import { useSession } from '../hooks/useSession';
+import { useI18n } from '../hooks/useI18n';
 import { getFavorites, removeFavorite } from '../services/favorites';
 
 type SortMode = 'recent' | 'name';
@@ -14,10 +16,12 @@ interface FavoritesScreenProps {
 }
 
 export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
+  const insets = useSafeAreaInsets();
   const [favorites, setFavorites] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('recent');
   const { user } = useSession();
+  const { s } = useI18n();
   const router = useRouter();
 
   const fetchFavorites = useCallback(async () => {
@@ -26,14 +30,15 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
     try {
       const { data, error } = await getFavorites(user.id);
       if (error) {
-        Alert.alert('Eroare', 'Nu s-au putut încărca favoritele.');
+        Alert.alert(s('error'), s('favLoadError'));
       } else {
         setFavorites(data ?? []);
       }
     } finally {
       setLoading(false);
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useEffect(() => {
     fetchFavorites();
@@ -43,7 +48,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
     if (!user) return;
     const { error } = await removeFavorite(user.id, venueId);
     if (error) {
-      Alert.alert('Eroare', 'Nu s-a putut elimina favoritul.');
+      Alert.alert(s('error'), s('favRemoveError'));
       return;
     }
     setFavorites((prev) => prev.filter((f) => f.venue_id !== venueId));
@@ -67,7 +72,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
     const type = venue?.type;
     if (type === 'park' || type === 'outdoor') {
       return {
-        label: '\uD83C\uDF33 Parc',
+        label: s('favPark'),
         bg: Colors.greenDim,
         iconColor: Colors.greenLight,
         iconBg: Colors.greenPale,
@@ -75,14 +80,14 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
     }
     if (type === 'club' || type === 'indoor') {
       return {
-        label: '\uD83C\uDFE2 Sală',
+        label: s('favHall'),
         bg: Colors.bluePale,
         iconColor: Colors.blue,
         iconBg: Colors.bluePale,
       };
     }
     return {
-      label: '\uD83D\uDCCD Loc',
+      label: s('favPlace'),
       bg: Colors.greenDim,
       iconColor: Colors.greenLight,
       iconBg: Colors.greenPale,
@@ -92,25 +97,22 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
   const getConditionInfo = (venue: any) => {
     const rating = venue?.venue_stats?.[0]?.avg_rating ?? venue?.venue_stats?.avg_rating;
     if (rating && rating >= 4.5) {
-      return { label: 'Profesională', color: Colors.blue, dot: '#1a5080' };
+      return { label: s('condPro'), color: Colors.blue, dot: '#1a5080' };
     }
     if (rating && rating >= 3.5) {
-      return { label: 'Bună', color: Colors.greenLight, dot: Colors.greenLight };
+      return { label: s('condGood'), color: Colors.greenLight, dot: Colors.greenLight };
     }
-    return { label: 'Medie', color: Colors.orange, dot: Colors.orange };
+    return { label: s('condAvg'), color: Colors.orange, dot: Colors.orange };
   };
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Lucide name="arrow-left" size={24} color={Colors.ink} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Favorite</Text>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <Text style={styles.headerTitle}>{s('favorites')}</Text>
         <TouchableOpacity style={styles.sortBtn} onPress={handleToggleSort}>
           <Lucide name="arrow-up-down" size={14} color={Colors.inkMuted} />
-          <Text style={styles.sortText}>{sortMode === 'recent' ? 'Recent' : 'Nume'}</Text>
+          <Text style={styles.sortText}>{sortMode === 'recent' ? s('sortRecent') : s('sortName')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -120,7 +122,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
         ) : sortedFavorites.length === 0 ? (
           <View style={{ alignItems: 'center', marginTop: 40, padding: 16 }}>
             <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
-              Niciun favorit salvat
+              {s('noFavorites')}
             </Text>
           </View>
         ) : (
@@ -136,12 +138,13 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
                 key={fav.id}
                 style={styles.favCard}
                 onPress={() => router.push(`/venue/${fav.venue_id}` as any)}
+                accessibilityLabel={venue?.name ?? 'venue'}
               >
                 <View style={[styles.favIcon, { backgroundColor: typeInfo.iconBg }]}>
                   <Lucide name="map-pin" size={22} color={typeInfo.iconColor} />
                 </View>
                 <View style={styles.favInfo}>
-                  <Text style={styles.favName}>{venue?.name ?? 'Locație'}</Text>
+                  <Text style={styles.favName}>{venue?.name ?? s('venue')}</Text>
                   <View style={styles.favMeta}>
                     <View style={[styles.favType, { backgroundColor: typeInfo.bg }]}>
                       <Text style={styles.favTypeText}>{typeInfo.label}</Text>
@@ -155,7 +158,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
                     )}
                   </View>
                   <Text style={styles.favSub}>
-                    {venue?.city ?? ''} {'\u00B7'} Salvat {savedDate}
+                    {venue?.city ?? ''} {'\u00B7'} {s('saved')} {savedDate}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => handleRemove(fav.venue_id)}>
@@ -182,7 +185,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: Colors.white,
-    height: 52,
+    paddingBottom: 10,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,

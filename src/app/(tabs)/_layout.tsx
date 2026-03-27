@@ -45,10 +45,11 @@ export default function TabLayout() {
           name={tab.name}
           options={{
             title: tab.label,
-            tabBarIcon: ({ color }) => (
+            tabBarAccessibilityLabel: tab.label,
+            tabBarIcon: ({ color }: { color: string }) => (
               <Lucide name={tab.icon} size={TAB_ICON_SIZE} color={color} />
             ),
-          }}
+          } as any}
         />
       ))}
     </Tabs>

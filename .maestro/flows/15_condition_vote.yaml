@@ -1,0 +1,54 @@
+# E2E Test: Condition Voting Flow (Protected)
+# Verifies table condition evaluation screen
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+- runFlow: ../helpers/login.yaml
+
+# Wait for venues to load
+- extendedWaitUntil:
+    visible:
+      id: "venues-count"
+    timeout: 10000
+
+# Tap a venue to open detail
+- tapOn: "ACS TT Energy Brașov"
+
+# Wait for venue detail
+- extendedWaitUntil:
+    visible: "Înapoi"
+    timeout: 5000
+
+# Scroll to condition evaluation button
+- scrollUntilVisible:
+    element: "Evaluează starea mesei"
+    direction: DOWN
+    timeout: 5000
+- tapOn: "Evaluează starea mesei"
+
+# Wait for condition voting screen
+- extendedWaitUntil:
+    visible: "Starea mesei"
+    timeout: 5000
+
+# Verify main screen content
+- assertVisible: "Cum evaluezi starea mesei?"
+
+# Scroll to verify action buttons
+- scrollUntilVisible:
+    element: "Anulează"
+    direction: DOWN
+    timeout: 5000
+
+# Cancel
+- tapOn: "Anulează"
+
+# Should go back to venue detail
+- extendedWaitUntil:
+    visible: "Înapoi"
+    timeout: 5000

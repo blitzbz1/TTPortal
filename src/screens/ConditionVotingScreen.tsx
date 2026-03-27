@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { Colors, Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
+import { useI18n } from '../hooks/useI18n';
 import { getVenueById } from '../services/venues';
 import { submitVote, getVoteSummary } from '../services/conditions';
 import type { ConditionVoteValue } from '../types/database';
@@ -17,12 +19,6 @@ const CONDITION_MAP: Record<ConditionOption, ConditionVoteValue> = {
   damaged: 'deteriorata',
 };
 
-const OPTIONS: { key: ConditionOption; color: string; label: string; desc: string }[] = [
-  { key: 'good', color: Colors.greenLight, label: 'Bună', desc: 'Masa e în stare bună, se poate juca fără probleme' },
-  { key: 'acceptable', color: Colors.amber, label: 'Acceptabilă', desc: 'Se poate juca, dar are unele defecte minore' },
-  { key: 'damaged', color: Colors.red, label: 'Deteriorată', desc: 'Masa necesită reparații, nu se poate juca confortabil' },
-];
-
 interface Props {
   venueId?: string;
 }
@@ -30,10 +26,19 @@ interface Props {
 export function ConditionVotingScreen({ venueId }: Props) {
   const router = useRouter();
   const { user } = useSession();
+  const { s } = useI18n();
+
+  const OPTIONS: { key: ConditionOption; color: string; label: string; desc: string }[] = [
+    { key: 'good', color: Colors.greenLight, label: s('conditionGood'), desc: s('goodDesc') },
+    { key: 'acceptable', color: Colors.amber, label: s('conditionAcceptable'), desc: s('acceptableDesc') },
+    { key: 'damaged', color: Colors.red, label: s('conditionDegraded'), desc: s('damagedDesc') },
+  ];
+
   const [selected, setSelected] = useState<ConditionOption>('good');
   const [venueName, setVenueName] = useState('');
   const [voteStatsText, setVoteStatsText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   useEffect(() => {
     if (!venueId) return;
@@ -55,15 +60,31 @@ export function ConditionVotingScreen({ venueId }: Props) {
         const total = votes.length;
         const bunaCount = votes.filter((v: any) => v.condition === 'buna').length;
         const pct = total > 0 ? Math.round((bunaCount / total) * 100) : 0;
-        setVoteStatsText(total + ' evaluări \u00B7 ' + pct + '% "Bună"');
+        setVoteStatsText(total + ' ' + s('evaluations') + ' \u00B7 ' + pct + s('pctGood'));
       } else {
-        setVoteStatsText('Nicio evaluare încă');
+        setVoteStatsText(s('noVotesYet'));
       }
     }
 
     load();
     return () => { cancelled = true; };
   }, [venueId]);
+
+  const handlePickPhoto = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(s('error'), 'Photo library permission denied');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      setPhotoUri(result.assets[0].uri);
+    }
+  }, [s]);
 
   const handleSubmit = useCallback(async () => {
     if (!user || !venueId) return;
@@ -72,13 +93,13 @@ export function ConditionVotingScreen({ venueId }: Props) {
       user_id: user.id,
       venue_id: Number(venueId),
       condition: CONDITION_MAP[selected],
-      photo_url: null,
+      photo_url: photoUri,
     });
     setLoading(false);
-    if (error) { Alert.alert('Eroare', error.message); return; }
-    Alert.alert('Succes', 'Votul tău a fost înregistrat.');
+    if (error) { Alert.alert(s('error'), error.message); return; }
+    Alert.alert(s('success'), s('voteRecorded'));
     router.back();
-  }, [user, venueId, selected, router]);
+  }, [user, venueId, selected, router, photoUri]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -94,7 +115,7 @@ export function ConditionVotingScreen({ venueId }: Props) {
 
         {/* Header */}
         <View style={styles.sheetHeader}>
-          <Text style={styles.sheetTitle}>Starea mesei</Text>
+          <Text style={styles.sheetTitle}>{s('conditionTitle')}</Text>
           <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
             <Lucide name="x" size={16} color={Colors.inkMuted} />
           </TouchableOpacity>
@@ -106,14 +127,14 @@ export function ConditionVotingScreen({ venueId }: Props) {
             <Lucide name="map-pin" size={20} color={Colors.greenLight} />
           </View>
           <View style={styles.venueInfo}>
-            <Text style={styles.venueNameStyle}>{venueName || 'Se încarcă...'}</Text>
-            <Text style={styles.venueSub}>{'Evaluează starea curentă'}</Text>
+            <Text style={styles.venueNameStyle}>{venueName || s('loading')}</Text>
+            <Text style={styles.venueSub}>{s('evaluateCurrent')}</Text>
           </View>
         </View>
 
         <ScrollView style={styles.voteForm}>
           {/* Options */}
-          <Text style={styles.label}>{'Cum evaluezi starea mesei?'}</Text>
+          <Text style={styles.label}>{s('howDoYouRate')}</Text>
           <View style={styles.optGrid}>
             {OPTIONS.map((opt) => (
               <TouchableOpacity
@@ -137,10 +158,16 @@ export function ConditionVotingScreen({ venueId }: Props) {
           </View>
 
           {/* Photo */}
-          <Text style={styles.label}>{'Adaugă o fotografie (opțional)'}</Text>
-          <TouchableOpacity style={styles.photoBtn} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
-            <Lucide name="camera" size={20} color={Colors.inkFaint} />
-            <Text style={styles.photoBtnText}>{'Fotografiază masa'}</Text>
+          <Text style={styles.label}>{s('addPhotoOptional')}</Text>
+          <TouchableOpacity style={styles.photoBtn} onPress={handlePickPhoto}>
+            {photoUri ? (
+              <Image source={{ uri: photoUri }} style={{ width: 48, height: 48, borderRadius: 8 }} />
+            ) : (
+              <Lucide name="camera" size={20} color={Colors.inkFaint} />
+            )}
+            <Text style={styles.photoBtnText}>
+              {photoUri ? s('changePhoto') || 'Change photo' : s('photographTable')}
+            </Text>
           </TouchableOpacity>
 
           {/* Vote Stats */}
@@ -153,14 +180,14 @@ export function ConditionVotingScreen({ venueId }: Props) {
         {/* Footer */}
         <View style={styles.footer}>
           <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
-            <Text style={styles.cancelText}>{'Anulează'}</Text>
+            <Text style={styles.cancelText}>{s('cancel')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
             {loading ? (
               <ActivityIndicator size="small" color={Colors.white} />
             ) : (
               <>
-                <Text style={styles.submitText}>Trimite vot</Text>
+                <Text style={styles.submitText}>{s('submitVote')}</Text>
                 <Lucide name="send" size={16} color={Colors.white} />
               </>
             )}

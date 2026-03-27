@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
+import { CityPickerModal } from '../components/CityPickerModal';
 import { Colors, Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
+import { useI18n } from '../hooks/useI18n';
 import { getLeaderboard } from '../services/leaderboard';
 
 type LBTab = 'checkins' | 'reviews' | 'locations';
@@ -23,17 +26,21 @@ interface LeaderboardsScreenProps {
 }
 
 export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenProps) {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<LBTab>('checkins');
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cityModalVisible, setCityModalVisible] = useState(false);
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const { user } = useSession();
-  const router = useRouter();
+  const { s } = useI18n();
 
   const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
     try {
       const type = TAB_TO_TYPE[activeTab];
-      const { data } = await getLeaderboard(type);
+      const { data } = await getLeaderboard(type, selectedCity ?? undefined);
       if (data) {
         setEntries(data);
       } else {
@@ -42,7 +49,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, selectedCity]);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -59,9 +66,9 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
   };
 
   const getScoreLabel = (entry: any) => {
-    if (activeTab === 'checkins') return `${entry.total_checkins ?? entry.score ?? 0} check-ins`;
-    if (activeTab === 'reviews') return `${entry.total_reviews ?? entry.score ?? 0} recenzii`;
-    return `${entry.unique_venues ?? entry.score ?? 0} locații`;
+    if (activeTab === 'checkins') return `${entry.total_checkins ?? entry.score ?? 0} ${s('checkins').toLowerCase()}`;
+    if (activeTab === 'reviews') return `${entry.total_reviews ?? entry.score ?? 0} ${s('reviews').toLowerCase()}`;
+    return `${entry.unique_venues ?? entry.score ?? 0} ${s('locations').toLowerCase()}`;
   };
 
   // Split into top 3 (podium) and rest
@@ -79,14 +86,14 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Lucide name="arrow-left" size={24} color={Colors.ink} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Clasament</Text>
-        <TouchableOpacity style={styles.filterBtn} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
+        <Text style={styles.headerTitle}>{s('leaderboard')}</Text>
+        <TouchableOpacity style={styles.filterBtn} onPress={() => setCityModalVisible(true)}>
           <Lucide name="map-pin" size={14} color={Colors.inkMuted} />
-          <Text style={styles.filterText}>București</Text>
+          <Text style={styles.filterText}>{selectedCity || 'București'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -94,9 +101,9 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
         {/* Tabs */}
         <View style={styles.tabs}>
           {[
-            { key: 'checkins' as LBTab, label: 'Check-ins' },
-            { key: 'reviews' as LBTab, label: 'Recenzii' },
-            { key: 'locations' as LBTab, label: 'Locații' },
+            { key: 'checkins' as LBTab, label: s('checkins') },
+            { key: 'reviews' as LBTab, label: s('reviews') },
+            { key: 'locations' as LBTab, label: s('locations') },
           ].map((tab) => (
             <TouchableOpacity
               key={tab.key}
@@ -115,7 +122,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
         ) : entries.length === 0 ? (
           <View style={{ alignItems: 'center', marginTop: 40, padding: 16 }}>
             <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
-              Niciun rezultat în clasament
+              {s('noLeaderboard')}
             </Text>
           </View>
         ) : (
@@ -152,7 +159,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
                     <Text style={[styles.podiumName, isHighlight && styles.podiumNameHighlight]}>
                       {p.full_name
                         ? `${p.full_name.split(' ')[0]} ${(p.full_name.split(' ')[1] ?? '')[0] ?? ''}.`
-                        : 'Utilizator'}
+                        : s('user')}
                     </Text>
                     <Text style={[styles.podiumScore, isHighlight && styles.podiumScoreHighlight]}>
                       {getScoreLabel(p)}
@@ -171,7 +178,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
                     <Text style={styles.rankInitials}>{getInitials(r.full_name)}</Text>
                   </View>
                   <View style={styles.rankInfo}>
-                    <Text style={styles.rankName}>{r.full_name ?? 'Utilizator'}</Text>
+                    <Text style={styles.rankName}>{r.full_name ?? s('user')}</Text>
                     <Text style={styles.rankScore}>{getScoreLabel(r)}</Text>
                   </View>
                 </View>
@@ -189,7 +196,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
                 </View>
                 <View style={styles.rankInfo}>
                   <Text style={styles.myName}>
-                    Tu — {myEntry.full_name ?? user?.user_metadata?.full_name ?? 'Utilizator'}
+                    {s('you')} — {myEntry.full_name ?? user?.user_metadata?.full_name ?? s('user')}
                   </Text>
                   <Text style={styles.myScore}>{getScoreLabel(myEntry)}</Text>
                 </View>
@@ -201,6 +208,13 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
       </ScrollView>
 
       {!hideTabBar && <TabBar activeTab="leaderboard" />}
+
+      <CityPickerModal
+        visible={cityModalVisible}
+        selectedCity={selectedCity}
+        onSelect={(c) => { setSelectedCity(c); setCityModalVisible(false); }}
+        onClose={() => setCityModalVisible(false)}
+      />
     </View>
   );
 }
@@ -215,7 +229,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: Colors.white,
-    height: 52,
+    paddingBottom: 10,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,

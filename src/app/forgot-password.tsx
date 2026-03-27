@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
@@ -27,6 +28,7 @@ const INPUT_BG = '#0f3d22';
  */
 export default function ForgotPasswordScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { resetPassword } = useSession();
   const { s } = useI18n();
 
@@ -67,7 +69,7 @@ export default function ForgotPasswordScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
         keyboardShouldPersistTaps="handled"
       >
         <View testID="forgot-password-screen">

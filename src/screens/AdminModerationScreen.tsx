@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { Colors, Fonts, Radius } from '../theme';
+import { useI18n } from '../hooks/useI18n';
 import {
   getPendingVenues,
   approveVenue,
@@ -18,6 +19,7 @@ export function AdminModerationScreen() {
   const [flaggedReviews, setFlaggedReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { s } = useI18n();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -40,7 +42,7 @@ export function AdminModerationScreen() {
   const handleApprove = useCallback(async (id: number) => {
     const { error } = await approveVenue(id);
     if (error) {
-      Alert.alert('Eroare', 'Nu s-a putut aproba locația.');
+      Alert.alert(s('error'), s('approveError'));
       return;
     }
     setPendingVenues((prev) => prev.filter((v) => v.id !== id));
@@ -49,7 +51,7 @@ export function AdminModerationScreen() {
   const handleReject = useCallback(async (id: number) => {
     const { error } = await rejectVenue(id);
     if (error) {
-      Alert.alert('Eroare', 'Nu s-a putut respinge locația.');
+      Alert.alert(s('error'), s('rejectError'));
       return;
     }
     setPendingVenues((prev) => prev.filter((v) => v.id !== id));
@@ -58,7 +60,7 @@ export function AdminModerationScreen() {
   const handleKeep = useCallback(async (id: number) => {
     const { error } = await keepReview(id);
     if (error) {
-      Alert.alert('Eroare', 'Nu s-a putut păstra recenzia.');
+      Alert.alert(s('error'), s('keepError'));
       return;
     }
     setFlaggedReviews((prev) => prev.filter((r) => r.id !== id));
@@ -67,16 +69,16 @@ export function AdminModerationScreen() {
   const handleDelete = useCallback(async (id: number) => {
     const { error } = await deleteReview(id);
     if (error) {
-      Alert.alert('Eroare', 'Nu s-a putut șterge recenzia.');
+      Alert.alert(s('error'), s('deleteError'));
       return;
     }
     setFlaggedReviews((prev) => prev.filter((r) => r.id !== id));
   }, []);
 
   const stats = [
-    { value: String(pendingVenues.length), label: 'În așteptare', bg: Colors.amberPale, color: Colors.orange },
-    { value: '—', label: 'Aprobate', bg: Colors.greenPale, color: '#15803d' },
-    { value: String(flaggedReviews.length), label: 'Raportate', bg: Colors.redPale, color: Colors.redDeep },
+    { value: String(pendingVenues.length), label: s('pendingStat'), bg: Colors.amberPale, color: Colors.orange },
+    { value: '—', label: s('approvedStat'), bg: Colors.greenPale, color: '#15803d' },
+    { value: String(flaggedReviews.length), label: s('reportedStat'), bg: Colors.redPale, color: Colors.redDeep },
   ];
 
   return (
@@ -86,9 +88,9 @@ export function AdminModerationScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Lucide name="arrow-left" size={24} color={Colors.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Moderare</Text>
+        <Text style={styles.headerTitle}>{s('adminModeration')}</Text>
         <View style={styles.adminBadge}>
-          <Text style={styles.adminBadgeText}>Admin</Text>
+          <Text style={styles.adminBadgeText}>{s('admin')}</Text>
         </View>
       </View>
 
@@ -108,7 +110,7 @@ export function AdminModerationScreen() {
 
           {/* Pending Section Label */}
           <View style={styles.secLabel}>
-            <Text style={styles.secLabelText}>LOCAȚII ÎN AȘTEPTARE</Text>
+            <Text style={styles.secLabelText}>{s('pendingVenues')}</Text>
           </View>
 
           {/* Moderation Cards */}
@@ -116,7 +118,7 @@ export function AdminModerationScreen() {
             {pendingVenues.length === 0 ? (
               <View style={{ alignItems: 'center', paddingVertical: 16 }}>
                 <Text style={{ fontFamily: Fonts.body, fontSize: 13, color: Colors.inkFaint }}>
-                  Nicio locație în așteptare
+                  {s('noPendingVenues')}
                 </Text>
               </View>
             ) : (
@@ -125,11 +127,11 @@ export function AdminModerationScreen() {
                   <View style={styles.modTop}>
                     <Text style={styles.modTitle}>{venue.name}</Text>
                     <View style={styles.modBadge}>
-                      <Text style={styles.modBadgeText}>Nou</Text>
+                      <Text style={styles.modBadgeText}>{s('newBadge')}</Text>
                     </View>
                   </View>
                   <Text style={styles.modMeta}>
-                    Adăugat de @{venue.profiles?.full_name ?? 'utilizator'} {'\u00B7'}{' '}
+                    {s('addedBy')}{venue.profiles?.full_name ?? s('user').toLowerCase()} {'\u00B7'}{' '}
                     {new Date(venue.created_at).toLocaleDateString('ro-RO')} {'\u00B7'}{' '}
                     {venue.city ?? ''}{venue.address ? `, ${venue.address}` : ''}
                   </Text>
@@ -139,18 +141,18 @@ export function AdminModerationScreen() {
                       onPress={() => handleApprove(venue.id)}
                     >
                       <Lucide name="check" size={14} color={Colors.white} />
-                      <Text style={styles.approveBtnText}>Aprobă</Text>
+                      <Text style={styles.approveBtnText}>{s('approve')}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.editBtn} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
+                    <TouchableOpacity style={styles.editBtn} onPress={() => router.push('/venue/' + venue.id as any)}>
                       <Lucide name="pencil" size={14} color={Colors.inkMuted} />
-                      <Text style={styles.editBtnText}>Editează</Text>
+                      <Text style={styles.editBtnText}>{s('edit')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.rejectBtn}
                       onPress={() => handleReject(venue.id)}
                     >
                       <Lucide name="x" size={14} color={Colors.red} />
-                      <Text style={styles.rejectBtnText}>Respinge</Text>
+                      <Text style={styles.rejectBtnText}>{s('reject')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -160,7 +162,7 @@ export function AdminModerationScreen() {
 
           {/* Flagged Reviews Section Label */}
           <View style={styles.secLabel}>
-            <Text style={styles.secLabelText}>RECENZII RAPORTATE</Text>
+            <Text style={styles.secLabelText}>{s('reportedReviews')}</Text>
           </View>
 
           {/* Flagged Review Cards */}
@@ -168,7 +170,7 @@ export function AdminModerationScreen() {
             {flaggedReviews.length === 0 ? (
               <View style={{ alignItems: 'center', paddingVertical: 16 }}>
                 <Text style={{ fontFamily: Fonts.body, fontSize: 13, color: Colors.inkFaint }}>
-                  Nicio recenzie raportată
+                  {s('noReportedReviews')}
                 </Text>
               </View>
             ) : (
@@ -177,16 +179,16 @@ export function AdminModerationScreen() {
                   <View style={styles.flagTop}>
                     <View style={styles.flagInfo}>
                       <Text style={styles.flagAuthor}>
-                        {review.profiles?.full_name ?? 'Utilizator'}
+                        {review.profiles?.full_name ?? s('user')}
                       </Text>
                       <Text style={styles.flagMeta}>
-                        {review.venues?.name ?? 'Locație'} {'\u00B7'}{' '}
+                        {review.venues?.name ?? s('venue')} {'\u00B7'}{' '}
                         {new Date(review.created_at).toLocaleDateString('ro-RO')}
                       </Text>
                     </View>
                     <View style={styles.flagBadge}>
                       <Text style={styles.flagBadgeText}>
-                        {review.flag_count ?? 0} raportări
+                        {review.flag_count ?? 0} {s('reports')}
                       </Text>
                     </View>
                   </View>
@@ -199,14 +201,14 @@ export function AdminModerationScreen() {
                       onPress={() => handleKeep(review.id)}
                     >
                       <Lucide name="check" size={14} color={Colors.inkMuted} />
-                      <Text style={styles.keepBtnText}>Păstrează</Text>
+                      <Text style={styles.keepBtnText}>{s('keep')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.deleteBtn}
                       onPress={() => handleDelete(review.id)}
                     >
                       <Lucide name="trash-2" size={14} color={Colors.white} />
-                      <Text style={styles.deleteBtnText}>Șterge</Text>
+                      <Text style={styles.deleteBtnText}>{s('deleteBtn')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>

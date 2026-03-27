@@ -5,12 +5,14 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { Colors, Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
+import { useI18n } from '../hooks/useI18n';
 import { createVenue } from '../services/venues';
 import type { VenueType } from '../types/database';
 
 export function AddVenueScreen() {
   const router = useRouter();
   const { user } = useSession();
+  const { s } = useI18n();
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [type, setType] = useState<VenueType>('parc_exterior');
@@ -18,10 +20,13 @@ export function AddVenueScreen() {
   const [city, setCity] = useState('București');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [geoLat, setGeoLat] = useState<number | null>(null);
+  const [geoLng, setGeoLng] = useState<number | null>(null);
+  const [geocoding, setGeocoding] = useState(false);
 
   const handleSubmit = useCallback(async () => {
-    if (!name.trim()) { Alert.alert('Eroare', 'Numele locației este obligatoriu.'); return; }
-    if (!address.trim()) { Alert.alert('Eroare', 'Adresa este obligatorie.'); return; }
+    if (!name.trim()) { Alert.alert(s('error'), s('nameRequired')); return; }
+    if (!address.trim()) { Alert.alert(s('error'), s('addressRequired')); return; }
     setLoading(true);
     const { error } = await createVenue({
       name: name.trim(),
@@ -30,8 +35,8 @@ export function AddVenueScreen() {
       county: null,
       sector: null,
       address: address.trim(),
-      lat: 44.43,
-      lng: 26.10,
+      lat: geoLat ?? 44.43,
+      lng: geoLng ?? 26.10,
       tables_count: tablesCount ? Number(tablesCount) : null,
       condition: null,
       hours: null,
@@ -48,10 +53,39 @@ export function AddVenueScreen() {
       approved: false,
     });
     setLoading(false);
-    if (error) { Alert.alert('Eroare', error.message); return; }
-    Alert.alert('Succes', 'Locația a fost trimisă spre aprobare.');
+    if (error) { Alert.alert(s('error'), error.message); return; }
+    Alert.alert(s('success'), s('venueSubmitted'));
     router.back();
-  }, [name, address, type, city, tablesCount, notes, user, router]);
+  }, [name, address, type, city, tablesCount, notes, user, router, geoLat, geoLng]);
+
+  const handleGeocode = useCallback(async () => {
+    if (!address.trim()) {
+      Alert.alert(s('error'), s('addressRequired'));
+      return;
+    }
+    setGeocoding(true);
+    try {
+      const query = encodeURIComponent(address.trim() + ', ' + city);
+      const res = await fetch(
+        'https://nominatim.openstreetmap.org/search?format=json&q=' + query,
+        { headers: { 'User-Agent': 'TTPortal/1.0' } },
+      );
+      const results = await res.json();
+      if (results && results.length > 0) {
+        const lat = parseFloat(results[0].lat);
+        const lng = parseFloat(results[0].lon);
+        setGeoLat(lat);
+        setGeoLng(lng);
+        Alert.alert(s('success'), `${s('pinOnMap')}: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+      } else {
+        Alert.alert(s('error'), s('geocodeNotFound') || 'Address not found');
+      }
+    } catch {
+      Alert.alert(s('error'), s('geocodeNotFound') || 'Geocoding failed');
+    } finally {
+      setGeocoding(false);
+    }
+  }, [address, city, s]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -67,7 +101,7 @@ export function AddVenueScreen() {
 
         {/* Header */}
         <View style={styles.sheetHeader}>
-          <Text style={styles.sheetTitle}>{'Adaugă locație'}</Text>
+          <Text style={styles.sheetTitle}>{s('addVenueTitle')}</Text>
           <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
             <Lucide name="x" size={16} color={Colors.inkFaint} />
           </TouchableOpacity>
@@ -76,10 +110,10 @@ export function AddVenueScreen() {
         <ScrollView style={styles.formScroll}>
           {/* Name Field */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>{'NUME LOCAȚIE *'}</Text>
+            <Text style={styles.fieldLabel}>{s('fieldName')}</Text>
             <TextInput
               style={[styles.input, styles.inputText]}
-              placeholder="ex: Parcul Tineretului"
+              placeholder={s('fieldNamePlaceholder')}
               placeholderTextColor={Colors.inkFaint}
               value={name}
               onChangeText={setName}
@@ -88,14 +122,14 @@ export function AddVenueScreen() {
 
           {/* Type Field */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>TIP</Text>
+            <Text style={styles.fieldLabel}>{s('fieldType')}</Text>
             <View style={styles.typeRow}>
               <TouchableOpacity
                 style={[styles.typeBtn, type === 'parc_exterior' && styles.typeBtnActive]}
                 onPress={() => setType('parc_exterior')}
               >
                 <Text style={[styles.typeBtnText, type === 'parc_exterior' && styles.typeBtnTextActive]}>
-                  {'\uD83C\uDF33 Parc exterior'}
+                  {s('typeParcExterior')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -103,7 +137,7 @@ export function AddVenueScreen() {
                 onPress={() => setType('sala_indoor')}
               >
                 <Text style={[styles.typeBtnText, type === 'sala_indoor' && styles.typeBtnTextActive]}>
-                  {'\uD83C\uDFE2 Sală indoor'}
+                  {s('typeSalaIndoor')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -112,7 +146,7 @@ export function AddVenueScreen() {
           {/* Nr Mese / Oras */}
           <View style={styles.fieldRow}>
             <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.fieldLabel}>NR. MESE</Text>
+              <Text style={styles.fieldLabel}>{s('fieldTables')}</Text>
               <TextInput
                 style={[styles.input, styles.inputText]}
                 placeholder="2"
@@ -123,7 +157,7 @@ export function AddVenueScreen() {
               />
             </View>
             <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.fieldLabel}>{'ORAȘ *'}</Text>
+              <Text style={styles.fieldLabel}>{s('fieldCity')}</Text>
               <View style={[styles.input, styles.inputSelect]}>
                 <Text style={styles.inputValue}>{city}</Text>
                 <Lucide name="chevron-down" size={16} color={Colors.inkFaint} />
@@ -133,28 +167,40 @@ export function AddVenueScreen() {
 
           {/* Address Field */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>{'ADRESĂ *'}</Text>
+            <Text style={styles.fieldLabel}>{s('fieldAddress')}</Text>
             <View style={styles.addressRow}>
               <TextInput
                 style={[styles.input, styles.inputText, { flex: 1 }]}
-                placeholder={'Strada, nr\u2026'}
+                placeholder={s('addressPlaceholder')}
                 placeholderTextColor={Colors.inkFaint}
                 value={address}
                 onChangeText={setAddress}
               />
-              <TouchableOpacity style={styles.geocodeBtn} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
-                <Lucide name="map-pin" size={14} color={Colors.white} />
-                <Text style={styles.geocodeBtnText}>{'Pin pe hartă'}</Text>
+              <TouchableOpacity
+                style={[styles.geocodeBtn, geoLat !== null && { backgroundColor: Colors.greenLight }]}
+                onPress={handleGeocode}
+                disabled={geocoding}
+              >
+                {geocoding ? (
+                  <ActivityIndicator size="small" color={Colors.white} />
+                ) : (
+                  <>
+                    <Lucide name="map-pin" size={14} color={Colors.white} />
+                    <Text style={styles.geocodeBtnText}>
+                      {geoLat !== null ? '\u2713' : s('pinOnMap')}
+                    </Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Notes Field */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>NOTE</Text>
+            <Text style={styles.fieldLabel}>{s('fieldNotes')}</Text>
             <TextInput
               style={[styles.textarea, styles.textareaInput]}
-              placeholder={'Detalii adiționale...'}
+              placeholder={s('notesPlaceholder')}
               placeholderTextColor={Colors.inkFaint}
               value={notes}
               onChangeText={setNotes}
@@ -166,7 +212,7 @@ export function AddVenueScreen() {
           {/* Actions */}
           <View style={styles.actions}>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
-              <Text style={styles.cancelText}>{'Anulează'}</Text>
+              <Text style={styles.cancelText}>{s('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
               {loading ? (
@@ -174,7 +220,7 @@ export function AddVenueScreen() {
               ) : (
                 <>
                   <Lucide name="plus" size={16} color={Colors.white} />
-                  <Text style={styles.submitText}>{'Adaugă'}</Text>
+                  <Text style={styles.submitText}>{s('addBtn')}</Text>
                 </>
               )}
             </TouchableOpacity>

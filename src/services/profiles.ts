@@ -26,5 +26,5 @@ export async function getProfileStats(userId: string) {
     .from('leaderboard_checkins')
     .select('total_checkins, unique_venues')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 }

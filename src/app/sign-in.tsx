@@ -10,6 +10,7 @@ import {
   Linking,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
@@ -28,8 +29,9 @@ export default function SignInScreen() {
     initialTab?: 'signup' | 'login';
   }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { signUp, signIn, signInWithGoogle, signInWithApple } = useSession();
-  const { s } = useI18n();
+  const { s, lang, setLang } = useI18n();
 
   const [activeTab, setActiveTab] = useState<'signup' | 'login'>(
     (initialTab as 'signup' | 'login') || 'signup',
@@ -136,7 +138,7 @@ export default function SignInScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.content} testID="sign-in-screen">
+      <View style={[styles.content, { paddingTop: insets.top + 12 }]} testID="sign-in-screen">
         {/* Top Branding */}
         <View style={styles.branding}>
           <Text style={styles.subtitle}>{s('brandSubtitle')}</Text>
@@ -332,11 +334,11 @@ export default function SignInScreen() {
             </Text>
           )}
           <View style={styles.langRow}>
-            <Pressable style={styles.langActive}>
-              <Text style={styles.langActiveText}>RO</Text>
+            <Pressable style={lang === 'ro' ? styles.langActive : styles.langInactive} onPress={() => setLang('ro')}>
+              <Text style={lang === 'ro' ? styles.langActiveText : styles.langInactiveText}>RO</Text>
             </Pressable>
-            <Pressable style={styles.langInactive}>
-              <Text style={styles.langInactiveText}>EN</Text>
+            <Pressable style={lang === 'en' ? styles.langActive : styles.langInactive} onPress={() => setLang('en')}>
+              <Text style={lang === 'en' ? styles.langActiveText : styles.langInactiveText}>EN</Text>
             </Pressable>
           </View>
         </View>

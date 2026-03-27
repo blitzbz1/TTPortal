@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Lucide } from './Icon';
 import { Colors, Fonts } from '../theme';
+import { useI18n } from '../hooks/useI18n';
 
 export type TabKey = 'map' | 'events' | 'leaderboard' | 'favorites' | 'profile';
 
@@ -10,15 +11,16 @@ interface TabBarProps {
   onTabPress?: (tab: TabKey) => void;
 }
 
-const TABS: { key: TabKey; icon: string; label: string }[] = [
-  { key: 'map', icon: 'map', label: 'Hartă' },
-  { key: 'events', icon: 'calendar', label: 'Evenimente' },
-  { key: 'leaderboard', icon: 'trophy', label: 'Clasament' },
-  { key: 'favorites', icon: 'heart', label: 'Favorite' },
-  { key: 'profile', icon: 'user', label: 'Profil' },
-];
-
 export function TabBar({ activeTab, onTabPress }: TabBarProps) {
+  const { s } = useI18n();
+
+  const TABS: { key: TabKey; icon: string; label: string }[] = [
+    { key: 'map', icon: 'map', label: s('tabMap') },
+    { key: 'events', icon: 'calendar', label: s('tabEvents') },
+    { key: 'leaderboard', icon: 'trophy', label: s('tabLeaderboard') },
+    { key: 'favorites', icon: 'heart', label: s('tabFavorites') },
+    { key: 'profile', icon: 'user', label: s('tabProfile') },
+  ];
   return (
     <View style={styles.container}>
       {TABS.map((tab) => {

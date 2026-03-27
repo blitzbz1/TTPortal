@@ -1,11 +1,16 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import MapView, { Marker, Callout } from 'react-native-maps';
+import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Location from 'expo-location';
 import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
+import { CityPickerModal } from '../components/CityPickerModal';
 import { Colors, Fonts, Radius } from '../theme';
 import { getVenues } from '../services/venues';
+import { useI18n } from '../hooks/useI18n';
 import type { Venue, VenueCondition } from '../types/database';
 
 type VenueWithStats = Venue & {
@@ -20,58 +25,81 @@ type VenueWithStats = Venue & {
 
 type FilterKey = 'toate' | 'parcuri' | 'indoor' | 'verificat';
 
-const FILTERS: { key: FilterKey; label: string; icon?: string }[] = [
-  { key: 'toate', label: 'Toate' },
-  { key: 'parcuri', label: '\uD83C\uDF33 Parcuri' },
-  { key: 'indoor', label: '\uD83C\uDFE2 Indoor' },
-  { key: 'verificat', label: 'Verificat', icon: 'check' },
-];
-
-const CONDITION_MAP: Record<string, { label: string; color: string }> = {
-  buna: { label: 'Bună', color: Colors.greenLight },
-  acceptabila: { label: 'Acceptabilă', color: Colors.amber },
-  deteriorata: { label: 'Deteriorată', color: Colors.red },
-  profesionala: { label: 'Profesională', color: '#1a5080' },
-  necunoscuta: { label: 'Necunoscută', color: Colors.inkFaint },
-};
-
-function getConditionDisplay(condition: VenueCondition | null) {
-  if (!condition) return { label: 'Necunoscută', color: Colors.inkFaint };
-  return CONDITION_MAP[condition] || { label: condition, color: Colors.inkFaint };
-}
-
-function getTypeLabel(type: string) {
-  if (type === 'parc_exterior') return '\uD83C\uDF33 Parc';
-  if (type === 'sala_indoor') return '\uD83C\uDFE2 Sală';
-  return type;
-}
-
 interface MapViewScreenProps {
   hideTabBar?: boolean;
 }
 
 export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { s } = useI18n();
   const [venues, setVenues] = useState<VenueWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterKey>('toate');
+  const [cityModalVisible, setCityModalVisible] = useState(false);
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const mapRef = useRef<MapView>(null);
+
+  const filters: { key: FilterKey; label: string; icon?: string }[] = [
+    { key: 'toate', label: s('filterAll') },
+    { key: 'parcuri', label: s('filterParks') },
+    { key: 'indoor', label: s('filterIndoor') },
+    { key: 'verificat', label: s('filterVerified'), icon: 'check' },
+  ];
+
+  const conditionLabel = (condition: VenueCondition | null) => {
+    if (!condition) return { label: s('conditionUnknown'), color: Colors.inkFaint };
+    const map: Record<string, { label: string; color: string }> = {
+      buna: { label: s('conditionGood'), color: Colors.greenLight },
+      acceptabila: { label: s('conditionAcceptable'), color: Colors.amber },
+      deteriorata: { label: s('conditionDegraded'), color: Colors.red },
+      profesionala: { label: s('conditionPro'), color: '#1a5080' },
+      necunoscuta: { label: s('conditionUnknown'), color: Colors.inkFaint },
+    };
+    return map[condition] || { label: condition, color: Colors.inkFaint };
+  };
+
+  const typeLabel = (type: string) => {
+    if (type === 'parc_exterior') return s('typePark');
+    if (type === 'sala_indoor') return s('typeHall');
+    return type;
+  };
 
   const fetchVenues = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await getVenues();
+      const { data } = await getVenues(selectedCity ?? undefined);
       if (data) setVenues(data as VenueWithStats[]);
     } catch {
       // silently handle fetch errors
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedCity]);
 
   useEffect(() => {
     fetchVenues();
   }, [fetchVenues]);
+
+  const handleNearMe = useCallback(async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(s('error'), s('locationPermissionDenied') || 'Location permission denied');
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({});
+      mapRef.current?.animateToRegion({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      }, 800);
+    } catch {
+      Alert.alert(s('error'), 'Could not get location');
+    }
+  }, [s]);
 
   const filteredVenues = useMemo(() => {
     let result = venues;
@@ -102,25 +130,27 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   return (
     <View style={styles.container}>
       {/* App Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.headerLeft}>
           <Text style={styles.headerEmoji}>{'\uD83C\uDFD3'}</Text>
           <Text style={styles.headerTitle}>TT PORTAL</Text>
         </View>
-        <TouchableOpacity style={styles.cityPicker} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
-          <Text style={styles.cityText}>București</Text>
+        <TouchableOpacity style={styles.cityPicker} onPress={() => setCityModalVisible(true)}>
+          <Text style={styles.cityText}>{selectedCity || 'București'}</Text>
           <Lucide name="chevron-down" size={14} color="#ffffffaa" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/(protected)/add-venue' as any)}>
           <Lucide name="plus" size={14} color={Colors.white} />
-          <Text style={styles.addBtnText}>Adaugă</Text>
+          <Text style={styles.addBtnText}>{s('addBtn')}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Map Area */}
       <View style={styles.mapArea}>
         <MapView
+          ref={mapRef}
           style={StyleSheet.absoluteFillObject}
+          showsUserLocation
           initialRegion={{
             latitude: 44.4268,
             longitude: 26.1025,
@@ -130,35 +160,48 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
         >
           {filteredVenues.map((venue) => {
             if (!venue.lat || !venue.lng) return null;
-            const condInfo = getConditionDisplay(venue.condition);
+            const condInfo = conditionLabel(venue.condition);
+            const isIndoor = venue.type === 'sala_indoor';
             return (
               <Marker
                 key={venue.id}
                 coordinate={{ latitude: venue.lat, longitude: venue.lng }}
-                title={venue.name}
-                description={`${getTypeLabel(venue.type)} · ${condInfo.label}`}
-                pinColor={condInfo.color}
-                onCalloutPress={() => router.push(`/venue/${venue.id}` as any)}
-              />
+                tracksViewChanges={false}
+              >
+                <View style={pinStyles.outer}>
+                  <View style={[pinStyles.wrap, { backgroundColor: condInfo.color }]}>
+                    <Text style={pinStyles.icon}>{isIndoor ? '🏢' : '🏓'}</Text>
+                  </View>
+                  <View style={pinStyles.arrow} />
+                </View>
+                <Callout tooltip onPress={() => router.push(`/venue/${venue.id}` as any)}>
+                  <View style={pinStyles.callout}>
+                    <Text style={pinStyles.calloutTitle} numberOfLines={1}>{venue.name}</Text>
+                    <Text style={pinStyles.calloutSub}>{typeLabel(venue.type)} · {condInfo.label}</Text>
+                  </View>
+                </Callout>
+              </Marker>
             );
           })}
         </MapView>
 
         <View style={styles.legend}>
           {[
-            { color: Colors.greenLight, label: 'Bună' },
-            { color: Colors.amber, label: 'Acceptabilă' },
-            { color: Colors.red, label: 'Deteriorată' },
-            { color: '#1a5080', label: 'Sală indoor' },
+            { color: Colors.greenLight, icon: '🏓', label: s('conditionGood') },
+            { color: Colors.amber, icon: '🏓', label: s('conditionAcceptable') },
+            { color: Colors.red, icon: '🏓', label: s('conditionDegraded') },
+            { color: '#1a5080', icon: '🏢', label: s('conditionIndoor') },
           ].map((item) => (
             <View key={item.label} style={styles.legendRow}>
-              <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+              <View style={[styles.legendMarker, { backgroundColor: item.color }]}>
+                <Text style={styles.legendIcon}>{item.icon}</Text>
+              </View>
               <Text style={styles.legendText}>{item.label}</Text>
             </View>
           ))}
         </View>
 
-        <TouchableOpacity style={styles.nearMeBtn} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
+        <TouchableOpacity style={styles.nearMeBtn} onPress={handleNearMe}>
           <Lucide name="locate" size={22} color={Colors.green} />
         </TouchableOpacity>
       </View>
@@ -176,23 +219,23 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
             <Lucide name="search" size={16} color={Colors.inkFaint} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Caută locații..."
+              placeholder={s('searchPlaceholder')}
               placeholderTextColor={Colors.inkFaint}
               value={searchQuery}
               onChangeText={setSearchQuery}
               returnKeyType="search"
             />
           </View>
-          <TouchableOpacity style={styles.nearMeListBtn} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
+          <TouchableOpacity style={styles.nearMeListBtn} onPress={handleNearMe}>
             <Lucide name="locate" size={16} color={Colors.greenMid} />
-            <Text style={styles.nearMeListText}>Aproape</Text>
+            <Text style={styles.nearMeListText}>{s('nearbyBtn')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Filters */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll}>
           <View style={styles.filtersRow}>
-            {FILTERS.map((f) => (
+            {filters.map((f) => (
               <TouchableOpacity
                 key={f.key}
                 style={[styles.filterChip, activeFilter === f.key && styles.filterChipActive]}
@@ -209,10 +252,10 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
 
         {/* List Header */}
         <View style={styles.listHeader}>
-          <Text style={styles.listHeaderText}>{filteredVenues.length} locații afișate</Text>
+          <Text style={styles.listHeaderText} testID="venues-count">{filteredVenues.length} {s('venuesShown')}</Text>
           <View style={styles.friendsOnline}>
             <View style={[styles.friendsDot, { backgroundColor: Colors.purpleMid }]} />
-            <Text style={styles.friendsText}>2 prieteni activi</Text>
+            <Text style={styles.friendsText}>2 {s('friendsActive')}</Text>
           </View>
         </View>
 
@@ -223,26 +266,27 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
           </View>
         ) : filteredVenues.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 32 }}>
-            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>Nicio locație</Text>
+            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>{s('noVenues')}</Text>
           </View>
         ) : (
-          <ScrollView style={styles.venueList}>
+          <ScrollView style={styles.venueList} testID="venue-list">
             {filteredVenues.map((venue, index) => {
-              const conditionInfo = getConditionDisplay(venue.condition);
+              const conditionInfo = conditionLabel(venue.condition);
               const avgRating = venue.venue_stats?.avg_rating;
               const starsText = avgRating != null ? `\u2605 ${avgRating.toFixed(1)}` : '';
-              const tablesText = venue.tables_count != null ? `${venue.tables_count} mese` : '';
+              const tablesText = venue.tables_count != null ? `${venue.tables_count} ${s('tables')}` : '';
 
               return (
                 <TouchableOpacity
                   key={venue.id}
                   style={[styles.venueCard, index === 0 && styles.venueCardHighlight]}
                   onPress={() => router.push(`/venue/${venue.id}` as any)}
+                  accessibilityLabel={venue.name}
                 >
                   <View style={styles.venueLeft}>
                     <Text style={styles.venueName}>{venue.name}</Text>
                     <View style={styles.venueMeta}>
-                      <Text style={styles.venueType}>{getTypeLabel(venue.type)}</Text>
+                      <Text style={styles.venueType}>{typeLabel(venue.type)}</Text>
                       {tablesText ? (
                         <>
                           <Text style={styles.venueMetaSep}>{'\u00B7'}</Text>
@@ -271,6 +315,13 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
       </View>
 
       {!hideTabBar && <TabBar activeTab="map" />}
+
+      <CityPickerModal
+        visible={cityModalVisible}
+        selectedCity={selectedCity}
+        onSelect={(c) => { setSelectedCity(c); setCityModalVisible(false); }}
+        onClose={() => setCityModalVisible(false)}
+      />
     </View>
   );
 }
@@ -285,7 +336,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: Colors.green,
-    height: 52,
+    paddingBottom: 10,
     paddingHorizontal: 16,
   },
   headerLeft: {
@@ -361,6 +412,24 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+  },
+  legendMarker: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  legendIcon: {
+    fontSize: 10,
+    lineHeight: 13,
   },
   legendText: {
     fontFamily: Fonts.body,
@@ -464,10 +533,11 @@ const styles = StyleSheet.create({
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: Colors.white,
     borderRadius: 100,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
+    height: 36,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: Colors.border,
     gap: 4,
@@ -480,7 +550,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12,
     fontWeight: '500',
-    color: Colors.inkMuted,
+    color: '#1a1c19',
   },
   filterTextActive: {
     color: Colors.white,
@@ -593,5 +663,63 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
     color: Colors.orange,
+  },
+});
+
+/* ── Custom map pin ─────────────────────────────────── */
+const pinStyles = StyleSheet.create({
+  outer: {
+    alignItems: 'center',
+  },
+  wrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2.5,
+    borderColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.25, shadowRadius: 3 },
+      android: { elevation: 4 },
+    }),
+  },
+  icon: {
+    fontSize: 13,
+    lineHeight: 16,
+  },
+  arrow: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 7,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: Colors.white,
+    marginTop: -1,
+  },
+  callout: {
+    backgroundColor: Colors.white,
+    borderRadius: Radius.md,
+    padding: 10,
+    minWidth: 140,
+    maxWidth: 220,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6 },
+      android: { elevation: 4 },
+    }),
+  },
+  calloutTitle: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.ink,
+    marginBottom: 2,
+  },
+  calloutSub: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.inkFaint,
   },
 });

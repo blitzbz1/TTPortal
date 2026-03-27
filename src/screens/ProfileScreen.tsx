@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Linking } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
@@ -9,16 +10,16 @@ import { useI18n } from '../hooks/useI18n';
 import { getProfile, getProfileStats } from '../services/profiles';
 import type { Profile } from '../types/database';
 
-const QUICK_ACTIONS = [
-  { icon: 'users', label: 'Prieteni', color: Colors.greenMid, bg: Colors.greenPale, border: Colors.greenDim, route: '/(protected)/friends' as const },
-  { icon: 'trophy', label: 'Istoric joc', color: Colors.purple, bg: Colors.purplePale, border: Colors.purpleDim, route: '/(protected)/play-history' as const },
-  { icon: 'bookmark', label: 'Favorite', color: Colors.orange, bg: Colors.amberPale, border: Colors.amberDeep, route: '/(tabs)/favorites' as const },
+const QUICK_ACTIONS_DATA = [
+  { icon: 'users', labelKey: 'friends' as const, color: Colors.greenMid, bg: Colors.greenPale, border: Colors.greenDim, route: '/(protected)/friends' as const },
+  { icon: 'trophy', labelKey: 'playHistory' as const, color: Colors.purple, bg: Colors.purplePale, border: Colors.purpleDim, route: '/(protected)/play-history' as const },
+  { icon: 'bookmark', labelKey: 'favorites' as const, color: Colors.orange, bg: Colors.amberPale, border: Colors.amberDeep, route: '/(tabs)/favorites' as const },
 ];
 
-const ACTIVITIES = [
-  { icon: 'map-pin', iconColor: Colors.greenMid, bg: Colors.greenDim, text: 'Check-in la Parcul Național', time: 'Azi, 14:30' },
-  { icon: 'star', iconColor: Colors.orange, bg: Colors.amberPale, text: 'Recenzie la Sala Sporturilor', time: 'Ieri, 18:15' },
-  { icon: 'user-plus', iconColor: Colors.purple, bg: Colors.purplePale, text: 'Maria P. a acceptat invitația', time: 'Luni, 10:00' },
+const ACTIVITIES_DATA = [
+  { icon: 'map-pin', iconColor: Colors.greenMid, bg: Colors.greenDim, textKey: 'activityCheckin' as const, time: 'Azi, 14:30' },
+  { icon: 'star', iconColor: Colors.orange, bg: Colors.amberPale, textKey: 'activityReview' as const, time: 'Ieri, 18:15' },
+  { icon: 'user-plus', iconColor: Colors.purple, bg: Colors.purplePale, textKey: 'activityFriend' as const, time: 'Luni, 10:00' },
 ];
 
 interface ProfileScreenProps {
@@ -27,33 +28,43 @@ interface ProfileScreenProps {
 
 export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, signOut } = useSession();
-  const { lang, setLang } = useI18n();
+  const { lang, setLang, s } = useI18n();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<{ total_checkins: number; unique_venues: number } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const [profileRes, statsRes] = await Promise.all([
-        getProfile(user.id),
-        getProfileStats(user.id),
-      ]);
-      if (profileRes.data) setProfile(profileRes.data as Profile);
-      if (statsRes.data) setStats(statsRes.data as { total_checkins: number; unique_venues: number });
-    } catch {
-      // silently handle fetch errors
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (!user || dataLoaded) return;
+    let cancelled = false;
+    setLoading(true);
+
+    (async () => {
+      try {
+        const profileRes = await getProfile(user.id);
+        if (cancelled) return;
+        if (profileRes.data) setProfile(profileRes.data as Profile);
+
+        const statsRes = await getProfileStats(user.id);
+        if (cancelled) return;
+        if (statsRes.data) setStats(statsRes.data as { total_checkins: number; unique_venues: number });
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          setDataLoaded(true);
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, dataLoaded]);
 
   const fullName = user?.user_metadata?.full_name || profile?.full_name || '';
   const nameParts = fullName.trim().split(/\s+/);
@@ -66,8 +77,8 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const usernameDisplay = [username, city].filter(Boolean).join(' \u00B7 ');
 
   const dynamicStats = [
-    { value: String(stats?.total_checkins ?? 0), label: 'Check-ins' },
-    { value: String(stats?.unique_venues ?? 0), label: 'Locații vizitate' },
+    { value: String(stats?.total_checkins ?? 0), label: s('checkins') },
+    { value: String(stats?.unique_venues ?? 0), label: s('venuesVisited') },
   ];
 
   const handleQuickAction = useCallback((route: string | null) => {
@@ -88,8 +99,8 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profilul meu</Text>
+        <View style={[styles.header, { paddingTop: insets.top }]}>
+          <Text style={styles.headerTitle}>{s('myProfile')}</Text>
           <Lucide name="settings" size={22} color={Colors.inkFaint} />
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -104,7 +115,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profilul meu</Text>
+        <Text style={styles.headerTitle}>{s('myProfile')}</Text>
         <Lucide name="settings" size={22} color={Colors.inkFaint} />
       </View>
 
@@ -117,16 +128,16 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
             </View>
             <View style={styles.onlineDot} />
           </View>
-          <Text style={styles.name}>{fullName || 'Utilizator'}</Text>
+          <Text style={styles.name}>{fullName || s('user')}</Text>
           {usernameDisplay ? <Text style={styles.username}>{usernameDisplay}</Text> : null}
           <View style={styles.badges}>
             <View style={styles.badgeGreen}>
               <Text style={styles.badgeEmoji}>{'\uD83C\uDFD3'}</Text>
-              <Text style={styles.badgeGreenText}>Jucător activ</Text>
+              <Text style={styles.badgeGreenText}>{s('activePlayer')}</Text>
             </View>
             <View style={styles.badgePurple}>
               <Text style={styles.badgeEmoji}>{'\u2B50'}</Text>
-              <Text style={styles.badgePurpleText}>Top contributor</Text>
+              <Text style={styles.badgePurpleText}>{s('topContributor')}</Text>
             </View>
           </View>
         </View>
@@ -143,16 +154,16 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
 
         {/* Quick Actions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Acțiuni rapide</Text>
+          <Text style={styles.sectionTitle}>{s('quickActions')}</Text>
           <View style={styles.quickRow}>
-            {QUICK_ACTIONS.map((action) => (
+            {QUICK_ACTIONS_DATA.map((action) => (
               <TouchableOpacity
-                key={action.label}
+                key={action.labelKey}
                 style={[styles.quickBtn, { backgroundColor: action.bg, borderColor: action.border }]}
                 onPress={() => handleQuickAction(action.route)}
               >
                 <Lucide name={action.icon} size={22} color={action.color} />
-                <Text style={[styles.quickLabel, { color: action.color }]}>{action.label}</Text>
+                <Text style={[styles.quickLabel, { color: action.color }]}>{s(action.labelKey)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -160,14 +171,14 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
 
         {/* Recent Activity */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Activitate recentă</Text>
-          {ACTIVITIES.map((act) => (
-            <View key={act.text} style={styles.activityCard}>
+          <Text style={styles.sectionTitle}>{s('recentActivity')}</Text>
+          {ACTIVITIES_DATA.map((act) => (
+            <View key={act.textKey} style={styles.activityCard}>
               <View style={[styles.actIcon, { backgroundColor: act.bg }]}>
                 <Lucide name={act.icon} size={18} color={act.iconColor} />
               </View>
               <View style={styles.actInfo}>
-                <Text style={styles.actText}>{act.text}</Text>
+                <Text style={styles.actText}>{s(act.textKey)}</Text>
                 <Text style={styles.actTime}>{act.time}</Text>
               </View>
             </View>
@@ -176,13 +187,13 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
 
         {/* Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Setări</Text>
+          <Text style={styles.sectionTitle}>{s('settings')}</Text>
 
           {/* Notificări */}
-          <TouchableOpacity style={styles.settingsRow} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
+          <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/(protected)/notifications' as any)}>
             <View style={styles.settingsLeft}>
               <Lucide name="bell" size={18} color={Colors.inkMuted} />
-              <Text style={styles.settingsLabel}>Notificări</Text>
+              <Text style={styles.settingsLabel}>{s('notifications')}</Text>
             </View>
             <Lucide name="chevron-right" size={16} color={Colors.inkFaint} />
           </TouchableOpacity>
@@ -191,16 +202,16 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
           <TouchableOpacity style={styles.settingsRow} onPress={handleToggleLang}>
             <View style={styles.settingsLeft}>
               <Lucide name="globe" size={18} color={Colors.inkMuted} />
-              <Text style={styles.settingsLabel}>Limbă</Text>
+              <Text style={styles.settingsLabel}>{s('language')}</Text>
             </View>
             <Text style={styles.settingsValue}>{lang.toUpperCase()}</Text>
           </TouchableOpacity>
 
           {/* Confidențialitate */}
-          <TouchableOpacity style={styles.settingsRow} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
+          <TouchableOpacity style={styles.settingsRow} onPress={() => Linking.openSettings()}>
             <View style={styles.settingsLeft}>
               <Lucide name="shield" size={18} color={Colors.inkMuted} />
-              <Text style={styles.settingsLabel}>Confidențialitate</Text>
+              <Text style={styles.settingsLabel}>{s('privacy')}</Text>
             </View>
             <Lucide name="chevron-right" size={16} color={Colors.inkFaint} />
           </TouchableOpacity>
@@ -210,11 +221,11 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
             <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/(protected)/admin' as any)}>
               <View style={styles.settingsLeft}>
                 <Lucide name="shield-check" size={18} color={Colors.inkMuted} />
-                <Text style={styles.settingsLabel}>Moderare</Text>
+                <Text style={styles.settingsLabel}>{s('moderation')}</Text>
               </View>
               <View style={styles.adminBadge}>
                 <View style={styles.adminPill}>
-                  <Text style={styles.adminPillText}>Admin</Text>
+                  <Text style={styles.adminPillText}>{s('admin')}</Text>
                 </View>
                 <Lucide name="chevron-right" size={16} color={Colors.inkFaint} />
               </View>
@@ -224,7 +235,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
           {/* Logout */}
           <TouchableOpacity style={styles.logoutRow} onPress={handleLogout}>
             <Lucide name="log-out" size={18} color={Colors.red} />
-            <Text style={styles.logoutText}>Deconectare</Text>
+            <Text style={styles.logoutText}>{s('logout')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -244,7 +255,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: Colors.white,
-    height: 52,
+    paddingBottom: 10,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,

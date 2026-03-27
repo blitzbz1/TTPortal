@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 export async function getFavorites(userId: string) {
   return supabase
     .from('favorites')
-    .select('*, venues(*, venue_stats(*))')
+    .select('*, venues(*)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 }

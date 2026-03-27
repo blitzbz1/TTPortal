@@ -15,7 +15,10 @@
   "typecheck": "tsc --noEmit",
   "build:web": "npx expo export --platform web",
   "predeploy": "npm run build:web && cp dist/index.html dist/404.html",
-  "deploy": "gh-pages -d dist"
+  "deploy": "gh-pages -d dist",
+  "e2e": "maestro test .maestro/flows/",
+  "e2e:single": "maestro test",
+  "e2e:studio": "maestro studio"
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",

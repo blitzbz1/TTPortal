@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { Colors, Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
+import { useI18n } from '../hooks/useI18n';
 import { getFriends, getPendingRequests, acceptRequest, declineRequest } from '../services/friends';
 
 type FriendsTab = 'all' | 'online' | 'pending';
@@ -17,6 +18,7 @@ export function FriendsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const { user } = useSession();
   const router = useRouter();
+  const { s } = useI18n();
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -41,7 +43,8 @@ export function FriendsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useEffect(() => {
     fetchData();
@@ -50,7 +53,7 @@ export function FriendsScreen() {
   const handleAccept = useCallback(async (id: number) => {
     const { error } = await acceptRequest(id);
     if (error) {
-      Alert.alert('Eroare', 'Nu s-a putut accepta cererea.');
+      Alert.alert(s('error'), s('acceptError'));
       return;
     }
     fetchData();
@@ -59,7 +62,7 @@ export function FriendsScreen() {
   const handleDecline = useCallback(async (id: number) => {
     const { error } = await declineRequest(id);
     if (error) {
-      Alert.alert('Eroare', 'Nu s-a putut refuza cererea.');
+      Alert.alert(s('error'), s('declineError'));
       return;
     }
     setPending((prev) => prev.filter((p) => p.id !== id));
@@ -67,15 +70,15 @@ export function FriendsScreen() {
 
   const handleInvite = useCallback(async () => {
     try {
-      await Share.share({ message: 'Alătură-te pe TT Portal!' });
+      await Share.share({ message: s('inviteMsg') });
     } catch {
       // User cancelled share
     }
-  }, []);
+  }, [s]);
 
   const handleShareCard = useCallback(async () => {
     try {
-      await Share.share({ message: 'Alătură-te pe TT Portal!' });
+      await Share.share({ message: s('inviteMsg') });
     } catch {
       // User cancelled share
     }
@@ -108,10 +111,10 @@ export function FriendsScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Lucide name="arrow-left" size={24} color={Colors.ink} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Prieteni</Text>
+        <Text style={styles.headerTitle}>{s('friendsTitle')}</Text>
         <TouchableOpacity style={styles.inviteBtn} onPress={handleInvite}>
           <Lucide name="user-plus" size={16} color={Colors.white} />
-          <Text style={styles.inviteBtnText}>Invită</Text>
+          <Text style={styles.inviteBtnText}>{s('invite')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -122,7 +125,7 @@ export function FriendsScreen() {
             <Lucide name="search" size={18} color={Colors.inkFaint} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Caută prieteni..."
+              placeholder={s('searchFriends')}
               placeholderTextColor={Colors.inkFaint}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -133,9 +136,9 @@ export function FriendsScreen() {
         {/* Tabs */}
         <View style={styles.tabs}>
           {[
-            { key: 'all' as FriendsTab, label: `Toți (${friends.length})` },
-            { key: 'online' as FriendsTab, label: 'Online' },
-            { key: 'pending' as FriendsTab, label: `În așteptare (${pending.length})` },
+            { key: 'all' as FriendsTab, label: `${s('allFriends')} (${friends.length})` },
+            { key: 'online' as FriendsTab, label: s('online') },
+            { key: 'pending' as FriendsTab, label: `${s('pending')} (${pending.length})` },
           ].map((tab) => (
             <TouchableOpacity
               key={tab.key}
@@ -156,7 +159,7 @@ export function FriendsScreen() {
             {/* Pending Invites */}
             {pending.length > 0 && (activeTab === 'all' || activeTab === 'pending') && (
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Invitații primite</Text>
+                <Text style={styles.sectionLabel}>{s('receivedInvites')}</Text>
                 {pending.map((inv) => (
                   <View key={inv.id} style={styles.inviteCard}>
                     <View style={[styles.inviteAvatar, { backgroundColor: Colors.purple }]}>
@@ -166,16 +169,16 @@ export function FriendsScreen() {
                     </View>
                     <View style={styles.inviteInfo}>
                       <Text style={styles.inviteName}>
-                        {inv.requester?.full_name ?? 'Utilizator'}
+                        {inv.requester?.full_name ?? s('user')}
                       </Text>
-                      <Text style={styles.inviteMutual}>Cerere de prietenie</Text>
+                      <Text style={styles.inviteMutual}>{s('friendRequest')}</Text>
                     </View>
                     <View style={styles.inviteActions}>
                       <TouchableOpacity
                         style={styles.acceptBtn}
                         onPress={() => handleAccept(inv.id)}
                       >
-                        <Text style={styles.acceptText}>Acceptă</Text>
+                        <Text style={styles.acceptText}>{s('accept')}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => handleDecline(inv.id)}>
                         <Lucide name="x" size={20} color={Colors.inkFaint} />
@@ -190,16 +193,16 @@ export function FriendsScreen() {
             {(activeTab === 'all' || activeTab === 'online') && (
               <View style={styles.section}>
                 <View style={styles.friendsLabel}>
-                  <Text style={styles.sectionLabel}>Prieteni</Text>
+                  <Text style={styles.sectionLabel}>{s('friendsTitle')}</Text>
                   <View style={styles.onlineCount}>
                     <View style={styles.onlineDot} />
-                    <Text style={styles.onlineText}>{friends.length} prieteni</Text>
+                    <Text style={styles.onlineText}>{friends.length} {s('friendsTitle').toLowerCase()}</Text>
                   </View>
                 </View>
                 {filteredFriends.length === 0 ? (
                   <View style={{ alignItems: 'center', paddingVertical: 20 }}>
                     <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
-                      {searchQuery ? 'Niciun prieten găsit' : 'Niciun prieten încă'}
+                      {searchQuery ? s('noFriendFound') : s('noFriendsYet')}
                     </Text>
                   </View>
                 ) : (
@@ -216,7 +219,7 @@ export function FriendsScreen() {
                         </View>
                         <View style={styles.friendInfo}>
                           <Text style={styles.friendName}>
-                            {profile?.full_name ?? 'Utilizator'}
+                            {profile?.full_name ?? s('user')}
                           </Text>
                           <Text style={styles.friendStatus}>
                             {profile?.city ?? ''}
@@ -237,9 +240,9 @@ export function FriendsScreen() {
                   <Lucide name="share-2" size={20} color={Colors.white} />
                 </View>
                 <View style={styles.shareInfo}>
-                  <Text style={styles.shareTitle}>Invită prieteni</Text>
+                  <Text style={styles.shareTitle}>{s('inviteFriends')}</Text>
                   <Text style={styles.shareDesc}>
-                    Trimite un link de invitație prin WhatsApp, SMS sau email
+                    {s('inviteDesc')}
                   </Text>
                 </View>
                 <Lucide name="chevron-right" size={20} color={Colors.inkFaint} />

@@ -31,6 +31,11 @@ yarn-error.*
 # local env files
 .env
 .env*.local
+supabase/.env
+
+# Supabase local data
+supabase/volumes/db/data/
+supabase/volumes/storage/
 
 # testing
 coverage/
@@ -41,3 +46,5 @@ coverage/
 # generated native folders
 /ios
 /android
+
+scripts/

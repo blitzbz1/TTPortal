@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
 import { Colors, Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
-import { getEvents, joinEvent, leaveEvent } from '../services/events';
+import { useI18n } from '../hooks/useI18n';
+import { getEvents, getEventParticipants, joinEvent, leaveEvent } from '../services/events';
+import { getFriends } from '../services/friends';
 
 type EventTab = 'upcoming' | 'past' | 'mine';
 
@@ -14,10 +17,16 @@ interface EventSchedulingScreenProps {
 }
 
 export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScreenProps) {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<EventTab>('upcoming');
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
+  const [detailParticipants, setDetailParticipants] = useState<any[]>([]);
+  const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
+  const [detailLoading, setDetailLoading] = useState(false);
   const { user } = useSession();
+  const { s } = useI18n();
   const router = useRouter();
 
   const fetchEvents = useCallback(async () => {
@@ -25,10 +34,10 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     try {
       const { data, error } = await getEvents(
         activeTab,
-        activeTab === 'mine' ? user?.id : undefined,
+        (activeTab === 'mine' || activeTab === 'past') ? user?.id : undefined,
       );
       if (error) {
-        Alert.alert('Eroare', 'Nu s-au putut încărca evenimentele.');
+        Alert.alert(s('error'), s('eventsLoadError'));
       } else {
         setEvents(data ?? []);
       }
@@ -41,6 +50,33 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     fetchEvents();
   }, [fetchEvents]);
 
+  // Fetch friends list once
+  useEffect(() => {
+    if (!user?.id) return;
+    getFriends(user.id).then(({ data }) => {
+      if (!data) return;
+      const ids = new Set<string>();
+      for (const f of data) {
+        const fid = f.requester_id === user.id ? f.addressee_id : f.requester_id;
+        ids.add(fid);
+      }
+      setFriendIds(ids);
+    });
+  }, [user?.id]);
+
+  const openDetail = useCallback(async (event: any) => {
+    setSelectedEvent(event);
+    setDetailLoading(true);
+    const { data } = await getEventParticipants(event.id);
+    setDetailParticipants(data ?? []);
+    setDetailLoading(false);
+  }, []);
+
+  const closeDetail = useCallback(() => {
+    setSelectedEvent(null);
+    setDetailParticipants([]);
+  }, []);
+
   const handleJoin = useCallback(async (event: any) => {
     if (!user) return;
     const isJoined = event.event_participants?.some(
@@ -49,18 +85,22 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     if (isJoined) {
       const { error } = await leaveEvent(event.id, user.id);
       if (error) {
-        Alert.alert('Eroare', 'Nu s-a putut anula participarea.');
+        Alert.alert(s('error'), s('leaveError'));
         return;
       }
     } else {
       const { error } = await joinEvent(event.id, user.id);
       if (error) {
-        Alert.alert('Eroare', 'Nu s-a putut înregistra participarea.');
+        Alert.alert(s('error'), s('joinError'));
         return;
       }
     }
     fetchEvents();
-  }, [user, fetchEvents]);
+    if (selectedEvent?.id === event.id) {
+      const { data } = await getEventParticipants(event.id);
+      setDetailParticipants(data ?? []);
+    }
+  }, [user, fetchEvents, selectedEvent]);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('ro-RO', {
@@ -78,13 +118,19 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   };
 
   const getBadgeInfo = (event: any) => {
+    if (event.status === 'completed') {
+      return { text: s('completed'), bg: Colors.borderLight, color: Colors.inkMuted };
+    }
+    if (event.status === 'cancelled') {
+      return { text: s('cancelled'), bg: '#fde8e8', color: Colors.red };
+    }
     if (event.status === 'confirmed') {
-      return { text: 'Confirmat', bg: Colors.greenPale, color: Colors.greenMid };
+      return { text: s('confirmed'), bg: Colors.greenPale, color: Colors.greenMid };
     }
-    if (event.type === 'tournament') {
-      return { text: 'Turneu', bg: Colors.bluePale, color: Colors.blue };
+    if (event.event_type === 'tournament') {
+      return { text: s('tournament'), bg: Colors.bluePale, color: Colors.blue };
     }
-    return { text: 'Deschis', bg: Colors.amberPale, color: Colors.orange };
+    return { text: s('open'), bg: Colors.amberPale, color: Colors.orange };
   };
 
   const getInitials = (name?: string) => {
@@ -97,20 +143,32 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       .toUpperCase();
   };
 
+  const getDuration = (start: string, end?: string) => {
+    if (!end) return null;
+    const ms = new Date(end).getTime() - new Date(start).getTime();
+    const hours = Math.round(ms / 3600000);
+    return hours > 0 ? hours : null;
+  };
+
+  const isPast = (event: any) =>
+    event.status === 'completed' || event.status === 'cancelled';
+
+  // Separate friend participants from others
+  const friendParticipants = detailParticipants.filter(
+    (p) => friendIds.has(p.user_id),
+  );
+
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Lucide name="arrow-left" size={24} color={Colors.ink} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Evenimente</Text>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <Text style={styles.headerTitle}>{s('events')}</Text>
         <TouchableOpacity
           style={styles.createBtn}
           onPress={() => router.push('/(protected)/create-event' as any)}
         >
           <Lucide name="plus" size={14} color={Colors.white} />
-          <Text style={styles.createText}>Creează</Text>
+          <Text style={styles.createText}>{s('create')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -118,9 +176,9 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         {/* Tabs */}
         <View style={styles.tabs}>
           {[
-            { key: 'upcoming' as EventTab, label: `Viitoare (${activeTab === 'upcoming' ? events.length : ''})`.replace('()', '') },
-            { key: 'past' as EventTab, label: 'Trecute' },
-            { key: 'mine' as EventTab, label: 'Ale mele' },
+            { key: 'upcoming' as EventTab, label: `${s('upcoming')} (${activeTab === 'upcoming' ? events.length : ''})`.replace('()', '').trim() },
+            { key: 'past' as EventTab, label: s('past') },
+            { key: 'mine' as EventTab, label: s('mine') },
           ].map((tab) => (
             <TouchableOpacity
               key={tab.key}
@@ -140,7 +198,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         ) : events.length === 0 ? (
           <View style={{ alignItems: 'center', marginTop: 40, padding: 16 }}>
             <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
-              Niciun eveniment găsit
+              {s('noEvents')}
             </Text>
           </View>
         ) : (
@@ -151,10 +209,10 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                 (p: any) => p.user_id === user?.id,
               );
               const participants = event.event_participants ?? [];
-              const venueName = event.venues?.name ?? 'Locație necunoscută';
+              const venueName = event.venues?.name ?? s('unknownVenue');
 
               return (
-                <View key={event.id} style={styles.eventCard}>
+                <TouchableOpacity key={event.id} style={styles.eventCard} activeOpacity={0.7} onPress={() => openDetail(event)}>
                   {/* Top */}
                   <View style={styles.eventTop}>
                     <View style={styles.eventDateWrap}>
@@ -195,24 +253,26 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                         </View>
                       ))}
                       <Text style={styles.attendeesText}>
-                        {participants.length}/{event.max_participants ?? '∞'} locuri
+                        {participants.length}/{event.max_participants ?? '∞'} {s('spots')}
                       </Text>
                     </View>
-                    <TouchableOpacity
-                      style={[styles.joinBtn, isJoined ? styles.joinedBtn : styles.notJoinedBtn]}
-                      onPress={() => handleJoin(event)}
-                    >
-                      <Lucide
-                        name={isJoined ? 'check' : 'user-plus'}
-                        size={14}
-                        color={isJoined ? Colors.white : Colors.green}
-                      />
-                      <Text style={[styles.joinText, isJoined ? styles.joinedText : styles.notJoinedText]}>
-                        {isJoined ? 'Participi' : 'Participă'}
-                      </Text>
-                    </TouchableOpacity>
+                    {!isPast(event) && (
+                      <TouchableOpacity
+                        style={[styles.joinBtn, isJoined ? styles.joinedBtn : styles.notJoinedBtn]}
+                        onPress={(e) => { e.stopPropagation(); handleJoin(event); }}
+                      >
+                        <Lucide
+                          name={isJoined ? 'check' : 'user-plus'}
+                          size={14}
+                          color={isJoined ? Colors.white : Colors.green}
+                        />
+                        <Text style={[styles.joinText, isJoined ? styles.joinedText : styles.notJoinedText]}>
+                          {isJoined ? s('joined') : s('join')}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -220,6 +280,177 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       </ScrollView>
 
       {!hideTabBar && <TabBar activeTab="events" />}
+
+      {/* ===== Event Detail Bottom Sheet ===== */}
+      <Modal
+        visible={selectedEvent !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={closeDetail}
+      >
+        <Pressable style={ms.overlay} onPress={closeDetail}>
+          <Pressable style={[ms.sheet, { paddingBottom: insets.bottom + 16 }]} onPress={() => {}}>
+            {selectedEvent && (() => {
+              const ev = selectedEvent;
+              const badge = getBadgeInfo(ev);
+              const venueName = ev.venues?.name ?? s('unknownVenue');
+              const venueCity = ev.venues?.city ?? '';
+              const isJoined = ev.event_participants?.some((p: any) => p.user_id === user?.id);
+              const duration = getDuration(ev.starts_at, ev.ends_at);
+
+              return (
+                <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+                  {/* Handle bar */}
+                  <View style={ms.handleWrap}>
+                    <View style={ms.handle} />
+                  </View>
+
+                  {/* Title row */}
+                  <View style={ms.titleRow}>
+                    <Text style={ms.title} numberOfLines={2}>
+                      {ev.title || venueName}
+                    </Text>
+                    <View style={[styles.eventBadge, { backgroundColor: badge.bg }]}>
+                      <Text style={[styles.eventBadgeText, { color: badge.color }]}>
+                        {badge.text}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Info rows */}
+                  <View style={ms.infoBlock}>
+                    <View style={ms.infoRow}>
+                      <Lucide name="calendar" size={16} color={Colors.orangeBright} />
+                      <Text style={ms.infoText}>
+                        {formatDate(ev.starts_at)} {'\u00B7'} {formatTime(ev.starts_at)}
+                        {ev.ends_at ? ` – ${formatTime(ev.ends_at)}` : ''}
+                      </Text>
+                    </View>
+
+                    {duration != null && (
+                      <View style={ms.infoRow}>
+                        <Lucide name="clock" size={16} color={Colors.inkFaint} />
+                        <Text style={ms.infoText}>
+                          {s('duration')}: {duration} {s('hours')}
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={ms.infoRow}>
+                      <Lucide name="map-pin" size={16} color={Colors.greenMid} />
+                      <Text style={ms.infoText}>
+                        {venueName}{venueCity ? `, ${venueCity}` : ''}
+                      </Text>
+                    </View>
+
+                    {ev.table_number != null && (
+                      <View style={ms.infoRow}>
+                        <Lucide name="hash" size={16} color={Colors.inkFaint} />
+                        <Text style={ms.infoText}>
+                          {s('tableNumber')} {ev.table_number}
+                        </Text>
+                      </View>
+                    )}
+
+                    {ev.event_type === 'tournament' && (
+                      <View style={ms.infoRow}>
+                        <Lucide name="trophy" size={16} color={Colors.amber} />
+                        <Text style={ms.infoText}>{s('tournament')}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Description */}
+                  <View style={ms.section}>
+                    <Text style={ms.sectionTitle}>{s('description')}</Text>
+                    <Text style={ms.descText}>
+                      {ev.description || s('noDescription')}
+                    </Text>
+                  </View>
+
+                  {/* Participants */}
+                  <View style={ms.section}>
+                    <View style={ms.sectionHeader}>
+                      <Text style={ms.sectionTitle}>{s('participants')}</Text>
+                      <Text style={ms.countBadge}>
+                        {detailParticipants.length}/{ev.max_participants ?? '∞'}
+                      </Text>
+                    </View>
+
+                    {detailLoading ? (
+                      <ActivityIndicator size="small" color={Colors.orangeBright} style={{ marginVertical: 12 }} />
+                    ) : detailParticipants.length === 0 ? (
+                      <Text style={ms.emptyText}>{s('noEvents')}</Text>
+                    ) : (
+                      <View style={ms.participantList}>
+                        {detailParticipants.map((p) => {
+                          const profile = p.profiles;
+                          const name = profile?.full_name ?? '??';
+                          const isFriend = friendIds.has(p.user_id);
+                          const isOrganizer = p.user_id === ev.organizer_id;
+                          const isMe = p.user_id === user?.id;
+                          return (
+                            <View key={p.user_id} style={ms.pRow}>
+                              <View style={[ms.pAvatar, isFriend && ms.pAvatarFriend]}>
+                                <Text style={ms.pInitials}>{getInitials(name)}</Text>
+                              </View>
+                              <View style={ms.pInfo}>
+                                <Text style={ms.pName}>
+                                  {name}
+                                  {isMe ? ` (${s('you')})` : ''}
+                                </Text>
+                                {(isOrganizer || isFriend) && (
+                                  <Text style={ms.pBadge}>
+                                    {isOrganizer ? s('organizer') : ''}
+                                    {isOrganizer && isFriend ? ' · ' : ''}
+                                    {isFriend ? '👋' : ''}
+                                  </Text>
+                                )}
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Friends summary */}
+                  {friendParticipants.length > 0 && (
+                    <View style={ms.friendsSummary}>
+                      <Lucide name="users" size={16} color={Colors.purpleMid} />
+                      <Text style={ms.friendsSummaryText}>
+                        {friendParticipants.length} {s('friendsParticipating')}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Join / Close buttons */}
+                  <View style={ms.actions}>
+                    {!isPast(ev) && (
+                      <TouchableOpacity
+                        style={[ms.actionBtn, isJoined ? ms.actionLeave : ms.actionJoin]}
+                        onPress={() => handleJoin(ev)}
+                      >
+                        <Lucide
+                          name={isJoined ? 'log-out' : 'user-plus'}
+                          size={16}
+                          color={isJoined ? Colors.red : Colors.white}
+                        />
+                        <Text style={[ms.actionText, isJoined ? ms.actionLeaveText : ms.actionJoinText]}>
+                          {isJoined ? s('joined') : s('join')}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={ms.closeBtn} onPress={closeDetail}>
+                      <Text style={ms.closeBtnText}>{s('close')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              );
+            })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -234,7 +465,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: Colors.white,
-    height: 52,
+    paddingBottom: 10,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
@@ -393,5 +624,198 @@ const styles = StyleSheet.create({
   },
   notJoinedText: {
     color: Colors.green,
+  },
+});
+
+/* ===== Bottom Sheet (modal) styles ===== */
+const ms = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    maxHeight: '85%',
+  },
+  handleWrap: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.border,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 16,
+  },
+  title: {
+    fontFamily: Fonts.heading,
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.ink,
+    flex: 1,
+  },
+  infoBlock: {
+    gap: 10,
+    marginBottom: 20,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  infoText: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    color: Colors.inkMuted,
+    flex: 1,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.ink,
+    marginBottom: 6,
+  },
+  countBadge: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.orangeBright,
+    marginBottom: 6,
+  },
+  descText: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    color: Colors.inkMuted,
+    lineHeight: 20,
+  },
+  emptyText: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.inkFaint,
+    fontStyle: 'italic',
+  },
+  participantList: {
+    gap: 8,
+  },
+  pRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 4,
+  },
+  pAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pAvatarFriend: {
+    backgroundColor: Colors.purpleMid,
+  },
+  pInitials: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+  pInfo: {
+    flex: 1,
+  },
+  pName: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.ink,
+  },
+  pBadge: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.inkFaint,
+  },
+  friendsSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.purplePale,
+    borderRadius: Radius.md,
+    padding: 12,
+    marginBottom: 20,
+  },
+  friendsSummaryText: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.purpleMid,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.lg,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  actionJoin: {
+    backgroundColor: Colors.green,
+  },
+  actionLeave: {
+    backgroundColor: Colors.redPale,
+    borderWidth: 1,
+    borderColor: Colors.red,
+  },
+  actionText: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  actionJoinText: {
+    color: Colors.white,
+  },
+  actionLeaveText: {
+    color: Colors.red,
+  },
+  closeBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.lg,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  closeBtnText: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.inkMuted,
   },
 });

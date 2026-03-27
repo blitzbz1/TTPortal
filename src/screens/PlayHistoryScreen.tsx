@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { Colors, Fonts } from '../theme';
 import { useSession } from '../hooks/useSession';
+import { useI18n } from '../hooks/useI18n';
 import { getPlayHistory, getCheckinStats } from '../services/checkins';
 
 const PAGE_SIZE = 20;
@@ -16,8 +17,10 @@ export function PlayHistoryScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [filterMonth, setFilterMonth] = useState(false);
   const { user } = useSession();
   const router = useRouter();
+  const { s } = useI18n();
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -38,7 +41,8 @@ export function PlayHistoryScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useEffect(() => {
     fetchData();
@@ -73,9 +77,9 @@ export function PlayHistoryScreen() {
       let dayLabel: string;
 
       if (dateStr === today) {
-        dayLabel = `Azi \u2014 ${date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' })}`;
+        dayLabel = `${s('today')} \u2014 ${date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' })}`;
       } else if (dateStr === yesterday) {
-        dayLabel = `Ieri \u2014 ${date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' })}`;
+        dayLabel = `${s('yesterday')} \u2014 ${date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' })}`;
       } else {
         dayLabel = date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' });
       }
@@ -98,7 +102,7 @@ export function PlayHistoryScreen() {
   };
 
   const formatDuration = (startedAt: string, endedAt?: string | null) => {
-    if (!endedAt) return 'In curs';
+    if (!endedAt) return s('inProgress');
     const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime();
     const mins = Math.round(ms / 60000);
     if (mins < 60) return `${mins}min`;
@@ -118,12 +122,23 @@ export function PlayHistoryScreen() {
     return `${hours}h`;
   };
 
-  const grouped = groupByDay(history);
+  const displayHistory = useMemo(() => {
+    if (!filterMonth) return history;
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    return history.filter((entry) => {
+      const d = new Date(entry.started_at);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+  }, [history, filterMonth]);
+
+  const grouped = groupByDay(displayHistory);
 
   const summaryStats = [
-    { value: String(stats?.total_checkins ?? history.length), label: 'Check-ins', bg: Colors.greenPale, color: Colors.green },
-    { value: String(stats?.unique_venues ?? 0), label: 'Locații', bg: Colors.purplePale, color: Colors.purple },
-    { value: computeTotalTime(), label: 'Timp jucat', bg: Colors.amberPale, color: Colors.orange },
+    { value: String(stats?.total_checkins ?? history.length), label: s('checkins'), bg: Colors.greenPale, color: Colors.green },
+    { value: String(stats?.unique_venues ?? 0), label: s('locations'), bg: Colors.purplePale, color: Colors.purple },
+    { value: computeTotalTime(), label: s('timePlayed'), bg: Colors.amberPale, color: Colors.orange },
   ];
 
   return (
@@ -133,11 +148,16 @@ export function PlayHistoryScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Lucide name="arrow-left" size={24} color={Colors.ink} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Istoric joc</Text>
-        <TouchableOpacity style={styles.filterBtn} onPress={() => Alert.alert('În curând', 'Această funcție va fi disponibilă în curând.')}>
-          <Lucide name="calendar" size={14} color={Colors.inkMuted} />
-          <Text style={styles.filterText}>
-            {new Date().toLocaleDateString('ro-RO', { month: 'short', year: 'numeric' })}
+        <Text style={styles.headerTitle}>{s('playHistoryTitle')}</Text>
+        <TouchableOpacity
+          style={[styles.filterBtn, filterMonth && { backgroundColor: Colors.greenPale, borderColor: Colors.greenDim }]}
+          onPress={() => setFilterMonth((v) => !v)}
+        >
+          <Lucide name="calendar" size={14} color={filterMonth ? Colors.green : Colors.inkMuted} />
+          <Text style={[styles.filterText, filterMonth && { color: Colors.green, fontWeight: '600' }]}>
+            {filterMonth
+              ? new Date().toLocaleDateString('ro-RO', { month: 'short', year: 'numeric' })
+              : s('allTime') || 'Tot'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -159,14 +179,14 @@ export function PlayHistoryScreen() {
           {/* Streak Bar */}
           <View style={styles.streakBar}>
             <Lucide name="flame" size={18} color={Colors.orangeBright} />
-            <Text style={styles.streakText}>Istoric de joc</Text>
+            <Text style={styles.streakText}>{s('playHistoryLabel')}</Text>
           </View>
 
           {/* Timeline */}
-          {history.length === 0 ? (
+          {displayHistory.length === 0 ? (
             <View style={{ alignItems: 'center', marginTop: 20, padding: 16 }}>
               <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
-                Niciun check-in încă
+                {s('noCheckins')}
               </Text>
             </View>
           ) : (
@@ -188,7 +208,7 @@ export function PlayHistoryScreen() {
                       </View>
                       <View style={styles.entryInfo}>
                         <Text style={styles.entryTitle}>
-                          {entry.venues?.name ?? 'Locație'}
+                          {entry.venues?.name ?? s('venue')}
                         </Text>
                         <View style={styles.entryDetails}>
                           <Text style={styles.entryTime}>{formatTime(entry.started_at)}</Text>
@@ -213,7 +233,7 @@ export function PlayHistoryScreen() {
                     ) : (
                       <>
                         <Lucide name="chevrons-down" size={16} color={Colors.inkMuted} />
-                        <Text style={styles.loadMoreText}>Mai vechi</Text>
+                        <Text style={styles.loadMoreText}>{s('loadOlder')}</Text>
                       </>
                     )}
                   </TouchableOpacity>
