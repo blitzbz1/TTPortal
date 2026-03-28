@@ -139,6 +139,11 @@ export default function SignInScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={[styles.content, { paddingTop: insets.top + 12 }]} testID="sign-in-screen">
+        {/* Back button */}
+        <Pressable style={styles.backBtn} onPress={() => router.replace('/(tabs)/' as any)}>
+          <Lucide name="arrow-left" size={22} color={Colors.white} />
+        </Pressable>
+
         {/* Top Branding */}
         <View style={styles.branding}>
           <Text style={styles.subtitle}>{s('brandSubtitle')}</Text>
@@ -351,6 +356,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.green,
+  },
+  backBtn: {
+    alignSelf: 'flex-start',
+    padding: 4,
+    marginBottom: 8,
   },
   content: {
     flex: 1,

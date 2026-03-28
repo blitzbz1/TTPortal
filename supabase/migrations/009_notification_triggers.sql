@@ -85,17 +85,26 @@ DECLARE
   recipient_id UUID;
 BEGIN
   IF TG_OP = 'INSERT' AND NEW.status = 'pending' THEN
-    SELECT full_name INTO sender_name FROM public.profiles WHERE id = NEW.requester_id;
-    sender_name := COALESCE(sender_name, 'Cineva');
+    -- Only send if there is no existing unread friend_request from this sender
+    IF NOT EXISTS (
+      SELECT 1 FROM public.notifications
+      WHERE recipient_id = NEW.addressee_id
+        AND sender_id = NEW.requester_id
+        AND type = 'friend_request'
+        AND read = false
+    ) THEN
+      SELECT full_name INTO sender_name FROM public.profiles WHERE id = NEW.requester_id;
+      sender_name := COALESCE(sender_name, 'Cineva');
 
-    PERFORM public.create_and_send_notification(
-      NEW.addressee_id,
-      NEW.requester_id,
-      'friend_request',
-      'Cerere de prietenie',
-      sender_name || ' vrea să fie prietenul tău.',
-      jsonb_build_object('screen', '/(protected)/friends', 'friendshipId', NEW.id)
-    );
+      PERFORM public.create_and_send_notification(
+        NEW.addressee_id,
+        NEW.requester_id,
+        'friend_request',
+        'Cerere de prietenie',
+        sender_name || ' vrea să fie prietenul tău.',
+        jsonb_build_object('screen', '/(protected)/friends', 'friendshipId', NEW.id)
+      );
+    END IF;
   END IF;
 
   IF TG_OP = 'UPDATE' AND OLD.status = 'pending' AND NEW.status = 'accepted' THEN

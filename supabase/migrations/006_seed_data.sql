@@ -20,7 +20,7 @@ INSERT INTO public.venues (name, type, city, county, address, lat, lng, tables_c
   ('Parcul IOR', 'parc_exterior', 'București', 'București', 'Bd. Camil Ressu', 44.4145, 26.1370, 2, 'acceptabila', true, false, false, false, true),
   ('Parcul Herăstrău', 'parc_exterior', 'București', 'București', 'Aleea Privighetorilor', 44.4740, 26.0780, 6, 'buna', true, true, true, true, true),
   ('Club Sportiv Dinamo', 'sala_indoor', 'București', 'București', 'Șos. Ștefan cel Mare nr. 7-9', 44.4530, 26.1160, 16, 'profesionala', false, true, true, true, true)
-ON CONFLICT (name, city) DO NOTHING;
+;
 
 -- Update city venue count
 UPDATE public.cities SET venue_count = (

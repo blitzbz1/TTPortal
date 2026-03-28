@@ -11,7 +11,7 @@ export async function getProfile(userId: string) {
 
 export async function updateProfile(
   userId: string,
-  data: Partial<Pick<Profile, 'full_name' | 'avatar_url' | 'city' | 'lang' | 'username'>>,
+  data: Partial<Pick<Profile, 'full_name' | 'avatar_url' | 'city' | 'lang' | 'username'>> & { notify_friend_checkins?: boolean },
 ) {
   return supabase
     .from('profiles')

@@ -8,6 +8,7 @@ import { useSession } from '../hooks/useSession';
 import { useNotifications } from '../hooks/useNotifications';
 import { useI18n } from '../hooks/useI18n';
 import { getNotifications, markAsRead, deleteNotification, deleteAllNotifications } from '../services/notifications';
+import { acceptRequest, declineRequest, getPendingRequests } from '../services/friends';
 
 const ICON_MAP: Record<string, { name: string; color: string; bg: string }> = {
   friend_request: { name: 'user-plus', color: Colors.purple, bg: Colors.purplePale },
@@ -58,12 +59,25 @@ export function NotificationsScreen() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingMap, setPendingMap] = useState<Map<string, number>>(new Map()); // sender_id → friendship id
+  const [respondedIds, setRespondedIds] = useState<Set<string>>(new Set());
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await getNotifications(user.id);
-    if (data) setNotifications(data);
+    const [notifRes, pendingRes] = await Promise.all([
+      getNotifications(user.id),
+      getPendingRequests(user.id),
+    ]);
+    if (notifRes.data) setNotifications(notifRes.data);
+    // Map sender_id → friendship id for inline accept/decline
+    if (pendingRes.data) {
+      const map = new Map<string, number>();
+      for (const p of pendingRes.data) {
+        map.set(p.requester_id, p.id);
+      }
+      setPendingMap(map);
+    }
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
@@ -108,6 +122,29 @@ export function NotificationsScreen() {
       ]);
     }
   }, [user, refreshUnreadCount]);
+
+  const handleAcceptFriend = useCallback(async (senderId: string, notifId: number) => {
+    const friendshipId = pendingMap.get(senderId);
+    if (!friendshipId) return;
+    const { error } = await acceptRequest(friendshipId);
+    if (error) return;
+    setRespondedIds((prev) => new Set(prev).add(senderId));
+    // Mark notification as read
+    await markAsRead(notifId);
+    setNotifications((prev) => prev.map((n) => n.id === notifId ? { ...n, read: true } : n));
+    refreshUnreadCount();
+  }, [pendingMap, refreshUnreadCount]);
+
+  const handleDeclineFriend = useCallback(async (senderId: string, notifId: number) => {
+    const friendshipId = pendingMap.get(senderId);
+    if (!friendshipId) return;
+    const { error } = await declineRequest(friendshipId);
+    if (error) return;
+    setRespondedIds((prev) => new Set(prev).add(senderId));
+    await markAsRead(notifId);
+    setNotifications((prev) => prev.map((n) => n.id === notifId ? { ...n, read: true } : n));
+    refreshUnreadCount();
+  }, [pendingMap, refreshUnreadCount]);
 
   const handleClearAll = useCallback(async () => {
     await clearAll();
@@ -174,6 +211,22 @@ export function NotificationsScreen() {
                       {n.title}
                     </Text>
                     <Text style={styles.cardBody}>{n.body}</Text>
+                    {/* Inline Accept/Decline for friend requests */}
+                    {n.type === 'friend_request' && n.sender_id && pendingMap.has(n.sender_id) && !respondedIds.has(n.sender_id) && (
+                      <View style={styles.inlineActions}>
+                        <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAcceptFriend(n.sender_id, n.id)}>
+                          <Lucide name="check" size={14} color={Colors.white} />
+                          <Text style={styles.acceptBtnText}>{s('accept')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.declineBtn} onPress={() => handleDeclineFriend(n.sender_id, n.id)}>
+                          <Lucide name="x" size={14} color={Colors.red} />
+                          <Text style={styles.declineBtnText}>{s('decline')}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    {n.type === 'friend_request' && respondedIds.has(n.sender_id) && (
+                      <Text style={styles.respondedText}>{s('accepted')}</Text>
+                    )}
                     <Text style={styles.cardTime}>{formatTime(n.created_at)}</Text>
                   </View>
                   {!n.read && <View style={styles.unreadDot} />}
@@ -291,6 +344,49 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11,
     color: Colors.inkFaint,
+  },
+  inlineActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
+  },
+  acceptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.green,
+    borderRadius: 14,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  acceptBtnText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.white,
+  },
+  declineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  declineBtnText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.red,
+  },
+  respondedText: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.greenMid,
+    marginTop: 4,
   },
   unreadDot: {
     width: 8,

@@ -95,7 +95,7 @@ export async function getFriendIds(userId: string): Promise<string[]> {
 export async function searchUsers(query: string) {
   return supabase
     .from('profiles')
-    .select('id, full_name, avatar_url, city')
-    .or(`full_name.ilike.%${query}%,username.ilike.%${query}%`)
-    .limit(20);
+    .select('id, full_name, email, avatar_url, city')
+    .ilike('email', `%${query}%`)
+    .limit(10);
 }

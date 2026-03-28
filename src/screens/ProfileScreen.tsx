@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Linking, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -7,7 +7,7 @@ import { TabBar } from '../components/TabBar';
 import { Colors, Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getProfile, getProfileStats } from '../services/profiles';
+import { getProfile, getProfileStats, updateProfile } from '../services/profiles';
 import type { Profile } from '../types/database';
 
 const QUICK_ACTIONS_DATA = [
@@ -36,6 +36,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const [stats, setStats] = useState<{ total_checkins: number; unique_venues: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [notifyCheckins, setNotifyCheckins] = useState(true);
 
 
   useEffect(() => {
@@ -47,7 +48,10 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
       try {
         const profileRes = await getProfile(user.id);
         if (cancelled) return;
-        if (profileRes.data) setProfile(profileRes.data as Profile);
+        if (profileRes.data) {
+          setProfile(profileRes.data as Profile);
+          setNotifyCheckins((profileRes.data as any).notify_friend_checkins ?? true);
+        }
 
         const statsRes = await getProfileStats(user.id);
         if (cancelled) return;
@@ -90,6 +94,13 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const handleToggleLang = useCallback(() => {
     setLang(lang === 'ro' ? 'en' : 'ro');
   }, [lang, setLang]);
+
+  const handleToggleCheckinNotif = useCallback(async (value: boolean) => {
+    setNotifyCheckins(value);
+    if (user) {
+      await updateProfile(user.id, { notify_friend_checkins: value });
+    }
+  }, [user]);
 
   const handleLogout = useCallback(async () => {
     await signOut();
@@ -203,6 +214,23 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
             </View>
             <Lucide name="chevron-right" size={16} color={Colors.inkFaint} />
           </TouchableOpacity>
+
+          {/* Notificări check-in prieteni */}
+          <View style={styles.settingsRow}>
+            <View style={styles.settingsLeft}>
+              <Lucide name="map-pin" size={18} color={Colors.inkMuted} />
+              <View>
+                <Text style={styles.settingsLabel}>{s('notifyFriendCheckins')}</Text>
+                <Text style={styles.settingsDesc}>{s('notifyFriendCheckinsDesc')}</Text>
+              </View>
+            </View>
+            <Switch
+              value={notifyCheckins}
+              onValueChange={handleToggleCheckinNotif}
+              trackColor={{ false: Colors.border, true: Colors.greenLight }}
+              thumbColor={Colors.white}
+            />
+          </View>
 
           {/* Limbă */}
           <TouchableOpacity style={styles.settingsRow} onPress={handleToggleLang}>
@@ -466,6 +494,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 14,
     color: Colors.ink,
+  },
+  settingsDesc: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.inkFaint,
+    marginTop: 1,
   },
   settingsValue: {
     fontFamily: Fonts.body,

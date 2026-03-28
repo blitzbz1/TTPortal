@@ -1,13 +1,9 @@
 -- ============================================================
 -- TTPortal — Full Migration Script for Supabase SQL Editor
--- Run this entire script in one go in the SQL Editor.
 -- Old tables are preserved as *_old.
 -- ============================================================
 
-
--- ============================================================
 -- FILE: 000_pre_migration_rename.sql
--- ============================================================
 
 -- Migration: 000_pre_migration_rename
 -- Renames existing tables to *_old so that subsequent migrations can create
@@ -44,10 +40,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 
-
--- ============================================================
 -- FILE: 001_create_profiles.sql
--- ============================================================
 
 -- Migration: 001_create_profiles
 -- Creates the public.profiles table and auto-creation trigger for new auth users.
@@ -90,10 +83,7 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
 
-
--- ============================================================
 -- FILE: 002_profiles_rls.sql
--- ============================================================
 
 -- Migration: 002_profiles_rls
 -- Add RLS policies to profiles table and username column.
@@ -101,22 +91,21 @@ CREATE TRIGGER on_auth_user_created
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS username TEXT UNIQUE;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;
 
--- RLS policies
+-- RLS policies (drop + create for idempotency)
+DROP POLICY IF EXISTS "Profiles are viewable by authenticated users" ON public.profiles;
 CREATE POLICY "Profiles are viewable by authenticated users"
   ON public.profiles FOR SELECT
   TO authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE
   TO authenticated
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
-
--- ============================================================
 -- FILE: 003_core_tables.sql
--- ============================================================
 
 -- Migration: 003_core_tables
 -- Creates all application tables.
@@ -255,103 +244,130 @@ CREATE INDEX IF NOT EXISTS idx_events_organizer ON public.events(organizer_id);
 CREATE INDEX IF NOT EXISTS idx_event_participants_event ON public.event_participants(event_id);
 CREATE INDEX IF NOT EXISTS idx_condition_votes_venue ON public.condition_votes(venue_id);
 
-
--- ============================================================
 -- FILE: 004_rls_policies.sql
--- ============================================================
 
 -- Migration: 004_rls_policies
 -- Enable RLS and add policies for all tables.
 
 -- Cities: public read
 ALTER TABLE public.cities ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Cities are publicly readable" ON public.cities;
 CREATE POLICY "Cities are publicly readable" ON public.cities FOR SELECT USING (true);
 
 -- Venues: public read (approved), authenticated insert, owner update
 ALTER TABLE public.venues ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Approved venues are publicly readable" ON public.venues;
 CREATE POLICY "Approved venues are publicly readable" ON public.venues FOR SELECT USING (approved = true);
+DROP POLICY IF EXISTS "Admins can view all venues" ON public.venues;
 CREATE POLICY "Admins can view all venues" ON public.venues FOR SELECT TO authenticated
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true));
+DROP POLICY IF EXISTS "Authenticated users can insert venues" ON public.venues;
 CREATE POLICY "Authenticated users can insert venues" ON public.venues FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = submitted_by);
+DROP POLICY IF EXISTS "Owners can update own venues" ON public.venues;
 CREATE POLICY "Owners can update own venues" ON public.venues FOR UPDATE TO authenticated
   USING (auth.uid() = submitted_by) WITH CHECK (auth.uid() = submitted_by);
+DROP POLICY IF EXISTS "Admins can update any venue" ON public.venues;
 CREATE POLICY "Admins can update any venue" ON public.venues FOR UPDATE TO authenticated
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true));
+DROP POLICY IF EXISTS "Admins can delete venues" ON public.venues;
 CREATE POLICY "Admins can delete venues" ON public.venues FOR DELETE TO authenticated
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true));
 
 -- Reviews: public read, authenticated insert, owner manage
 ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Reviews are publicly readable" ON public.reviews;
 CREATE POLICY "Reviews are publicly readable" ON public.reviews FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can insert reviews" ON public.reviews;
 CREATE POLICY "Authenticated users can insert reviews" ON public.reviews FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own reviews" ON public.reviews;
 CREATE POLICY "Users can update own reviews" ON public.reviews FOR UPDATE TO authenticated
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own reviews" ON public.reviews;
 CREATE POLICY "Users can delete own reviews" ON public.reviews FOR DELETE TO authenticated
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Admins can delete any review" ON public.reviews;
 CREATE POLICY "Admins can delete any review" ON public.reviews FOR DELETE TO authenticated
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true));
 
 -- Favorites: own only
 ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own favorites" ON public.favorites;
 CREATE POLICY "Users can read own favorites" ON public.favorites FOR SELECT TO authenticated
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own favorites" ON public.favorites;
 CREATE POLICY "Users can insert own favorites" ON public.favorites FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own favorites" ON public.favorites;
 CREATE POLICY "Users can delete own favorites" ON public.favorites FOR DELETE TO authenticated
   USING (auth.uid() = user_id);
 
 -- Check-ins: own read/insert, public read for active (friends feature)
 ALTER TABLE public.checkins ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own checkins" ON public.checkins;
 CREATE POLICY "Users can read own checkins" ON public.checkins FOR SELECT TO authenticated
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Active checkins are readable" ON public.checkins;
 CREATE POLICY "Active checkins are readable" ON public.checkins FOR SELECT TO authenticated
   USING (ended_at > now());
+DROP POLICY IF EXISTS "Users can insert own checkins" ON public.checkins;
 CREATE POLICY "Users can insert own checkins" ON public.checkins FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own checkins" ON public.checkins;
 CREATE POLICY "Users can update own checkins" ON public.checkins FOR UPDATE TO authenticated
   USING (auth.uid() = user_id);
 
 -- Condition votes: public read, authenticated insert
 ALTER TABLE public.condition_votes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Condition votes are publicly readable" ON public.condition_votes;
 CREATE POLICY "Condition votes are publicly readable" ON public.condition_votes FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can vote" ON public.condition_votes;
 CREATE POLICY "Authenticated users can vote" ON public.condition_votes FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
 -- Friendships: participants only
 ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own friendships" ON public.friendships;
 CREATE POLICY "Users can read own friendships" ON public.friendships FOR SELECT TO authenticated
   USING (auth.uid() = requester_id OR auth.uid() = addressee_id);
+DROP POLICY IF EXISTS "Users can send friend requests" ON public.friendships;
 CREATE POLICY "Users can send friend requests" ON public.friendships FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = requester_id);
+DROP POLICY IF EXISTS "Addressees can update friendship status" ON public.friendships;
 CREATE POLICY "Addressees can update friendship status" ON public.friendships FOR UPDATE TO authenticated
   USING (auth.uid() = addressee_id);
+DROP POLICY IF EXISTS "Users can delete own friendships" ON public.friendships;
 CREATE POLICY "Users can delete own friendships" ON public.friendships FOR DELETE TO authenticated
   USING (auth.uid() = requester_id OR auth.uid() = addressee_id);
 
 -- Events: public read, authenticated insert, organizer manage
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Events are publicly readable" ON public.events;
 CREATE POLICY "Events are publicly readable" ON public.events FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can create events" ON public.events;
 CREATE POLICY "Authenticated users can create events" ON public.events FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = organizer_id);
+DROP POLICY IF EXISTS "Organizers can update own events" ON public.events;
 CREATE POLICY "Organizers can update own events" ON public.events FOR UPDATE TO authenticated
   USING (auth.uid() = organizer_id);
+DROP POLICY IF EXISTS "Organizers can delete own events" ON public.events;
 CREATE POLICY "Organizers can delete own events" ON public.events FOR DELETE TO authenticated
   USING (auth.uid() = organizer_id);
 
 -- Event participants: public read, authenticated join/leave
 ALTER TABLE public.event_participants ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Event participants are publicly readable" ON public.event_participants;
 CREATE POLICY "Event participants are publicly readable" ON public.event_participants FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can join events" ON public.event_participants;
 CREATE POLICY "Users can join events" ON public.event_participants FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can leave events" ON public.event_participants;
 CREATE POLICY "Users can leave events" ON public.event_participants FOR DELETE TO authenticated
   USING (auth.uid() = user_id);
 
 
--- ============================================================
 -- FILE: 005_functions_views.sql
--- ============================================================
 
 -- Migration: 005_functions_views
 -- Materialized views for aggregated data (venue stats, leaderboards).
@@ -455,10 +471,7 @@ CREATE INDEX IF NOT EXISTS idx_friendships_addressee_status ON public.friendship
 CREATE INDEX IF NOT EXISTS idx_reviews_user ON public.reviews(user_id);
 CREATE INDEX IF NOT EXISTS idx_event_participants_user ON public.event_participants(user_id);
 
-
--- ============================================================
 -- FILE: 006_seed_data.sql
--- ============================================================
 
 -- Migration: 006_seed_data
 -- Seed cities and sample venues for development.
@@ -489,10 +502,7 @@ UPDATE public.cities SET venue_count = (
   SELECT COUNT(*) FROM public.venues WHERE venues.city = cities.name AND venues.approved = true
 );
 
-
--- ============================================================
 -- FILE: 007_cloud_venues_sync.sql
--- ============================================================
 
 -- Migration: 007_cloud_venues_sync
 -- Synced 52 venues from cloud Supabase (deduplicated).
@@ -697,10 +707,7 @@ UPDATE public.cities SET venue_count = (
   SELECT COUNT(*) FROM public.venues WHERE venues.city = cities.name AND venues.approved = true
 );
 
-
--- ============================================================
 -- FILE: 008_notifications.sql
--- ============================================================
 
 -- Migration: 008_notifications
 -- Push notification tokens and in-app notification history.
@@ -741,30 +748,36 @@ CREATE INDEX IF NOT EXISTS idx_notifications_unread ON public.notifications(reci
 
 -- RLS: push_tokens
 ALTER TABLE public.push_tokens ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own push tokens" ON public.push_tokens;
 CREATE POLICY "Users can view own push tokens" ON public.push_tokens FOR SELECT TO authenticated
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own push tokens" ON public.push_tokens;
 CREATE POLICY "Users can insert own push tokens" ON public.push_tokens FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own push tokens" ON public.push_tokens;
 CREATE POLICY "Users can delete own push tokens" ON public.push_tokens FOR DELETE TO authenticated
   USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own push tokens" ON public.push_tokens;
 CREATE POLICY "Users can update own push tokens" ON public.push_tokens FOR UPDATE TO authenticated
   USING (auth.uid() = user_id);
 
 -- RLS: notifications
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
 CREATE POLICY "Users can view own notifications" ON public.notifications FOR SELECT TO authenticated
   USING (auth.uid() = recipient_id);
+DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
 CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE TO authenticated
   USING (auth.uid() = recipient_id);
+DROP POLICY IF EXISTS "Users can delete own notifications" ON public.notifications;
 CREATE POLICY "Users can delete own notifications" ON public.notifications FOR DELETE TO authenticated
   USING (auth.uid() = recipient_id);
+DROP POLICY IF EXISTS "Service role can insert notifications" ON public.notifications;
 CREATE POLICY "Service role can insert notifications" ON public.notifications FOR INSERT TO service_role
   WITH CHECK (true);
 
 
--- ============================================================
 -- FILE: 009_notification_triggers.sql
--- ============================================================
 
 -- Migration: 009_notification_triggers
 -- Database triggers that create in-app notifications AND send push notifications
@@ -1061,10 +1074,7 @@ BEGIN
   END IF;
 END $$;
 
-
--- ============================================================
 -- FILE: 010_migrate_old_data.sql
--- ============================================================
 
 -- Migration: 010_migrate_old_data
 -- Copies data from renamed *_old tables into the new tables.
@@ -1133,8 +1143,7 @@ DO $$ BEGIN
     SELECT v_new.id, r_old.user_id, r_old.reviewer_name, r_old.rating, r_old.body, r_old.created_at
     FROM public.reviews_old r_old
     JOIN public.venues_old v_old ON v_old.id = r_old.venue_id
-    JOIN public.venues v_new ON v_new.name = v_old.name AND v_new.city = v_old.city
-    ON CONFLICT DO NOTHING;
+    JOIN public.venues v_new ON v_new.name = v_old.name AND v_new.city = v_old.city;
     RAISE NOTICE 'Migrated reviews data';
   END IF;
 END $$;
@@ -1162,8 +1171,7 @@ UPDATE public.cities SET venue_count = (
 -- ============================================================
 -- 6. REFRESH MATERIALIZED VIEWS
 -- ============================================================
-REFRESH MATERIALIZED VIEW IF EXISTS public.venue_stats;
-REFRESH MATERIALIZED VIEW IF EXISTS public.leaderboard_checkins;
-REFRESH MATERIALIZED VIEW IF EXISTS public.leaderboard_reviews;
-REFRESH MATERIALIZED VIEW IF EXISTS public.leaderboard_venues;
-
+REFRESH MATERIALIZED VIEW public.venue_stats;
+REFRESH MATERIALIZED VIEW public.leaderboard_checkins;
+REFRESH MATERIALIZED VIEW public.leaderboard_reviews;
+REFRESH MATERIALIZED VIEW public.leaderboard_venues;

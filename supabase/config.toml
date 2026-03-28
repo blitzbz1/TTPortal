@@ -1,22 +1,17 @@
-# Supabase project configuration
-#
-# Production (hosted):
-#   Project ID: vzewwlaqqgukjkqjyfoq
-#
-# Local development (Docker):
-#   Start:   cd supabase && docker compose up -d
-#   Stop:    cd supabase && docker compose down
-#   Reset:   cd supabase && docker compose down -v && docker compose up -d
-#   Studio:  http://localhost:8000 (supabase / this_password_is_insecure_and_should_be_updated)
-#   API:     http://localhost:8000
-#   DB:      postgresql://postgres:your-super-secret-and-long-postgres-password@localhost:5432/postgres
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
 
-[project]
-id = "vzewwlaqqgukjkqjyfoq"
+[db]
+port = 54322
+major_version = 17
 
 [auth]
-# JWT expiry: 3600s (1 hour).
+site_url = "https://blitzbz1.github.io/TTPortal"
 jwt_expiry = 3600
 
-# Reuse interval (seconds) to handle concurrent refresh requests.
-refresh_token_reuse_interval = 10
+[auth.email]
+enable_signup = true

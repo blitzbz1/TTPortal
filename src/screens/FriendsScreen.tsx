@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, Share } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { Colors, Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getFriends, getPendingRequests, acceptRequest, declineRequest } from '../services/friends';
+import { getFriends, getPendingRequests, acceptRequest, declineRequest, searchUsers, sendRequest } from '../services/friends';
 import { getActiveFriendCheckins } from '../services/checkins';
 
 type FriendsTab = 'all' | 'playing' | 'pending';
@@ -18,6 +18,10 @@ export function FriendsScreen() {
   const [playingFriends, setPlayingFriends] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteResult, setInviteResult] = useState<'idle' | 'sent' | 'not_found' | 'already_friends' | 'error'>('idle');
   const { user } = useSession();
   const router = useRouter();
   const { s } = useI18n();
@@ -99,21 +103,54 @@ export function FriendsScreen() {
     setPending((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  const handleInvite = useCallback(async () => {
-    try {
-      await Share.share({ message: s('inviteMsg') });
-    } catch {
-      // User cancelled share
-    }
-  }, [s]);
-
-  const handleShareCard = useCallback(async () => {
-    try {
-      await Share.share({ message: s('inviteMsg') });
-    } catch {
-      // User cancelled share
-    }
+  const handleInvite = useCallback(() => {
+    setInviteEmail('');
+    setInviteResult('idle');
+    setInviteModalVisible(true);
   }, []);
+
+
+  const handleSendInvite = useCallback(async () => {
+    if (!user || !inviteEmail.trim()) return;
+    setInviteLoading(true);
+    setInviteResult('idle');
+
+    // Look up the user by email
+    const { data: results } = await searchUsers(inviteEmail.trim());
+    const target = results?.find((u: any) => u.email?.toLowerCase() === inviteEmail.trim().toLowerCase());
+
+    if (!target) {
+      setInviteResult('not_found');
+      setInviteLoading(false);
+      return;
+    }
+
+    if (target.id === user.id) {
+      setInviteResult('error');
+      setInviteLoading(false);
+      return;
+    }
+
+    // Check if already friends
+    const friendIdSet = new Set(friends.map((f: any) =>
+      f.requester_id === user.id ? f.addressee_id : f.requester_id,
+    ));
+    if (friendIdSet.has(target.id)) {
+      setInviteResult('already_friends');
+      setInviteLoading(false);
+      return;
+    }
+
+    const { error } = await sendRequest(user.id, target.id);
+    setInviteLoading(false);
+    if (error) {
+      setInviteResult('error');
+      return;
+    }
+    setInviteResult('sent');
+    setInviteEmail('');
+    fetchData(); // Refresh lists
+  }, [user, inviteEmail, friends, fetchData]);
 
   const getInitials = (name?: string) => {
     if (!name) return '??';
@@ -150,7 +187,7 @@ export function FriendsScreen() {
       </View>
 
       <ScrollView style={styles.scroll}>
-        {/* Search */}
+        {/* Search friends */}
         <View style={styles.searchWrap}>
           <View style={styles.searchBar}>
             <Lucide name="search" size={18} color={Colors.inkFaint} />
@@ -313,24 +350,78 @@ export function FriendsScreen() {
               </View>
             )}
 
-            {/* Share Invite */}
-            <View style={styles.shareSection}>
-              <TouchableOpacity style={styles.shareCard} onPress={handleShareCard}>
-                <View style={styles.shareIconWrap}>
-                  <Lucide name="share-2" size={20} color={Colors.white} />
-                </View>
-                <View style={styles.shareInfo}>
-                  <Text style={styles.shareTitle}>{s('inviteFriends')}</Text>
-                  <Text style={styles.shareDesc}>
-                    {s('inviteDesc')}
-                  </Text>
-                </View>
-                <Lucide name="chevron-right" size={20} color={Colors.inkFaint} />
-              </TouchableOpacity>
-            </View>
           </>
         )}
       </ScrollView>
+
+      {/* Invite by Email Modal */}
+      <Modal visible={inviteModalVisible} transparent animationType="slide" onRequestClose={() => setInviteModalVisible(false)}>
+        <Pressable style={im.overlay} onPress={() => setInviteModalVisible(false)}>
+          <Pressable style={im.sheet} onPress={() => {}}>
+            <View style={im.handleWrap}><View style={im.handle} /></View>
+            <Text style={im.title}>{s('inviteFriends')}</Text>
+            <Text style={im.desc}>{s('inviteDesc')}</Text>
+
+            <View style={im.inputRow}>
+              <TextInput
+                style={im.input}
+                placeholder="email@exemplu.com"
+                placeholderTextColor={Colors.inkFaint}
+                value={inviteEmail}
+                onChangeText={(t) => { setInviteEmail(t); setInviteResult('idle'); }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoFocus
+              />
+            </View>
+
+            {inviteResult === 'sent' && (
+              <View style={im.resultRow}>
+                <Lucide name="check-circle" size={16} color={Colors.greenMid} />
+                <Text style={[im.resultText, { color: Colors.greenMid }]}>{s('requestSentSuccess')}</Text>
+              </View>
+            )}
+            {inviteResult === 'not_found' && (
+              <View style={im.resultRow}>
+                <Lucide name="alert-circle" size={16} color={Colors.orange} />
+                <Text style={[im.resultText, { color: Colors.orange }]}>{s('noUsersFound')}</Text>
+              </View>
+            )}
+            {inviteResult === 'already_friends' && (
+              <View style={im.resultRow}>
+                <Lucide name="users" size={16} color={Colors.inkFaint} />
+                <Text style={[im.resultText, { color: Colors.inkFaint }]}>{s('alreadyFriends')}</Text>
+              </View>
+            )}
+            {inviteResult === 'error' && (
+              <View style={im.resultRow}>
+                <Lucide name="x-circle" size={16} color={Colors.red} />
+                <Text style={[im.resultText, { color: Colors.red }]}>{s('error')}</Text>
+              </View>
+            )}
+
+            <View style={im.actions}>
+              <TouchableOpacity style={im.cancelBtn} onPress={() => setInviteModalVisible(false)}>
+                <Text style={im.cancelText}>{s('cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[im.sendBtn, (!inviteEmail.trim() || inviteLoading) && im.sendBtnDisabled]}
+                onPress={handleSendInvite}
+                disabled={!inviteEmail.trim() || inviteLoading}
+              >
+                {inviteLoading ? (
+                  <ActivityIndicator size="small" color={Colors.white} />
+                ) : (
+                  <>
+                    <Lucide name="send" size={14} color={Colors.white} />
+                    <Text style={im.sendText}>{s('sendRequest')}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -596,6 +687,37 @@ const styles = StyleSheet.create({
   playingBadgeText: {
     fontSize: 16,
   },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.green,
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  addBtnText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.white,
+  },
+  sentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  sentText: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    fontWeight: '500',
+    color: Colors.inkFaint,
+  },
   shareSection: {
     padding: 16,
     paddingTop: 12,
@@ -633,4 +755,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.inkMuted,
   },
+});
+
+const im = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', alignItems: 'center' },
+  sheet: { backgroundColor: Colors.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingBottom: 32, width: '100%', maxWidth: 430 },
+  handleWrap: { alignItems: 'center', paddingVertical: 10 },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: Colors.border },
+  title: { fontFamily: Fonts.heading, fontSize: 18, fontWeight: '700', color: Colors.ink, marginBottom: 4 },
+  desc: { fontFamily: Fonts.body, fontSize: 13, color: Colors.inkFaint, marginBottom: 16 },
+  inputRow: { marginBottom: 12 },
+  input: { borderWidth: 1.5, borderColor: Colors.border, borderRadius: Radius.md, padding: 14, fontFamily: Fonts.body, fontSize: 16, color: Colors.ink },
+  resultRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, paddingHorizontal: 4 },
+  resultText: { fontFamily: Fonts.body, fontSize: 13, fontWeight: '500' },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  cancelBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, borderWidth: 1, borderColor: Colors.border },
+  cancelText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: Colors.inkMuted },
+  sendBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, backgroundColor: Colors.green, gap: 6 },
+  sendBtnDisabled: { opacity: 0.5 },
+  sendText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: Colors.white },
 });
