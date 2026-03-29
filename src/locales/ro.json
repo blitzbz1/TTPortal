@@ -318,5 +318,24 @@
 
   "noNotifications": "Nicio notificare",
   "markAllRead": "Citește tot",
-  "justNow": "Acum"
+  "justNow": "Acum",
+
+  "inviteToEvent": "Invită la eveniment",
+  "noFriendsToInvite": "Niciun prieten de invitat",
+  "invitesSent": "Invitațiile au fost trimise!",
+  "skip": "Sari peste",
+
+  "cancelEvent": "Anulează evenimentul",
+  "cancelEventConfirm": "Sigur vrei să anulezi? Toți participanții vor fi notificați.",
+
+  "sendUpdate": "Trimite actualizare",
+  "updatePlaceholder": "Scrie un mesaj pentru participanți...",
+  "updateSent": "Actualizarea a fost trimisă!",
+  "updateEmpty": "Scrie un mesaj.",
+
+  "recurringDaily": "Se repetă zilnic",
+  "recurringWeekly": "Se repetă săptămânal",
+  "recurringMonthly": "Se repetă lunar",
+  "stopRecurrence": "Oprește recurența",
+  "stopRecurrenceConfirm": "Nu se vor mai genera instanțe viitoare pentru această serie."
 }

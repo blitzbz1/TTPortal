@@ -65,3 +65,35 @@ export async function leaveEvent(eventId: number, userId: string) {
     .eq('event_id', eventId)
     .eq('user_id', userId);
 }
+
+export async function stopRecurrence(eventId: number) {
+  return supabase
+    .from('events')
+    .update({ recurrence_rule: null, recurrence_day: null })
+    .eq('id', eventId)
+    .select()
+    .single();
+}
+
+export async function cancelEvent(eventId: number) {
+  return supabase
+    .from('events')
+    .update({ status: 'cancelled' })
+    .eq('id', eventId)
+    .select()
+    .single();
+}
+
+export async function sendEventInvites(eventId: number, friendIds: string[]) {
+  return supabase.rpc('send_event_invites', {
+    p_event_id: eventId,
+    p_friend_ids: friendIds,
+  });
+}
+
+export async function sendEventUpdate(eventId: number, message: string) {
+  return supabase.rpc('send_event_update', {
+    p_event_id: eventId,
+    p_message: message,
+  });
+}

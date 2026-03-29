@@ -18,6 +18,8 @@ const ICON_MAP: Record<string, { name: string; color: string; bg: string }> = {
   event_cancelled: { name: 'calendar-x', color: Colors.red, bg: Colors.redPale },
   checkin_nearby: { name: 'map-pin', color: Colors.blue, bg: Colors.bluePale },
   review_on_venue: { name: 'star', color: Colors.orange, bg: Colors.amberPale },
+  event_invite: { name: 'mail', color: Colors.purple, bg: Colors.purplePale },
+  event_update: { name: 'megaphone', color: Colors.orange, bg: Colors.amberPale },
 };
 
 const DELETE_THRESHOLD = -80;

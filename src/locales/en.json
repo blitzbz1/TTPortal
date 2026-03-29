@@ -318,5 +318,24 @@
 
   "noNotifications": "No notifications",
   "markAllRead": "Mark all read",
-  "justNow": "Just now"
+  "justNow": "Just now",
+
+  "inviteToEvent": "Invite to event",
+  "noFriendsToInvite": "No friends to invite",
+  "invitesSent": "Invitations sent!",
+  "skip": "Skip",
+
+  "cancelEvent": "Cancel event",
+  "cancelEventConfirm": "Are you sure? All participants will be notified.",
+
+  "sendUpdate": "Send update",
+  "updatePlaceholder": "Write a message for participants...",
+  "updateSent": "Update sent!",
+  "updateEmpty": "Write a message.",
+
+  "recurringDaily": "Repeats daily",
+  "recurringWeekly": "Repeats weekly",
+  "recurringMonthly": "Repeats monthly",
+  "stopRecurrence": "Stop recurrence",
+  "stopRecurrenceConfirm": "No more future instances will be generated for this series."
 }

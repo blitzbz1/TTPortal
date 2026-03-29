@@ -17,7 +17,9 @@ function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
     lt: jest.fn(() => chain),
     neq: jest.fn(() => chain),
     order: jest.fn(() => chain),
+    limit: jest.fn(() => chain),
     insert: jest.fn(() => chain),
+    update: jest.fn(() => chain),
     delete: jest.fn(() => chain),
     single: jest.fn(() => Promise.resolve(result)),
     then: (resolve: any) => Promise.resolve(result).then(resolve),
@@ -26,11 +28,15 @@ function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
 }
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn();
 jest.mock('../../lib/supabase', () => ({
-  supabase: { from: (...args: any[]) => mockFrom(...args) },
+  supabase: {
+    from: (...args: any[]) => mockFrom(...args),
+    rpc: (...args: any[]) => mockRpc(...args),
+  },
 }));
 
-import { getEventParticipants, getEvents } from '../events';
+import { getEventParticipants, getEvents, sendEventInvites, sendEventUpdate, stopRecurrence } from '../events';
 
 describe('getEventParticipants', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -132,5 +138,77 @@ describe('getEvents', () => {
 
     const chain = mockFrom.mock.results[0].value;
     expect(chain.eq).toHaveBeenCalledWith('organizer_id', 'user-1');
+  });
+});
+
+describe('sendEventInvites', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('calls rpc with send_event_invites and correct params', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null });
+
+    await sendEventInvites(5, ['u-1', 'u-2']);
+
+    expect(mockRpc).toHaveBeenCalledWith('send_event_invites', {
+      p_event_id: 5,
+      p_friend_ids: ['u-1', 'u-2'],
+    });
+  });
+
+  it('returns error when rpc fails', async () => {
+    const rpcError = { message: 'Not authorized' };
+    mockRpc.mockResolvedValue({ data: null, error: rpcError });
+
+    const { error } = await sendEventInvites(99, ['u-1']);
+
+    expect(error).toEqual(rpcError);
+  });
+});
+
+describe('sendEventUpdate', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('calls rpc with send_event_update and correct params', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null });
+
+    await sendEventUpdate(10, 'Se schimbă ora la 18:00');
+
+    expect(mockRpc).toHaveBeenCalledWith('send_event_update', {
+      p_event_id: 10,
+      p_message: 'Se schimbă ora la 18:00',
+    });
+  });
+
+  it('returns error when rpc fails', async () => {
+    const rpcError = { message: 'Not authorized' };
+    mockRpc.mockResolvedValue({ data: null, error: rpcError });
+
+    const { error } = await sendEventUpdate(99, 'test');
+
+    expect(error).toEqual(rpcError);
+  });
+});
+
+describe('stopRecurrence', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('updates recurrence fields to null', async () => {
+    const chain = createQueryChain({ id: 5 });
+    mockFrom.mockReturnValue(chain);
+
+    await stopRecurrence(5);
+
+    expect(mockFrom).toHaveBeenCalledWith('events');
+    expect(chain.update).toHaveBeenCalledWith({ recurrence_rule: null, recurrence_day: null });
+    expect(chain.eq).toHaveBeenCalledWith('id', 5);
+  });
+
+  it('returns error on failure', async () => {
+    const chain = createQueryChain(null, { message: 'fail' });
+    mockFrom.mockReturnValue(chain);
+
+    const { error } = await stopRecurrence(99);
+
+    expect(error).toEqual({ message: 'fail' });
   });
 });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, Pressable } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -7,8 +7,9 @@ import { TabBar } from '../components/TabBar';
 import { Colors, Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getEvents, getEventParticipants, joinEvent, leaveEvent } from '../services/events';
+import { getEvents, getEventParticipants, joinEvent, leaveEvent, cancelEvent, stopRecurrence, sendEventInvites, sendEventUpdate } from '../services/events';
 import { getFriendIds } from '../services/friends';
+import { FriendPickerModal } from '../components/FriendPickerModal';
 
 type EventTab = 'upcoming' | 'past' | 'mine';
 
@@ -25,6 +26,9 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const [detailParticipants, setDetailParticipants] = useState<any[]>([]);
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
   const [detailLoading, setDetailLoading] = useState(false);
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [updateText, setUpdateText] = useState('');
+  const [sendingUpdate, setSendingUpdate] = useState(false);
   const { user } = useSession();
   const { s } = useI18n();
   const router = useRouter();
@@ -70,6 +74,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const closeDetail = useCallback(() => {
     setSelectedEvent(null);
     setDetailParticipants([]);
+    setUpdateText('');
   }, []);
 
   const handleJoin = useCallback(async (event: any) => {
@@ -225,6 +230,9 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                       <Text style={styles.eventDate}>
                         {formatDate(event.starts_at)} {'\u00B7'} {formatTime(event.starts_at)}
                       </Text>
+                      {event.recurrence_rule && (
+                        <Lucide name="repeat" size={13} color={Colors.purple} />
+                      )}
                     </View>
                     <View style={[styles.eventBadge, { backgroundColor: badge.bg }]}>
                       <Text style={[styles.eventBadgeText, { color: badge.color }]}>
@@ -261,7 +269,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                         {participants.length}/{event.max_participants ?? '∞'} {s('spots')}
                       </Text>
                     </View>
-                    {!isPast(event) && (
+                    {!isPast(event) && event.organizer_id !== user?.id && (
                       <TouchableOpacity
                         style={[styles.joinBtn, isJoined ? styles.joinedBtn : styles.notJoinedBtn]}
                         onPress={(e) => { e.stopPropagation(); handleJoin(event); }}
@@ -363,6 +371,17 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                         <Text style={ms.infoText}>{s('tournament')}</Text>
                       </View>
                     )}
+
+                    {ev.recurrence_rule && (
+                      <View style={ms.infoRow}>
+                        <Lucide name="repeat" size={16} color={Colors.purple} />
+                        <Text style={ms.infoText}>
+                          {ev.recurrence_rule === 'daily' ? s('recurringDaily') :
+                           ev.recurrence_rule === 'weekly' ? s('recurringWeekly') :
+                           s('recurringMonthly')}
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
                   {/* Description */}
@@ -429,9 +448,45 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                     </View>
                   )}
 
-                  {/* Join / Close buttons */}
+                  {/* Organizer: send update to participants */}
+                  {ev.organizer_id === user?.id && detailParticipants.length > 0 && (
+                    <View style={ms.updateSection}>
+                      <Text style={ms.sectionTitle}>{s('sendUpdate')}</Text>
+                      <TextInput
+                        style={ms.updateInput}
+                        placeholder={s('updatePlaceholder')}
+                        placeholderTextColor={Colors.inkFaint}
+                        value={updateText}
+                        onChangeText={setUpdateText}
+                        multiline
+                        numberOfLines={2}
+                      />
+                      <TouchableOpacity
+                        style={[ms.updateBtn, (sendingUpdate || !updateText.trim()) && { opacity: 0.4 }]}
+                        disabled={sendingUpdate || !updateText.trim()}
+                        onPress={async () => {
+                          setSendingUpdate(true);
+                          const { error } = await sendEventUpdate(ev.id, updateText.trim());
+                          setSendingUpdate(false);
+                          if (error) {
+                            Alert.alert(s('error'), error.message);
+                          } else {
+                            setUpdateText('');
+                            Alert.alert(s('success'), s('updateSent'));
+                          }
+                        }}
+                      >
+                        <Lucide name="megaphone" size={16} color={Colors.white} />
+                        <Text style={ms.updateBtnText}>
+                          {sendingUpdate ? s('loading') : s('sendUpdate')}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* Join / Invite buttons */}
                   <View style={ms.actions}>
-                    {!isPast(ev) && (
+                    {!isPast(ev) && ev.organizer_id !== user?.id && (
                       <TouchableOpacity
                         style={[ms.actionBtn, isJoined ? ms.actionLeave : ms.actionJoin]}
                         onPress={() => handleJoin(ev)}
@@ -446,16 +501,107 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                         </Text>
                       </TouchableOpacity>
                     )}
+                    {!isPast(ev) && ev.organizer_id === user?.id && (
+                      <TouchableOpacity
+                        style={[ms.actionBtn, ms.actionInvite]}
+                        onPress={() => setInviteModalVisible(true)}
+                      >
+                        <Lucide name="send" size={16} color={Colors.purple} />
+                        <Text style={[ms.actionText, ms.actionInviteText]}>
+                          {s('inviteToEvent')}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                     <TouchableOpacity style={ms.closeBtn} onPress={closeDetail}>
                       <Text style={ms.closeBtnText}>{s('close')}</Text>
                     </TouchableOpacity>
                   </View>
+
+                  {/* Danger zone — separated from main actions */}
+                  {!isPast(ev) && ev.organizer_id === user?.id && (
+                    <View style={ms.dangerZone}>
+                      {ev.recurrence_rule && (
+                        <TouchableOpacity
+                          style={ms.dangerBtn}
+                          onPress={() => {
+                            Alert.alert(
+                              s('stopRecurrence'),
+                              s('stopRecurrenceConfirm'),
+                              [
+                                { text: s('cancel'), style: 'cancel' },
+                                {
+                                  text: s('stopRecurrence'),
+                                  style: 'destructive',
+                                  onPress: async () => {
+                                    const { error } = await stopRecurrence(ev.id);
+                                    if (error) {
+                                      Alert.alert(s('error'), error.message);
+                                    } else {
+                                      closeDetail();
+                                      fetchEvents();
+                                    }
+                                  },
+                                },
+                              ],
+                            );
+                          }}
+                        >
+                          <Lucide name="repeat" size={14} color={Colors.white} />
+                          <Text style={ms.dangerBtnText}>
+                            {s('stopRecurrence')}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity
+                        style={ms.dangerBtn}
+                        onPress={() => {
+                          Alert.alert(
+                            s('cancelEvent'),
+                            s('cancelEventConfirm'),
+                            [
+                              { text: s('cancel'), style: 'cancel' },
+                              {
+                                text: s('cancelEvent'),
+                                style: 'destructive',
+                                onPress: async () => {
+                                  const { error } = await cancelEvent(ev.id);
+                                  if (error) {
+                                    Alert.alert(s('error'), error.message);
+                                  } else {
+                                    closeDetail();
+                                    fetchEvents();
+                                  }
+                                },
+                              },
+                            ],
+                          );
+                        }}
+                      >
+                        <Lucide name="x-circle" size={14} color={Colors.white} />
+                        <Text style={ms.dangerBtnText}>{s('cancelEvent')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </ScrollView>
               );
             })()}
           </Pressable>
         </Pressable>
       </Modal>
+
+      {user && selectedEvent && (
+        <FriendPickerModal
+          visible={inviteModalVisible}
+          userId={user.id}
+          onConfirm={async (ids) => {
+            setInviteModalVisible(false);
+            if (ids.length > 0) {
+              await sendEventInvites(selectedEvent.id, ids);
+            }
+          }}
+          onClose={() => setInviteModalVisible(false)}
+        />
+      )}
     </View>
   );
 }
@@ -804,6 +950,35 @@ const ms = StyleSheet.create({
     fontWeight: '600',
     color: Colors.purpleMid,
   },
+  updateSection: {
+    marginBottom: 16,
+    gap: 10,
+  },
+  updateInput: {
+    backgroundColor: Colors.bgDark,
+    borderRadius: Radius.md,
+    padding: 12,
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    color: Colors.ink,
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  updateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.orange,
+    borderRadius: Radius.lg,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  updateBtnText: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.white,
+  },
   actions: {
     flexDirection: 'row',
     gap: 10,
@@ -825,6 +1000,37 @@ const ms = StyleSheet.create({
     backgroundColor: Colors.redPale,
     borderWidth: 1,
     borderColor: Colors.red,
+  },
+  actionInvite: {
+    backgroundColor: Colors.purplePale,
+    borderWidth: 1,
+    borderColor: Colors.purple,
+  },
+  actionInviteText: {
+    color: Colors.purple,
+  },
+  dangerZone: {
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    gap: 4,
+  },
+  dangerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.red,
+    borderRadius: Radius.md,
+  },
+  dangerBtnText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.white,
   },
   actionText: {
     fontFamily: Fonts.body,
