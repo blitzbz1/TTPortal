@@ -15,7 +15,7 @@ import {
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { getFriends } from '../services/friends';
 
@@ -195,6 +195,7 @@ function createStyles(colors: ThemeColors) {
       paddingBottom: 32,
       width: '100%',
       maxWidth: 430,
+      ...Shadows.lg,
     },
     header: {
       flexDirection: 'row',
@@ -221,6 +222,7 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.bgMuted,
       borderRadius: Radius.md,
       gap: 8,
+      ...Shadows.sm,
     },
     searchInput: {
       flex: 1,
@@ -240,6 +242,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 14,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.borderLight,
+      ...Shadows.sm,
     },
     rowContent: { flex: 1 },
     rowText: { fontSize: 15, fontFamily: Fonts.body, color: colors.text },
@@ -284,6 +287,7 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 12,
       paddingVertical: 14,
       gap: 8,
+      ...Shadows.md,
     },
     confirmBtnDisabled: { opacity: 0.4 },
     confirmText: {

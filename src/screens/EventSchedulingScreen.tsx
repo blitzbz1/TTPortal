@@ -3,9 +3,10 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Activi
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
+import { Card } from '../components/Card';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getEvents, getEventParticipants, joinEvent, leaveEvent, cancelEvent, stopRecurrence, sendEventInvites, sendEventUpdate } from '../services/events';
@@ -242,70 +243,72 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
               const venueName = event.venues?.name ?? s('unknownVenue');
 
               return (
-                <TouchableOpacity key={event.id} style={styles.eventCard} activeOpacity={0.7} onPress={() => openDetail(event)}>
-                  {/* Top */}
-                  <View style={styles.eventTop}>
-                    <View style={styles.eventDateWrap}>
-                      <Lucide name="calendar" size={14} color={colors.accentBright} />
-                      <Text style={styles.eventDate}>
-                        {formatDate(event.starts_at)} {'\u00B7'} {formatTime(event.starts_at)}
+                <Card key={event.id} shadow="sm" borderRadius={14}>
+                  <TouchableOpacity style={styles.eventCard} activeOpacity={0.7} onPress={() => openDetail(event)}>
+                    {/* Top */}
+                    <View style={styles.eventTop}>
+                      <View style={styles.eventDateWrap}>
+                        <Lucide name="calendar" size={14} color={colors.accentBright} />
+                        <Text style={styles.eventDate}>
+                          {formatDate(event.starts_at)} {'\u00B7'} {formatTime(event.starts_at)}
+                        </Text>
+                        {event.recurrence_rule && (
+                          <Lucide name="repeat" size={13} color={colors.purple} />
+                        )}
+                      </View>
+                      <View style={[styles.eventBadge, { backgroundColor: badge.bg }]}>
+                        <Text style={[styles.eventBadgeText, { color: badge.color }]}>
+                          {badge.text}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Location */}
+                    <View style={styles.eventMid}>
+                      <Lucide name="map-pin" size={14} color={colors.textFaint} />
+                      <Text style={styles.eventLocation}>
+                        {event.title ? `${venueName} — ${event.title}` : venueName}
                       </Text>
-                      {event.recurrence_rule && (
-                        <Lucide name="repeat" size={13} color={colors.purple} />
+                    </View>
+
+                    {/* Bottom */}
+                    <View style={styles.eventBot}>
+                      <View style={styles.avatarStack}>
+                        {participants.slice(0, 3).map((p: any, i: number) => (
+                          <View
+                            key={p.user_id}
+                            style={[
+                              styles.stackAvatar,
+                              { marginLeft: i > 0 ? -8 : 0, zIndex: 3 - i },
+                            ]}
+                          >
+                            <Text style={styles.stackInitials}>
+                              {getInitials(p.user_id?.slice(0, 2))}
+                            </Text>
+                          </View>
+                        ))}
+                        <Text style={styles.attendeesText}>
+                          {participants.length}/{event.max_participants ?? '\u221E'} {s('spots')}
+                        </Text>
+                      </View>
+                      {!isPast(event) && event.organizer_id !== user?.id && (
+                        <TouchableOpacity
+                          style={[styles.joinBtn, isJoined ? styles.joinedBtn : styles.notJoinedBtn]}
+                          onPress={(e) => { e.stopPropagation(); handleJoin(event); }}
+                        >
+                          <Lucide
+                            name={isJoined ? 'check' : 'user-plus'}
+                            size={14}
+                            color={isJoined ? colors.textOnPrimary : colors.primary}
+                          />
+                          <Text style={[styles.joinText, isJoined ? styles.joinedText : styles.notJoinedText]}>
+                            {isJoined ? s('joined') : s('join')}
+                          </Text>
+                        </TouchableOpacity>
                       )}
                     </View>
-                    <View style={[styles.eventBadge, { backgroundColor: badge.bg }]}>
-                      <Text style={[styles.eventBadgeText, { color: badge.color }]}>
-                        {badge.text}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Location */}
-                  <View style={styles.eventMid}>
-                    <Lucide name="map-pin" size={14} color={colors.textFaint} />
-                    <Text style={styles.eventLocation}>
-                      {event.title ? `${venueName} — ${event.title}` : venueName}
-                    </Text>
-                  </View>
-
-                  {/* Bottom */}
-                  <View style={styles.eventBot}>
-                    <View style={styles.avatarStack}>
-                      {participants.slice(0, 3).map((p: any, i: number) => (
-                        <View
-                          key={p.user_id}
-                          style={[
-                            styles.stackAvatar,
-                            { marginLeft: i > 0 ? -8 : 0, zIndex: 3 - i },
-                          ]}
-                        >
-                          <Text style={styles.stackInitials}>
-                            {getInitials(p.user_id?.slice(0, 2))}
-                          </Text>
-                        </View>
-                      ))}
-                      <Text style={styles.attendeesText}>
-                        {participants.length}/{event.max_participants ?? '\u221E'} {s('spots')}
-                      </Text>
-                    </View>
-                    {!isPast(event) && event.organizer_id !== user?.id && (
-                      <TouchableOpacity
-                        style={[styles.joinBtn, isJoined ? styles.joinedBtn : styles.notJoinedBtn]}
-                        onPress={(e) => { e.stopPropagation(); handleJoin(event); }}
-                      >
-                        <Lucide
-                          name={isJoined ? 'check' : 'user-plus'}
-                          size={14}
-                          color={isJoined ? colors.textOnPrimary : colors.primary}
-                        />
-                        <Text style={[styles.joinText, isJoined ? styles.joinedText : styles.notJoinedText]}>
-                          {isJoined ? s('joined') : s('join')}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                </Card>
               );
             })}
           </View>
@@ -639,6 +642,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 10,
       paddingHorizontal: 16,
       minHeight: 52,
+      ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
@@ -684,6 +688,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 5,
       paddingHorizontal: 10,
       gap: 4,
+      ...Shadows.md,
     },
     createText: {
       fontFamily: Fonts.body,
@@ -725,12 +730,8 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
     },
     eventCard: {
-      backgroundColor: colors.bgAlt,
-      borderRadius: 14,
       padding: 16,
       gap: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
     },
     eventTop: {
       flexDirection: 'row',
@@ -807,9 +808,11 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 8,
       paddingHorizontal: 16,
       gap: 6,
+      ...Shadows.sm,
     },
     joinedBtn: {
       backgroundColor: colors.primary,
+      ...Shadows.md,
     },
     notJoinedBtn: {
       borderWidth: 1.5,
@@ -844,6 +847,7 @@ function createStyles(colors: ThemeColors) {
       maxHeight: '85%',
       width: '100%',
       maxWidth: 430,
+      ...Shadows.lg,
     },
     handleWrap: {
       alignItems: 'center',

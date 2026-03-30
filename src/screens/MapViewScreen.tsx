@@ -5,10 +5,11 @@ import MapView, { Marker, Callout } from 'react-native-maps';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { Lucide } from '../components/Icon';
+import { Card } from '../components/Card';
 import { CityPickerModal } from '../components/CityPickerModal';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { getVenues } from '../services/venues';
 import { getCities } from '../services/cities';
 import { getActiveFriendCheckins } from '../services/checkins';
@@ -280,7 +281,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
           })}
         </MapView>
 
-        <View style={styles.legend}>
+        <Card shadow="md" borderRadius={Radius.md} style={styles.legend}>
           {[
             { color: colors.primaryLight, icon: '🏓', label: s('conditionGood') },
             { color: colors.amber, icon: '🏓', label: s('conditionAcceptable') },
@@ -294,7 +295,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
               <Text style={styles.legendText}>{item.label}</Text>
             </View>
           ))}
-        </View>
+        </Card>
 
         <TouchableOpacity style={styles.nearMeBtn} onPress={handleNearMe}>
           <Lucide name="locate" size={22} color={colors.primary} />
@@ -305,22 +306,24 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
       <View style={styles.panel}>
         {/* Search Row */}
         <View style={styles.searchRow}>
-          <View style={styles.searchBar}>
-            <Lucide name="search" size={16} color={colors.textFaint} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder={s('searchPlaceholder')}
-              placeholderTextColor={colors.textFaint}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              returnKeyType="search"
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8} testID="search-clear">
-                <Lucide name="x" size={16} color={colors.textFaint} />
-              </TouchableOpacity>
-            )}
-          </View>
+          <Card shadow="sm" borderRadius={Radius.md} style={{ flex: 1 }}>
+            <View style={styles.searchBar}>
+              <Lucide name="search" size={16} color={colors.textFaint} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={s('searchPlaceholder')}
+                placeholderTextColor={colors.textFaint}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8} testID="search-clear">
+                  <Lucide name="x" size={16} color={colors.textFaint} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </Card>
           {user && (
             <TouchableOpacity style={styles.addChip} onPress={() => router.push('/(protected)/add-venue' as any)}>
               <Lucide name="plus" size={14} color={colors.textOnPrimary} />
@@ -384,37 +387,38 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
               const tablesText = venue.tables_count != null ? `${venue.tables_count} ${s('tables')}` : '';
 
               return (
-                <TouchableOpacity
-                  key={venue.id}
-                  style={[styles.venueCard, index === 0 && styles.venueCardHighlight]}
-                  onPress={() => router.push(`/venue/${venue.id}` as any)}
-                  accessibilityLabel={venue.name}
-                >
-                  <View style={styles.venueLeft}>
-                    <Text style={styles.venueName}>{venue.name}</Text>
-                    <View style={styles.venueMeta}>
-                      <Text style={styles.venueType}>{typeLabel(venue.type)}</Text>
-                      {tablesText ? (
-                        <>
-                          <Text style={styles.venueMetaSep}>{'\u00B7'}</Text>
-                          <Text style={styles.venueTables}>{tablesText}</Text>
-                        </>
-                      ) : null}
-                      <View style={[styles.conditionDot, { backgroundColor: conditionInfo.color }]} />
-                      <Text style={[styles.venueCondition, { color: conditionInfo.color }]}>
-                        {conditionInfo.label}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.venueRight}>
-                    {venue.city ? (
-                      <View style={styles.distanceBadge}>
-                        <Text style={styles.distanceText}>{venue.city}</Text>
+                <Card key={venue.id} shadow="sm" borderRadius={Radius.md} style={{ marginBottom: 6 }}>
+                  <TouchableOpacity
+                    style={[styles.venueCard, index === 0 && styles.venueCardHighlight]}
+                    onPress={() => router.push(`/venue/${venue.id}` as any)}
+                    accessibilityLabel={venue.name}
+                  >
+                    <View style={styles.venueLeft}>
+                      <Text style={styles.venueName}>{venue.name}</Text>
+                      <View style={styles.venueMeta}>
+                        <Text style={styles.venueType}>{typeLabel(venue.type)}</Text>
+                        {tablesText ? (
+                          <>
+                            <Text style={styles.venueMetaSep}>{'\u00B7'}</Text>
+                            <Text style={styles.venueTables}>{tablesText}</Text>
+                          </>
+                        ) : null}
+                        <View style={[styles.conditionDot, { backgroundColor: conditionInfo.color }]} />
+                        <Text style={[styles.venueCondition, { color: conditionInfo.color }]}>
+                          {conditionInfo.label}
+                        </Text>
                       </View>
-                    ) : null}
-                    {starsText ? <Text style={styles.venueStars}>{starsText}</Text> : null}
-                  </View>
-                </TouchableOpacity>
+                    </View>
+                    <View style={styles.venueRight}>
+                      {venue.city ? (
+                        <View style={styles.distanceBadge}>
+                          <Text style={styles.distanceText}>{venue.city}</Text>
+                        </View>
+                      ) : null}
+                      {starsText ? <Text style={styles.venueStars}>{starsText}</Text> : null}
+                    </View>
+                  </TouchableOpacity>
+                </Card>
               );
             })}
           </ScrollView>
@@ -446,6 +450,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 10,
       paddingHorizontal: 16,
       minHeight: 52,
+      ...Shadows.bar,
     },
     headerLeft: {
       flexDirection: 'row',
@@ -470,6 +475,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 5,
       paddingHorizontal: 12,
       gap: 6,
+      ...Shadows.sm,
     },
     cityText: {
       fontFamily: Fonts.body,
@@ -500,6 +506,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 5,
       paddingHorizontal: 10,
       gap: 4,
+      ...Shadows.md,
     },
     headerRight: {
       flexDirection: 'row',
@@ -540,15 +547,8 @@ function createStyles(colors: ThemeColors) {
       position: 'absolute',
       top: 12,
       left: 12,
-      backgroundColor: colors.mapLegendBg,
-      borderRadius: Radius.md,
       padding: 10,
       gap: 6,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 3,
     },
     legendRow: {
       flexDirection: 'row',
@@ -593,16 +593,15 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.bgAlt,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 10,
-      elevation: 3,
+      ...Shadows.lg,
     },
     panel: {
       flex: 1,
       backgroundColor: colors.bg,
       paddingTop: 8,
+      boxShadow: Shadows.bar.boxShadow.map((s, i) =>
+        i === 0 ? { ...s, offsetY: -3 } : { ...s, offsetY: 1 },
+      ),
     },
     searchRow: {
       flexDirection: 'row',
@@ -610,16 +609,11 @@ function createStyles(colors: ThemeColors) {
       gap: 10,
     },
     searchBar: {
-      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.bgAlt,
-      borderRadius: Radius.md,
-      height: 40,
+      height: 34,
       paddingHorizontal: 12,
       gap: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
     },
     searchInput: {
       flex: 1,
@@ -651,7 +645,7 @@ function createStyles(colors: ThemeColors) {
       color: colors.primaryMid,
     },
     filtersScroll: {
-      maxHeight: 44,
+      flexGrow: 0,
     },
     filtersRow: {
       flexDirection: 'row',
@@ -665,15 +659,15 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'center',
       backgroundColor: colors.bgAlt,
       borderRadius: 100,
-      height: 36,
-      paddingHorizontal: 16,
-      borderWidth: 1,
-      borderColor: colors.border,
+      height: 30,
+      paddingHorizontal: 14,
       gap: 4,
+      ...Shadows.sm,
     },
     filterChipActive: {
       backgroundColor: colors.primary,
       borderColor: colors.primary,
+      ...Shadows.md,
     },
     filterText: {
       fontFamily: Fonts.body,
@@ -686,9 +680,10 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       backgroundColor: colors.accentBright,
       borderRadius: Radius.md,
-      paddingVertical: 8,
+      paddingVertical: 5,
       paddingHorizontal: 12,
       gap: 4,
+      ...Shadows.md,
     },
     addChipText: {
       fontFamily: Fonts.body,
@@ -735,14 +730,11 @@ function createStyles(colors: ThemeColors) {
     venueCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      borderRadius: Radius.md,
       padding: 10,
       paddingHorizontal: 12,
-      marginBottom: 2,
       gap: 10,
     },
     venueCardHighlight: {
-      backgroundColor: colors.primaryPale,
       borderLeftWidth: 3,
       borderLeftColor: colors.primaryLight + '30',
     },

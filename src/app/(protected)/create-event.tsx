@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { useSession } from '@/src/hooks/useSession';
 import { useTheme } from '@/src/hooks/useTheme';
 import type { ThemeColors } from '@/src/theme';
-import { Fonts, Radius } from '@/src/theme';
+import { Fonts, Radius, Shadows } from '@/src/theme';
 import { createEvent, joinEvent, sendEventInvites } from '@/src/services/events';
 import { Lucide } from '@/src/components/Icon';
 import { VenuePickerModal } from '@/src/components/VenuePickerModal';
@@ -205,24 +205,28 @@ export default function CreateEventRoute() {
       <Text style={s.header}>Creează eveniment</Text>
 
       {/* -- Essentials (always visible) -- */}
-      <TextInput
-        style={s.input}
-        placeholder="Titlu eveniment *"
-        placeholderTextColor={colors.textFaint}
-        value={title}
-        onChangeText={setTitle}
+      <View style={s.inputWrap}>
+        <TextInput
+          style={s.input}
+          placeholder="Titlu eveniment *"
+          placeholderTextColor={colors.textFaint}
+          value={title}
+          onChangeText={setTitle}
+          onFocus={closePickers}
+        />
+      </View>
+      <View style={s.inputWrap}>
+        <TextInput
+          style={[s.input, s.textArea]}
+          placeholder="Descriere (opțional)"
+          placeholderTextColor={colors.textFaint}
+          value={description}
+          onChangeText={setDescription}
+          multiline
+          numberOfLines={2}
         onFocus={closePickers}
       />
-      <TextInput
-        style={[s.input, s.textArea]}
-        placeholder="Descriere (opțional)"
-        placeholderTextColor={colors.textFaint}
-        value={description}
-        onChangeText={setDescription}
-        multiline
-        numberOfLines={2}
-        onFocus={closePickers}
-      />
+      </View>
 
       {/* -- Date & Time -- */}
       {Platform.OS === 'web' ? (
@@ -371,14 +375,16 @@ export default function CreateEventRoute() {
         )}
 
         <Text style={s.fieldLabel}>Număr locuri (opțional)</Text>
-        <TextInput
-          style={s.input}
-          placeholder="ex: 6"
-          placeholderTextColor={colors.textFaint}
-          value={maxParticipantsText}
-          onChangeText={setMaxParticipantsText}
-          keyboardType="number-pad"
-        />
+        <View style={s.inputWrap}>
+          <TextInput
+            style={s.input}
+            placeholder="ex: 6"
+            placeholderTextColor={colors.textFaint}
+            value={maxParticipantsText}
+            onChangeText={setMaxParticipantsText}
+            keyboardType="number-pad"
+          />
+        </View>
       </Section>
 
       {/* -- Modals -- */}
@@ -418,9 +424,10 @@ function createStyles(colors: ThemeColors) {
     header: { fontFamily: Fonts.heading, fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 4 },
 
     /* inputs */
+    inputWrap: { ...Shadows.sm, borderRadius: Radius.md },
     input: {
-      backgroundColor: colors.bgAlt, borderRadius: Radius.md, borderWidth: 1,
-      borderColor: colors.border, padding: 14, fontFamily: Fonts.body, fontSize: 14, color: colors.text,
+      backgroundColor: colors.bgAlt, borderRadius: Radius.md,
+      padding: 14, fontFamily: Fonts.body, fontSize: 14, color: colors.text,
     },
     textArea: { height: 70, textAlignVertical: 'top' },
 
@@ -428,16 +435,18 @@ function createStyles(colors: ThemeColors) {
     dateTimeRow: { flexDirection: 'row', gap: 10 },
     dateBtn: {
       flexDirection: 'row', alignItems: 'center', gap: 8,
-      backgroundColor: colors.bgAlt, borderRadius: Radius.md, borderWidth: 1,
-      borderColor: colors.border, padding: 14,
+      backgroundColor: colors.bgAlt, borderRadius: Radius.md,
+      padding: 14,
+      ...Shadows.sm,
     },
-    dateBtnActive: { borderColor: colors.accentBright, backgroundColor: colors.amberPale },
+    dateBtnActive: { borderColor: colors.accentBright, borderWidth: 1, backgroundColor: colors.amberPale },
     dateBtnText: { fontFamily: Fonts.body, fontSize: 14, color: colors.text, fontWeight: '500' },
 
     /* collapsible sections */
     section: {
-      backgroundColor: colors.bgAlt, borderRadius: Radius.lg, borderWidth: 1,
-      borderColor: colors.border, overflow: 'hidden',
+      backgroundColor: colors.bgAlt, borderRadius: Radius.lg,
+      overflow: 'hidden',
+      ...Shadows.sm,
     },
     sectionHeader: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -461,10 +470,11 @@ function createStyles(colors: ThemeColors) {
     typeRow: { flexDirection: 'row', gap: 10 },
     typeBtn: {
       flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-      paddingVertical: 12, borderRadius: Radius.md, borderWidth: 1,
-      borderColor: colors.border, backgroundColor: colors.bgMuted,
+      paddingVertical: 12, borderRadius: Radius.md,
+      backgroundColor: colors.bgMuted,
+      ...Shadows.sm,
     },
-    typeBtnSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+    typeBtnSelected: { backgroundColor: colors.primary, ...Shadows.md },
     typeBtnText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: colors.text },
     typeBtnTextSelected: { color: colors.textOnPrimary },
 
@@ -472,11 +482,13 @@ function createStyles(colors: ThemeColors) {
     dropdown: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
       backgroundColor: colors.bgMuted, borderRadius: Radius.md, padding: 14,
+      ...Shadows.sm,
     },
     dropdownText: { fontFamily: Fonts.body, fontSize: 14, color: colors.text, fontWeight: '500' },
     dropdownMenu: {
-      backgroundColor: colors.bgAlt, borderRadius: Radius.md, borderWidth: 1,
-      borderColor: colors.border, overflow: 'hidden',
+      backgroundColor: colors.bgAlt, borderRadius: Radius.md,
+      overflow: 'hidden',
+      ...Shadows.md,
     },
     dropdownItem: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -494,15 +506,16 @@ function createStyles(colors: ThemeColors) {
     venuePicker: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
       backgroundColor: colors.bgMuted, borderRadius: Radius.md, padding: 14, marginTop: 4,
+      ...Shadows.sm,
     },
     venuePickerContent: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     venuePickerText: { fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint },
     venuePickerTextSelected: { color: colors.text, fontWeight: '500' },
 
     /* buttons */
-    btn: { backgroundColor: colors.primaryLight, borderRadius: 12, height: 50, alignItems: 'center', justifyContent: 'center' },
+    btn: { backgroundColor: colors.primaryLight, borderRadius: 12, height: 50, alignItems: 'center', justifyContent: 'center', ...Shadows.md },
     btnText: { fontFamily: Fonts.body, fontSize: 16, fontWeight: '700', color: colors.textOnPrimary },
-    cancelBtn: { alignItems: 'center', justifyContent: 'center', borderRadius: 12, height: 46, borderWidth: 1, borderColor: colors.border },
+    cancelBtn: { alignItems: 'center', justifyContent: 'center', borderRadius: 12, height: 46, backgroundColor: colors.bgAlt, ...Shadows.sm },
     cancelText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: colors.textMuted },
   });
 }

@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { Card } from '../components/Card';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts } from '../theme';
+import { Fonts, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getFavorites, removeFavorite } from '../services/favorites';
@@ -146,37 +147,38 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
             const savedDate = new Date(fav.created_at).toLocaleDateString('ro-RO');
 
             return (
-              <TouchableOpacity
-                key={fav.id}
-                style={styles.favCard}
-                onPress={() => router.push(`/venue/${fav.venue_id}` as any)}
-                accessibilityLabel={venue?.name ?? 'venue'}
-              >
-                <View style={[styles.favIcon, { backgroundColor: typeInfo.iconBg }]}>
-                  <Lucide name="map-pin" size={22} color={typeInfo.iconColor} />
-                </View>
-                <View style={styles.favInfo}>
-                  <Text style={styles.favName}>{venue?.name ?? s('venue')}</Text>
-                  <View style={styles.favMeta}>
-                    <View style={[styles.favType, { backgroundColor: typeInfo.bg }]}>
-                      <Text style={styles.favTypeText}>{typeInfo.label}</Text>
-                    </View>
-                    <View style={[styles.conditionDot, { backgroundColor: condInfo.dot }]} />
-                    <Text style={[styles.favCondition, { color: condInfo.color }]}>
-                      {condInfo.label}
-                    </Text>
-                    {rating != null && (
-                      <Text style={styles.favStars}>{'\u2605'} {Number(rating).toFixed(1)}</Text>
-                    )}
+              <Card key={fav.id} shadow="sm" borderRadius={14} style={styles.favCard}>
+                <TouchableOpacity
+                  style={styles.favCardInner}
+                  onPress={() => router.push(`/venue/${fav.venue_id}` as any)}
+                  accessibilityLabel={venue?.name ?? 'venue'}
+                >
+                  <View style={[styles.favIcon, { backgroundColor: typeInfo.iconBg }]}>
+                    <Lucide name="map-pin" size={22} color={typeInfo.iconColor} />
                   </View>
-                  <Text style={styles.favSub}>
-                    {venue?.city ?? ''} {'\u00B7'} {s('saved')} {savedDate}
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={() => handleRemove(fav.venue_id)}>
-                  <Lucide name="heart" size={22} color={colors.red} />
+                  <View style={styles.favInfo}>
+                    <Text style={styles.favName}>{venue?.name ?? s('venue')}</Text>
+                    <View style={styles.favMeta}>
+                      <View style={[styles.favType, { backgroundColor: typeInfo.bg }]}>
+                        <Text style={styles.favTypeText}>{typeInfo.label}</Text>
+                      </View>
+                      <View style={[styles.conditionDot, { backgroundColor: condInfo.dot }]} />
+                      <Text style={[styles.favCondition, { color: condInfo.color }]}>
+                        {condInfo.label}
+                      </Text>
+                      {rating != null && (
+                        <Text style={styles.favStars}>{'\u2605'} {Number(rating).toFixed(1)}</Text>
+                      )}
+                    </View>
+                    <Text style={styles.favSub}>
+                      {venue?.city ?? ''} {'\u00B7'} {s('saved')} {savedDate}
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => handleRemove(fav.venue_id)}>
+                    <Lucide name="heart" size={22} color={colors.red} />
+                  </TouchableOpacity>
                 </TouchableOpacity>
-              </TouchableOpacity>
+              </Card>
             );
           })
         )}
@@ -200,6 +202,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 10,
       minHeight: 52,
       paddingHorizontal: 16,
+      ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
@@ -215,6 +218,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 5,
       paddingHorizontal: 10,
       gap: 4,
+      ...Shadows.md,
     },
     sortText: {
       fontFamily: Fonts.body,
@@ -231,14 +235,13 @@ function createStyles(colors: ThemeColors) {
       gap: 10,
     },
     favCard: {
+      marginBottom: 4,
+    },
+    favCardInner: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.bgAlt,
-      borderRadius: 14,
       padding: 14,
       gap: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
     },
     favIcon: {
       width: 48,

@@ -24,13 +24,16 @@ jest.mock('../../hooks/useNotifications', () => ({
 }));
 jest.mock('react-native-maps', () => {
   const { View } = require('react-native');
+  // eslint-disable-next-line react/display-name
   const MockMapView = (props: any) => <View {...props} />;
-  MockMapView.Marker = (props: any) => <View {...props} />;
-  MockMapView.Callout = (props: any) => <View {...props} />;
+  MockMapView.Marker = MockMapView;
+  MockMapView.Callout = MockMapView;
   return {
     __esModule: true,
     default: MockMapView,
+    // eslint-disable-next-line react/display-name
     Marker: (props: any) => <View {...props} />,
+    // eslint-disable-next-line react/display-name
     Callout: (props: any) => <View {...props} />,
   };
 });

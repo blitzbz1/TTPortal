@@ -15,7 +15,7 @@ import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { getVenues, searchVenues } from '../services/venues';
 
 interface VenueOption {
@@ -151,6 +151,7 @@ function createStyles(colors: ThemeColors) {
       paddingBottom: 32,
       width: '100%',
       maxWidth: 430,
+      ...Shadows.lg,
     },
     header: {
       flexDirection: 'row',
@@ -177,6 +178,7 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.bgMuted,
       borderRadius: Radius.md,
       gap: 8,
+      ...Shadows.sm,
     },
     searchInput: {
       flex: 1,
@@ -193,8 +195,10 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'space-between',
       paddingHorizontal: 20,
       paddingVertical: 14,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.borderLight,
+      marginHorizontal: 4,
+      marginVertical: 2,
+      borderRadius: Radius.md,
+      ...Shadows.sm,
     },
     rowContent: { flex: 1 },
     rowText: { fontSize: 15, fontFamily: Fonts.body, color: colors.text },

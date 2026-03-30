@@ -5,7 +5,7 @@ import { Lucide } from '../components/Icon';
 import { CityPickerModal } from '../components/CityPickerModal';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getLeaderboard } from '../services/leaderboard';
@@ -238,6 +238,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 10,
       minHeight: 52,
       paddingHorizontal: 16,
+      ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
@@ -253,6 +254,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 5,
       paddingHorizontal: 10,
       gap: 4,
+      ...Shadows.sm,
     },
     filterText: {
       fontFamily: Fonts.body,
@@ -306,6 +308,7 @@ function createStyles(colors: ThemeColors) {
     podiumAvatar: {
       alignItems: 'center',
       justifyContent: 'center',
+      ...Shadows.sm,
     },
     podiumAvatarHighlight: {
       borderWidth: 3,
@@ -392,6 +395,7 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
       borderTopWidth: 1,
       borderTopColor: colors.primaryDim,
+      ...Shadows.md,
     },
     myNum: {
       fontFamily: Fonts.body,

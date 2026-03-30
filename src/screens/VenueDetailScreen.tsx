@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getVenueById, uploadVenuePhoto, addPhotoToVenue } from '../services/venues';
@@ -17,6 +17,7 @@ import { checkin, checkout, getUserActiveCheckin, getUserAnyActiveCheckin, getAc
 import { getFriendIds } from '../services/friends';
 import { isFavorite, addFavorite, removeFavorite } from '../services/favorites';
 import type { Venue, Review, VenueStats } from '../types/database';
+import { Card } from '../components/Card';
 
 interface Props {
   venueId?: string;
@@ -384,7 +385,7 @@ export function VenueDetailScreen({ venueId }: Props) {
         </View>
 
         {/* Venue Info */}
-        <View style={styles.venueInfo}>
+        <Card shadow="sm" borderRadius={0} style={styles.venueInfo}>
           <View style={styles.infoTop}>
             <View style={styles.infoTitleGroup}>
               <Text style={styles.infoTitle}>{venue.name}</Text>
@@ -437,7 +438,7 @@ export function VenueDetailScreen({ venueId }: Props) {
             <Text style={styles.evalText}>{s('evaluateCondition')}</Text>
             <Lucide name="chevron-right" size={14} color={colors.primaryMid} />
           </TouchableOpacity>
-        </View>
+        </Card>
 
         {/* Friends Here */}
         <View style={styles.friendsSection}>
@@ -499,21 +500,23 @@ export function VenueDetailScreen({ venueId }: Props) {
         </View>
 
         {/* Directions */}
-        <View style={styles.directionsSection}>
+        <Card shadow="sm" borderRadius={0} style={styles.directionsSection}>
           <Text style={styles.directionsTitle}>{s('navigation')}</Text>
           <View style={styles.directionsRow}>
             <TouchableOpacity style={styles.dirGoogle} onPress={handleDirectionGoogle}>
-              <Lucide name="navigation" size={14} color={colors.primaryMid} />
+              <Lucide name="navigation" size={14} color={colors.textMuted} />
               <Text style={styles.dirGoogleText}>Google</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.dirOther} onPress={handleDirectionApple}>
+              <Lucide name="navigation" size={14} color={colors.textMuted} />
               <Text style={styles.dirOtherText}>Apple</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.dirOther} onPress={handleDirectionWaze}>
+              <Lucide name="navigation" size={14} color={colors.textMuted} />
               <Text style={styles.dirOtherText}>Waze</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Card>
 
         {/* Reviews */}
         <View style={styles.reviewsSection}>
@@ -530,14 +533,14 @@ export function VenueDetailScreen({ venueId }: Props) {
           )}
 
           {reviews.map((review) => (
-            <View key={review.id} style={styles.reviewCard}>
+            <Card key={review.id} shadow="sm" borderRadius={Radius.md} style={styles.reviewCard}>
               <View style={styles.reviewTop}>
                 <Text style={styles.reviewAuthor}>{review.reviewer_name || s('anon')}</Text>
                 <Text style={styles.reviewStars}>{renderStars(review.rating)}</Text>
               </View>
               <Text style={styles.reviewText}>{review.body || ''}</Text>
               <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString(dateLocale)}</Text>
-            </View>
+            </Card>
           ))}
         </View>
       </ScrollView>
@@ -646,12 +649,12 @@ export function VenueDetailScreen({ venueId }: Props) {
 function createStyles(colors: ThemeColors) {
   const cm = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: colors.overlayHeavy, justifyContent: 'flex-end', alignItems: 'center' },
-    sheet: { backgroundColor: colors.bgAlt, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingBottom: 32, width: '100%', maxWidth: 430 },
+    sheet: { backgroundColor: colors.bgAlt, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingBottom: 32, width: '100%', maxWidth: 430, ...Shadows.lg },
     handleWrap: { alignItems: 'center', paddingVertical: 10 },
     handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border },
     title: { fontFamily: Fonts.heading, fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 16 },
     options: { gap: 8 },
-    optionBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.bg, borderRadius: Radius.md, padding: 14, borderWidth: 1, borderColor: colors.borderLight },
+    optionBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.bg, borderRadius: Radius.md, padding: 14, borderWidth: 1, borderColor: colors.borderLight, ...Shadows.sm },
     optionText: { fontFamily: Fonts.body, fontSize: 15, fontWeight: '500', color: colors.text },
     customSection: { gap: 12 },
     customLabel: { fontFamily: Fonts.body, fontSize: 13, fontWeight: '600', color: colors.textMuted },
@@ -662,7 +665,7 @@ function createStyles(colors: ThemeColors) {
     customActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
     backBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, borderWidth: 1, borderColor: colors.border },
     backBtnText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: colors.textMuted },
-    confirmBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, backgroundColor: colors.primary },
+    confirmBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, backgroundColor: colors.primary, ...Shadows.md },
     confirmBtnText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: colors.textOnPrimary },
   });
 
@@ -680,6 +683,7 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 16,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      ...Shadows.bar,
     },
     backBtn: {
       flexDirection: 'row',
@@ -740,11 +744,7 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-      elevation: 4,
+      ...Shadows.lg,
     },
     photoCount: {
       position: 'absolute',
@@ -764,7 +764,6 @@ function createStyles(colors: ThemeColors) {
       color: colors.textOnPrimary,
     },
     venueInfo: {
-      backgroundColor: colors.bgAlt,
       padding: 16,
       gap: 14,
     },
@@ -854,6 +853,7 @@ function createStyles(colors: ThemeColors) {
       gap: 8,
       borderWidth: 1,
       borderColor: colors.primaryDim,
+      ...Shadows.sm,
     },
     evalText: {
       fontFamily: Fonts.body,
@@ -865,6 +865,7 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.purplePale,
       padding: 16,
       gap: 10,
+      ...Shadows.sm,
     },
     friendsTitle: {
       flexDirection: 'row',
@@ -918,6 +919,7 @@ function createStyles(colors: ThemeColors) {
       borderRadius: Radius.md,
       height: 40,
       gap: 8,
+      ...Shadows.md,
     },
     checkinBtnText: {
       fontFamily: Fonts.body,
@@ -961,7 +963,6 @@ function createStyles(colors: ThemeColors) {
       color: colors.red,
     },
     directionsSection: {
-      backgroundColor: colors.bgAlt,
       padding: 16,
       gap: 10,
     },
@@ -980,33 +981,33 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.primaryPale,
+      backgroundColor: colors.bgAlt,
       borderRadius: Radius.md,
       height: 40,
       gap: 6,
-      borderWidth: 1,
-      borderColor: colors.primaryDim,
+      ...Shadows.sm,
     },
     dirGoogleText: {
       fontFamily: Fonts.body,
       fontSize: 12,
       fontWeight: '600',
-      color: colors.primaryMid,
+      color: colors.text,
     },
     dirOther: {
       flex: 1,
+      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
+      backgroundColor: colors.bgAlt,
       borderRadius: Radius.md,
       height: 40,
-      borderWidth: 1,
-      borderColor: colors.border,
+      ...Shadows.sm,
     },
     dirOtherText: {
       fontFamily: Fonts.body,
       fontSize: 12,
       fontWeight: '600',
-      color: colors.textMuted,
+      color: colors.text,
     },
     reviewsSection: {
       backgroundColor: colors.bgAlt,
@@ -1036,6 +1037,7 @@ function createStyles(colors: ThemeColors) {
       gap: 4,
       borderWidth: 1,
       borderColor: colors.primaryDim,
+      ...Shadows.sm,
     },
     writeReviewText: {
       fontFamily: Fonts.body,
@@ -1044,11 +1046,8 @@ function createStyles(colors: ThemeColors) {
       color: colors.primaryMid,
     },
     reviewCard: {
-      borderRadius: Radius.md,
       padding: 12,
       gap: 8,
-      borderWidth: 1,
-      borderColor: colors.borderLight,
     },
     reviewTop: {
       flexDirection: 'row',

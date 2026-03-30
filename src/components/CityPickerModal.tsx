@@ -11,7 +11,7 @@ import {
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { getCities } from '../services/cities';
 
@@ -147,6 +147,7 @@ function createStyles(colors: ThemeColors) {
       width: '100%',
       maxWidth: 430,
       paddingBottom: 32,
+      ...Shadows.lg,
     },
     header: {
       flexDirection: 'row',

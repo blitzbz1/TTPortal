@@ -2,10 +2,11 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Linking, Switch, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Card } from '../components/Card';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts } from '../theme';
+import { Fonts, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getProfile, getProfileStats, updateProfile } from '../services/profiles';
@@ -152,7 +153,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
 
       <ScrollView style={styles.scroll}>
         {/* Profile Hero */}
-        <View style={styles.hero}>
+        <Card shadow="sm" borderRadius={0} style={styles.hero}>
           <View style={styles.avatarWrap}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{initials}</Text>
@@ -160,15 +161,15 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
           </View>
           <Text style={styles.name}>{fullName || s('user')}</Text>
           {usernameDisplay ? <Text style={styles.username}>{usernameDisplay}</Text> : null}
-        </View>
+        </Card>
 
         {/* Stats */}
         <View style={styles.statsRow}>
           {dynamicStats.map((stat) => (
-            <View key={stat.label} style={styles.statCard}>
+            <Card key={stat.label} shadow="sm" borderRadius={14} style={styles.statCard}>
               <Text style={styles.statValue}>{stat.value}</Text>
               <Text style={styles.statLabel}>{stat.label}</Text>
-            </View>
+            </Card>
           ))}
         </View>
 
@@ -177,14 +178,15 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
           <Text style={styles.sectionTitle}>{s('quickActions')}</Text>
           <View style={styles.quickRow}>
             {quickActions.map((action) => (
-              <TouchableOpacity
-                key={action.labelKey}
-                style={[styles.quickBtn, { backgroundColor: action.bg, borderColor: action.border }]}
-                onPress={() => handleQuickAction(action.route)}
-              >
-                <Lucide name={action.icon} size={22} color={action.color} />
-                <Text style={[styles.quickLabel, { color: action.color }]}>{s(action.labelKey)}</Text>
-              </TouchableOpacity>
+              <Card key={action.labelKey} shadow="sm" borderRadius={14} style={styles.quickBtn}>
+                <TouchableOpacity
+                  style={styles.quickBtnInner}
+                  onPress={() => handleQuickAction(action.route)}
+                >
+                  <Lucide name={action.icon} size={22} color={action.color} />
+                  <Text style={[styles.quickLabel, { color: action.color }]}>{s(action.labelKey)}</Text>
+                </TouchableOpacity>
+              </Card>
             ))}
           </View>
         </View>
@@ -310,6 +312,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 10,
       minHeight: 52,
       paddingHorizontal: 16,
+      ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
@@ -321,7 +324,6 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
     },
     hero: {
-      backgroundColor: colors.bgAlt,
       alignItems: 'center',
       paddingTop: 28,
       paddingBottom: 24,
@@ -339,6 +341,7 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
+      ...Shadows.lg,
     },
     avatarText: {
       fontFamily: Fonts.heading,
@@ -366,12 +369,8 @@ function createStyles(colors: ThemeColors) {
     statCard: {
       flex: 1,
       alignItems: 'center',
-      backgroundColor: colors.bgAlt,
-      borderRadius: 14,
       padding: 14,
       gap: 4,
-      borderWidth: 1,
-      borderColor: colors.borderLight,
     },
     statValue: {
       fontFamily: Fonts.heading,
@@ -402,12 +401,12 @@ function createStyles(colors: ThemeColors) {
     },
     quickBtn: {
       flex: 1,
+    },
+    quickBtnInner: {
       alignItems: 'center',
-      borderRadius: 14,
       paddingVertical: 16,
       paddingHorizontal: 12,
       gap: 10,
-      borderWidth: 1,
     },
     quickLabel: {
       fontFamily: Fonts.body,
@@ -490,6 +489,11 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       paddingVertical: 14,
       gap: 12,
+      ...Shadows.sm,
+      backgroundColor: colors.redPale,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      marginTop: 4,
     },
     logoutText: {
       fontFamily: Fonts.body,

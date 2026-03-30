@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getVenueById } from '../services/venues';
@@ -220,11 +220,7 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.bgAlt,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: -8 },
-      shadowOpacity: 0.08,
-      shadowRadius: 32,
-      elevation: 10,
+      ...Shadows.lg,
     },
     handleWrap: {
       alignItems: 'center',
@@ -311,6 +307,7 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
       borderWidth: 1,
       borderColor: colors.border,
+      ...Shadows.sm,
     },
     optDot: {
       width: 20,
@@ -342,6 +339,7 @@ function createStyles(colors: ThemeColors) {
       borderWidth: 1.5,
       borderColor: colors.border,
       borderStyle: 'dashed',
+      ...Shadows.sm,
     },
     photoBtnText: {
       fontFamily: Fonts.body,
@@ -397,6 +395,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 10,
       paddingHorizontal: 20,
       gap: 6,
+      ...Shadows.md,
     },
     submitText: {
       fontFamily: Fonts.body,

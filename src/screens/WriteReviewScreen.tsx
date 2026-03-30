@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getVenueById } from '../services/venues';
@@ -166,11 +166,7 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.bgAlt,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: -8 },
-      shadowOpacity: 0.08,
-      shadowRadius: 32,
-      elevation: 10,
+      ...Shadows.lg,
     },
     handleWrap: {
       alignItems: 'center',
@@ -240,6 +236,7 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 12,
       borderWidth: 1,
       borderColor: colors.border,
+      ...Shadows.sm,
     },
     inputPlaceholder: {
       fontFamily: Fonts.body,
@@ -261,6 +258,7 @@ function createStyles(colors: ThemeColors) {
       borderRadius: Radius.md,
       alignItems: 'center',
       justifyContent: 'center',
+      ...Shadows.sm,
     },
     starBtnActive: {
       backgroundColor: colors.primary,
@@ -323,6 +321,7 @@ function createStyles(colors: ThemeColors) {
       borderRadius: Radius.md,
       height: 46,
       gap: 8,
+      ...Shadows.md,
     },
     submitText: {
       fontFamily: Fonts.body,

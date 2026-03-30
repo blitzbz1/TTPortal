@@ -5,11 +5,12 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getFriends, getPendingRequests, acceptRequest, declineRequest, searchUsers, sendRequest } from '../services/friends';
 import { getActiveFriendCheckins } from '../services/checkins';
+import { Card } from '../components/Card';
 
 type FriendsTab = 'all' | 'playing' | 'pending';
 
@@ -293,7 +294,7 @@ export function FriendsScreen() {
                   filteredFriends.map((friendItem, index) => {
                     const profile = friendItem.friend;
                     return (
-                      <View key={friendItem.id} style={styles.friendRow}>
+                      <Card key={friendItem.id} shadow="sm" borderRadius={14} style={styles.friendRow}>
                         <View style={styles.friendAvatarWrap}>
                           <View style={[styles.friendAvatar, { backgroundColor: getColor(index) }]}>
                             <Text style={styles.friendInitials}>
@@ -309,7 +310,7 @@ export function FriendsScreen() {
                             {profile?.city ?? ''}
                           </Text>
                         </View>
-                      </View>
+                      </Card>
                     );
                   })
                 )}
@@ -336,7 +337,7 @@ export function FriendsScreen() {
                       ? startedAt.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
                       : '';
                     return (
-                      <View key={friendItem.id} style={styles.friendRow}>
+                      <Card key={friendItem.id} shadow="sm" borderRadius={14} style={styles.friendRow}>
                         <View style={styles.friendAvatarWrap}>
                           <View style={[styles.friendAvatar, { backgroundColor: getColor(index) }]}>
                             <Text style={styles.friendInitials}>
@@ -359,7 +360,7 @@ export function FriendsScreen() {
                         <View style={styles.playingBadge}>
                           <Text style={styles.playingBadgeText}>🏓</Text>
                         </View>
-                      </View>
+                      </Card>
                     );
                   })
                 )}
@@ -459,6 +460,7 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 16,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
@@ -474,6 +476,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 6,
       paddingHorizontal: 12,
       gap: 6,
+      ...Shadows.md,
     },
     inviteBtnText: {
       fontFamily: Fonts.body,
@@ -496,8 +499,7 @@ function createStyles(colors: ThemeColors) {
       height: 40,
       paddingHorizontal: 12,
       gap: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
+      ...Shadows.sm,
     },
     searchInput: {
       flex: 1,
@@ -553,6 +555,7 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
       borderWidth: 1,
       borderColor: colors.purpleMid,
+      ...Shadows.sm,
     },
     inviteAvatar: {
       width: 40,
@@ -626,9 +629,8 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       paddingVertical: 10,
+      paddingHorizontal: 12,
       gap: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.borderLight,
     },
     friendAvatarWrap: {
       width: 44,
@@ -778,7 +780,7 @@ function createStyles(colors: ThemeColors) {
 
   const im = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', alignItems: 'center' },
-    sheet: { backgroundColor: colors.bgAlt, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingBottom: 32, width: '100%', maxWidth: 430 },
+    sheet: { backgroundColor: colors.bgAlt, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingBottom: 32, width: '100%', maxWidth: 430, ...Shadows.lg },
     handleWrap: { alignItems: 'center', paddingVertical: 10 },
     handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border },
     title: { fontFamily: Fonts.heading, fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 4 },

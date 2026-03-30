@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import {
   getPendingVenues,
@@ -238,6 +238,7 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       height: 52,
       paddingHorizontal: 16,
+      ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
@@ -272,6 +273,7 @@ function createStyles(colors: ThemeColors) {
       borderRadius: Radius.md,
       padding: 10,
       gap: 2,
+      ...Shadows.sm,
     },
     statValue: {
       fontFamily: Fonts.heading,
@@ -307,6 +309,7 @@ function createStyles(colors: ThemeColors) {
       gap: 10,
       borderWidth: 1.5,
       borderColor: colors.amber,
+      ...Shadows.sm,
     },
     modTop: {
       flexDirection: 'row',
@@ -350,6 +353,7 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 8,
       height: 36,
       gap: 6,
+      ...Shadows.md,
     },
     approveBtnText: {
       fontFamily: Fonts.body,
@@ -384,6 +388,7 @@ function createStyles(colors: ThemeColors) {
       gap: 6,
       borderWidth: 1,
       borderColor: colors.redBorder,
+      ...Shadows.md,
     },
     rejectBtnText: {
       fontFamily: Fonts.body,
@@ -402,6 +407,7 @@ function createStyles(colors: ThemeColors) {
       gap: 10,
       borderWidth: 1.5,
       borderColor: colors.red,
+      ...Shadows.sm,
     },
     flagTop: {
       flexDirection: 'row',
@@ -454,6 +460,7 @@ function createStyles(colors: ThemeColors) {
       gap: 6,
       borderWidth: 1,
       borderColor: colors.border,
+      ...Shadows.md,
     },
     keepBtnText: {
       fontFamily: Fonts.body,
@@ -470,6 +477,7 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 8,
       height: 36,
       gap: 6,
+      ...Shadows.md,
     },
     deleteBtnText: {
       fontFamily: Fonts.body,

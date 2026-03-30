@@ -16,7 +16,7 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { Lucide } from '../components/Icon';
 import { isValidEmail } from '../lib/auth-utils';
 import { logger } from '../lib/logger';
@@ -209,6 +209,7 @@ function createStyles(colors: ThemeColors) {
       height: 48,
       paddingHorizontal: 14,
       gap: 10,
+      ...Shadows.sm,
     },
     textInput: {
       flex: 1,
@@ -232,6 +233,7 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 12,
       height: 50,
       gap: 8,
+      ...Shadows.md,
     },
     submitBtnDisabled: {
       opacity: 0.6,

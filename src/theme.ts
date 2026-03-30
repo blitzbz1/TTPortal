@@ -60,6 +60,12 @@ export interface ThemeColors {
   redBorder: string;
   greenDeep: string;
 
+  // Gradient stroke (3D beveled edge)
+  strokeGradientStart: string;
+  strokeGradientEnd: string;
+  surfaceGradientStart: string;
+  surfaceGradientEnd: string;
+
   // Utility (constant across themes)
   shadow: string;
   white: string;
@@ -116,6 +122,11 @@ export const lightColors: ThemeColors = {
   redBorder: '#fecaca',
   greenDeep: '#15803d',
 
+  strokeGradientStart: '#00000008',
+  strokeGradientEnd: '#00000018',
+  surfaceGradientStart: '#ffffff',
+  surfaceGradientEnd: '#f5f5f0',
+
   shadow: '#000000',
   white: '#ffffff',
   black: '#000000',
@@ -171,6 +182,11 @@ export const darkColors: ThemeColors = {
   redBorder: '#5c2020',
   greenDeep: '#16a34a',
 
+  strokeGradientStart: '#FFFFFF30',
+  strokeGradientEnd: '#00000040',
+  surfaceGradientStart: '#2e312e',
+  surfaceGradientEnd: '#1a1d1a',
+
   shadow: '#000000',
   white: '#ffffff',
   black: '#000000',
@@ -185,8 +201,91 @@ export const Fonts = {
 /* ── Border radii (theme-independent) ── */
 export const Radius = {
   sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 20,
+  md: 12,
+  lg: 16,
+  xl: 22,
   full: 100,
+} as const;
+
+/* ── Shadow presets (3D depth system) ── */
+/* Uses boxShadow arrays: dark drop shadow + bright top highlight */
+/* Theme-aware: updateShadowsForTheme() is called by ThemeProvider */
+
+function createLightShadows() {
+  return {
+    sm: {
+      boxShadow: [
+        { offsetX: 0, offsetY: 3, blurRadius: 8, color: '#00000035' },
+        { offsetX: 0, offsetY: -1, blurRadius: 1, color: '#FFFFFF10' },
+      ],
+    },
+    md: {
+      boxShadow: [
+        { offsetX: 0, offsetY: 5, blurRadius: 14, color: '#00000040' },
+        { offsetX: 0, offsetY: -1, blurRadius: 1, color: '#FFFFFF14' },
+      ],
+    },
+    lg: {
+      boxShadow: [
+        { offsetX: 0, offsetY: 8, blurRadius: 24, color: '#00000050' },
+        { offsetX: 0, offsetY: -1, blurRadius: 2, color: '#FFFFFF18' },
+      ],
+    },
+    bar: {
+      boxShadow: [
+        { offsetX: 0, offsetY: 3, blurRadius: 10, color: '#00000040' },
+        { offsetX: 0, offsetY: -1, blurRadius: 1, color: '#FFFFFF08' },
+      ],
+    },
+  };
+}
+
+function createDarkShadows() {
+  return {
+    sm: {
+      boxShadow: [
+        { offsetX: 0, offsetY: 2, blurRadius: 6, color: '#000000aa' },
+        { offsetX: 0, offsetY: -1, blurRadius: 1, color: '#FFFFFF28' },
+      ],
+    },
+    md: {
+      boxShadow: [
+        { offsetX: 0, offsetY: 4, blurRadius: 12, color: '#000000bb' },
+        { offsetX: 0, offsetY: -1, blurRadius: 2, color: '#FFFFFF30' },
+      ],
+    },
+    lg: {
+      boxShadow: [
+        { offsetX: 0, offsetY: 6, blurRadius: 20, color: '#000000cc' },
+        { offsetX: 0, offsetY: -1, blurRadius: 3, color: '#FFFFFF38' },
+      ],
+    },
+    bar: {
+      boxShadow: [
+        { offsetX: 0, offsetY: 3, blurRadius: 8, color: '#000000aa' },
+        { offsetX: 0, offsetY: -1, blurRadius: 1, color: '#FFFFFF20' },
+      ],
+    },
+  };
+}
+
+export type ShadowPresets = ReturnType<typeof createLightShadows>;
+export let Shadows: ShadowPresets = createLightShadows();
+
+export function updateShadowsForTheme(isDark: boolean) {
+  Shadows = isDark ? createDarkShadows() : createLightShadows();
+}
+
+/* ── Text shadow presets ── */
+export const TextShadows = {
+  heading: {
+    textShadowColor: '#00000060',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 3,
+  },
+  label: {
+    textShadowColor: '#00000040',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
 } as const;

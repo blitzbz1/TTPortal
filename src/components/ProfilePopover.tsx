@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
+import { Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 
@@ -91,11 +92,7 @@ function createStyles(colors: ThemeColors) {
       padding: 16,
       minWidth: 200,
       zIndex: 11,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 5,
+      ...Shadows.md,
     },
     name: {
       fontSize: 16,

@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts } from '../theme';
+import { Fonts, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getPlayHistory, getCheckinStats } from '../services/checkins';
@@ -266,6 +266,7 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 16,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
@@ -305,6 +306,7 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 12,
       padding: 12,
       gap: 4,
+      ...Shadows.sm,
     },
     statValue: {
       fontFamily: Fonts.heading,
@@ -361,6 +363,7 @@ function createStyles(colors: ThemeColors) {
       borderBottomColor: colors.borderLight,
       borderLeftWidth: 2,
       borderLeftColor: colors.borderLight,
+      ...Shadows.sm,
     },
     entryIcon: {
       width: 36,
@@ -423,6 +426,7 @@ function createStyles(colors: ThemeColors) {
       gap: 6,
       borderWidth: 1,
       borderColor: colors.border,
+      ...Shadows.md,
     },
     loadMoreText: {
       fontFamily: Fonts.body,

@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useNotifications } from '../hooks/useNotifications';
 import { useI18n } from '../hooks/useI18n';
@@ -31,9 +31,12 @@ const DELETE_THRESHOLD = -80;
 function SwipeableRow({ children, onDelete, colors }: { children: React.ReactNode; onDelete: () => void; colors: ThemeColors }) {
   const translateX = useRef(new Animated.Value(0)).current;
   const sw = useMemo(() => createSwStyles(colors), [colors]);
-  const panResponder = useRef(
+  const [swiping, setSwiping] = useState(false);
+
+  const panResponderRef = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderGrant: () => { setSwiping(true); },
       onPanResponderMove: (_, g) => {
         if (g.dx < 0) translateX.setValue(g.dx);
       },
@@ -41,7 +44,9 @@ function SwipeableRow({ children, onDelete, colors }: { children: React.ReactNod
         if (g.dx < DELETE_THRESHOLD) {
           Animated.timing(translateX, { toValue: -300, duration: 200, useNativeDriver: true }).start(onDelete);
         } else {
-          Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start(() => {
+            setSwiping(false);
+          });
         }
       },
     }),
@@ -49,10 +54,12 @@ function SwipeableRow({ children, onDelete, colors }: { children: React.ReactNod
 
   return (
     <View style={sw.container}>
-      <View style={sw.deleteBackground}>
-        <Lucide name="trash-2" size={18} color={colors.textOnPrimary} />
-      </View>
-      <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
+      {swiping && (
+        <View style={sw.deleteBackground}>
+          <Lucide name="trash-2" size={18} color={colors.textOnPrimary} />
+        </View>
+      )}
+      <Animated.View style={{ transform: [{ translateX }] }} {...panResponderRef.panHandlers}>
         {children}
       </Animated.View>
     </View>
@@ -261,7 +268,8 @@ function createSwStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
       position: 'relative',
-      overflow: 'hidden',
+      marginHorizontal: 12,
+      marginTop: 8,
     },
     deleteBackground: {
       position: 'absolute',
@@ -272,6 +280,7 @@ function createSwStyles(colors: ThemeColors) {
       backgroundColor: colors.red,
       alignItems: 'center',
       justifyContent: 'center',
+      borderRadius: Radius.md,
     },
   });
 }
@@ -290,6 +299,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 10,
       paddingHorizontal: 16,
       minHeight: 52,
+      ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
@@ -328,9 +338,9 @@ function createStyles(colors: ThemeColors) {
       padding: 14,
       paddingHorizontal: 16,
       gap: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.borderLight,
-      backgroundColor: colors.bg,
+      borderRadius: Radius.md,
+      backgroundColor: colors.bgAlt,
+      ...Shadows.sm,
     },
     cardUnread: {
       backgroundColor: colors.primaryPale,
@@ -341,6 +351,7 @@ function createStyles(colors: ThemeColors) {
       borderRadius: Radius.md,
       alignItems: 'center',
       justifyContent: 'center',
+      ...Shadows.sm,
     },
     cardContent: {
       flex: 1,
@@ -378,6 +389,7 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 5,
       paddingHorizontal: 12,
       gap: 4,
+      ...Shadows.sm,
     },
     acceptBtnText: {
       fontFamily: Fonts.body,
@@ -392,8 +404,8 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 5,
       paddingHorizontal: 12,
       gap: 4,
-      borderWidth: 1,
-      borderColor: colors.border,
+      backgroundColor: colors.bgAlt,
+      ...Shadows.sm,
     },
     declineBtnText: {
       fontFamily: Fonts.body,

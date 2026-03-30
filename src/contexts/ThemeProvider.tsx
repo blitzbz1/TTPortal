@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import { useColorScheme } from 'react-native';
 import { openDatabaseSync } from 'expo-sqlite';
-import { lightColors, darkColors } from '../theme';
+import { lightColors, darkColors, updateShadowsForTheme } from '../theme';
 import type { ThemeColors } from '../theme';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -83,6 +83,7 @@ export function ThemeProvider({ children, initialMode }: ThemeProviderProps) {
 
   const colors = resolved === 'dark' ? darkColors : lightColors;
   const isDark = resolved === 'dark';
+  updateShadowsForTheme(isDark);
 
   const value = useMemo(
     () => ({ mode, resolved, colors, setMode, isDark }),

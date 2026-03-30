@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Tabs } from 'expo-router';
 import { Lucide } from '../../components/Icon';
 import { Fonts } from '../../theme';
@@ -18,7 +18,7 @@ const TAB_CONFIG = [
 
 export default function TabLayout() {
   const { session } = useSession();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { s } = useI18n();
 
   return (
@@ -29,7 +29,17 @@ export default function TabLayout() {
         tabBarInactiveTintColor: colors.textFaint,
         tabBarStyle: {
           backgroundColor: colors.bgAlt,
-          borderTopColor: colors.border,
+          borderTopColor: colors.borderLight,
+          borderTopWidth: isDark ? 1 : 0,
+          boxShadow: isDark
+            ? [
+                { offsetX: 0, offsetY: -2, blurRadius: 8, color: '#000000aa' },
+                { offsetX: 0, offsetY: 1, blurRadius: 1, color: '#FFFFFF20' },
+              ]
+            : [
+                { offsetX: 0, offsetY: -3, blurRadius: 10, color: '#00000040' },
+                { offsetX: 0, offsetY: 1, blurRadius: 1, color: '#FFFFFF08' },
+              ],
         },
         tabBarLabelStyle: {
           fontFamily: Fonts.body,

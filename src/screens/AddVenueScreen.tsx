@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { createVenue } from '../services/venues';
@@ -305,10 +305,12 @@ function createStyles(colors: ThemeColors) {
       height: 46,
       borderWidth: 1,
       borderColor: colors.border,
+      ...Shadows.sm,
     },
     typeBtnActive: {
       backgroundColor: colors.primaryPale,
       borderColor: colors.primaryDim,
+      ...Shadows.md,
     },
     typeBtnText: {
       fontFamily: Fonts.body,
@@ -326,6 +328,8 @@ function createStyles(colors: ThemeColors) {
     addressRow: {
       flexDirection: 'row',
       gap: 8,
+      ...Shadows.sm,
+      borderRadius: Radius.md,
     },
     geocodeBtn: {
       flexDirection: 'row',
@@ -335,6 +339,7 @@ function createStyles(colors: ThemeColors) {
       height: 46,
       paddingHorizontal: 14,
       gap: 6,
+      ...Shadows.md,
     },
     geocodeBtnText: {
       fontFamily: Fonts.body,
@@ -371,6 +376,8 @@ function createStyles(colors: ThemeColors) {
       height: 50,
       borderWidth: 1,
       borderColor: colors.border,
+      backgroundColor: colors.bgAlt,
+      ...Shadows.sm,
     },
     cancelText: {
       fontFamily: Fonts.body,
@@ -387,6 +394,7 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 12,
       height: 50,
       gap: 8,
+      ...Shadows.md,
     },
     submitText: {
       fontFamily: Fonts.body,
