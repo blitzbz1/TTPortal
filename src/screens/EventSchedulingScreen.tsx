@@ -125,8 +125,16 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     });
   };
 
+  const isEffectivelyOver = useCallback((event: any) => {
+    if (event.ends_at) return new Date(event.ends_at) < new Date();
+    // No end date: assume event closes at end of the start day
+    const endOfDay = new Date(event.starts_at);
+    endOfDay.setHours(23, 59, 59, 999);
+    return endOfDay < new Date();
+  }, []);
+
   const getBadgeInfo = useCallback((event: any) => {
-    if (event.status === 'completed') {
+    if (event.status === 'completed' || (event.status !== 'cancelled' && isEffectivelyOver(event))) {
       return { text: s('completed'), bg: colors.borderLight, color: colors.textMuted };
     }
     if (event.status === 'cancelled') {
@@ -139,7 +147,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       return { text: s('tournament'), bg: colors.bluePale, color: colors.blue };
     }
     return { text: s('open'), bg: colors.amberPale, color: colors.accent };
-  }, [colors, s]);
+  }, [colors, s, isEffectivelyOver]);
 
   const getInitials = (name?: string) => {
     if (!name) return '??';
@@ -159,7 +167,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   };
 
   const isPast = (event: any) =>
-    event.status === 'completed' || event.status === 'cancelled';
+    event.status === 'completed' || event.status === 'cancelled' || isEffectivelyOver(event);
 
   // Separate friend participants from others
   const friendParticipants = detailParticipants.filter(
@@ -749,6 +757,7 @@ function createStyles(colors: ThemeColors) {
       gap: 12,
     },
     eventLocation: {
+      flex: 1,
       fontFamily: Fonts.body,
       fontSize: 13,
       color: colors.textMuted,

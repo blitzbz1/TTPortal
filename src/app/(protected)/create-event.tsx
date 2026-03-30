@@ -28,7 +28,7 @@ function getDefaultEndDate() {
 }
 
 const DURATION_OPTIONS: { label: string; value: number | null }[] = [
-  { label: 'Fara', value: null },
+  { label: 'Fără', value: null },
   { label: '1h', value: 1 },
   { label: '1.5h', value: 1.5 },
   { label: '2h', value: 2 },
@@ -38,7 +38,7 @@ const DURATION_OPTIONS: { label: string; value: number | null }[] = [
 const RECURRENCE_OPTIONS: { label: string; value: RecurrenceRule | null }[] = [
   { label: 'Niciuna', value: null },
   { label: 'Zilnic', value: 'daily' },
-  { label: 'Saptamanal', value: 'weekly' },
+  { label: 'Săptămânal', value: 'weekly' },
   { label: 'Lunar', value: 'monthly' },
 ];
 
@@ -154,8 +154,8 @@ export default function CreateEventRoute() {
   /* -- submit -- */
   const handleCreate = useCallback(async () => {
     if (!title.trim() || !user) return;
-    if (date <= new Date()) { Alert.alert('Eroare', 'Data evenimentului trebuie sa fie in viitor.'); return; }
-    if (eventType === 'tournament' && endDate <= date) { Alert.alert('Eroare', 'Data de final trebuie sa fie dupa data de start.'); return; }
+    if (date <= new Date()) { Alert.alert('Eroare', 'Data evenimentului trebuie să fie în viitor.'); return; }
+    if (eventType === 'tournament' && endDate <= date) { Alert.alert('Eroare', 'Data de final trebuie să fie după data de start.'); return; }
 
     setLoading(true);
     let endsAt: string | undefined;
@@ -202,7 +202,7 @@ export default function CreateEventRoute() {
     <ScrollView style={s.scroll} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
 
       {/* -- Header -- */}
-      <Text style={s.header}>Creeaza eveniment</Text>
+      <Text style={s.header}>Creează eveniment</Text>
 
       {/* -- Essentials (always visible) -- */}
       <TextInput
@@ -215,7 +215,7 @@ export default function CreateEventRoute() {
       />
       <TextInput
         style={[s.input, s.textArea]}
-        placeholder="Descriere (optional)"
+        placeholder="Descriere (opțional)"
         placeholderTextColor={colors.textFaint}
         value={description}
         onChangeText={setDescription}
@@ -280,7 +280,7 @@ export default function CreateEventRoute() {
         <View style={s.venuePickerContent}>
           <Lucide name="map-pin" size={18} color={venueName ? colors.primary : colors.textFaint} />
           <Text style={[s.venuePickerText, venueName && s.venuePickerTextSelected]}>
-            {venueName ?? 'Alege locatia'}
+            {venueName ?? 'Alege locația'}
           </Text>
         </View>
         <Lucide name="chevron-right" size={18} color={colors.textFaint} />
@@ -295,7 +295,7 @@ export default function CreateEventRoute() {
 
       {/* -- Options section (collapsible) -- */}
       <Section
-        title="Optiuni"
+        title="Opțiuni"
         icon="sliders"
         defaultOpen={false}
         colors={colors}
@@ -329,14 +329,14 @@ export default function CreateEventRoute() {
 
         {eventType === 'casual' ? (
           <>
-            <Dropdown label="Durata (optional)" value={durationHours} options={DURATION_OPTIONS} onSelect={setDurationHours} colors={colors} s={s} />
-            <Dropdown label="Recurenta" value={recurrenceRule} options={RECURRENCE_OPTIONS} onSelect={setRecurrenceRule} colors={colors} s={s} />
-            {recurrenceRule === 'daily' && <Text style={s.hint}>Se repeta in fiecare zi</Text>}
+            <Dropdown label="Durată (opțional)" value={durationHours} options={DURATION_OPTIONS} onSelect={setDurationHours} colors={colors} s={s} />
+            <Dropdown label="Recurență" value={recurrenceRule} options={RECURRENCE_OPTIONS} onSelect={setRecurrenceRule} colors={colors} s={s} />
+            {recurrenceRule === 'daily' && <Text style={s.hint}>Se repetă în fiecare zi</Text>}
             {recurrenceRule === 'weekly' && (
-              <Text style={s.hint}>Se repeta in fiecare {date.toLocaleDateString('ro-RO', { weekday: 'long' })}</Text>
+              <Text style={s.hint}>Se repetă în fiecare {date.toLocaleDateString('ro-RO', { weekday: 'long' })}</Text>
             )}
             {recurrenceRule === 'monthly' && (
-              <Text style={s.hint}>Se repeta pe {date.getDate()} ale fiecarei luni</Text>
+              <Text style={s.hint}>Se repetă pe {date.getDate()} ale fiecărei luni</Text>
             )}
           </>
         ) : (
@@ -370,7 +370,7 @@ export default function CreateEventRoute() {
           </>
         )}
 
-        <Text style={s.fieldLabel}>Numar locuri (optional)</Text>
+        <Text style={s.fieldLabel}>Număr locuri (opțional)</Text>
         <TextInput
           style={s.input}
           placeholder="ex: 6"
@@ -397,10 +397,10 @@ export default function CreateEventRoute() {
         onPress={handleCreate}
         disabled={loading}
       >
-        <Text style={s.btnText}>{loading ? 'Se creeaza...' : 'Creeaza \u2192'}</Text>
+        <Text style={s.btnText}>{loading ? 'Se creează...' : 'Creează →'}</Text>
       </Pressable>
       <Pressable onPress={() => router.back()} style={s.cancelBtn}>
-        <Text style={s.cancelText}>Anuleaza</Text>
+        <Text style={s.cancelText}>Anulează</Text>
       </Pressable>
 
     </ScrollView>
@@ -502,7 +502,7 @@ function createStyles(colors: ThemeColors) {
     /* buttons */
     btn: { backgroundColor: colors.primaryLight, borderRadius: 12, height: 50, alignItems: 'center', justifyContent: 'center' },
     btnText: { fontFamily: Fonts.body, fontSize: 16, fontWeight: '700', color: colors.textOnPrimary },
-    cancelBtn: { alignItems: 'center', paddingVertical: 12 },
-    cancelText: { fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint },
+    cancelBtn: { alignItems: 'center', justifyContent: 'center', borderRadius: 12, height: 46, borderWidth: 1, borderColor: colors.border },
+    cancelText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: colors.textMuted },
   });
 }

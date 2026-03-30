@@ -22,9 +22,24 @@ export async function updateProfile(
 }
 
 export async function getProfileStats(userId: string) {
-  return supabase
-    .from('leaderboard_checkins')
-    .select('total_checkins, unique_venues')
-    .eq('user_id', userId)
-    .maybeSingle();
+  const [checkins, events] = await Promise.all([
+    supabase
+      .from('leaderboard_checkins')
+      .select('total_checkins, unique_venues')
+      .eq('user_id', userId)
+      .maybeSingle(),
+    supabase
+      .from('event_participants')
+      .select('event_id', { count: 'exact', head: true })
+      .eq('user_id', userId),
+  ]);
+
+  return {
+    data: {
+      total_checkins: checkins.data?.total_checkins ?? 0,
+      unique_venues: checkins.data?.unique_venues ?? 0,
+      events_joined: events.count ?? 0,
+    },
+    error: checkins.error || events.error,
+  };
 }

@@ -70,6 +70,16 @@ jest.mock('../../../hooks/useSession', () => ({
   useSession: () => ({ session: { user: { id: 'test-user' } }, user: { id: 'test-user' }, isLoading: false }),
 }));
 
+jest.mock('../../../hooks/useTheme', () => ({
+  useTheme: () => ({
+    colors: require('../../../theme').lightColors,
+    mode: 'light',
+    resolved: 'light',
+    isDark: false,
+    setMode: jest.fn(),
+  }),
+}));
+
 jest.mock('../../../components/Icon', () => {
   const { View } = require('react-native');
   return {
@@ -145,13 +155,13 @@ describe('TabLayout', () => {
   });
 
   describe('active tab styling', () => {
-    it('uses Colors.green (#14532d) as active tint color', () => {
+    it('uses theme primary color as active tint color', () => {
       const { getByTestId } = render(<TabLayout />);
       const activeTint = getByTestId('active-tint-color');
       expect(activeTint.props.children).toBe('#14532d');
     });
 
-    it('uses Colors.inkFaint (#9ca39a) as inactive tint color', () => {
+    it('uses theme textFaint color as inactive tint color', () => {
       const { getByTestId } = render(<TabLayout />);
       const inactiveTint = getByTestId('inactive-tint-color');
       expect(inactiveTint.props.children).toBe('#9ca39a');

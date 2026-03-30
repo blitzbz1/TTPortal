@@ -22,17 +22,15 @@ export function TabBar({ activeTab, onTabPress }: TabBarProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const ALL_TABS: { key: TabKey; icon: string; label: string }[] = [
-    { key: 'map', icon: 'map', label: s('tabMap') },
-    { key: 'events', icon: 'calendar', label: s('tabEvents') },
-    { key: 'leaderboard', icon: 'trophy', label: s('tabLeaderboard') },
-    { key: 'favorites', icon: 'heart', label: s('tabFavorites') },
-  ];
-
-  const TABS = useMemo(
-    () => session ? ALL_TABS : ALL_TABS.filter((t) => !AUTH_ONLY_TABS.has(t.key)),
-    [session, ALL_TABS],
-  );
+  const TABS = useMemo(() => {
+    const all: { key: TabKey; icon: string; label: string }[] = [
+      { key: 'map', icon: 'map', label: s('tabMap') },
+      { key: 'events', icon: 'calendar', label: s('tabEvents') },
+      { key: 'leaderboard', icon: 'trophy', label: s('tabLeaderboard') },
+      { key: 'favorites', icon: 'heart', label: s('tabFavorites') },
+    ];
+    return session ? all : all.filter((t) => !AUTH_ONLY_TABS.has(t.key));
+  }, [session, s]);
   return (
     <View style={styles.container}>
       {TABS.map((tab) => {

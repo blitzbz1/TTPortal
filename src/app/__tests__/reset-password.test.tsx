@@ -35,6 +35,16 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockSearchParams,
 }));
 
+jest.mock('../../hooks/useTheme', () => ({
+  useTheme: () => ({
+    colors: require('../../theme').lightColors,
+    mode: 'light',
+    resolved: 'light',
+    isDark: false,
+    setMode: jest.fn(),
+  }),
+}));
+
 // eslint-disable-next-line import/first
 import ResetPasswordScreen from '../reset-password';
 

@@ -63,6 +63,16 @@ jest.mock('../lib/logger', () => ({
   },
 }));
 
+jest.mock('../hooks/useTheme', () => ({
+  useTheme: () => ({
+    colors: require('../theme').lightColors,
+    mode: 'light',
+    resolved: 'light',
+    isDark: false,
+    setMode: jest.fn(),
+  }),
+}));
+
 // eslint-disable-next-line import/first
 import SignInScreen from '../app/sign-in';
 // eslint-disable-next-line import/first

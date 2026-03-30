@@ -93,27 +93,11 @@ export function AddVenueScreen() {
   }, [address, city, s]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Map background placeholder */}
-      <View style={styles.mapBg} />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <Text style={styles.header}>{s('addVenueTitle')}</Text>
 
-      {/* Bottom Sheet */}
-      <View style={styles.sheet}>
-        {/* Handle */}
-        <View style={styles.handleWrap}>
-          <View style={styles.handleBar} />
-        </View>
-
-        {/* Header */}
-        <View style={styles.sheetHeader}>
-          <Text style={styles.sheetTitle}>{s('addVenueTitle')}</Text>
-          <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
-            <Lucide name="x" size={16} color={colors.textFaint} />
-          </TouchableOpacity>
-        </View>
-
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={styles.formScroll} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView style={styles.formScroll} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
           {/* Name Field */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>{s('fieldName')}</Text>
@@ -231,9 +215,8 @@ export function AddVenueScreen() {
               )}
             </TouchableOpacity>
           </View>
-        </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
+      </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -242,66 +225,24 @@ function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.overlay,
-    },
-    mapBg: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: colors.mapBg,
-    },
-    sheet: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      height: 684,
-      backgroundColor: colors.bgAlt,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: -8 },
-      shadowOpacity: 0.08,
-      shadowRadius: 32,
-      elevation: 10,
-    },
-    handleWrap: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: 28,
-    },
-    handleBar: {
-      width: 36,
-      height: 4,
-      borderRadius: 100,
-      backgroundColor: colors.border,
-    },
-    sheetHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingBottom: 12,
-    },
-    sheetTitle: {
-      fontFamily: Fonts.heading,
-      fontSize: 20,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    closeBtn: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
       backgroundColor: colors.bg,
-      alignItems: 'center',
-      justifyContent: 'center',
+    },
+    header: {
+      fontFamily: Fonts.heading,
+      fontSize: 24,
+      fontWeight: '800',
+      color: colors.text,
+      paddingHorizontal: 24,
+      paddingTop: 16,
+      paddingBottom: 8,
     },
     formScroll: {
       flex: 1,
-      paddingHorizontal: 20,
+    },
+    formContent: {
+      padding: 24,
+      paddingTop: 8,
+      gap: 0,
     },
     field: {
       gap: 6,
@@ -317,10 +258,10 @@ function createStyles(colors: ThemeColors) {
     input: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.bg,
-      borderRadius: 8,
-      height: 42,
-      paddingHorizontal: 12,
+      backgroundColor: colors.bgAlt,
+      borderRadius: Radius.md,
+      height: 46,
+      paddingHorizontal: 14,
       borderWidth: 1,
       borderColor: colors.border,
     },
@@ -350,9 +291,9 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.bg,
-      borderRadius: 8,
-      height: 42,
+      backgroundColor: colors.bgAlt,
+      borderRadius: Radius.md,
+      height: 46,
       borderWidth: 1,
       borderColor: colors.border,
     },
@@ -380,9 +321,9 @@ function createStyles(colors: ThemeColors) {
     geocodeBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.primary,
-      borderRadius: 8,
-      height: 42,
+      backgroundColor: colors.primaryLight,
+      borderRadius: Radius.md,
+      height: 46,
       paddingHorizontal: 14,
       gap: 6,
     },
@@ -393,10 +334,10 @@ function createStyles(colors: ThemeColors) {
       color: colors.textOnPrimary,
     },
     textarea: {
-      backgroundColor: colors.bg,
-      borderRadius: 8,
+      backgroundColor: colors.bgAlt,
+      borderRadius: Radius.md,
       height: 70,
-      paddingHorizontal: 12,
+      paddingHorizontal: 14,
       paddingVertical: 10,
       borderWidth: 1,
       borderColor: colors.border,
@@ -417,8 +358,8 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: Radius.md,
-      height: 46,
+      borderRadius: 12,
+      height: 50,
       borderWidth: 1,
       borderColor: colors.border,
     },
@@ -433,9 +374,9 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.primary,
-      borderRadius: Radius.md,
-      height: 46,
+      backgroundColor: colors.primaryLight,
+      borderRadius: 12,
+      height: 50,
       gap: 8,
     },
     submitText: {

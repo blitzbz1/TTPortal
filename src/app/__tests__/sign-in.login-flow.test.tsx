@@ -80,6 +80,16 @@ jest.mock('expo-apple-authentication', () => ({
   AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
 }));
 
+jest.mock('../../hooks/useTheme', () => ({
+  useTheme: () => ({
+    colors: require('../../theme').lightColors,
+    mode: 'light',
+    resolved: 'light',
+    isDark: false,
+    setMode: jest.fn(),
+  }),
+}));
+
 // eslint-disable-next-line import/first
 import SignInScreen from '../sign-in';
 // eslint-disable-next-line import/first

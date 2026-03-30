@@ -49,6 +49,16 @@ jest.mock('@react-native-community/datetimepicker', () => {
   };
 });
 
+jest.mock('../../../hooks/useTheme', () => ({
+  useTheme: () => ({
+    colors: require('../../../theme').lightColors,
+    mode: 'light',
+    resolved: 'light',
+    isDark: false,
+    setMode: jest.fn(),
+  }),
+}));
+
 // eslint-disable-next-line import/first
 import React from 'react';
 // eslint-disable-next-line import/first

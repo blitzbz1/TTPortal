@@ -6,7 +6,7 @@ import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getProfile, getProfileStats, updateProfile } from '../services/profiles';
@@ -20,13 +20,6 @@ function getQuickActions(colors: ThemeColors) {
   ];
 }
 
-function getActivities(colors: ThemeColors) {
-  return [
-    { icon: 'map-pin', iconColor: colors.primaryMid, bg: colors.primaryDim, textKey: 'activityCheckin' as const, time: 'Azi, 14:30' },
-    { icon: 'star', iconColor: colors.accent, bg: colors.amberPale, textKey: 'activityReview' as const, time: 'Ieri, 18:15' },
-    { icon: 'user-plus', iconColor: colors.purple, bg: colors.purplePale, textKey: 'activityFriend' as const, time: 'Luni, 10:00' },
-  ];
-}
 
 interface ProfileScreenProps {
   hideTabBar?: boolean;
@@ -41,10 +34,9 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const quickActions = useMemo(() => getQuickActions(colors), [colors]);
-  const activities = useMemo(() => getActivities(colors), [colors]);
 
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [stats, setStats] = useState<{ total_checkins: number; unique_venues: number } | null>(null);
+  const [stats, setStats] = useState<{ total_checkins: number; events_joined: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [notifyCheckins, setNotifyCheckins] = useState(true);
@@ -66,7 +58,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
 
         const statsRes = await getProfileStats(user.id);
         if (cancelled) return;
-        if (statsRes.data) setStats(statsRes.data as { total_checkins: number; unique_venues: number });
+        if (statsRes.data) setStats(statsRes.data as { total_checkins: number; events_joined: number });
       } catch {
         // ignore
       } finally {
@@ -93,7 +85,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
 
   const dynamicStats = [
     { value: String(stats?.total_checkins ?? 0), label: s('checkins') },
-    { value: String(stats?.unique_venues ?? 0), label: s('venuesVisited') },
+    { value: String(stats?.events_joined ?? 0), label: s('eventsJoined') },
   ];
 
   const handleQuickAction = useCallback((route: string | null) => {
@@ -102,9 +94,6 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
     }
   }, [router]);
 
-  const handleToggleLang = useCallback(() => {
-    setLang(lang === 'ro' ? 'en' : 'ro');
-  }, [lang, setLang]);
 
   const handleToggleCheckinNotif = useCallback(async (value: boolean) => {
     setNotifyCheckins(value);
@@ -197,22 +186,6 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
           </View>
         </View>
 
-        {/* Recent Activity */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{s('recentActivity')}</Text>
-          {activities.map((act) => (
-            <View key={act.textKey} style={styles.activityCard}>
-              <View style={[styles.actIcon, { backgroundColor: act.bg }]}>
-                <Lucide name={act.icon} size={18} color={act.iconColor} />
-              </View>
-              <View style={styles.actInfo}>
-                <Text style={styles.actText}>{s(act.textKey)}</Text>
-                <Text style={styles.actTime}>{act.time}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
         {/* Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{s('settings')}</Text>
@@ -244,13 +217,25 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
           </View>
 
           {/* Limba */}
-          <TouchableOpacity style={styles.settingsRow} onPress={handleToggleLang}>
+          <View style={styles.settingsRow}>
             <View style={styles.settingsLeft}>
               <Lucide name="globe" size={18} color={colors.textMuted} />
               <Text style={styles.settingsLabel}>{s('language')}</Text>
             </View>
-            <Text style={styles.settingsValue}>{lang.toUpperCase()}</Text>
-          </TouchableOpacity>
+            <View style={styles.themeToggle}>
+              {(['ro', 'en'] as const).map((l) => (
+                <TouchableOpacity
+                  key={l}
+                  style={[styles.themeOption, lang === l && styles.themeOptionActive]}
+                  onPress={() => setLang(l)}
+                >
+                  <Text style={[styles.themeOptionText, lang === l && styles.themeOptionTextActive]}>
+                    {l.toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
           {/* Tema */}
           <View style={styles.settingsRow}>
@@ -259,15 +244,13 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
               <Text style={styles.settingsLabel}>{s('theme')}</Text>
             </View>
             <View style={styles.themeToggle}>
-              {(['light', 'system', 'dark'] as const).map((m) => (
+              {([{ key: 'light', icon: 'sun' }, { key: 'dark', icon: 'moon' }, { key: 'system', icon: 'monitor' }] as const).map(({ key: m, icon }) => (
                 <TouchableOpacity
                   key={m}
                   style={[styles.themeOption, mode === m && styles.themeOptionActive]}
                   onPress={() => setMode(m)}
                 >
-                  <Text style={[styles.themeOptionText, mode === m && styles.themeOptionTextActive]}>
-                    {s(`theme${m[0].toUpperCase()}${m.slice(1)}`)}
-                  </Text>
+                  <Lucide name={icon} size={14} color={mode === m ? colors.text : colors.textFaint} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -476,39 +459,6 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.body,
       fontSize: 12,
       fontWeight: '600',
-    },
-    activityCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.bgAlt,
-      borderRadius: 12,
-      padding: 12,
-      paddingHorizontal: 14,
-      gap: 12,
-      borderWidth: 1,
-      borderColor: colors.borderLight,
-    },
-    actIcon: {
-      width: 38,
-      height: 38,
-      borderRadius: Radius.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    actInfo: {
-      flex: 1,
-      gap: 2,
-    },
-    actText: {
-      fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '500',
-      color: colors.text,
-    },
-    actTime: {
-      fontFamily: Fonts.body,
-      fontSize: 11,
-      color: colors.textFaint,
     },
     settingsRow: {
       flexDirection: 'row',

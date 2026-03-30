@@ -27,6 +27,16 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: (...a: unknown[]) => mockReplace(...a) }),
 }));
 
+jest.mock('../../hooks/useTheme', () => ({
+  useTheme: () => ({
+    colors: require('../../theme').lightColors,
+    mode: 'light',
+    resolved: 'light',
+    isDark: false,
+    setMode: jest.fn(),
+  }),
+}));
+
 // eslint-disable-next-line import/first
 import ForgotPasswordScreen from '../forgot-password';
 
