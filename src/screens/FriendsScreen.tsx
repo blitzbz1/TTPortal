@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, Modal, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, Modal, Pressable, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -24,6 +24,7 @@ export function FriendsScreen() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteResult, setInviteResult] = useState<'idle' | 'sent' | 'not_found' | 'already_friends' | 'error'>('idle');
+  const [refreshing, setRefreshing] = useState(false);
   const { user } = useSession();
   const router = useRouter();
   const { s } = useI18n();
@@ -84,6 +85,12 @@ export function FriendsScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  }, [fetchData]);
 
   useEffect(() => {
     fetchData();
@@ -157,7 +164,7 @@ export function FriendsScreen() {
   }, [user, inviteEmail, friends, fetchData]);
 
   const getInitials = (name?: string) => {
-    if (!name) return '??';
+    if (!name) return '?';
     return name
       .split(' ')
       .map((w: string) => w[0])
@@ -190,7 +197,7 @@ export function FriendsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scroll}>
+      <ScrollView style={styles.scroll} keyboardDismissMode="on-drag" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
         {/* Search friends */}
         <View style={styles.searchWrap}>
           <View style={styles.searchBar}>
@@ -202,6 +209,11 @@ export function FriendsScreen() {
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                <Lucide name="x" size={16} color={colors.textFaint} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 

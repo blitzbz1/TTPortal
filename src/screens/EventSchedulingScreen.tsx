@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, Pressable } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, Pressable, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
-import { TabBar } from '../components/TabBar';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, Radius } from '../theme';
@@ -31,8 +30,9 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [updateText, setUpdateText] = useState('');
   const [sendingUpdate, setSendingUpdate] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const { user } = useSession();
-  const { s } = useI18n();
+  const { s, lang } = useI18n();
   const router = useRouter();
   const { colors } = useTheme();
   const { styles, ms } = useMemo(() => createStyles(colors), [colors]);
@@ -54,6 +54,12 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, user?.id]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchEvents();
+    setRefreshing(false);
+  }, [fetchEvents]);
 
   useEffect(() => {
     fetchEvents();
@@ -110,8 +116,10 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, fetchEvents, selectedEvent]);
 
+  const locale = lang === 'en' ? 'en-GB' : 'ro-RO';
+
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('ro-RO', {
+    return new Date(dateStr).toLocaleDateString(locale, {
       weekday: 'long',
       day: 'numeric',
       month: 'short',
@@ -119,7 +127,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   };
 
   const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleTimeString('ro-RO', {
+    return new Date(dateStr).toLocaleTimeString(locale, {
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -150,7 +158,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   }, [colors, s, isEffectivelyOver]);
 
   const getInitials = (name?: string) => {
-    if (!name) return '??';
+    if (!name) return '?';
     return name
       .split(' ')
       .map((w: string) => w[0])
@@ -194,7 +202,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         </View>
       </View>
 
-      <ScrollView style={styles.scroll}>
+      <ScrollView style={styles.scroll} keyboardDismissMode="on-drag" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
         {/* Tabs */}
         <View style={styles.tabs}>
           {[
@@ -304,7 +312,6 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         )}
       </ScrollView>
 
-      {!hideTabBar && <TabBar activeTab="events" />}
 
       {/* ===== Event Detail Bottom Sheet ===== */}
       <Modal

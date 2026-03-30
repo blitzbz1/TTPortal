@@ -1,11 +1,10 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, Platform, RefreshControl, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Callout } from 'react-native-maps';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { Lucide } from '../components/Icon';
-import { TabBar } from '../components/TabBar';
 import { CityPickerModal } from '../components/CityPickerModal';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
@@ -52,6 +51,8 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const [selectedCity, setSelectedCity] = useState<string>('București');
   const [friendCheckinVenueIds, setFriendCheckinVenueIds] = useState<Set<number>>(new Set());
   const [activeFriendsCount, setActiveFriendsCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const mapRef = useRef<MapView>(null);
 
   const filters: { key: FilterKey; label: string; icon?: string }[] = [
@@ -81,15 +82,22 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
 
   const fetchVenues = useCallback(async () => {
     setLoading(true);
+    setFetchError(false);
     try {
       const { data } = await getVenues(selectedCity);
       if (data) setVenues(data as VenueWithStats[]);
     } catch {
-      // silently handle fetch errors
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
   }, [selectedCity]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchVenues();
+    setRefreshing(false);
+  }, [fetchVenues]);
 
   useEffect(() => {
     fetchVenues();
@@ -154,7 +162,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
         longitudeDelta: 0.02,
       }, 800);
     } catch {
-      Alert.alert(s('error'), 'Could not get location');
+      Alert.alert(s('error'), s('couldNotGetLocation'));
     }
   }, [s]);
 
@@ -312,6 +320,11 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
               onChangeText={setSearchQuery}
               returnKeyType="search"
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8} testID="search-clear">
+                <Lucide name="x" size={16} color={colors.textFaint} />
+              </TouchableOpacity>
+            )}
           </View>
           {user && (
             <TouchableOpacity style={styles.addChip} onPress={() => router.push('/(protected)/add-venue' as any)}>
@@ -355,12 +368,20 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 32 }}>
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
+        ) : fetchError ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 32, gap: 12 }}>
+            <Lucide name="alert-triangle" size={28} color={colors.textFaint} />
+            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>{s('venueLoadError')}</Text>
+            <TouchableOpacity onPress={fetchVenues} style={{ backgroundColor: colors.primaryPale, borderRadius: Radius.md, paddingVertical: 8, paddingHorizontal: 16 }}>
+              <Text style={{ fontFamily: Fonts.body, fontSize: 13, fontWeight: '600', color: colors.primaryMid }}>{s('retry')}</Text>
+            </TouchableOpacity>
+          </View>
         ) : filteredVenues.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 32 }}>
             <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>{s('noVenues')}</Text>
           </View>
         ) : (
-          <ScrollView style={styles.venueList} testID="venue-list">
+          <ScrollView style={styles.venueList} testID="venue-list" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
             {filteredVenues.map((venue, index) => {
               const conditionInfo = conditionLabel(venue.condition);
               const avgRating = venue.venue_stats?.avg_rating;
@@ -405,7 +426,6 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
         )}
       </View>
 
-      {!hideTabBar && <TabBar activeTab="map" />}
 
       <CityPickerModal
         visible={cityModalVisible}
@@ -517,7 +537,7 @@ function createStyles(colors: ThemeColors) {
       color: colors.textOnPrimary,
     },
     mapArea: {
-      height: 400,
+      height: Math.round(Dimensions.get('window').height * 0.45),
       backgroundColor: colors.mapBg,
       position: 'relative',
     },

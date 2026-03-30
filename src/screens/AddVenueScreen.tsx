@@ -9,6 +9,7 @@ import { Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { createVenue } from '../services/venues';
+import { CityPickerModal } from '../components/CityPickerModal';
 import type { VenueType } from '../types/database';
 
 export function AddVenueScreen() {
@@ -22,7 +23,8 @@ export function AddVenueScreen() {
   const [address, setAddress] = useState('');
   const [type, setType] = useState<VenueType>('parc_exterior');
   const [tablesCount, setTablesCount] = useState('');
-  const [city] = useState('București');
+  const [city, setCity] = useState('București');
+  const [cityModalVisible, setCityModalVisible] = useState(false);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [geoLat, setGeoLat] = useState<number | null>(null);
@@ -81,7 +83,7 @@ export function AddVenueScreen() {
         const lng = parseFloat(results[0].lon);
         setGeoLat(lat);
         setGeoLng(lng);
-        Alert.alert(s('success'), `${s('pinOnMap')}: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        Alert.alert(s('success'), s('geocodeSuccess'));
       } else {
         Alert.alert(s('error'), s('geocodeNotFound') || 'Address not found');
       }
@@ -148,10 +150,10 @@ export function AddVenueScreen() {
             </View>
             <View style={[styles.field, { flex: 1 }]}>
               <Text style={styles.fieldLabel}>{s('fieldCity')}</Text>
-              <View style={[styles.input, styles.inputSelect]}>
+              <TouchableOpacity style={[styles.input, styles.inputSelect]} onPress={() => setCityModalVisible(true)}>
                 <Text style={styles.inputValue}>{city}</Text>
                 <Lucide name="chevron-down" size={16} color={colors.textFaint} />
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -217,6 +219,13 @@ export function AddVenueScreen() {
           </View>
       </ScrollView>
       </KeyboardAvoidingView>
+
+      <CityPickerModal
+        visible={cityModalVisible}
+        selectedCity={city}
+        onSelect={(c) => { if (c) setCity(c); setCityModalVisible(false); }}
+        onClose={() => setCityModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }

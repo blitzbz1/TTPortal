@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking, Share, ActivityIndicator, Platform, Modal, Pressable, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking, Share, ActivityIndicator, Platform, Modal, Pressable, TextInput, Image, FlatList, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -8,9 +8,13 @@ import type { ThemeColors } from '../theme';
 import { Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getVenueById } from '../services/venues';
+import { getVenueById, uploadVenuePhoto, addPhotoToVenue } from '../services/venues';
+import { getProfile } from '../services/profiles';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { getReviewsForVenue } from '../services/reviews';
-import { checkin, checkout, getUserActiveCheckin, getUserAnyActiveCheckin } from '../services/checkins';
+import { checkin, checkout, getUserActiveCheckin, getUserAnyActiveCheckin, getActiveFriendCheckins } from '../services/checkins';
+import { getFriendIds } from '../services/friends';
 import { isFavorite, addFavorite, removeFavorite } from '../services/favorites';
 import type { Venue, Review, VenueStats } from '../types/database';
 
@@ -21,8 +25,9 @@ interface Props {
 export function VenueDetailScreen({ venueId }: Props) {
   const router = useRouter();
   const { user } = useSession();
-  const { s } = useI18n();
+  const { s, lang } = useI18n();
   const { colors } = useTheme();
+  const dateLocale = lang === 'en' ? 'en-GB' : 'ro-RO';
   const { cm, styles } = useMemo(() => createStyles(colors), [colors]);
 
   const [venue, setVenue] = useState<(Venue & { venue_stats: VenueStats | null }) | null>(null);
@@ -31,6 +36,12 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [loading, setLoading] = useState(true);
   const [checkinLoading, setCheckinLoading] = useState(false);
   const [activeCheckin, setActiveCheckin] = useState<any>(null);
+  const [friendsHere, setFriendsHere] = useState<any[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const photoWidth = Dimensions.get('window').width;
+  const photoHeight = Math.round(photoWidth * 9 / 16);
   const [checkinModalVisible, setCheckinModalVisible] = useState(false);
   const [customMode, setCustomMode] = useState<'none' | 'minutes' | 'until'>('none');
   const [customMinutes, setCustomMinutes] = useState('');
@@ -59,6 +70,28 @@ export function VenueDetailScreen({ venueId }: Props) {
         if (!cancelled) {
           if (favRes.data !== undefined) setFavorited(favRes.data);
           setActiveCheckin(checkinRes.data ?? null);
+        }
+
+        // Fetch friends currently checked in at this venue
+        try {
+          const fIds = await getFriendIds(user.id);
+          if (fIds.length > 0 && !cancelled) {
+            const { data: friendCheckins } = await getActiveFriendCheckins(fIds);
+            if (!cancelled) {
+              const here = (friendCheckins ?? []).filter((c: any) => c.venue_id === Number(venueId));
+              setFriendsHere(here);
+            }
+          }
+        } catch {
+          // non-critical, ignore
+        }
+
+        // Check admin status
+        try {
+          const { data: profileData } = await getProfile(user.id);
+          if (!cancelled && profileData) setIsAdmin(profileData.is_admin === true);
+        } catch {
+          // non-critical
         }
       }
       setLoading(false);
@@ -163,6 +196,58 @@ export function VenueDetailScreen({ venueId }: Props) {
     setActiveCheckin(null);
   }, [activeCheckin, showAlert]);
 
+  const handleAddPhoto = useCallback(async () => {
+    if (!venue || !venueId) return;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      showAlert(s('error'), s('photoPermissionDenied'));
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    if (result.canceled || result.assets.length === 0) return;
+
+    setUploading(true);
+    try {
+      const asset = result.assets[0];
+      // Resize to max 1024px on longest side and convert to JPEG
+      const isLandscape = (asset.width ?? 0) >= (asset.height ?? 0);
+      const needsResize = (asset.width ?? 0) > 1024 || (asset.height ?? 0) > 1024;
+      const actions = needsResize
+        ? [{ resize: isLandscape ? { width: 1024 } : { height: 1024 } }]
+        : [];
+      const manipulated = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        actions,
+        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+      );
+
+      const { url, error: uploadErr } = await uploadVenuePhoto(Number(venueId), manipulated.uri);
+      if (uploadErr || !url) {
+        showAlert(s('error'), s('photoUploadError'));
+        return;
+      }
+
+      const currentPhotos = venue.photos ?? [];
+      const { error: updateErr } = await addPhotoToVenue(Number(venueId), currentPhotos, url);
+      if (updateErr) {
+        showAlert(s('error'), s('photoUploadError'));
+        return;
+      }
+
+      // Update local state to show new photo immediately
+      setVenue((prev) => prev ? { ...prev, photos: [...(prev.photos ?? []), url] } : prev);
+      showAlert(s('success'), s('photoUploaded'));
+    } catch {
+      showAlert(s('error'), s('photoUploadError'));
+    } finally {
+      setUploading(false);
+    }
+  }, [venue, venueId, showAlert, s]);
+
   const handleToggleFavorite = useCallback(async () => {
     if (!user || !venueId) return;
     if (favorited) {
@@ -226,8 +311,8 @@ export function VenueDetailScreen({ venueId }: Props) {
           <Text style={styles.backText}>{s('back')}</Text>
         </TouchableOpacity>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={handleToggleFavorite}>
-            <Lucide name={favorited ? 'heart' : 'heart'} size={20} color={favorited ? colors.red : colors.textFaint} />
+          <TouchableOpacity onPress={handleToggleFavorite} accessibilityLabel={favorited ? s('favRemove') : s('favAdd')} accessibilityRole="button">
+            <Lucide name="heart" size={20} color={favorited ? colors.red : colors.textFaint} />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleShare}>
             <Lucide name="share-2" size={20} color={colors.textFaint} />
@@ -237,12 +322,64 @@ export function VenueDetailScreen({ venueId }: Props) {
 
       <ScrollView style={styles.scroll}>
         {/* Photo Strip */}
-        <View style={styles.photoStrip}>
-          <View style={styles.photoPlaceholder} />
-          <View style={styles.photoCount}>
-            <Lucide name="image" size={12} color={colors.textOnPrimary} />
-            <Text style={styles.photoCountText}>{(venue.photos?.length ?? 0) + ' ' + s('photosCount')}</Text>
-          </View>
+        <View style={[styles.photoStrip, { height: photoHeight }]}>
+          {venue.photos && venue.photos.length > 0 ? (
+            <>
+              <FlatList
+                data={venue.photos}
+                keyExtractor={(item, i) => `${item}-${i}`}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={(e) => {
+                  const index = Math.round(e.nativeEvent.contentOffset.x / photoWidth);
+                  setActivePhotoIndex(index);
+                }}
+                renderItem={({ item }) => (
+                  <Image
+                    source={{ uri: item }}
+                    style={{ width: photoWidth, height: photoHeight }}
+                    resizeMode="cover"
+                  />
+                )}
+                getItemLayout={(_, index) => ({ length: photoWidth, offset: photoWidth * index, index })}
+              />
+              {venue.photos.length > 1 && (
+                <View style={styles.dotsRow}>
+                  {venue.photos.map((_, i) => (
+                    <View
+                      key={i}
+                      style={[styles.dot, i === activePhotoIndex && styles.dotActive]}
+                    />
+                  ))}
+                </View>
+              )}
+              <View style={styles.photoCount}>
+                <Lucide name="image" size={12} color={colors.textOnPrimary} />
+                <Text style={styles.photoCountText}>{(activePhotoIndex + 1) + '/' + venue.photos.length}</Text>
+              </View>
+            </>
+          ) : (
+            <View style={[styles.photoPlaceholder, { alignItems: 'center', justifyContent: 'center', gap: 6 }]}>
+              <Lucide name="camera" size={28} color={colors.textFaint} />
+              <Text style={{ fontFamily: Fonts.body, fontSize: 13, color: colors.textFaint }}>{s('noPhotosYet')}</Text>
+            </View>
+          )}
+          {isAdmin && (
+            <TouchableOpacity
+              style={styles.addPhotoBtn}
+              onPress={handleAddPhoto}
+              disabled={uploading}
+              accessibilityLabel={s('addPhoto')}
+              testID="admin-add-photo"
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color={colors.textOnPrimary} />
+              ) : (
+                <Lucide name="plus" size={20} color={colors.textOnPrimary} />
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Venue Info */}
@@ -307,15 +444,27 @@ export function VenueDetailScreen({ venueId }: Props) {
             <Lucide name="users" size={14} color={colors.purple} />
             <Text style={styles.friendsTitleText}>{s('friendsHereNow')}</Text>
           </View>
-          <View style={styles.checkinRow}>
-            <View style={styles.checkinAvatar}>
-              <Text style={styles.checkinInitials}>A</Text>
-            </View>
-            <View style={styles.checkinInfo}>
-              <Text style={styles.checkinName}>Andrei M.</Text>
-              <Text style={styles.checkinTime}>Check-in acum 15 min</Text>
-            </View>
-          </View>
+          {friendsHere.length === 0 && !activeCheckin && (
+            <Text style={styles.checkinTime}>{s('noFriendsHere')}</Text>
+          )}
+          {friendsHere.map((fc: any) => {
+            const name = fc.profiles?.full_name || fc.user_id?.slice(0, 6) || '?';
+            const initial = name.charAt(0).toUpperCase();
+            const ago = fc.started_at
+              ? Math.max(1, Math.round((Date.now() - new Date(fc.started_at).getTime()) / 60_000))
+              : null;
+            return (
+              <View key={fc.id || fc.user_id} style={styles.checkinRow}>
+                <View style={styles.checkinAvatar}>
+                  <Text style={styles.checkinInitials}>{initial}</Text>
+                </View>
+                <View style={styles.checkinInfo}>
+                  <Text style={styles.checkinName}>{name}</Text>
+                  {ago != null && <Text style={styles.checkinTime}>{`${ago}m`}</Text>}
+                </View>
+              </View>
+            );
+          })}
           {activeCheckin ? (
             <View style={styles.activeCheckinWrap}>
               <View style={styles.activeCheckinInfo}>
@@ -330,7 +479,7 @@ export function VenueDetailScreen({ venueId }: Props) {
                 {checkinLoading ? (
                   <ActivityIndicator size="small" color={colors.red} />
                 ) : (
-                  <Text style={styles.checkoutBtnText}>Checkout</Text>
+                  <Text style={styles.checkoutBtnText}>{s('checkout')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -369,7 +518,7 @@ export function VenueDetailScreen({ venueId }: Props) {
         <View style={styles.reviewsSection}>
           <View style={styles.reviewsHeader}>
             <Text style={styles.reviewsTitle}>{s('reviewsCount') + ' (' + reviews.length + ')'}</Text>
-            <TouchableOpacity style={styles.writeReviewBtn} onPress={() => router.push(`/(protected)/review/${venueId}` as any)} testID="write-review-btn" accessibilityLabel="Scrie recenzie">
+            <TouchableOpacity style={styles.writeReviewBtn} onPress={() => router.push(`/(protected)/review/${venueId}` as any)} testID="write-review-btn" accessibilityLabel={s('writeBtn')}>
               <Lucide name="pen-line" size={12} color={colors.primaryMid} />
               <Text style={styles.writeReviewText}>{s('writeBtn')}</Text>
             </TouchableOpacity>
@@ -386,7 +535,7 @@ export function VenueDetailScreen({ venueId }: Props) {
                 <Text style={styles.reviewStars}>{renderStars(review.rating)}</Text>
               </View>
               <Text style={styles.reviewText}>{review.body || ''}</Text>
-              <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString('ro-RO')}</Text>
+              <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString(dateLocale)}</Text>
             </View>
           ))}
         </View>
@@ -434,7 +583,7 @@ export function VenueDetailScreen({ venueId }: Props) {
                 <TextInput
                   style={cm.input}
                   keyboardType="number-pad"
-                  placeholder="e.g. 90"
+                  placeholder={s('customMinutesPlaceholder')}
                   placeholderTextColor={colors.textFaint}
                   value={customMinutes}
                   onChangeText={setCustomMinutes}
@@ -557,6 +706,44 @@ function createStyles(colors: ThemeColors) {
     photoPlaceholder: {
       flex: 1,
       backgroundColor: colors.bgMuted,
+    },
+    dotsRow: {
+      position: 'absolute',
+      bottom: 12,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 6,
+    },
+    dot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.textOnPrimary,
+      opacity: 0.4,
+    },
+    dotActive: {
+      opacity: 1,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    addPhotoBtn: {
+      position: 'absolute',
+      bottom: 12,
+      right: 12,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 4,
     },
     photoCount: {
       position: 'absolute',

@@ -1,23 +1,25 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Tabs } from 'expo-router';
 import { Lucide } from '../../components/Icon';
 import { Fonts } from '../../theme';
 import { useTheme } from '../../hooks/useTheme';
 import { useSession } from '../../hooks/useSession';
-
-const TAB_CONFIG = [
-  { name: 'index', label: 'Hartă', icon: 'map', authOnly: false },
-  { name: 'events', label: 'Evenimente', icon: 'calendar', authOnly: false },
-  { name: 'leaderboard', label: 'Clasament', icon: 'trophy', authOnly: true },
-  { name: 'favorites', label: 'Favorite', icon: 'heart', authOnly: true },
-  { name: 'profile', label: 'Profil', icon: 'user', authOnly: true, hidden: true },
-] as const;
+import { useI18n } from '../../hooks/useI18n';
 
 const TAB_ICON_SIZE = 22;
+
+const TAB_CONFIG = [
+  { name: 'index', labelKey: 'tabMap', icon: 'map', authOnly: false },
+  { name: 'events', labelKey: 'tabEvents', icon: 'calendar', authOnly: false },
+  { name: 'leaderboard', labelKey: 'tabLeaderboard', icon: 'trophy', authOnly: true },
+  { name: 'favorites', labelKey: 'tabFavorites', icon: 'heart', authOnly: true },
+  { name: 'profile', labelKey: 'tabProfile', icon: 'user', authOnly: true, hidden: true },
+] as const;
 
 export default function TabLayout() {
   const { session } = useSession();
   const { colors } = useTheme();
+  const { s } = useI18n();
 
   return (
     <Tabs
@@ -41,8 +43,8 @@ export default function TabLayout() {
           key={tab.name}
           name={tab.name}
           options={{
-            title: tab.label,
-            tabBarAccessibilityLabel: tab.label,
+            title: s(tab.labelKey),
+            tabBarAccessibilityLabel: s(tab.labelKey),
             tabBarIcon: ({ color }: { color: string }) => (
               <Lucide name={tab.icon} size={TAB_ICON_SIZE} color={color} />
             ),

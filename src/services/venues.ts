@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { VenueInsert, VenueType } from '../types/database';
 
@@ -48,6 +49,51 @@ export async function getVenueById(id: number) {
 
 export async function createVenue(data: VenueInsert) {
   return supabase.from('venues').insert(data).select().single();
+}
+
+export async function uploadVenuePhoto(venueId: number, fileUri: string): Promise<{ url: string | null; error: string | null }> {
+  try {
+    const path = `venues/${venueId}/${Date.now()}.jpg`;
+
+    let uploadData: any;
+    let contentType: string;
+
+    if (Platform.OS === 'web') {
+      const response = await fetch(fileUri);
+      uploadData = await response.blob();
+      contentType = 'image/jpeg';
+    } else {
+      // Native: FormData with file URI — proven pattern for Supabase Storage on RN
+      const formData = new FormData();
+      formData.append('', {
+        uri: fileUri,
+        name: `${Date.now()}.jpg`,
+        type: 'image/jpeg',
+      } as unknown as Blob);
+      uploadData = formData;
+      contentType = 'multipart/form-data';
+    }
+
+    const { error: uploadError } = await supabase.storage
+      .from('venue-photos')
+      .upload(path, uploadData, { contentType, upsert: false });
+
+    if (uploadError) return { url: null, error: uploadError.message };
+
+    const { data } = supabase.storage.from('venue-photos').getPublicUrl(path);
+    return { url: data.publicUrl, error: null };
+  } catch (err: any) {
+    return { url: null, error: err?.message || 'Upload failed' };
+  }
+}
+
+export async function addPhotoToVenue(venueId: number, currentPhotos: string[], newUrl: string) {
+  return supabase
+    .from('venues')
+    .update({ photos: [...currentPhotos, newUrl] })
+    .eq('id', venueId)
+    .select()
+    .single();
 }
 
 export async function searchVenues(query: string) {

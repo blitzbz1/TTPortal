@@ -269,7 +269,7 @@ export default function SignInScreen() {
             onPress={handleSubmit}
             disabled={loading}
             accessibilityRole="button"
-            accessibilityLabel={s('authSubmitSignup')}
+            accessibilityLabel={activeTab === 'signup' ? s('authSubmitSignup') : s('authSubmitLogin')}
             testID="submit-button"
             style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
           >

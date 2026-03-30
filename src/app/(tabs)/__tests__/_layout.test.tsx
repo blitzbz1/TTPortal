@@ -80,6 +80,17 @@ jest.mock('../../../hooks/useTheme', () => ({
   }),
 }));
 
+jest.mock('../../../hooks/useI18n', () => ({
+  useI18n: () => ({
+    s: (key: string) => {
+      const map: Record<string, string> = require('../../../locales/ro.json');
+      return map[key] || key;
+    },
+    lang: 'ro' as const,
+    setLang: jest.fn(),
+  }),
+}));
+
 jest.mock('../../../components/Icon', () => {
   const { View } = require('react-native');
   return {

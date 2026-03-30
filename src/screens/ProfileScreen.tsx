@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Linking, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Linking, Switch, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
-import { TabBar } from '../components/TabBar';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts } from '../theme';
@@ -39,37 +38,34 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const [stats, setStats] = useState<{ total_checkins: number; events_joined: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [profileError, setProfileError] = useState(false);
   const [notifyCheckins, setNotifyCheckins] = useState(true);
 
+  const loadProfile = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setProfileError(false);
+
+    try {
+      const profileRes = await getProfile(user.id);
+      if (profileRes.data) {
+        setProfile(profileRes.data as Profile);
+        setNotifyCheckins((profileRes.data as any).notify_friend_checkins ?? true);
+      }
+
+      const statsRes = await getProfileStats(user.id);
+      if (statsRes.data) setStats(statsRes.data as { total_checkins: number; events_joined: number });
+    } catch {
+      setProfileError(true);
+    } finally {
+      setLoading(false);
+      setDataLoaded(true);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!user || dataLoaded) return;
-    let cancelled = false;
-    setLoading(true);
-
-    (async () => {
-      try {
-        const profileRes = await getProfile(user.id);
-        if (cancelled) return;
-        if (profileRes.data) {
-          setProfile(profileRes.data as Profile);
-          setNotifyCheckins((profileRes.data as any).notify_friend_checkins ?? true);
-        }
-
-        const statsRes = await getProfileStats(user.id);
-        if (cancelled) return;
-        if (statsRes.data) setStats(statsRes.data as { total_checkins: number; events_joined: number });
-      } catch {
-        // ignore
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-          setDataLoaded(true);
-        }
-      }
-    })();
-
-    return () => { cancelled = true; };
+    loadProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, dataLoaded]);
 
@@ -102,25 +98,43 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
     }
   }, [user]);
 
-  const handleLogout = useCallback(async () => {
-    await signOut();
-    router.replace('/sign-in' as any);
-  }, [signOut, router]);
+  const handleLogout = useCallback(() => {
+    Alert.alert(
+      s('logout'),
+      s('confirmLogout'),
+      [
+        { text: s('cancel'), style: 'cancel' },
+        { text: s('logout'), style: 'destructive', onPress: async () => {
+          await signOut();
+          router.replace('/sign-in' as any);
+        }},
+      ]
+    );
+  }, [signOut, router, s]);
 
   if (loading) {
     return (
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: insets.top }]}>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/' as any)}>
+          <TouchableOpacity onPress={() => router.back()}>
             <Lucide name="arrow-left" size={22} color={colors.textOnPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{s('myProfile')}</Text>
           <View style={{ width: 22 }} />
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          {profileError ? (
+            <>
+              <Lucide name="alert-triangle" size={28} color={colors.textFaint} />
+              <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint, marginTop: 12 }}>{s('profileLoadError')}</Text>
+              <TouchableOpacity onPress={loadProfile} style={{ marginTop: 12 }}>
+                <Text style={{ fontFamily: Fonts.body, fontSize: 13, fontWeight: '600', color: colors.primaryMid }}>{s('retry')}</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <ActivityIndicator size="large" color={colors.primary} />
+          )}
         </View>
-        {!hideTabBar && <TabBar activeTab="profile" />}
       </View>
     );
   }
@@ -129,7 +143,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/' as any)}>
+        <TouchableOpacity onPress={() => router.back()}>
           <Lucide name="arrow-left" size={22} color={colors.textOnPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('myProfile')}</Text>
@@ -143,20 +157,9 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{initials}</Text>
             </View>
-            <View style={styles.onlineDot} />
           </View>
           <Text style={styles.name}>{fullName || s('user')}</Text>
           {usernameDisplay ? <Text style={styles.username}>{usernameDisplay}</Text> : null}
-          <View style={styles.badges}>
-            <View style={styles.badgeGreen}>
-              <Text style={styles.badgeEmoji}>{'\uD83C\uDFD3'}</Text>
-              <Text style={styles.badgeGreenText}>{s('activePlayer')}</Text>
-            </View>
-            <View style={styles.badgePurple}>
-              <Text style={styles.badgeEmoji}>{'\u2B50'}</Text>
-              <Text style={styles.badgePurpleText}>{s('topContributor')}</Text>
-            </View>
-          </View>
         </View>
 
         {/* Stats */}
@@ -289,7 +292,6 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
         </View>
       </ScrollView>
 
-      {!hideTabBar && <TabBar activeTab="profile" />}
     </View>
   );
 }
@@ -344,17 +346,6 @@ function createStyles(colors: ThemeColors) {
       fontWeight: '700',
       color: colors.textOnPrimary,
     },
-    onlineDot: {
-      position: 'absolute',
-      bottom: 4,
-      right: 4,
-      width: 18,
-      height: 18,
-      borderRadius: 9,
-      backgroundColor: colors.primaryLight,
-      borderWidth: 3,
-      borderColor: colors.bgAlt,
-    },
     name: {
       fontFamily: Fonts.heading,
       fontSize: 22,
@@ -365,43 +356,6 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.body,
       fontSize: 14,
       color: colors.textFaint,
-    },
-    badges: {
-      flexDirection: 'row',
-      gap: 8,
-    },
-    badgeEmoji: {
-      fontSize: 12,
-    },
-    badgeGreen: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.primaryDim,
-      borderRadius: 100,
-      paddingVertical: 4,
-      paddingHorizontal: 10,
-      gap: 4,
-    },
-    badgeGreenText: {
-      fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '600',
-      color: colors.primaryMid,
-    },
-    badgePurple: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.purplePale,
-      borderRadius: 100,
-      paddingVertical: 4,
-      paddingHorizontal: 10,
-      gap: 4,
-    },
-    badgePurpleText: {
-      fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '600',
-      color: colors.purple,
     },
     statsRow: {
       flexDirection: 'row',

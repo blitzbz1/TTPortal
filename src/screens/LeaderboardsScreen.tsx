@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '../components/Icon';
-import { TabBar } from '../components/TabBar';
 import { CityPickerModal } from '../components/CityPickerModal';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
@@ -33,6 +32,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
   const [loading, setLoading] = useState(true);
   const [cityModalVisible, setCityModalVisible] = useState(false);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const { user } = useSession();
   const { s } = useI18n();
   const { colors } = useTheme();
@@ -56,12 +56,18 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
     }
   }, [activeTab, selectedCity]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchLeaderboard();
+    setRefreshing(false);
+  }, [fetchLeaderboard]);
+
   useEffect(() => {
     fetchLeaderboard();
   }, [fetchLeaderboard]);
 
   const getInitials = (name?: string) => {
-    if (!name) return '??';
+    if (!name) return '?';
     return name
       .split(' ')
       .map((w: string) => w[0])
@@ -95,11 +101,11 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
         <Text style={styles.headerTitle}>{s('leaderboard')}</Text>
         <TouchableOpacity style={styles.filterBtn} onPress={() => setCityModalVisible(true)}>
           <Lucide name="map-pin" size={14} color={colors.textOnPrimary} />
-          <Text style={styles.filterText}>{selectedCity || 'București'}</Text>
+          <Text style={styles.filterText}>{selectedCity || s('allRomania')}</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scroll}>
+      <ScrollView style={styles.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
         {/* Tabs */}
         <View style={styles.tabs}>
           {[
@@ -207,7 +213,6 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
         )}
       </ScrollView>
 
-      {!hideTabBar && <TabBar activeTab="leaderboard" />}
 
       <CityPickerModal
         visible={cityModalVisible}

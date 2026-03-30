@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
+import { useI18n } from '../hooks/useI18n';
 import type { ThemeColors } from '../theme';
 import { Fonts, Radius } from '../theme';
 import { getVenues, searchVenues } from '../services/venues';
@@ -38,6 +39,7 @@ export function VenuePickerModal({
   onClose,
 }: VenuePickerModalProps) {
   const { colors } = useTheme();
+  const { s } = useI18n();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [venues, setVenues] = useState<VenueOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,7 @@ export function VenuePickerModal({
         <TouchableOpacity style={styles.backdropTouchable} activeOpacity={1} onPress={onClose} />
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.title}>Alege locația</Text>
+            <Text style={styles.title}>{s('venuePickerTitle')}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={8}>
               <Lucide name="x" size={22} color={colors.textMuted} />
             </TouchableOpacity>
@@ -81,7 +83,7 @@ export function VenuePickerModal({
             <Lucide name="search" size={18} color={colors.textFaint} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Caută locație..."
+              placeholder={s('venuePickerSearch')}
               placeholderTextColor={colors.textFaint}
               value={query}
               onChangeText={setQuery}
@@ -95,7 +97,7 @@ export function VenuePickerModal({
             </View>
           ) : venues.length === 0 ? (
             <View style={styles.loader}>
-              <Text style={styles.emptyText}>Nicio locație găsită</Text>
+              <Text style={styles.emptyText}>{s('venuePickerEmpty')}</Text>
             </View>
           ) : (
             <ScrollView bounces={false}>
@@ -136,7 +138,7 @@ function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     backdrop: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.4)',
+      backgroundColor: colors.overlay,
       justifyContent: 'flex-end',
     },
     backdropTouchable: { flex: 1 },

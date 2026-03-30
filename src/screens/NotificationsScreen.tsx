@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Animated, PanResponder, Platform, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Animated, PanResponder, Platform, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -68,6 +68,7 @@ export function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [pendingMap, setPendingMap] = useState<Map<string, number>>(new Map()); // sender_id → friendship id
   const [respondedIds, setRespondedIds] = useState<Set<string>>(new Set());
+  const [refreshing, setRefreshing] = useState(false);
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const ICON_MAP = useMemo(() => getIconMap(colors), [colors]);
@@ -91,6 +92,12 @@ export function NotificationsScreen() {
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchNotifications();
+    setRefreshing(false);
+  }, [fetchNotifications]);
 
   useEffect(() => {
     fetchNotifications();
@@ -203,7 +210,7 @@ export function NotificationsScreen() {
           <Text style={styles.emptyText}>{s('noNotifications')}</Text>
         </View>
       ) : (
-        <ScrollView style={styles.scroll}>
+        <ScrollView style={styles.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
           {notifications.map((n) => {
             const icon = ICON_MAP[n.type] || ICON_MAP.friend_request;
             return (

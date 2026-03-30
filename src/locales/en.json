@@ -342,5 +342,25 @@
   "recurringWeekly": "Repeats weekly",
   "recurringMonthly": "Repeats monthly",
   "stopRecurrence": "Stop recurrence",
-  "stopRecurrenceConfirm": "No more future instances will be generated for this series."
+  "stopRecurrenceConfirm": "No more future instances will be generated for this series.",
+
+  "venuePickerTitle": "Choose venue",
+  "venuePickerSearch": "Search venue...",
+  "venuePickerEmpty": "No venues found",
+  "checkout": "Check out",
+  "couldNotGetLocation": "Could not get location",
+  "geocodeSuccess": "Address located on map",
+  "confirmLogout": "Are you sure you want to sign out?",
+  "noFriendsHere": "No friends checked in here",
+  "retry": "Retry",
+  "venueLoadError": "Could not load venues",
+  "profileLoadError": "Could not load profile",
+  "customMinutesPlaceholder": "e.g. 90",
+  "noPhotosYet": "No photos yet",
+  "favAdd": "Add to favorites",
+  "favRemove": "Remove from favorites",
+  "addPhoto": "Add photo",
+  "photoUploaded": "Photo uploaded",
+  "photoUploadError": "Could not upload photo",
+  "photoPermissionDenied": "Photo library access denied"
 }

@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Lucide } from '../components/Icon';
-import { TabBar } from '../components/TabBar';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts } from '../theme';
@@ -22,6 +21,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
   const [favorites, setFavorites] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('recent');
+  const [refreshing, setRefreshing] = useState(false);
   const { user } = useSession();
   const { s } = useI18n();
   const router = useRouter();
@@ -44,9 +44,17 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  useEffect(() => {
-    fetchFavorites();
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchFavorites();
+    setRefreshing(false);
   }, [fetchFavorites]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchFavorites();
+    }, [fetchFavorites])
+  );
 
   const handleRemove = useCallback(async (venueId: number) => {
     if (!user) return;
@@ -120,7 +128,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
         {loading ? (
           <ActivityIndicator size="large" color={colors.accentBright} style={{ marginTop: 40 }} />
         ) : sortedFavorites.length === 0 ? (
@@ -174,7 +182,6 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
         )}
       </ScrollView>
 
-      {!hideTabBar && <TabBar activeTab="favorites" />}
     </View>
   );
 }

@@ -342,5 +342,25 @@
   "recurringWeekly": "Se repetă săptămânal",
   "recurringMonthly": "Se repetă lunar",
   "stopRecurrence": "Oprește recurența",
-  "stopRecurrenceConfirm": "Nu se vor mai genera instanțe viitoare pentru această serie."
+  "stopRecurrenceConfirm": "Nu se vor mai genera instanțe viitoare pentru această serie.",
+
+  "venuePickerTitle": "Alege locația",
+  "venuePickerSearch": "Caută locație...",
+  "venuePickerEmpty": "Nicio locație găsită",
+  "checkout": "Check-out",
+  "couldNotGetLocation": "Nu s-a putut determina locația",
+  "geocodeSuccess": "Adresa a fost localizată pe hartă",
+  "confirmLogout": "Ești sigur că vrei să te deconectezi?",
+  "noFriendsHere": "Niciun prieten prezent aici",
+  "retry": "Reîncearcă",
+  "venueLoadError": "Nu s-au putut încărca locațiile",
+  "profileLoadError": "Nu s-a putut încărca profilul",
+  "customMinutesPlaceholder": "ex. 90",
+  "noPhotosYet": "Nicio poză încă",
+  "favAdd": "Adaugă la favorite",
+  "favRemove": "Elimină din favorite",
+  "addPhoto": "Adaugă poză",
+  "photoUploaded": "Poza a fost încărcată",
+  "photoUploadError": "Nu s-a putut încărca poza",
+  "photoPermissionDenied": "Acces la galerie refuzat"
 }
