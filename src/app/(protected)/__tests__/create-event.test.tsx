@@ -124,7 +124,7 @@ describe('CreateEventRoute – essentials', () => {
   it('passes starts_at without ends_at by default', async () => {
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
 
     const args = mockCreateEvent.mock.calls[0][0];
     expect(new Date(args.starts_at).toISOString()).toBe(args.starts_at);
@@ -135,7 +135,7 @@ describe('CreateEventRoute – essentials', () => {
   it('auto-joins the organizer after creation', async () => {
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     expect(mockJoinEvent).toHaveBeenCalledWith(42, 'user-123');
   });
 
@@ -144,14 +144,14 @@ describe('CreateEventRoute – essentials', () => {
     const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     expect(alertSpy).toHaveBeenCalledWith('Eroare', 'Nu s-a putut crea evenimentul.');
     expect(mockBack).not.toHaveBeenCalled();
   });
 
   it('does not call createEvent when title is empty', async () => {
     render(<CreateEventRoute />);
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     expect(mockCreateEvent).not.toHaveBeenCalled();
   });
 });
@@ -208,14 +208,14 @@ describe('CreateEventRoute – venue picker', () => {
     fireEvent.press(screen.getByText('Parcul Herăstrău'));
 
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Meci');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     expect(mockCreateEvent).toHaveBeenCalledWith(expect.objectContaining({ venue_id: 1 }));
   });
 
   it('sends venue_id as undefined when no venue is selected', async () => {
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     expect(mockCreateEvent).toHaveBeenCalledWith(expect.objectContaining({ venue_id: undefined }));
   });
 });
@@ -235,7 +235,7 @@ describe('CreateEventRoute – duration & recurrence', () => {
     fireEvent.press(screen.getByText('3h'));
 
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
 
     const args = mockCreateEvent.mock.calls[0][0];
     expect(new Date(args.ends_at).getTime() - new Date(args.starts_at).getTime()).toBe(3 * 3600000);
@@ -250,7 +250,7 @@ describe('CreateEventRoute – duration & recurrence', () => {
     fireEvent.press(screen.getByText('Fără'));
 
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     expect(mockCreateEvent.mock.calls[0][0].ends_at).toBeUndefined();
   });
 
@@ -268,7 +268,7 @@ describe('CreateEventRoute – duration & recurrence', () => {
     fireEvent.press(screen.getByText('Săptămânal'));
 
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
 
     const args = mockCreateEvent.mock.calls[0][0];
     expect(args.recurrence_rule).toBe('weekly');
@@ -283,7 +283,7 @@ describe('CreateEventRoute – duration & recurrence', () => {
     fireEvent.press(screen.getByText('Zilnic'));
 
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     expect(mockCreateEvent.mock.calls[0][0].recurrence_rule).toBe('daily');
   });
 
@@ -294,7 +294,7 @@ describe('CreateEventRoute – duration & recurrence', () => {
     fireEvent.press(screen.getByText('Lunar'));
 
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
 
     const args = mockCreateEvent.mock.calls[0][0];
     expect(args.recurrence_rule).toBe('monthly');
@@ -305,7 +305,7 @@ describe('CreateEventRoute – duration & recurrence', () => {
   it('does not pass recurrence_rule by default', async () => {
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     expect(mockCreateEvent.mock.calls[0][0].recurrence_rule).toBeUndefined();
   });
 
@@ -355,7 +355,7 @@ describe('CreateEventRoute – tournament', () => {
     fireEvent.press(screen.getByText('Turneu'));
 
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Cupa');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
 
     const args = mockCreateEvent.mock.calls[0][0];
     expect(args.event_type).toBe('tournament');
@@ -371,7 +371,7 @@ describe('CreateEventRoute – tournament', () => {
     fireEvent.press(screen.getByText('Turneu'));
 
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Cupa');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     expect(mockCreateEvent.mock.calls[0][0].recurrence_rule).toBeUndefined();
   });
 });
@@ -382,14 +382,14 @@ describe('CreateEventRoute – max participants', () => {
     openSection('Opțiuni');
     fireEvent.changeText(screen.getByPlaceholderText('ex: 6'), '10');
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     expect(mockCreateEvent).toHaveBeenCalledWith(expect.objectContaining({ max_participants: 10 }));
   });
 
   it('omits max_participants when left empty', async () => {
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     expect(mockCreateEvent.mock.calls[0][0].max_participants).toBeUndefined();
   });
 });
@@ -398,7 +398,7 @@ describe('CreateEventRoute – friend invites', () => {
   it('shows friend picker after successful event creation', async () => {
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     await act(async () => { jest.runAllTimers(); });
     await waitFor(() => {
       expect(mockGetFriends).toHaveBeenCalledWith('user-123');
@@ -411,7 +411,7 @@ describe('CreateEventRoute – friend invites', () => {
   it('sends invites when friends are selected and confirmed', async () => {
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     await act(async () => { jest.runAllTimers(); });
     await waitFor(() => { expect(screen.getByText('Andrei P.')).toBeTruthy(); });
 
@@ -427,7 +427,7 @@ describe('CreateEventRoute – friend invites', () => {
   it('skips invites and navigates back when skip is pressed', async () => {
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    await act(async () => { fireEvent.press(screen.getByText('Creează →')); });
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     await act(async () => { jest.runAllTimers(); });
     await waitFor(() => { expect(screen.getByText('Andrei P.')).toBeTruthy(); });
 

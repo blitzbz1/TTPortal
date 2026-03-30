@@ -237,7 +237,7 @@ export default function CreateEventRoute() {
                 const [y, m, d] = (e.target as any).value.split('-').map(Number);
                 setDate((prev) => { const next = new Date(prev); next.setFullYear(y, m - 1, d); return next; });
               }}
-              style={{ fontFamily: Fonts.body, fontSize: 14, border: 'none', background: 'transparent', color: colors.text }}
+              style={{ fontFamily: Fonts.body, fontSize: 16, border: 'none', background: 'transparent', color: colors.text, colorScheme: isDark ? 'dark' : 'light', width: '100%' }}
             />
           </View>
           <View style={s.dateBtn}>
@@ -250,7 +250,7 @@ export default function CreateEventRoute() {
                 const [h, m] = (e.target as any).value.split(':').map(Number);
                 setDate((prev) => { const next = new Date(prev); next.setHours(h, m, 0, 0); return next; });
               }}
-              style={{ fontFamily: Fonts.body, fontSize: 14, border: 'none', background: 'transparent', color: colors.text }}
+              style={{ fontFamily: Fonts.body, fontSize: 16, border: 'none', background: 'transparent', color: colors.text, colorScheme: isDark ? 'dark' : 'light', width: '100%' }}
             />
           </View>
         </View>
@@ -353,7 +353,7 @@ export default function CreateEventRoute() {
                     const [y, m, d] = (e.target as any).value.split('-').map(Number);
                     setEndDate(new Date(y, m - 1, d, 20, 0, 0));
                   }}
-                  style={{ fontFamily: Fonts.body, fontSize: 14, border: 'none', background: 'transparent', color: colors.text }}
+                  style={{ fontFamily: Fonts.body, fontSize: 16, border: 'none', background: 'transparent', color: colors.text, colorScheme: isDark ? 'dark' : 'light', width: '100%' }}
                 />
               </View>
             ) : (
@@ -397,7 +397,7 @@ export default function CreateEventRoute() {
         onPress={handleCreate}
         disabled={loading}
       >
-        <Text style={s.btnText}>{loading ? 'Se creează...' : 'Creează →'}</Text>
+        <Text style={s.btnText}>{loading ? 'Se creează...' : 'Creează'}</Text>
       </Pressable>
       <Pressable onPress={() => router.back()} style={s.cancelBtn}>
         <Text style={s.cancelText}>Anulează</Text>

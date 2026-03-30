@@ -834,6 +834,7 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.4)',
       justifyContent: 'flex-end',
+      alignItems: 'center',
     },
     sheet: {
       backgroundColor: colors.bgAlt,
@@ -841,6 +842,8 @@ function createStyles(colors: ThemeColors) {
       borderTopRightRadius: 20,
       paddingHorizontal: 20,
       maxHeight: '85%',
+      width: '100%',
+      maxWidth: 430,
     },
     handleWrap: {
       alignItems: 'center',

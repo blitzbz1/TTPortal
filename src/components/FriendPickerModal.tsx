@@ -184,6 +184,7 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.4)',
       justifyContent: 'flex-end',
+      alignItems: 'center',
     },
     backdropTouchable: { flex: 1 },
     sheet: {
@@ -192,6 +193,8 @@ function createStyles(colors: ThemeColors) {
       borderTopRightRadius: Radius.xl,
       maxHeight: '75%',
       paddingBottom: 32,
+      width: '100%',
+      maxWidth: 430,
     },
     header: {
       flexDirection: 'row',

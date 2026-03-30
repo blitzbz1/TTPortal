@@ -140,6 +140,7 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       backgroundColor: colors.overlay,
       justifyContent: 'flex-end',
+      alignItems: 'center',
     },
     backdropTouchable: { flex: 1 },
     sheet: {
@@ -148,6 +149,8 @@ function createStyles(colors: ThemeColors) {
       borderTopRightRadius: Radius.xl,
       maxHeight: '70%',
       paddingBottom: 32,
+      width: '100%',
+      maxWidth: 430,
     },
     header: {
       flexDirection: 'row',

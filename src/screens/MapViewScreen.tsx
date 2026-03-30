@@ -303,11 +303,6 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
 
       {/* Venue List Panel */}
       <View style={styles.panel}>
-        {/* Handle */}
-        <View style={styles.panelHandle}>
-          <View style={styles.handleBar} />
-        </View>
-
         {/* Search Row */}
         <View style={styles.searchRow}>
           <View style={styles.searchBar}>
@@ -607,25 +602,7 @@ function createStyles(colors: ThemeColors) {
     panel: {
       flex: 1,
       backgroundColor: colors.bg,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      marginTop: -16,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.05,
-      shadowRadius: 16,
-      elevation: 5,
-    },
-    panelHandle: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: 28,
-    },
-    handleBar: {
-      width: 36,
-      height: 4,
-      borderRadius: 100,
-      backgroundColor: colors.border,
+      paddingTop: 8,
     },
     searchRow: {
       flexDirection: 'row',

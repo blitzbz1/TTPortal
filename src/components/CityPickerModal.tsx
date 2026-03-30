@@ -134,6 +134,7 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       backgroundColor: colors.overlay,
       justifyContent: 'flex-end',
+      alignItems: 'center',
     },
     backdropTouchable: {
       flex: 1,
@@ -143,6 +144,8 @@ function createStyles(colors: ThemeColors) {
       borderTopLeftRadius: Radius.xl,
       borderTopRightRadius: Radius.xl,
       maxHeight: '70%',
+      width: '100%',
+      maxWidth: 430,
       paddingBottom: 32,
     },
     header: {
