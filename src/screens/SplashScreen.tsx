@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Lucide } from '../components/Icon';
-import { Colors, Fonts, Radius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, Radius } from '../theme';
 
 const CITIES = [
   { name: 'București', count: '54' },
@@ -15,6 +17,9 @@ const CITIES = [
 ];
 
 export function SplashScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.container}>
       <View style={styles.content}>
@@ -33,7 +38,7 @@ export function SplashScreen() {
         {/* Middle */}
         <View style={styles.middle}>
           <TouchableOpacity style={styles.locationBtn}>
-            <Lucide name="locate" size={20} color={Colors.green} />
+            <Lucide name="locate" size={20} color={colors.primary} />
             <Text style={styles.locationText}>Folose&#537;te loca&#539;ia mea</Text>
           </TouchableOpacity>
 
@@ -73,134 +78,136 @@ export function SplashScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.green,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingBottom: 32,
-    paddingHorizontal: 28,
-  },
-  top: {
-    alignItems: 'center',
-    gap: 12,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff18',
-    borderRadius: 100,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    gap: 8,
-  },
-  badgeEmoji: {
-    fontSize: 16,
-  },
-  badgeText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#ffffffcc',
-  },
-  title: {
-    fontFamily: Fonts.heading,
-    fontSize: 34,
-    fontWeight: '800',
-    color: Colors.white,
-    letterSpacing: 2,
-  },
-  subtitle: {
-    fontFamily: Fonts.body,
-    fontSize: 17,
-    color: '#ffffffbb',
-    textAlign: 'center',
-    lineHeight: 17 * 1.45,
-  },
-  middle: {
-    alignItems: 'center',
-    gap: 24,
-  },
-  locationBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    height: 52,
-    gap: 10,
-    width: '100%',
-  },
-  locationText: {
-    fontFamily: Fonts.body,
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.green,
-  },
-  orText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: '#ffffff80',
-  },
-  cityGrid: {
-    flexDirection: 'row',
-    gap: 10,
-    width: '100%',
-  },
-  cityColumn: {
-    flex: 1,
-    gap: 8,
-  },
-  cityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#ffffff14',
-    borderRadius: Radius.md,
-    height: 44,
-    paddingHorizontal: 14,
-  },
-  cityName: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.white,
-  },
-  cityCount: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: '#ffffff66',
-  },
-  bottom: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  langActive: {
-    backgroundColor: '#ffffff20',
-    borderRadius: 100,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-  },
-  langActiveText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  langInactive: {
-    borderRadius: 100,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-  },
-  langInactiveText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#ffffff66',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.primary,
+    },
+    content: {
+      flex: 1,
+      justifyContent: 'space-between',
+      paddingTop: 60,
+      paddingBottom: 32,
+      paddingHorizontal: 28,
+    },
+    top: {
+      alignItems: 'center',
+      gap: 12,
+    },
+    badge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#ffffff18',
+      borderRadius: 100,
+      paddingVertical: 6,
+      paddingHorizontal: 14,
+      gap: 8,
+    },
+    badgeEmoji: {
+      fontSize: 16,
+    },
+    badgeText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '500',
+      color: '#ffffffcc',
+    },
+    title: {
+      fontFamily: Fonts.heading,
+      fontSize: 34,
+      fontWeight: '800',
+      color: colors.textOnPrimary,
+      letterSpacing: 2,
+    },
+    subtitle: {
+      fontFamily: Fonts.body,
+      fontSize: 17,
+      color: '#ffffffbb',
+      textAlign: 'center',
+      lineHeight: 17 * 1.45,
+    },
+    middle: {
+      alignItems: 'center',
+      gap: 24,
+    },
+    locationBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.bgAlt,
+      borderRadius: 14,
+      height: 52,
+      gap: 10,
+      width: '100%',
+    },
+    locationText: {
+      fontFamily: Fonts.body,
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    orText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: '#ffffff80',
+    },
+    cityGrid: {
+      flexDirection: 'row',
+      gap: 10,
+      width: '100%',
+    },
+    cityColumn: {
+      flex: 1,
+      gap: 8,
+    },
+    cityRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: '#ffffff14',
+      borderRadius: Radius.md,
+      height: 44,
+      paddingHorizontal: 14,
+    },
+    cityName: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.textOnPrimary,
+    },
+    cityCount: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      color: '#ffffff66',
+    },
+    bottom: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 4,
+    },
+    langActive: {
+      backgroundColor: '#ffffff20',
+      borderRadius: 100,
+      paddingVertical: 6,
+      paddingHorizontal: 14,
+    },
+    langActiveText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    langInactive: {
+      borderRadius: 100,
+      paddingVertical: 6,
+      paddingHorizontal: 14,
+    },
+    langInactiveText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '500',
+      color: '#ffffff66',
+    },
+  });
+}

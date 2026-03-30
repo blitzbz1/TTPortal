@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, Modal, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
-import { Colors, Fonts, Radius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getFriends, getPendingRequests, acceptRequest, declineRequest, searchUsers, sendRequest } from '../services/friends';
@@ -25,6 +27,8 @@ export function FriendsScreen() {
   const { user } = useSession();
   const router = useRouter();
   const { s } = useI18n();
+  const { colors } = useTheme();
+  const { styles, im } = useMemo(() => createStyles(colors), [colors]);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -162,7 +166,7 @@ export function FriendsScreen() {
       .toUpperCase();
   };
 
-  const AVATAR_COLORS = [Colors.green, Colors.greenMid, Colors.purple, Colors.purpleMid, Colors.orange, Colors.blue, Colors.inkMuted];
+  const AVATAR_COLORS = [colors.primary, colors.primaryMid, colors.purple, colors.purpleMid, colors.accent, colors.blue, colors.textMuted];
   const getColor = (index: number) => AVATAR_COLORS[index % AVATAR_COLORS.length];
 
   // Filter friends by search query
@@ -177,11 +181,11 @@ export function FriendsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Lucide name="arrow-left" size={24} color={Colors.ink} />
+          <Lucide name="arrow-left" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('friendsTitle')}</Text>
         <TouchableOpacity style={styles.inviteBtn} onPress={handleInvite}>
-          <Lucide name="user-plus" size={16} color={Colors.white} />
+          <Lucide name="user-plus" size={16} color={colors.textOnPrimary} />
           <Text style={styles.inviteBtnText}>{s('invite')}</Text>
         </TouchableOpacity>
       </View>
@@ -190,11 +194,11 @@ export function FriendsScreen() {
         {/* Search friends */}
         <View style={styles.searchWrap}>
           <View style={styles.searchBar}>
-            <Lucide name="search" size={18} color={Colors.inkFaint} />
+            <Lucide name="search" size={18} color={colors.textFaint} />
             <TextInput
               style={styles.searchInput}
               placeholder={s('searchFriends')}
-              placeholderTextColor={Colors.inkFaint}
+              placeholderTextColor={colors.textFaint}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -221,7 +225,7 @@ export function FriendsScreen() {
         </View>
 
         {loading ? (
-          <ActivityIndicator size="large" color={Colors.green} style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
         ) : (
           <>
             {/* Pending Invites */}
@@ -230,7 +234,7 @@ export function FriendsScreen() {
                 <Text style={styles.sectionLabel}>{s('receivedInvites')}</Text>
                 {pending.map((inv) => (
                   <View key={inv.id} style={styles.inviteCard}>
-                    <View style={[styles.inviteAvatar, { backgroundColor: Colors.purple }]}>
+                    <View style={[styles.inviteAvatar, { backgroundColor: colors.purple }]}>
                       <Text style={styles.inviteInitials}>
                         {getInitials(inv.requester?.full_name)}
                       </Text>
@@ -249,7 +253,7 @@ export function FriendsScreen() {
                         <Text style={styles.acceptText}>{s('accept')}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => handleDecline(inv.id)}>
-                        <Lucide name="x" size={20} color={Colors.inkFaint} />
+                        <Lucide name="x" size={20} color={colors.textFaint} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -269,7 +273,7 @@ export function FriendsScreen() {
                 </View>
                 {filteredFriends.length === 0 ? (
                   <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                    <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
+                    <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>
                       {searchQuery ? s('noFriendFound') : s('noFriendsYet')}
                     </Text>
                   </View>
@@ -305,7 +309,7 @@ export function FriendsScreen() {
               <View style={styles.section}>
                 {playingFriends.length === 0 ? (
                   <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                    <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
+                    <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>
                       {s('noFriendsPlaying')}
                     </Text>
                   </View>
@@ -367,7 +371,7 @@ export function FriendsScreen() {
               <TextInput
                 style={im.input}
                 placeholder="email@exemplu.com"
-                placeholderTextColor={Colors.inkFaint}
+                placeholderTextColor={colors.textFaint}
                 value={inviteEmail}
                 onChangeText={(t) => { setInviteEmail(t); setInviteResult('idle'); }}
                 keyboardType="email-address"
@@ -378,26 +382,26 @@ export function FriendsScreen() {
 
             {inviteResult === 'sent' && (
               <View style={im.resultRow}>
-                <Lucide name="check-circle" size={16} color={Colors.greenMid} />
-                <Text style={[im.resultText, { color: Colors.greenMid }]}>{s('requestSentSuccess')}</Text>
+                <Lucide name="check-circle" size={16} color={colors.primaryMid} />
+                <Text style={[im.resultText, { color: colors.primaryMid }]}>{s('requestSentSuccess')}</Text>
               </View>
             )}
             {inviteResult === 'not_found' && (
               <View style={im.resultRow}>
-                <Lucide name="alert-circle" size={16} color={Colors.orange} />
-                <Text style={[im.resultText, { color: Colors.orange }]}>{s('noUsersFound')}</Text>
+                <Lucide name="alert-circle" size={16} color={colors.accent} />
+                <Text style={[im.resultText, { color: colors.accent }]}>{s('noUsersFound')}</Text>
               </View>
             )}
             {inviteResult === 'already_friends' && (
               <View style={im.resultRow}>
-                <Lucide name="users" size={16} color={Colors.inkFaint} />
-                <Text style={[im.resultText, { color: Colors.inkFaint }]}>{s('alreadyFriends')}</Text>
+                <Lucide name="users" size={16} color={colors.textFaint} />
+                <Text style={[im.resultText, { color: colors.textFaint }]}>{s('alreadyFriends')}</Text>
               </View>
             )}
             {inviteResult === 'error' && (
               <View style={im.resultRow}>
-                <Lucide name="x-circle" size={16} color={Colors.red} />
-                <Text style={[im.resultText, { color: Colors.red }]}>{s('error')}</Text>
+                <Lucide name="x-circle" size={16} color={colors.red} />
+                <Text style={[im.resultText, { color: colors.red }]}>{s('error')}</Text>
               </View>
             )}
 
@@ -411,10 +415,10 @@ export function FriendsScreen() {
                 disabled={!inviteEmail.trim() || inviteLoading}
               >
                 {inviteLoading ? (
-                  <ActivityIndicator size="small" color={Colors.white} />
+                  <ActivityIndicator size="small" color={colors.textOnPrimary} />
                 ) : (
                   <>
-                    <Lucide name="send" size={14} color={Colors.white} />
+                    <Lucide name="send" size={14} color={colors.textOnPrimary} />
                     <Text style={im.sendText}>{s('sendRequest')}</Text>
                   </>
                 )}
@@ -428,352 +432,356 @@ export function FriendsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.white,
-    height: 52,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  headerTitle: {
-    fontFamily: Fonts.heading,
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.ink,
-  },
-  inviteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.green,
-    borderRadius: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    gap: 6,
-  },
-  inviteBtnText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  scroll: {
-    flex: 1,
-  },
-  searchWrap: {
-    padding: 12,
-    paddingHorizontal: 16,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.bgDark,
-    borderRadius: Radius.md,
-    height: 40,
-    paddingHorizontal: 12,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.ink,
-    height: 40,
-    padding: 0,
-  },
-  tabs: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-  },
-  tab: {
-    flex: 1,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  tabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: Colors.green,
-  },
-  tabText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.inkFaint,
-  },
-  tabTextActive: {
-    fontWeight: '600',
-    color: Colors.green,
-  },
-  section: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-    gap: 10,
-  },
-  sectionLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.inkMuted,
-  },
-  inviteCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.purplePale,
-    borderRadius: 12,
-    padding: 12,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: Colors.purpleMid,
-  },
-  inviteAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  inviteInitials: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  inviteInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  inviteName: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.ink,
-  },
-  inviteMutual: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.inkFaint,
-  },
-  inviteActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  acceptBtn: {
-    backgroundColor: Colors.green,
-    borderRadius: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-  },
-  acceptText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  friendsLabel: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: 8,
-  },
-  onlineCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  onlineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.greenLight,
-  },
-  onlineText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.greenLight,
-  },
-  friendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  friendAvatarWrap: {
-    width: 44,
-    height: 44,
-  },
-  friendAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  friendInitials: {
-    fontFamily: Fonts.body,
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  friendOnlineDot: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: Colors.greenLight,
-    borderWidth: 2,
-    borderColor: Colors.bg,
-  },
-  friendInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  friendName: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.ink,
-  },
-  friendStatus: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.inkFaint,
-  },
-  playingDot: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: Colors.greenLight,
-    borderWidth: 2,
-    borderColor: Colors.bg,
-  },
-  playingVenue: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.greenMid,
-  },
-  playingTime: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.inkFaint,
-  },
-  playingBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.greenPale,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playingBadgeText: {
-    fontSize: 16,
-  },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.green,
-    borderRadius: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    gap: 4,
-  },
-  addBtnText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  sentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  sentText: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    fontWeight: '500',
-    color: Colors.inkFaint,
-  },
-  shareSection: {
-    padding: 16,
-    paddingTop: 12,
-  },
-  shareCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.greenPale,
-    borderRadius: 12,
-    padding: 16,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: Colors.greenDim,
-  },
-  shareIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shareInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  shareTitle: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.ink,
-  },
-  shareDesc: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.inkMuted,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.bgAlt,
+      height: 52,
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    inviteBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 16,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      gap: 6,
+    },
+    inviteBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    scroll: {
+      flex: 1,
+    },
+    searchWrap: {
+      padding: 12,
+      paddingHorizontal: 16,
+    },
+    searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.bgMuted,
+      borderRadius: Radius.md,
+      height: 40,
+      paddingHorizontal: 12,
+      gap: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    searchInput: {
+      flex: 1,
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.text,
+      height: 40,
+      padding: 0,
+    },
+    tabs: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+    },
+    tab: {
+      flex: 1,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    tabActive: {
+      borderBottomWidth: 2,
+      borderBottomColor: colors.primary,
+    },
+    tabText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.textFaint,
+    },
+    tabTextActive: {
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    section: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 8,
+      gap: 10,
+    },
+    sectionLabel: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    inviteCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.purplePale,
+      borderRadius: 12,
+      padding: 12,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: colors.purpleMid,
+    },
+    inviteAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    inviteInitials: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    inviteInfo: {
+      flex: 1,
+      gap: 2,
+    },
+    inviteName: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    inviteMutual: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      color: colors.textFaint,
+    },
+    inviteActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    acceptBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: 16,
+      paddingVertical: 6,
+      paddingHorizontal: 14,
+    },
+    acceptText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    friendsLabel: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingBottom: 8,
+    },
+    onlineCount: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    onlineDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.primaryLight,
+    },
+    onlineText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.primaryLight,
+    },
+    friendRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+      gap: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    friendAvatarWrap: {
+      width: 44,
+      height: 44,
+    },
+    friendAvatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    friendInitials: {
+      fontFamily: Fonts.body,
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    friendOnlineDot: {
+      position: 'absolute',
+      bottom: 0,
+      right: 0,
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      backgroundColor: colors.primaryLight,
+      borderWidth: 2,
+      borderColor: colors.bg,
+    },
+    friendInfo: {
+      flex: 1,
+      gap: 2,
+    },
+    friendName: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    friendStatus: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      color: colors.textFaint,
+    },
+    playingDot: {
+      position: 'absolute',
+      bottom: 0,
+      right: 0,
+      width: 14,
+      height: 14,
+      borderRadius: 7,
+      backgroundColor: colors.primaryLight,
+      borderWidth: 2,
+      borderColor: colors.bg,
+    },
+    playingVenue: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.primaryMid,
+    },
+    playingTime: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textFaint,
+    },
+    playingBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.primaryPale,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    playingBadgeText: {
+      fontSize: 16,
+    },
+    addBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 16,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      gap: 4,
+    },
+    addBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    sentBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    sentText: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.textFaint,
+    },
+    shareSection: {
+      padding: 16,
+      paddingTop: 12,
+    },
+    shareCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primaryPale,
+      borderRadius: 12,
+      padding: 16,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: colors.primaryDim,
+    },
+    shareIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    shareInfo: {
+      flex: 1,
+      gap: 2,
+    },
+    shareTitle: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    shareDesc: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+  });
 
-const im = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', alignItems: 'center' },
-  sheet: { backgroundColor: Colors.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingBottom: 32, width: '100%', maxWidth: 430 },
-  handleWrap: { alignItems: 'center', paddingVertical: 10 },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: Colors.border },
-  title: { fontFamily: Fonts.heading, fontSize: 18, fontWeight: '700', color: Colors.ink, marginBottom: 4 },
-  desc: { fontFamily: Fonts.body, fontSize: 13, color: Colors.inkFaint, marginBottom: 16 },
-  inputRow: { marginBottom: 12 },
-  input: { borderWidth: 1.5, borderColor: Colors.border, borderRadius: Radius.md, padding: 14, fontFamily: Fonts.body, fontSize: 16, color: Colors.ink },
-  resultRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, paddingHorizontal: 4 },
-  resultText: { fontFamily: Fonts.body, fontSize: 13, fontWeight: '500' },
-  actions: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  cancelBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, borderWidth: 1, borderColor: Colors.border },
-  cancelText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: Colors.inkMuted },
-  sendBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, backgroundColor: Colors.green, gap: 6 },
-  sendBtnDisabled: { opacity: 0.5 },
-  sendText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: Colors.white },
-});
+  const im = StyleSheet.create({
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', alignItems: 'center' },
+    sheet: { backgroundColor: colors.bgAlt, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingBottom: 32, width: '100%', maxWidth: 430 },
+    handleWrap: { alignItems: 'center', paddingVertical: 10 },
+    handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border },
+    title: { fontFamily: Fonts.heading, fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 4 },
+    desc: { fontFamily: Fonts.body, fontSize: 13, color: colors.textFaint, marginBottom: 16 },
+    inputRow: { marginBottom: 12 },
+    input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: Radius.md, padding: 14, fontFamily: Fonts.body, fontSize: 16, color: colors.text },
+    resultRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, paddingHorizontal: 4 },
+    resultText: { fontFamily: Fonts.body, fontSize: 13, fontWeight: '500' },
+    actions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+    cancelBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, borderWidth: 1, borderColor: colors.border },
+    cancelText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: colors.textMuted },
+    sendBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, backgroundColor: colors.primary, gap: 6 },
+    sendBtnDisabled: { opacity: 0.5 },
+    sendText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: colors.textOnPrimary },
+  });
+
+  return { styles, im };
+}

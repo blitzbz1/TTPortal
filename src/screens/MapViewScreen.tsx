@@ -7,7 +7,9 @@ import * as Location from 'expo-location';
 import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
 import { CityPickerModal } from '../components/CityPickerModal';
-import { Colors, Fonts, Radius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, Radius } from '../theme';
 import { getVenues } from '../services/venues';
 import { getCities } from '../services/cities';
 import { getActiveFriendCheckins } from '../services/checkins';
@@ -39,6 +41,9 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const { s } = useI18n();
   const { user } = useSession();
   const { unreadCount } = useNotifications();
+  const { colors } = useTheme();
+  const { styles, pinStyles } = useMemo(() => createStyles(colors), [colors]);
+
   const [venues, setVenues] = useState<VenueWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,17 +61,17 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     { key: 'verificat', label: s('filterVerified'), icon: 'check' },
   ];
 
-  const conditionLabel = (condition: VenueCondition | null) => {
-    if (!condition) return { label: s('conditionUnknown'), color: Colors.inkFaint };
+  const conditionLabel = useCallback((condition: VenueCondition | null) => {
+    if (!condition) return { label: s('conditionUnknown'), color: colors.textFaint };
     const map: Record<string, { label: string; color: string }> = {
-      buna: { label: s('conditionGood'), color: Colors.greenLight },
-      acceptabila: { label: s('conditionAcceptable'), color: Colors.amber },
-      deteriorata: { label: s('conditionDegraded'), color: Colors.red },
-      profesionala: { label: s('conditionPro'), color: '#1a5080' },
-      necunoscuta: { label: s('conditionUnknown'), color: Colors.inkFaint },
+      buna: { label: s('conditionGood'), color: colors.primaryLight },
+      acceptabila: { label: s('conditionAcceptable'), color: colors.amber },
+      deteriorata: { label: s('conditionDegraded'), color: colors.red },
+      profesionala: { label: s('conditionPro'), color: colors.conditionPro },
+      necunoscuta: { label: s('conditionUnknown'), color: colors.textFaint },
     };
-    return map[condition] || { label: condition, color: Colors.inkFaint };
-  };
+    return map[condition] || { label: condition, color: colors.textFaint };
+  }, [colors, s]);
 
   const typeLabel = (type: string) => {
     if (type === 'parc_exterior') return s('typePark');
@@ -195,7 +200,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
           {user ? (
             <>
               <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(protected)/notifications' as any)}>
-                <Lucide name="bell" size={18} color={Colors.white} />
+                <Lucide name="bell" size={18} color={colors.textOnPrimary} />
                 {unreadCount > 0 && (
                   <View style={styles.bellBadge}>
                     <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -203,12 +208,12 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
                 )}
               </TouchableOpacity>
               <TouchableOpacity style={styles.profileBtn} onPress={() => router.push('/(tabs)/profile' as any)}>
-                <Lucide name="user" size={18} color={Colors.white} />
+                <Lucide name="user" size={18} color={colors.textOnPrimary} />
               </TouchableOpacity>
             </>
           ) : (
             <TouchableOpacity style={styles.loginBtn} onPress={() => router.push('/sign-in')}>
-              <Lucide name="log-in" size={14} color={Colors.white} />
+              <Lucide name="log-in" size={14} color={colors.textOnPrimary} />
               <Text style={styles.addBtnText}>{s('authLogin')}</Text>
             </TouchableOpacity>
           )}
@@ -269,10 +274,10 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
 
         <View style={styles.legend}>
           {[
-            { color: Colors.greenLight, icon: '🏓', label: s('conditionGood') },
-            { color: Colors.amber, icon: '🏓', label: s('conditionAcceptable') },
-            { color: Colors.red, icon: '🏓', label: s('conditionDegraded') },
-            { color: '#1a5080', icon: '🏢', label: s('conditionIndoor') },
+            { color: colors.primaryLight, icon: '🏓', label: s('conditionGood') },
+            { color: colors.amber, icon: '🏓', label: s('conditionAcceptable') },
+            { color: colors.red, icon: '🏓', label: s('conditionDegraded') },
+            { color: colors.conditionPro, icon: '🏢', label: s('conditionIndoor') },
           ].map((item) => (
             <View key={item.label} style={styles.legendRow}>
               <View style={[styles.legendMarker, { backgroundColor: item.color }]}>
@@ -284,7 +289,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
         </View>
 
         <TouchableOpacity style={styles.nearMeBtn} onPress={handleNearMe}>
-          <Lucide name="locate" size={22} color={Colors.green} />
+          <Lucide name="locate" size={22} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -298,11 +303,11 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
         {/* Search Row */}
         <View style={styles.searchRow}>
           <View style={styles.searchBar}>
-            <Lucide name="search" size={16} color={Colors.inkFaint} />
+            <Lucide name="search" size={16} color={colors.textFaint} />
             <TextInput
               style={styles.searchInput}
               placeholder={s('searchPlaceholder')}
-              placeholderTextColor={Colors.inkFaint}
+              placeholderTextColor={colors.textFaint}
               value={searchQuery}
               onChangeText={setSearchQuery}
               returnKeyType="search"
@@ -310,7 +315,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
           </View>
           {user && (
             <TouchableOpacity style={styles.addChip} onPress={() => router.push('/(protected)/add-venue' as any)}>
-              <Lucide name="plus" size={14} color={Colors.white} />
+              <Lucide name="plus" size={14} color={colors.textOnPrimary} />
               <Text style={styles.addChipText}>{s('addBtn')}</Text>
             </TouchableOpacity>
           )}
@@ -325,7 +330,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
                 style={[styles.filterChip, activeFilter === f.key && styles.filterChipActive]}
                 onPress={() => setActiveFilter(f.key)}
               >
-                {f.icon && <Lucide name={f.icon} size={12} color={activeFilter === f.key ? Colors.white : Colors.greenMid} />}
+                {f.icon && <Lucide name={f.icon} size={12} color={activeFilter === f.key ? colors.textOnPrimary : colors.primaryMid} />}
                 <Text style={[styles.filterText, activeFilter === f.key && styles.filterTextActive]}>
                   {f.label}
                 </Text>
@@ -339,7 +344,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
           <Text style={styles.listHeaderText} testID="venues-count">{filteredVenues.length} {s('venuesShown')}</Text>
           {activeFriendsCount > 0 && (
             <View style={styles.friendsOnline}>
-              <View style={[styles.friendsDot, { backgroundColor: Colors.purpleMid }]} />
+              <View style={[styles.friendsDot, { backgroundColor: colors.purpleMid }]} />
               <Text style={styles.friendsText}>{activeFriendsCount} {s('friendsActive')}</Text>
             </View>
           )}
@@ -348,11 +353,11 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
         {/* Venue Cards */}
         {loading ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 32 }}>
-            <ActivityIndicator size="large" color={Colors.green} />
+            <ActivityIndicator size="large" color={colors.primary} />
           </View>
         ) : filteredVenues.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 32 }}>
-            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>{s('noVenues')}</Text>
+            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>{s('noVenues')}</Text>
           </View>
         ) : (
           <ScrollView style={styles.venueList} testID="venue-list">
@@ -412,472 +417,476 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.black,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.green,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    minHeight: 52,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerEmoji: {
-    fontSize: 16,
-  },
-  headerTitle: {
-    fontFamily: Fonts.heading,
-    fontSize: 14,
-    fontWeight: '800',
-    color: Colors.white,
-    letterSpacing: 1,
-  },
-  cityPicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff18',
-    borderRadius: 100,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    gap: 6,
-  },
-  cityText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.white,
-  },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.orangeBright,
-    borderRadius: 8,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    gap: 4,
-  },
-  addBtnText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  loginBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.orangeBright,
-    borderRadius: 8,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    gap: 4,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  profileBtn: {
-    padding: 4,
-  },
-  bellBtn: {
-    position: 'relative',
-    padding: 4,
-  },
-  bellBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: Colors.red,
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  bellBadgeText: {
-    fontFamily: Fonts.body,
-    fontSize: 9,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  mapArea: {
-    height: 400,
-    backgroundColor: '#d4e4d0',
-    position: 'relative',
-  },
-  legend: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: '#ffffffee',
-    borderRadius: Radius.md,
-    padding: 10,
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  legendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendMarker: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  legendIcon: {
-    fontSize: 10,
-    lineHeight: 13,
-  },
-  legendText: {
-    fontFamily: Fonts.body,
-    fontSize: 10,
-    color: Colors.inkMuted,
-  },
-  nearMeBtn: {
-    position: 'absolute',
-    right: 14,
-    bottom: 14,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  panel: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    marginTop: -16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
-    elevation: 5,
-  },
-  panelHandle: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 28,
-  },
-  handleBar: {
-    width: 36,
-    height: 4,
-    borderRadius: 100,
-    backgroundColor: Colors.border,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 10,
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: Radius.md,
-    height: 40,
-    paddingHorizontal: 12,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.ink,
-    padding: 0,
-  },
-  searchText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.inkFaint,
-  },
-  nearMeListBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.greenPale,
-    borderRadius: Radius.md,
-    height: 40,
-    paddingHorizontal: 12,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.greenDim,
-  },
-  nearMeListText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.greenMid,
-  },
-  filtersScroll: {
-    maxHeight: 44,
-  },
-  filtersRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: 100,
-    height: 36,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    gap: 4,
-  },
-  filterChipActive: {
-    backgroundColor: Colors.green,
-    borderColor: Colors.green,
-  },
-  filterText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#1a1c19',
-  },
-  addChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.orangeBright,
-    borderRadius: Radius.md,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    gap: 4,
-  },
-  addChipText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  filterTextActive: {
-    color: Colors.white,
-    fontWeight: '600',
-  },
-  listHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-  },
-  listHeaderText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.inkFaint,
-  },
-  friendsOnline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  friendsDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  friendsText: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.purpleMid,
-  },
-  venueList: {
-    flex: 1,
-    paddingHorizontal: 12,
-  },
-  venueCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: Radius.md,
-    padding: 10,
-    paddingHorizontal: 12,
-    marginBottom: 2,
-    gap: 10,
-  },
-  venueCardHighlight: {
-    backgroundColor: Colors.greenPale,
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.greenLight + '30',
-  },
-  venueLeft: {
-    flex: 1,
-    gap: 4,
-  },
-  venueName: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.ink,
-  },
-  venueMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  venueType: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.inkMuted,
-  },
-  venueMetaSep: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.inkFaint,
-  },
-  venueTables: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.inkMuted,
-  },
-  conditionDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  venueCondition: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  venueRight: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  distanceBadge: {
-    backgroundColor: Colors.bluePale,
-    borderRadius: 4,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-  },
-  distanceText: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    fontWeight: '500',
-    color: Colors.blue,
-  },
-  venueStars: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    fontWeight: '500',
-    color: Colors.orange,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.black,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.primary,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      minHeight: 52,
+    },
+    headerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    headerEmoji: {
+      fontSize: 16,
+    },
+    headerTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: 14,
+      fontWeight: '800',
+      color: colors.textOnPrimary,
+      letterSpacing: 1,
+    },
+    cityPicker: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#ffffff18',
+      borderRadius: 100,
+      paddingVertical: 5,
+      paddingHorizontal: 12,
+      gap: 6,
+    },
+    cityText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.textOnPrimary,
+    },
+    addBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.accentBright,
+      borderRadius: 8,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+      gap: 4,
+    },
+    addBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    loginBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.accentBright,
+      borderRadius: 8,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+      gap: 4,
+    },
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    profileBtn: {
+      padding: 4,
+    },
+    bellBtn: {
+      position: 'relative',
+      padding: 4,
+    },
+    bellBadge: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      backgroundColor: colors.red,
+      borderRadius: 8,
+      minWidth: 16,
+      height: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 3,
+    },
+    bellBadgeText: {
+      fontFamily: Fonts.body,
+      fontSize: 9,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    mapArea: {
+      height: 400,
+      backgroundColor: colors.mapBg,
+      position: 'relative',
+    },
+    legend: {
+      position: 'absolute',
+      top: 12,
+      left: 12,
+      backgroundColor: colors.mapLegendBg,
+      borderRadius: Radius.md,
+      padding: 10,
+      gap: 6,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    legendRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    legendDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    legendMarker: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      borderWidth: 2,
+      borderColor: colors.bgAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    legendIcon: {
+      fontSize: 10,
+      lineHeight: 13,
+    },
+    legendText: {
+      fontFamily: Fonts.body,
+      fontSize: 10,
+      color: colors.textMuted,
+    },
+    nearMeBtn: {
+      position: 'absolute',
+      right: 14,
+      bottom: 14,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.bgAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 10,
+      elevation: 3,
+    },
+    panel: {
+      flex: 1,
+      backgroundColor: colors.bg,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      marginTop: -16,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.05,
+      shadowRadius: 16,
+      elevation: 5,
+    },
+    panelHandle: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: 28,
+    },
+    handleBar: {
+      width: 36,
+      height: 4,
+      borderRadius: 100,
+      backgroundColor: colors.border,
+    },
+    searchRow: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      gap: 10,
+    },
+    searchBar: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.bgAlt,
+      borderRadius: Radius.md,
+      height: 40,
+      paddingHorizontal: 12,
+      gap: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    searchInput: {
+      flex: 1,
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.text,
+      padding: 0,
+    },
+    searchText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.textFaint,
+    },
+    nearMeListBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primaryPale,
+      borderRadius: Radius.md,
+      height: 40,
+      paddingHorizontal: 12,
+      gap: 6,
+      borderWidth: 1,
+      borderColor: colors.primaryDim,
+    },
+    nearMeListText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primaryMid,
+    },
+    filtersScroll: {
+      maxHeight: 44,
+    },
+    filtersRow: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      gap: 8,
+    },
+    filterChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.bgAlt,
+      borderRadius: 100,
+      height: 36,
+      paddingHorizontal: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 4,
+    },
+    filterChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    filterText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.text,
+    },
+    addChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.accentBright,
+      borderRadius: Radius.md,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      gap: 4,
+    },
+    addChipText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    filterTextActive: {
+      color: colors.textOnPrimary,
+      fontWeight: '600',
+    },
+    listHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+    },
+    listHeaderText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.textFaint,
+    },
+    friendsOnline: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    friendsDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    friendsText: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.purpleMid,
+    },
+    venueList: {
+      flex: 1,
+      paddingHorizontal: 12,
+    },
+    venueCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: Radius.md,
+      padding: 10,
+      paddingHorizontal: 12,
+      marginBottom: 2,
+      gap: 10,
+    },
+    venueCardHighlight: {
+      backgroundColor: colors.primaryPale,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.primaryLight + '30',
+    },
+    venueLeft: {
+      flex: 1,
+      gap: 4,
+    },
+    venueName: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    venueMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    venueType: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+    venueMetaSep: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textFaint,
+    },
+    venueTables: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+    conditionDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    venueCondition: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      fontWeight: '500',
+    },
+    venueRight: {
+      alignItems: 'flex-end',
+      gap: 4,
+    },
+    distanceBadge: {
+      backgroundColor: colors.bluePale,
+      borderRadius: 4,
+      paddingVertical: 2,
+      paddingHorizontal: 8,
+    },
+    distanceText: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.blue,
+    },
+    venueStars: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.accent,
+    },
+  });
 
-/* ── Custom map pin ─────────────────────────────────── */
-const pinStyles = StyleSheet.create({
-  outer: {
-    alignItems: 'center',
-  },
-  wrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 2.5,
-    borderColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.25, shadowRadius: 3 },
-      android: { elevation: 4 },
-    }),
-  },
-  icon: {
-    fontSize: 13,
-    lineHeight: 16,
-  },
-  friendBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: Colors.purpleMid,
-    borderWidth: 1.5,
-    borderColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  friendBadgeIcon: {
-    fontSize: 8,
-    lineHeight: 10,
-  },
-  arrow: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 7,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: Colors.white,
-    marginTop: -1,
-  },
-  callout: {
-    backgroundColor: Colors.white,
-    borderRadius: Radius.md,
-    padding: 10,
-    minWidth: 140,
-    maxWidth: 220,
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6 },
-      android: { elevation: 4 },
-    }),
-  },
-  calloutTitle: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.ink,
-    marginBottom: 2,
-  },
-  calloutSub: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.inkFaint,
-  },
-});
+  /* -- Custom map pin -- */
+  const pinStyles = StyleSheet.create({
+    outer: {
+      alignItems: 'center',
+    },
+    wrap: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      borderWidth: 2.5,
+      borderColor: colors.bgAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...Platform.select({
+        ios: { shadowColor: colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.25, shadowRadius: 3 },
+        android: { elevation: 4 },
+      }),
+    },
+    icon: {
+      fontSize: 13,
+      lineHeight: 16,
+    },
+    friendBadge: {
+      position: 'absolute',
+      top: -4,
+      right: -4,
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: colors.purpleMid,
+      borderWidth: 1.5,
+      borderColor: colors.bgAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    friendBadgeIcon: {
+      fontSize: 8,
+      lineHeight: 10,
+    },
+    arrow: {
+      width: 0,
+      height: 0,
+      borderLeftWidth: 6,
+      borderRightWidth: 6,
+      borderTopWidth: 7,
+      borderLeftColor: 'transparent',
+      borderRightColor: 'transparent',
+      borderTopColor: colors.bgAlt,
+      marginTop: -1,
+    },
+    callout: {
+      backgroundColor: colors.bgAlt,
+      borderRadius: Radius.md,
+      padding: 10,
+      minWidth: 140,
+      maxWidth: 220,
+      ...Platform.select({
+        ios: { shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6 },
+        android: { elevation: 4 },
+      }),
+    },
+    calloutTitle: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    calloutSub: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textFaint,
+    },
+  });
+
+  return { styles, pinStyles };
+}

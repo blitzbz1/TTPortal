@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -9,7 +9,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Lucide } from '../components/Icon';
-import { Colors, Fonts, Radius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, Radius } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { getCities } from '../services/cities';
 
@@ -27,6 +29,8 @@ export function CityPickerModal({
   onClose,
 }: CityPickerModalProps) {
   const { s } = useI18n();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [cities, setCities] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -66,13 +70,13 @@ export function CityPickerModal({
           <View style={styles.header}>
             <Text style={styles.title}>{s('cityModal')}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={8}>
-              <Lucide name="x" size={22} color={Colors.inkMuted} />
+              <Lucide name="x" size={22} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
 
           {loading ? (
             <View style={styles.loader}>
-              <ActivityIndicator size="large" color={Colors.green} />
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
           ) : (
             <ScrollView bounces={false}>
@@ -91,7 +95,7 @@ export function CityPickerModal({
                   {s('allRomania')}
                 </Text>
                 {selectedCity === null && (
-                  <Lucide name="check" size={20} color={Colors.greenLight} />
+                  <Lucide name="check" size={20} color={colors.primaryLight} />
                 )}
               </TouchableOpacity>
 
@@ -112,7 +116,7 @@ export function CityPickerModal({
                     {city}
                   </Text>
                   {selectedCity === city && (
-                    <Lucide name="check" size={20} color={Colors.greenLight} />
+                    <Lucide name="check" size={20} color={colors.primaryLight} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -124,57 +128,59 @@ export function CityPickerModal({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  backdropTouchable: {
-    flex: 1,
-  },
-  sheet: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: Radius.xl,
-    borderTopRightRadius: Radius.xl,
-    maxHeight: '70%',
-    paddingBottom: 32,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    fontFamily: Fonts.heading,
-    color: Colors.ink,
-  },
-  loader: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.borderLight,
-  },
-  rowText: {
-    fontSize: 15,
-    fontFamily: Fonts.body,
-    color: Colors.ink,
-  },
-  rowTextSelected: {
-    fontWeight: '600',
-    color: Colors.green,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'flex-end',
+    },
+    backdropTouchable: {
+      flex: 1,
+    },
+    sheet: {
+      backgroundColor: colors.bgAlt,
+      borderTopLeftRadius: Radius.xl,
+      borderTopRightRadius: Radius.xl,
+      maxHeight: '70%',
+      paddingBottom: 32,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      fontFamily: Fonts.heading,
+      color: colors.text,
+    },
+    loader: {
+      paddingVertical: 40,
+      alignItems: 'center',
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.borderLight,
+    },
+    rowText: {
+      fontSize: 15,
+      fontFamily: Fonts.body,
+      color: colors.text,
+    },
+    rowTextSelected: {
+      fontWeight: '600',
+      color: colors.primary,
+    },
+  });
+}

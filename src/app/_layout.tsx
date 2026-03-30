@@ -10,7 +10,7 @@ import {
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, LogBox, Platform, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
@@ -21,8 +21,10 @@ if (__DEV__) {
 import { SessionProvider } from '../contexts/SessionProvider';
 import { NotificationProvider } from '../contexts/NotificationProvider';
 import { I18nProvider } from '../contexts/I18nProvider';
+import { ThemeProvider } from '../contexts/ThemeProvider';
 import { useSession } from '../hooks/useSession';
-import { Colors } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -41,9 +43,11 @@ export default function RootLayout() {
   return (
     <SessionProvider>
       <I18nProvider>
-        <NotificationProvider>
-          <RootNavigator />
-        </NotificationProvider>
+        <ThemeProvider>
+          <NotificationProvider>
+            <RootNavigator />
+          </NotificationProvider>
+        </ThemeProvider>
       </I18nProvider>
     </SessionProvider>
   );
@@ -55,6 +59,8 @@ export default function RootLayout() {
  */
 function RootNavigator() {
   const { isLoading } = useSession();
+  const { isDark, colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [fontsLoaded, fontError] = useFonts({
     Syne_400Regular,
     Syne_700Bold,
@@ -75,7 +81,7 @@ function RootNavigator() {
   if (!fontsLoaded || isLoading) {
     return (
       <View style={styles.splash} testID="splash-loading">
-        <ActivityIndicator size="large" color={Colors.green} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -90,7 +96,7 @@ function RootNavigator() {
         <Stack.Screen name="venue/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="(protected)" options={{ headerShown: false }} />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
     </>
   );
 
@@ -105,25 +111,27 @@ function RootNavigator() {
   );
 }
 
-const styles = StyleSheet.create({
-  splash: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.bg,
-  },
-  webOuter: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: '#e8ebe5',
-  },
-  webFrame: {
-    width: '100%',
-    maxWidth: 430,
-    flex: 1,
-    backgroundColor: Colors.bg,
-    // @ts-ignore web-only shadow
-    boxShadow: '0 0 40px rgba(0,0,0,0.12)',
-    overflow: 'hidden',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    splash: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.bg,
+    },
+    webOuter: {
+      flex: 1,
+      alignItems: 'center',
+      backgroundColor: colors.webOuterBg,
+    },
+    webFrame: {
+      width: '100%',
+      maxWidth: 430,
+      flex: 1,
+      backgroundColor: colors.bg,
+      // @ts-ignore web-only shadow
+      boxShadow: '0 0 40px rgba(0,0,0,0.12)',
+      overflow: 'hidden',
+    },
+  });
+}

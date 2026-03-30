@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,12 +14,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, Radius } from '../theme';
 import { Lucide } from '../components/Icon';
-import { Colors, Fonts, Radius } from '../theme';
 import { isValidEmail } from '../lib/auth-utils';
 import { logger } from '../lib/logger';
-
-const INPUT_BG = '#0f3d22';
 
 /**
  * Forgot password screen — allows users to request a password reset email.
@@ -31,6 +31,8 @@ export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets();
   const { resetPassword } = useSession();
   const { s } = useI18n();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -75,7 +77,7 @@ export default function ForgotPasswordScreen() {
         <View testID="forgot-password-screen">
           {/* Lock icon */}
           <View style={styles.iconContainer}>
-            <Lucide name="lock" size={48} color={Colors.white} />
+            <Lucide name="lock" size={48} color={colors.textOnPrimary} />
           </View>
 
           <Text style={styles.title}>{s('authResetPasswordTitle')}</Text>
@@ -91,7 +93,7 @@ export default function ForgotPasswordScreen() {
                 testID="back-to-login"
                 style={styles.backLink}
               >
-                <Lucide name="arrow-left" size={16} color={Colors.greenDim} />
+                <Lucide name="arrow-left" size={16} color={colors.primaryDim} />
                 <Text style={styles.backLinkText}>
                   {s('authBackToLogin')}
                 </Text>
@@ -101,10 +103,10 @@ export default function ForgotPasswordScreen() {
             <View style={styles.form}>
               {/* Email input */}
               <View style={styles.inputRow}>
-                <Lucide name="mail" size={18} color={Colors.inkFaint} />
+                <Lucide name="mail" size={18} color={colors.textFaint} />
                 <TextInput
                   placeholder={s('authEmail')}
-                  placeholderTextColor={Colors.inkFaint}
+                  placeholderTextColor={colors.textFaint}
                   value={email}
                   onChangeText={setEmail}
                   accessibilityLabel={s('authEmail')}
@@ -141,7 +143,7 @@ export default function ForgotPasswordScreen() {
                 {loading ? (
                   <ActivityIndicator
                     size="small"
-                    color={Colors.white}
+                    color={colors.textOnPrimary}
                     testID="loading-spinner"
                   />
                 ) : (
@@ -158,7 +160,7 @@ export default function ForgotPasswordScreen() {
                 testID="back-to-login"
                 style={styles.backLink}
               >
-                <Lucide name="arrow-left" size={16} color={Colors.greenDim} />
+                <Lucide name="arrow-left" size={16} color={colors.primaryDim} />
                 <Text style={styles.backLinkText}>
                   {s('authBackToLogin')}
                 </Text>
@@ -171,92 +173,94 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.green,
-  },
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingTop: 60,
-    paddingBottom: 32,
-    paddingHorizontal: 28,
-  },
-  iconContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    fontFamily: Fonts.heading,
-    fontSize: 28,
-    fontWeight: '800',
-    color: Colors.white,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  form: {
-    gap: 14,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: INPUT_BG,
-    borderRadius: Radius.md,
-    height: 48,
-    paddingHorizontal: 14,
-    gap: 10,
-  },
-  textInput: {
-    flex: 1,
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.white,
-    height: 48,
-    paddingVertical: 0,
-  },
-  errorText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.red,
-    textAlign: 'center',
-  },
-  submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.greenLight,
-    borderRadius: 12,
-    height: 50,
-    gap: 8,
-  },
-  submitBtnDisabled: {
-    opacity: 0.6,
-  },
-  submitText: {
-    fontFamily: Fonts.body,
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  successText: {
-    fontFamily: Fonts.body,
-    fontSize: 15,
-    color: Colors.greenDim,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  backLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-  },
-  backLinkText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.greenDim,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.primary,
+    },
+    content: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      paddingTop: 60,
+      paddingBottom: 32,
+      paddingHorizontal: 28,
+    },
+    iconContainer: {
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    title: {
+      fontFamily: Fonts.heading,
+      fontSize: 28,
+      fontWeight: '800',
+      color: colors.textOnPrimary,
+      textAlign: 'center',
+      marginBottom: 24,
+    },
+    form: {
+      gap: 14,
+    },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.authInputBg,
+      borderRadius: Radius.md,
+      height: 48,
+      paddingHorizontal: 14,
+      gap: 10,
+    },
+    textInput: {
+      flex: 1,
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.textOnPrimary,
+      height: 48,
+      paddingVertical: 0,
+    },
+    errorText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.red,
+      textAlign: 'center',
+    },
+    submitBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primaryLight,
+      borderRadius: 12,
+      height: 50,
+      gap: 8,
+    },
+    submitBtnDisabled: {
+      opacity: 0.6,
+    },
+    submitText: {
+      fontFamily: Fonts.body,
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    successText: {
+      fontFamily: Fonts.body,
+      fontSize: 15,
+      color: colors.primaryDim,
+      textAlign: 'center',
+      lineHeight: 22,
+      marginBottom: 24,
+    },
+    backLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 12,
+    },
+    backLinkText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.primaryDim,
+    },
+  });
+}

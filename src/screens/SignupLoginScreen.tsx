@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Lucide } from '../components/Icon';
-import { Colors, Fonts, Radius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, Radius } from '../theme';
 
 type AuthTab = 'signup' | 'login';
 
 export function SignupLoginScreen() {
   const [activeTab, setActiveTab] = useState<AuthTab>('signup');
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={styles.container}>
@@ -45,22 +49,22 @@ export function SignupLoginScreen() {
           {/* Name Field (signup only) */}
           {activeTab === 'signup' && (
             <View style={styles.inputField}>
-              <Lucide name="user" size={18} color={Colors.inkFaint} />
+              <Lucide name="user" size={18} color={colors.textFaint} />
               <Text style={styles.inputPlaceholder}>Nume complet</Text>
             </View>
           )}
 
           {/* Email Field */}
           <View style={styles.inputField}>
-            <Lucide name="mail" size={18} color={Colors.inkFaint} />
+            <Lucide name="mail" size={18} color={colors.textFaint} />
             <Text style={styles.inputPlaceholder}>Email</Text>
           </View>
 
           {/* Password Field */}
           <View style={styles.inputField}>
-            <Lucide name="lock" size={18} color={Colors.inkFaint} />
+            <Lucide name="lock" size={18} color={colors.textFaint} />
             <Text style={[styles.inputPlaceholder, { flex: 1 }]}>Parol&#259;</Text>
-            <Lucide name="eye-off" size={18} color={Colors.inkFaint} />
+            <Lucide name="eye-off" size={18} color={colors.textFaint} />
           </View>
 
           {/* Submit Button */}
@@ -68,7 +72,7 @@ export function SignupLoginScreen() {
             <Text style={styles.submitText}>
               {activeTab === 'signup' ? 'Creeaz&#259; cont' : 'Conectare'}
             </Text>
-            <Lucide name="arrow-right" size={20} color={Colors.white} />
+            <Lucide name="arrow-right" size={20} color={colors.textOnPrimary} />
           </TouchableOpacity>
 
           {/* Divider */}
@@ -85,7 +89,7 @@ export function SignupLoginScreen() {
               <Text style={styles.googleText}>Google</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.appleBtn}>
-              <Lucide name="apple" size={20} color={Colors.white} />
+              <Lucide name="apple" size={20} color={colors.textOnPrimary} />
               <Text style={styles.appleText}>Apple</Text>
             </TouchableOpacity>
           </View>
@@ -111,199 +115,201 @@ export function SignupLoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.green,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingBottom: 32,
-    paddingHorizontal: 28,
-  },
-  branding: {
-    alignItems: 'center',
-    gap: 12,
-  },
-  subtitle: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.greenDim,
-    opacity: 0.7,
-  },
-  logo: {
-    fontFamily: Fonts.heading,
-    fontSize: 42,
-    fontWeight: '800',
-    color: Colors.white,
-  },
-  tagline: {
-    fontFamily: Fonts.body,
-    fontSize: 16,
-    color: Colors.greenDim,
-    textAlign: 'center',
-    width: 260,
-  },
-  form: {
-    gap: 14,
-  },
-  authTabs: {
-    flexDirection: 'row',
-    backgroundColor: '#0f3d22',
-    borderRadius: 12,
-  },
-  authTab: {
-    flex: 1,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-  },
-  authTabActive: {
-    backgroundColor: Colors.white,
-  },
-  authTabText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '500',
-    color: Colors.greenDim,
-  },
-  authTabTextActive: {
-    color: Colors.green,
-    fontWeight: '600',
-  },
-  inputField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0f3d22',
-    borderRadius: Radius.md,
-    height: 48,
-    paddingHorizontal: 14,
-    gap: 10,
-  },
-  inputPlaceholder: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.inkFaint,
-  },
-  submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.greenLight,
-    borderRadius: 12,
-    height: 50,
-    gap: 8,
-  },
-  submitText: {
-    fontFamily: Fonts.body,
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 4,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#0f3d22',
-  },
-  dividerText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.inkFaint,
-  },
-  socialRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  googleBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: Radius.md,
-    height: 46,
-    gap: 8,
-  },
-  googleIcon: {
-    fontFamily: Fonts.heading,
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.green,
-  },
-  googleText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.green,
-  },
-  appleBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.md,
-    height: 46,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.greenDim,
-  },
-  appleText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  bottom: {
-    alignItems: 'center',
-    gap: 16,
-  },
-  terms: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.inkFaint,
-    textAlign: 'center',
-    width: 280,
-  },
-  langRow: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  langActive: {
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    width: 36,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  langActiveText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.green,
-  },
-  langInactive: {
-    borderRadius: 14,
-    width: 36,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  langInactiveText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.inkFaint,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.primary,
+    },
+    content: {
+      flex: 1,
+      justifyContent: 'space-between',
+      paddingTop: 60,
+      paddingBottom: 32,
+      paddingHorizontal: 28,
+    },
+    branding: {
+      alignItems: 'center',
+      gap: 12,
+    },
+    subtitle: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.primaryDim,
+      opacity: 0.7,
+    },
+    logo: {
+      fontFamily: Fonts.heading,
+      fontSize: 42,
+      fontWeight: '800',
+      color: colors.textOnPrimary,
+    },
+    tagline: {
+      fontFamily: Fonts.body,
+      fontSize: 16,
+      color: colors.primaryDim,
+      textAlign: 'center',
+      width: 260,
+    },
+    form: {
+      gap: 14,
+    },
+    authTabs: {
+      flexDirection: 'row',
+      backgroundColor: colors.authInputBg,
+      borderRadius: 12,
+    },
+    authTab: {
+      flex: 1,
+      height: 42,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 12,
+    },
+    authTabActive: {
+      backgroundColor: colors.bgAlt,
+    },
+    authTabText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.primaryDim,
+    },
+    authTabTextActive: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    inputField: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.authInputBg,
+      borderRadius: Radius.md,
+      height: 48,
+      paddingHorizontal: 14,
+      gap: 10,
+    },
+    inputPlaceholder: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.textFaint,
+    },
+    submitBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primaryLight,
+      borderRadius: 12,
+      height: 50,
+      gap: 8,
+    },
+    submitText: {
+      fontFamily: Fonts.body,
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    divider: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 4,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: colors.authInputBg,
+    },
+    dividerText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.textFaint,
+    },
+    socialRow: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    googleBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.bgAlt,
+      borderRadius: Radius.md,
+      height: 46,
+      gap: 8,
+    },
+    googleIcon: {
+      fontFamily: Fonts.heading,
+      fontSize: 18,
+      fontWeight: '800',
+      color: colors.primary,
+    },
+    googleText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    appleBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: Radius.md,
+      height: 46,
+      gap: 8,
+      borderWidth: 1,
+      borderColor: colors.primaryDim,
+    },
+    appleText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    bottom: {
+      alignItems: 'center',
+      gap: 16,
+    },
+    terms: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textFaint,
+      textAlign: 'center',
+      width: 280,
+    },
+    langRow: {
+      flexDirection: 'row',
+      gap: 4,
+    },
+    langActive: {
+      backgroundColor: colors.bgAlt,
+      borderRadius: 14,
+      width: 36,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    langActiveText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    langInactive: {
+      borderRadius: 14,
+      width: 36,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    langInactiveText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.textFaint,
+    },
+  });
+}

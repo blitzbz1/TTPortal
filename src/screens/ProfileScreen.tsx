@@ -1,26 +1,32 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Linking, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
-import { Colors, Fonts, Radius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getProfile, getProfileStats, updateProfile } from '../services/profiles';
 import type { Profile } from '../types/database';
 
-const QUICK_ACTIONS_DATA = [
-  { icon: 'users', labelKey: 'friends' as const, color: Colors.greenMid, bg: Colors.greenPale, border: Colors.greenDim, route: '/(protected)/friends' as const },
-  { icon: 'trophy', labelKey: 'playHistory' as const, color: Colors.purple, bg: Colors.purplePale, border: Colors.purpleDim, route: '/(protected)/play-history' as const },
-  { icon: 'bookmark', labelKey: 'favorites' as const, color: Colors.orange, bg: Colors.amberPale, border: Colors.amberDeep, route: '/(tabs)/favorites' as const },
-];
+function getQuickActions(colors: ThemeColors) {
+  return [
+    { icon: 'users', labelKey: 'friends' as const, color: colors.primaryMid, bg: colors.primaryPale, border: colors.primaryDim, route: '/(protected)/friends' as const },
+    { icon: 'trophy', labelKey: 'playHistory' as const, color: colors.purple, bg: colors.purplePale, border: colors.purpleDim, route: '/(protected)/play-history' as const },
+    { icon: 'bookmark', labelKey: 'favorites' as const, color: colors.accent, bg: colors.amberPale, border: colors.amberDeep, route: '/(tabs)/favorites' as const },
+  ];
+}
 
-const ACTIVITIES_DATA = [
-  { icon: 'map-pin', iconColor: Colors.greenMid, bg: Colors.greenDim, textKey: 'activityCheckin' as const, time: 'Azi, 14:30' },
-  { icon: 'star', iconColor: Colors.orange, bg: Colors.amberPale, textKey: 'activityReview' as const, time: 'Ieri, 18:15' },
-  { icon: 'user-plus', iconColor: Colors.purple, bg: Colors.purplePale, textKey: 'activityFriend' as const, time: 'Luni, 10:00' },
-];
+function getActivities(colors: ThemeColors) {
+  return [
+    { icon: 'map-pin', iconColor: colors.primaryMid, bg: colors.primaryDim, textKey: 'activityCheckin' as const, time: 'Azi, 14:30' },
+    { icon: 'star', iconColor: colors.accent, bg: colors.amberPale, textKey: 'activityReview' as const, time: 'Ieri, 18:15' },
+    { icon: 'user-plus', iconColor: colors.purple, bg: colors.purplePale, textKey: 'activityFriend' as const, time: 'Luni, 10:00' },
+  ];
+}
 
 interface ProfileScreenProps {
   hideTabBar?: boolean;
@@ -31,6 +37,11 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const insets = useSafeAreaInsets();
   const { user, signOut } = useSession();
   const { lang, setLang, s } = useI18n();
+  const { colors, mode, setMode, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const quickActions = useMemo(() => getQuickActions(colors), [colors]);
+  const activities = useMemo(() => getActivities(colors), [colors]);
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<{ total_checkins: number; unique_venues: number } | null>(null);
@@ -112,13 +123,13 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: insets.top }]}>
           <TouchableOpacity onPress={() => router.push('/(tabs)/' as any)}>
-            <Lucide name="arrow-left" size={22} color={Colors.white} />
+            <Lucide name="arrow-left" size={22} color={colors.textOnPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{s('myProfile')}</Text>
           <View style={{ width: 22 }} />
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={Colors.green} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
         {!hideTabBar && <TabBar activeTab="profile" />}
       </View>
@@ -130,7 +141,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <TouchableOpacity onPress={() => router.push('/(tabs)/' as any)}>
-          <Lucide name="arrow-left" size={22} color={Colors.white} />
+          <Lucide name="arrow-left" size={22} color={colors.textOnPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('myProfile')}</Text>
         <View style={{ width: 22 }} />
@@ -173,7 +184,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{s('quickActions')}</Text>
           <View style={styles.quickRow}>
-            {QUICK_ACTIONS_DATA.map((action) => (
+            {quickActions.map((action) => (
               <TouchableOpacity
                 key={action.labelKey}
                 style={[styles.quickBtn, { backgroundColor: action.bg, borderColor: action.border }]}
@@ -189,7 +200,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
         {/* Recent Activity */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{s('recentActivity')}</Text>
-          {ACTIVITIES_DATA.map((act) => (
+          {activities.map((act) => (
             <View key={act.textKey} style={styles.activityCard}>
               <View style={[styles.actIcon, { backgroundColor: act.bg }]}>
                 <Lucide name={act.icon} size={18} color={act.iconColor} />
@@ -206,19 +217,19 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{s('settings')}</Text>
 
-          {/* Notificări */}
+          {/* Notificari */}
           <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/(protected)/notifications' as any)}>
             <View style={styles.settingsLeft}>
-              <Lucide name="bell" size={18} color={Colors.inkMuted} />
+              <Lucide name="bell" size={18} color={colors.textMuted} />
               <Text style={styles.settingsLabel}>{s('notifications')}</Text>
             </View>
-            <Lucide name="chevron-right" size={16} color={Colors.inkFaint} />
+            <Lucide name="chevron-right" size={16} color={colors.textFaint} />
           </TouchableOpacity>
 
-          {/* Notificări check-in prieteni */}
+          {/* Notificari check-in prieteni */}
           <View style={styles.settingsRow}>
             <View style={styles.settingsLeft}>
-              <Lucide name="map-pin" size={18} color={Colors.inkMuted} />
+              <Lucide name="map-pin" size={18} color={colors.textMuted} />
               <View>
                 <Text style={styles.settingsLabel}>{s('notifyFriendCheckins')}</Text>
                 <Text style={styles.settingsDesc}>{s('notifyFriendCheckinsDesc')}</Text>
@@ -227,48 +238,69 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
             <Switch
               value={notifyCheckins}
               onValueChange={handleToggleCheckinNotif}
-              trackColor={{ false: Colors.border, true: Colors.greenLight }}
-              thumbColor={Colors.white}
+              trackColor={{ false: colors.border, true: colors.primaryLight }}
+              thumbColor={colors.bgAlt}
             />
           </View>
 
-          {/* Limbă */}
+          {/* Limba */}
           <TouchableOpacity style={styles.settingsRow} onPress={handleToggleLang}>
             <View style={styles.settingsLeft}>
-              <Lucide name="globe" size={18} color={Colors.inkMuted} />
+              <Lucide name="globe" size={18} color={colors.textMuted} />
               <Text style={styles.settingsLabel}>{s('language')}</Text>
             </View>
             <Text style={styles.settingsValue}>{lang.toUpperCase()}</Text>
           </TouchableOpacity>
 
-          {/* Confidențialitate */}
+          {/* Tema */}
+          <View style={styles.settingsRow}>
+            <View style={styles.settingsLeft}>
+              <Lucide name={isDark ? 'moon' : 'sun'} size={18} color={colors.textMuted} />
+              <Text style={styles.settingsLabel}>{s('theme')}</Text>
+            </View>
+            <View style={styles.themeToggle}>
+              {(['light', 'system', 'dark'] as const).map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  style={[styles.themeOption, mode === m && styles.themeOptionActive]}
+                  onPress={() => setMode(m)}
+                >
+                  <Text style={[styles.themeOptionText, mode === m && styles.themeOptionTextActive]}>
+                    {s(`theme${m[0].toUpperCase()}${m.slice(1)}`)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Confidentialitate */}
           <TouchableOpacity style={styles.settingsRow} onPress={() => Linking.openSettings()}>
             <View style={styles.settingsLeft}>
-              <Lucide name="shield" size={18} color={Colors.inkMuted} />
+              <Lucide name="shield" size={18} color={colors.textMuted} />
               <Text style={styles.settingsLabel}>{s('privacy')}</Text>
             </View>
-            <Lucide name="chevron-right" size={16} color={Colors.inkFaint} />
+            <Lucide name="chevron-right" size={16} color={colors.textFaint} />
           </TouchableOpacity>
 
           {/* Admin / Moderare - only if admin */}
           {profile?.is_admin && (
             <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/(protected)/admin' as any)}>
               <View style={styles.settingsLeft}>
-                <Lucide name="shield-check" size={18} color={Colors.inkMuted} />
+                <Lucide name="shield-check" size={18} color={colors.textMuted} />
                 <Text style={styles.settingsLabel}>{s('moderation')}</Text>
               </View>
               <View style={styles.adminBadge}>
                 <View style={styles.adminPill}>
                   <Text style={styles.adminPillText}>{s('admin')}</Text>
                 </View>
-                <Lucide name="chevron-right" size={16} color={Colors.inkFaint} />
+                <Lucide name="chevron-right" size={16} color={colors.textFaint} />
               </View>
             </TouchableOpacity>
           )}
 
           {/* Logout */}
           <TouchableOpacity style={styles.logoutRow} onPress={handleLogout}>
-            <Lucide name="log-out" size={18} color={Colors.red} />
+            <Lucide name="log-out" size={18} color={colors.red} />
             <Text style={styles.logoutText}>{s('logout')}</Text>
           </TouchableOpacity>
         </View>
@@ -279,261 +311,287 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.green,
-    paddingVertical: 10,
-    minHeight: 52,
-    paddingHorizontal: 16,
-  },
-  headerTitle: {
-    fontFamily: Fonts.heading,
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  scroll: {
-    flex: 1,
-  },
-  hero: {
-    backgroundColor: Colors.white,
-    alignItems: 'center',
-    paddingTop: 28,
-    paddingBottom: 24,
-    paddingHorizontal: 24,
-    gap: 16,
-  },
-  avatarWrap: {
-    width: 88,
-    height: 88,
-  },
-  avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: Colors.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontFamily: Fonts.heading,
-    fontSize: 32,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: Colors.greenLight,
-    borderWidth: 3,
-    borderColor: Colors.white,
-  },
-  name: {
-    fontFamily: Fonts.heading,
-    fontSize: 22,
-    fontWeight: '700',
-    color: Colors.ink,
-  },
-  username: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.inkFaint,
-  },
-  badges: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  badgeEmoji: {
-    fontSize: 12,
-  },
-  badgeGreen: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.greenDim,
-    borderRadius: 100,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    gap: 4,
-  },
-  badgeGreenText: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.greenMid,
-  },
-  badgePurple: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.purplePale,
-    borderRadius: 100,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    gap: 4,
-  },
-  badgePurpleText: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.purple,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  statCard: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    padding: 14,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  statValue: {
-    fontFamily: Fonts.heading,
-    fontSize: 28,
-    fontWeight: '700',
-    color: Colors.green,
-  },
-  statLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    fontWeight: '500',
-    color: Colors.inkFaint,
-  },
-  section: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    gap: 10,
-  },
-  sectionTitle: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.ink,
-  },
-  quickRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  quickBtn: {
-    flex: 1,
-    alignItems: 'center',
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    gap: 10,
-    borderWidth: 1,
-  },
-  quickLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  activityCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: 12,
-    paddingHorizontal: 14,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  actIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  actText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.ink,
-  },
-  actTime: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.inkFaint,
-  },
-  settingsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  settingsLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  settingsLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.ink,
-  },
-  settingsDesc: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.inkFaint,
-    marginTop: 1,
-  },
-  settingsValue: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.inkFaint,
-  },
-  adminBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  adminPill: {
-    backgroundColor: Colors.greenPale,
-    borderRadius: 8,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-  },
-  adminPillText: {
-    fontFamily: Fonts.body,
-    fontSize: 10,
-    fontWeight: '700',
-    color: Colors.greenMid,
-  },
-  logoutRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    gap: 12,
-  },
-  logoutText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '500',
-    color: Colors.red,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.primary,
+      paddingVertical: 10,
+      minHeight: 52,
+      paddingHorizontal: 16,
+    },
+    headerTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    scroll: {
+      flex: 1,
+    },
+    hero: {
+      backgroundColor: colors.bgAlt,
+      alignItems: 'center',
+      paddingTop: 28,
+      paddingBottom: 24,
+      paddingHorizontal: 24,
+      gap: 16,
+    },
+    avatarWrap: {
+      width: 88,
+      height: 88,
+    },
+    avatar: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: {
+      fontFamily: Fonts.heading,
+      fontSize: 32,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    onlineDot: {
+      position: 'absolute',
+      bottom: 4,
+      right: 4,
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: colors.primaryLight,
+      borderWidth: 3,
+      borderColor: colors.bgAlt,
+    },
+    name: {
+      fontFamily: Fonts.heading,
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    username: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.textFaint,
+    },
+    badges: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    badgeEmoji: {
+      fontSize: 12,
+    },
+    badgeGreen: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primaryDim,
+      borderRadius: 100,
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+      gap: 4,
+    },
+    badgeGreenText: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.primaryMid,
+    },
+    badgePurple: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.purplePale,
+      borderRadius: 100,
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+      gap: 4,
+    },
+    badgePurpleText: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.purple,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+    },
+    statCard: {
+      flex: 1,
+      alignItems: 'center',
+      backgroundColor: colors.bgAlt,
+      borderRadius: 14,
+      padding: 14,
+      gap: 4,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    statValue: {
+      fontFamily: Fonts.heading,
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    statLabel: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.textFaint,
+    },
+    section: {
+      paddingHorizontal: 16,
+      paddingTop: 20,
+      gap: 10,
+    },
+    sectionTitle: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    quickRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    quickBtn: {
+      flex: 1,
+      alignItems: 'center',
+      borderRadius: 14,
+      paddingVertical: 16,
+      paddingHorizontal: 12,
+      gap: 10,
+      borderWidth: 1,
+    },
+    quickLabel: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    activityCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.bgAlt,
+      borderRadius: 12,
+      padding: 12,
+      paddingHorizontal: 14,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    actIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: Radius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    actInfo: {
+      flex: 1,
+      gap: 2,
+    },
+    actText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.text,
+    },
+    actTime: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textFaint,
+    },
+    settingsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    settingsLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    settingsLabel: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.text,
+    },
+    settingsDesc: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textFaint,
+      marginTop: 1,
+    },
+    settingsValue: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.textFaint,
+    },
+    themeToggle: {
+      flexDirection: 'row',
+      backgroundColor: colors.bgMuted,
+      borderRadius: 8,
+      padding: 2,
+    },
+    themeOption: {
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 6,
+    },
+    themeOptionActive: {
+      backgroundColor: colors.bgAlt,
+    },
+    themeOptionText: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.textFaint,
+    },
+    themeOptionTextActive: {
+      color: colors.text,
+      fontWeight: '600',
+    },
+    adminBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    adminPill: {
+      backgroundColor: colors.primaryPale,
+      borderRadius: 8,
+      paddingVertical: 2,
+      paddingHorizontal: 6,
+    },
+    adminPillText: {
+      fontFamily: Fonts.body,
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.primaryMid,
+    },
+    logoutRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      gap: 12,
+    },
+    logoutText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.red,
+    },
+  });
+}

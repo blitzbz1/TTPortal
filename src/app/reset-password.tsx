@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,12 +13,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useI18n } from '../hooks/useI18n';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, Radius } from '../theme';
 import { Lucide } from '../components/Icon';
-import { Colors, Fonts, Radius } from '../theme';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
-
-const INPUT_BG = '#0f3d22';
 
 type TokenStatus = 'loading' | 'valid' | 'expired' | 'used';
 
@@ -32,6 +32,8 @@ export default function ResetPasswordScreen() {
   const insets = useSafeAreaInsets();
   const { code } = useLocalSearchParams<{ code: string }>();
   const { s } = useI18n();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [tokenStatus, setTokenStatus] = useState<TokenStatus>('loading');
   const [newPassword, setNewPassword] = useState('');
@@ -102,7 +104,7 @@ export default function ResetPasswordScreen() {
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator
           size="large"
-          color={Colors.white}
+          color={colors.textOnPrimary}
           testID="token-loading"
         />
       </View>
@@ -112,7 +114,7 @@ export default function ResetPasswordScreen() {
   if (tokenStatus === 'expired') {
     return (
       <View style={[styles.container, styles.centered]} testID="token-expired">
-        <Lucide name="alert-circle" size={48} color={Colors.red} />
+        <Lucide name="alert-circle" size={48} color={colors.red} />
         <Text style={styles.errorTitle}>{s('resetPasswordExpired')}</Text>
         <Pressable
           onPress={handleRequestNewLink}
@@ -129,7 +131,7 @@ export default function ResetPasswordScreen() {
   if (tokenStatus === 'used') {
     return (
       <View style={[styles.container, styles.centered]} testID="token-used">
-        <Lucide name="alert-circle" size={48} color={Colors.red} />
+        <Lucide name="alert-circle" size={48} color={colors.red} />
         <Text style={styles.errorTitle}>{s('resetPasswordUsed')}</Text>
         <Pressable
           onPress={handleRequestNewLink}
@@ -154,7 +156,7 @@ export default function ResetPasswordScreen() {
       >
         <View testID="reset-password-screen">
           <View style={styles.iconContainer}>
-            <Lucide name="key-round" size={48} color={Colors.white} />
+            <Lucide name="key-round" size={48} color={colors.textOnPrimary} />
           </View>
 
           <Text style={styles.title}>{s('authResetPasswordTitle')}</Text>
@@ -166,10 +168,10 @@ export default function ResetPasswordScreen() {
           ) : (
             <View style={styles.form}>
               <View style={styles.inputRow}>
-                <Lucide name="lock" size={18} color={Colors.inkFaint} />
+                <Lucide name="lock" size={18} color={colors.textFaint} />
                 <TextInput
                   placeholder={s('authNewPassword')}
-                  placeholderTextColor={Colors.inkFaint}
+                  placeholderTextColor={colors.textFaint}
                   value={newPassword}
                   onChangeText={setNewPassword}
                   accessibilityLabel={s('authNewPassword')}
@@ -202,7 +204,7 @@ export default function ResetPasswordScreen() {
                 {loading ? (
                   <ActivityIndicator
                     size="small"
-                    color={Colors.white}
+                    color={colors.textOnPrimary}
                     testID="loading-spinner"
                   />
                 ) : (
@@ -219,103 +221,105 @@ export default function ResetPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.green,
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 28,
-  },
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingTop: 60,
-    paddingBottom: 32,
-    paddingHorizontal: 28,
-  },
-  iconContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    fontFamily: Fonts.heading,
-    fontSize: 28,
-    fontWeight: '800',
-    color: Colors.white,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  form: {
-    gap: 14,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: INPUT_BG,
-    borderRadius: Radius.md,
-    height: 48,
-    paddingHorizontal: 14,
-    gap: 10,
-  },
-  textInput: {
-    flex: 1,
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.white,
-    height: 48,
-    paddingVertical: 0,
-  },
-  errorText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.red,
-    textAlign: 'center',
-  },
-  errorTitle: {
-    fontFamily: Fonts.body,
-    fontSize: 15,
-    color: Colors.white,
-    textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 20,
-    lineHeight: 22,
-  },
-  submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.greenLight,
-    borderRadius: 12,
-    height: 50,
-    gap: 8,
-  },
-  submitBtnDisabled: {
-    opacity: 0.6,
-  },
-  submitText: {
-    fontFamily: Fonts.body,
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  successText: {
-    fontFamily: Fonts.body,
-    fontSize: 15,
-    color: Colors.greenDim,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  linkBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-  },
-  linkText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.greenDim,
-    textDecorationLine: 'underline',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.primary,
+    },
+    centered: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 28,
+    },
+    content: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      paddingTop: 60,
+      paddingBottom: 32,
+      paddingHorizontal: 28,
+    },
+    iconContainer: {
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    title: {
+      fontFamily: Fonts.heading,
+      fontSize: 28,
+      fontWeight: '800',
+      color: colors.textOnPrimary,
+      textAlign: 'center',
+      marginBottom: 24,
+    },
+    form: {
+      gap: 14,
+    },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.authInputBg,
+      borderRadius: Radius.md,
+      height: 48,
+      paddingHorizontal: 14,
+      gap: 10,
+    },
+    textInput: {
+      flex: 1,
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.textOnPrimary,
+      height: 48,
+      paddingVertical: 0,
+    },
+    errorText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.red,
+      textAlign: 'center',
+    },
+    errorTitle: {
+      fontFamily: Fonts.body,
+      fontSize: 15,
+      color: colors.textOnPrimary,
+      textAlign: 'center',
+      marginTop: 16,
+      marginBottom: 20,
+      lineHeight: 22,
+    },
+    submitBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primaryLight,
+      borderRadius: 12,
+      height: 50,
+      gap: 8,
+    },
+    submitBtnDisabled: {
+      opacity: 0.6,
+    },
+    submitText: {
+      fontFamily: Fonts.body,
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    successText: {
+      fontFamily: Fonts.body,
+      fontSize: 15,
+      color: colors.primaryDim,
+      textAlign: 'center',
+      lineHeight: 22,
+    },
+    linkBtn: {
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+    },
+    linkText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.primaryDim,
+      textDecorationLine: 'underline',
+    },
+  });
+}

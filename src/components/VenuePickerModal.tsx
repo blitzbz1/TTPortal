@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -8,9 +8,13 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Lucide } from './Icon';
-import { Colors, Fonts, Radius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, Radius } from '../theme';
 import { getVenues, searchVenues } from '../services/venues';
 
 interface VenueOption {
@@ -33,6 +37,8 @@ export function VenuePickerModal({
   onSelect,
   onClose,
 }: VenuePickerModalProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [venues, setVenues] = useState<VenueOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -61,22 +67,22 @@ export function VenuePickerModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <KeyboardAvoidingView style={styles.backdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <TouchableOpacity style={styles.backdropTouchable} activeOpacity={1} onPress={onClose} />
         <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>Alege locația</Text>
             <TouchableOpacity onPress={onClose} hitSlop={8}>
-              <Lucide name="x" size={22} color={Colors.inkMuted} />
+              <Lucide name="x" size={22} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.searchRow}>
-            <Lucide name="search" size={18} color={Colors.inkFaint} />
+            <Lucide name="search" size={18} color={colors.textFaint} />
             <TextInput
               style={styles.searchInput}
               placeholder="Caută locație..."
-              placeholderTextColor={Colors.inkFaint}
+              placeholderTextColor={colors.textFaint}
               value={query}
               onChangeText={setQuery}
               autoCorrect={false}
@@ -85,7 +91,7 @@ export function VenuePickerModal({
 
           {loading ? (
             <View style={styles.loader}>
-              <ActivityIndicator size="large" color={Colors.green} />
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
           ) : venues.length === 0 ? (
             <View style={styles.loader}>
@@ -114,78 +120,80 @@ export function VenuePickerModal({
                     )}
                   </View>
                   {selectedVenueId === venue.id && (
-                    <Lucide name="check" size={20} color={Colors.greenLight} />
+                    <Lucide name="check" size={20} color={colors.primaryLight} />
                   )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
           )}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  backdropTouchable: { flex: 1 },
-  sheet: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: Radius.xl,
-    borderTopRightRadius: Radius.xl,
-    maxHeight: '70%',
-    paddingBottom: 32,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    fontFamily: Fonts.heading,
-    color: Colors.ink,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginVertical: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: Colors.bgDark,
-    borderRadius: Radius.md,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.ink,
-    padding: 0,
-  },
-  loader: { paddingVertical: 40, alignItems: 'center' },
-  emptyText: { fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.borderLight,
-  },
-  rowContent: { flex: 1 },
-  rowText: { fontSize: 15, fontFamily: Fonts.body, color: Colors.ink },
-  rowTextSelected: { fontWeight: '600', color: Colors.green },
-  rowSubtext: { fontSize: 13, fontFamily: Fonts.body, color: Colors.inkFaint, marginTop: 2 },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'flex-end',
+    },
+    backdropTouchable: { flex: 1 },
+    sheet: {
+      backgroundColor: colors.bgAlt,
+      borderTopLeftRadius: Radius.xl,
+      borderTopRightRadius: Radius.xl,
+      maxHeight: '70%',
+      paddingBottom: 32,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      fontFamily: Fonts.heading,
+      color: colors.text,
+    },
+    searchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: 20,
+      marginVertical: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      backgroundColor: colors.bgMuted,
+      borderRadius: Radius.md,
+      gap: 8,
+    },
+    searchInput: {
+      flex: 1,
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.text,
+      padding: 0,
+    },
+    loader: { paddingVertical: 40, alignItems: 'center' },
+    emptyText: { fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.borderLight,
+    },
+    rowContent: { flex: 1 },
+    rowText: { fontSize: 15, fontFamily: Fonts.body, color: colors.text },
+    rowTextSelected: { fontWeight: '600', color: colors.primary },
+    rowSubtext: { fontSize: 13, fontFamily: Fonts.body, color: colors.textFaint, marginTop: 2 },
+  });
+}

@@ -1,31 +1,36 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Animated, PanResponder, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
-import { Colors, Fonts, Radius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useNotifications } from '../hooks/useNotifications';
 import { useI18n } from '../hooks/useI18n';
 import { getNotifications, markAsRead, deleteNotification, deleteAllNotifications } from '../services/notifications';
 import { acceptRequest, declineRequest, getPendingRequests } from '../services/friends';
 
-const ICON_MAP: Record<string, { name: string; color: string; bg: string }> = {
-  friend_request: { name: 'user-plus', color: Colors.purple, bg: Colors.purplePale },
-  friend_accepted: { name: 'user-check', color: Colors.greenMid, bg: Colors.greenPale },
-  event_reminder: { name: 'calendar-clock', color: Colors.orange, bg: Colors.amberPale },
-  event_joined: { name: 'calendar-plus', color: Colors.greenMid, bg: Colors.greenPale },
-  event_cancelled: { name: 'calendar-x', color: Colors.red, bg: Colors.redPale },
-  checkin_nearby: { name: 'map-pin', color: Colors.blue, bg: Colors.bluePale },
-  review_on_venue: { name: 'star', color: Colors.orange, bg: Colors.amberPale },
-  event_invite: { name: 'mail', color: Colors.purple, bg: Colors.purplePale },
-  event_update: { name: 'megaphone', color: Colors.orange, bg: Colors.amberPale },
-};
+function getIconMap(colors: ThemeColors): Record<string, { name: string; color: string; bg: string }> {
+  return {
+    friend_request: { name: 'user-plus', color: colors.purple, bg: colors.purplePale },
+    friend_accepted: { name: 'user-check', color: colors.primaryMid, bg: colors.primaryPale },
+    event_reminder: { name: 'calendar-clock', color: colors.accent, bg: colors.amberPale },
+    event_joined: { name: 'calendar-plus', color: colors.primaryMid, bg: colors.primaryPale },
+    event_cancelled: { name: 'calendar-x', color: colors.red, bg: colors.redPale },
+    checkin_nearby: { name: 'map-pin', color: colors.blue, bg: colors.bluePale },
+    review_on_venue: { name: 'star', color: colors.accent, bg: colors.amberPale },
+    event_invite: { name: 'mail', color: colors.purple, bg: colors.purplePale },
+    event_update: { name: 'megaphone', color: colors.accent, bg: colors.amberPale },
+  };
+}
 
 const DELETE_THRESHOLD = -80;
 
-function SwipeableRow({ children, onDelete }: { children: React.ReactNode; onDelete: () => void }) {
+function SwipeableRow({ children, onDelete, colors }: { children: React.ReactNode; onDelete: () => void; colors: ThemeColors }) {
   const translateX = useRef(new Animated.Value(0)).current;
+  const sw = useMemo(() => createSwStyles(colors), [colors]);
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy),
@@ -45,7 +50,7 @@ function SwipeableRow({ children, onDelete }: { children: React.ReactNode; onDel
   return (
     <View style={sw.container}>
       <View style={sw.deleteBackground}>
-        <Lucide name="trash-2" size={18} color={Colors.white} />
+        <Lucide name="trash-2" size={18} color={colors.textOnPrimary} />
       </View>
       <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
         {children}
@@ -63,6 +68,9 @@ export function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [pendingMap, setPendingMap] = useState<Map<string, number>>(new Map()); // sender_id → friendship id
   const [respondedIds, setRespondedIds] = useState<Set<string>>(new Set());
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const ICON_MAP = useMemo(() => getIconMap(colors), [colors]);
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
@@ -170,7 +178,7 @@ export function NotificationsScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Lucide name="arrow-left" size={24} color={Colors.white} />
+          <Lucide name="arrow-left" size={24} color={colors.textOnPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('notifications')}</Text>
         <View style={styles.headerActions}>
@@ -181,17 +189,17 @@ export function NotificationsScreen() {
           )}
           {notifications.length > 0 && (
             <TouchableOpacity onPress={handleDeleteAll}>
-              <Lucide name="trash-2" size={18} color={Colors.white} />
+              <Lucide name="trash-2" size={18} color={colors.textOnPrimary} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color={Colors.green} style={{ flex: 1, marginTop: 40 }} />
+        <ActivityIndicator size="large" color={colors.primary} style={{ flex: 1, marginTop: 40 }} />
       ) : notifications.length === 0 ? (
         <View style={styles.empty}>
-          <Lucide name="bell-off" size={48} color={Colors.inkFaint} />
+          <Lucide name="bell-off" size={48} color={colors.textFaint} />
           <Text style={styles.emptyText}>{s('noNotifications')}</Text>
         </View>
       ) : (
@@ -199,7 +207,7 @@ export function NotificationsScreen() {
           {notifications.map((n) => {
             const icon = ICON_MAP[n.type] || ICON_MAP.friend_request;
             return (
-              <SwipeableRow key={n.id} onDelete={() => handleDelete(n.id)}>
+              <SwipeableRow key={n.id} onDelete={() => handleDelete(n.id)} colors={colors}>
                 <TouchableOpacity
                   style={[styles.card, !n.read && styles.cardUnread]}
                   onPress={() => handleTap(n)}
@@ -217,11 +225,11 @@ export function NotificationsScreen() {
                     {n.type === 'friend_request' && n.sender_id && pendingMap.has(n.sender_id) && !respondedIds.has(n.sender_id) && (
                       <View style={styles.inlineActions}>
                         <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAcceptFriend(n.sender_id, n.id)}>
-                          <Lucide name="check" size={14} color={Colors.white} />
+                          <Lucide name="check" size={14} color={colors.textOnPrimary} />
                           <Text style={styles.acceptBtnText}>{s('accept')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.declineBtn} onPress={() => handleDeclineFriend(n.sender_id, n.id)}>
-                          <Lucide name="x" size={14} color={Colors.red} />
+                          <Lucide name="x" size={14} color={colors.red} />
                           <Text style={styles.declineBtnText}>{s('decline')}</Text>
                         </TouchableOpacity>
                       </View>
@@ -242,158 +250,162 @@ export function NotificationsScreen() {
   );
 }
 
-const sw = StyleSheet.create({
-  container: {
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  deleteBackground: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 80,
-    backgroundColor: Colors.red,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+function createSwStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      position: 'relative',
+      overflow: 'hidden',
+    },
+    deleteBackground: {
+      position: 'absolute',
+      right: 0,
+      top: 0,
+      bottom: 0,
+      width: 80,
+      backgroundColor: colors.red,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });
+}
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.green,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    minHeight: 52,
-  },
-  headerTitle: {
-    fontFamily: Fonts.heading,
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  actionText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  scroll: {
-    flex: 1,
-  },
-  empty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  emptyText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.inkFaint,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    paddingHorizontal: 16,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.bg,
-  },
-  cardUnread: {
-    backgroundColor: Colors.greenPale,
-  },
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardContent: {
-    flex: 1,
-    gap: 2,
-  },
-  cardTitle: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.ink,
-  },
-  cardTitleUnread: {
-    fontWeight: '700',
-  },
-  cardBody: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.inkMuted,
-  },
-  cardTime: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.inkFaint,
-  },
-  inlineActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 6,
-  },
-  acceptBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.green,
-    borderRadius: 14,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    gap: 4,
-  },
-  acceptBtnText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  declineBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  declineBtnText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.red,
-  },
-  respondedText: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.greenMid,
-    marginTop: 4,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.greenLight,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.primary,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      minHeight: 52,
+    },
+    headerTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    actionText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    scroll: {
+      flex: 1,
+    },
+    empty: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    emptyText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.textFaint,
+    },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 14,
+      paddingHorizontal: 16,
+      gap: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+      backgroundColor: colors.bg,
+    },
+    cardUnread: {
+      backgroundColor: colors.primaryPale,
+    },
+    iconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: Radius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cardContent: {
+      flex: 1,
+      gap: 2,
+    },
+    cardTitle: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.text,
+    },
+    cardTitleUnread: {
+      fontWeight: '700',
+    },
+    cardBody: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    cardTime: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textFaint,
+    },
+    inlineActions: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 6,
+    },
+    acceptBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 14,
+      paddingVertical: 5,
+      paddingHorizontal: 12,
+      gap: 4,
+    },
+    acceptBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    declineBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 14,
+      paddingVertical: 5,
+      paddingHorizontal: 12,
+      gap: 4,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    declineBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.red,
+    },
+    respondedText: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.primaryMid,
+      marginTop: 4,
+    },
+    unreadDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.primaryLight,
+    },
+  });
+}

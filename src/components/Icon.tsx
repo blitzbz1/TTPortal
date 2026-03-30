@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import * as LucideIcons from 'lucide-react-native';
-import { Colors } from '../theme';
+import { lightColors } from '../theme';
 
 interface LucideProps {
   name: string;
@@ -21,7 +21,7 @@ function toPascalCase(kebab: string): string {
     .join('');
 }
 
-export function Lucide({ name, size = 24, color = Colors.ink, strokeWidth }: LucideProps) {
+export function Lucide({ name, size = 24, color = lightColors.text, strokeWidth }: LucideProps) {
   const key = toPascalCase(name);
   const IconComponent = (LucideIcons as unknown as Record<string, React.ComponentType<LucideIcons.LucideProps>>)[key];
 

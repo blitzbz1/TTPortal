@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
 import { CityPickerModal } from '../components/CityPickerModal';
-import { Colors, Fonts, Radius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getLeaderboard } from '../services/leaderboard';
@@ -19,8 +21,6 @@ const TAB_TO_TYPE: Record<LBTab, 'checkins' | 'reviews' | 'venues'> = {
 
 // Medal by rank value (1=gold, 2=silver, 3=bronze)
 const MEDAL_BY_RANK: Record<number, string> = { 1: '\uD83E\uDD47', 2: '\uD83E\uDD48', 3: '\uD83E\uDD49' };
-const COLOR_BY_RANK: Record<number, string> = { 1: Colors.green, 2: Colors.greenMid, 3: Colors.orange };
-const PODIUM_COLORS = [Colors.greenMid, Colors.green, Colors.orange];
 
 interface LeaderboardsScreenProps {
   hideTabBar?: boolean;
@@ -35,6 +35,11 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const { user } = useSession();
   const { s } = useI18n();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const COLOR_BY_RANK: Record<number, string> = { 1: colors.primary, 2: colors.primaryMid, 3: colors.accent };
+  const PODIUM_COLORS = [colors.primaryMid, colors.primary, colors.accent];
 
   const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
@@ -89,7 +94,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={styles.headerTitle}>{s('leaderboard')}</Text>
         <TouchableOpacity style={styles.filterBtn} onPress={() => setCityModalVisible(true)}>
-          <Lucide name="map-pin" size={14} color={Colors.white} />
+          <Lucide name="map-pin" size={14} color={colors.textOnPrimary} />
           <Text style={styles.filterText}>{selectedCity || 'București'}</Text>
         </TouchableOpacity>
       </View>
@@ -115,10 +120,10 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
         </View>
 
         {loading ? (
-          <ActivityIndicator size="large" color={Colors.green} style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
         ) : entries.length === 0 ? (
           <View style={{ alignItems: 'center', marginTop: 40, padding: 16 }}>
-            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
+            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>
               {s('noLeaderboard')}
             </Text>
           </View>
@@ -130,7 +135,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
                 const rank = p.rank ?? (idx + 1);
                 const isHighlight = rank === 1;
                 const size = isHighlight ? 64 : 52;
-                const color = COLOR_BY_RANK[rank] ?? Colors.green;
+                const color = COLOR_BY_RANK[rank] ?? colors.primary;
 
                 return (
                   <View key={p.user_id ?? idx} style={[styles.podiumItem, { width: isHighlight ? 100 : 90 }]}>
@@ -184,7 +189,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
             {myEntry && (
               <View style={styles.myRank}>
                 <Text style={styles.myNum}>{myEntry.rank ?? '—'}</Text>
-                <View style={[styles.rankAvatar, { backgroundColor: Colors.green }]}>
+                <View style={[styles.rankAvatar, { backgroundColor: colors.primary }]}>
                   <Text style={styles.rankInitials}>
                     {getInitials(myEntry.full_name ?? user?.user_metadata?.full_name)}
                   </Text>
@@ -195,7 +200,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
                   </Text>
                   <Text style={styles.myScore}>{getScoreLabel(myEntry)}</Text>
                 </View>
-                <Lucide name="trending-up" size={18} color={Colors.greenLight} />
+                <Lucide name="trending-up" size={18} color={colors.primaryLight} />
               </View>
             )}
           </>
@@ -214,192 +219,194 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.green,
-    paddingVertical: 10,
-    minHeight: 52,
-    paddingHorizontal: 16,
-  },
-  headerTitle: {
-    fontFamily: Fonts.heading,
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  filterBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.orangeBright,
-    borderRadius: 8,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    gap: 4,
-  },
-  filterText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  scroll: {
-    flex: 1,
-  },
-  tabs: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-  },
-  tab: {
-    flex: 1,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  tabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: Colors.green,
-  },
-  tabText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.inkFaint,
-  },
-  tabTextActive: {
-    fontWeight: '600',
-    color: Colors.green,
-  },
-  podium: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    paddingVertical: 24,
-    paddingHorizontal: 24,
-    gap: 12,
-  },
-  podiumItem: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  podiumRank: {
-    fontSize: 22,
-  },
-  podiumAvatar: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  podiumAvatarHighlight: {
-    borderWidth: 3,
-    borderColor: Colors.greenLight,
-  },
-  podiumInitials: {
-    fontFamily: Fonts.body,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  podiumName: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.ink,
-  },
-  podiumNameHighlight: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  podiumScore: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.inkFaint,
-  },
-  podiumScoreHighlight: {
-    color: Colors.greenLight,
-    fontWeight: '600',
-  },
-  rankList: {
-    paddingHorizontal: 16,
-    gap: 2,
-  },
-  rankRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: Radius.md,
-    padding: 10,
-    paddingHorizontal: 12,
-    gap: 12,
-  },
-  rankNum: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.inkFaint,
-    width: 20,
-    textAlign: 'center',
-  },
-  rankAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rankInitials: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  rankInfo: {
-    flex: 1,
-    gap: 1,
-  },
-  rankName: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.ink,
-  },
-  rankScore: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.inkFaint,
-  },
-  myRank: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.greenPale,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.greenDim,
-  },
-  myNum: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.green,
-    width: 20,
-    textAlign: 'center',
-  },
-  myName: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.green,
-  },
-  myScore: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.greenLight,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.primary,
+      paddingVertical: 10,
+      minHeight: 52,
+      paddingHorizontal: 16,
+    },
+    headerTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    filterBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.accentBright,
+      borderRadius: 8,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+      gap: 4,
+    },
+    filterText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    scroll: {
+      flex: 1,
+    },
+    tabs: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+    },
+    tab: {
+      flex: 1,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    tabActive: {
+      borderBottomWidth: 2,
+      borderBottomColor: colors.primary,
+    },
+    tabText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.textFaint,
+    },
+    tabTextActive: {
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    podium: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'flex-end',
+      paddingVertical: 24,
+      paddingHorizontal: 24,
+      gap: 12,
+    },
+    podiumItem: {
+      alignItems: 'center',
+      gap: 6,
+    },
+    podiumRank: {
+      fontSize: 22,
+    },
+    podiumAvatar: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    podiumAvatarHighlight: {
+      borderWidth: 3,
+      borderColor: colors.primaryLight,
+    },
+    podiumInitials: {
+      fontFamily: Fonts.body,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    podiumName: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    podiumNameHighlight: {
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    podiumScore: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textFaint,
+    },
+    podiumScoreHighlight: {
+      color: colors.primaryLight,
+      fontWeight: '600',
+    },
+    rankList: {
+      paddingHorizontal: 16,
+      gap: 2,
+    },
+    rankRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: Radius.md,
+      padding: 10,
+      paddingHorizontal: 12,
+      gap: 12,
+    },
+    rankNum: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textFaint,
+      width: 20,
+      textAlign: 'center',
+    },
+    rankAvatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    rankInitials: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    rankInfo: {
+      flex: 1,
+      gap: 1,
+    },
+    rankName: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    rankScore: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      color: colors.textFaint,
+    },
+    myRank: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primaryPale,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      gap: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.primaryDim,
+    },
+    myNum: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.primary,
+      width: 20,
+      textAlign: 'center',
+    },
+    myName: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    myScore: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.primaryLight,
+    },
+  });
+}

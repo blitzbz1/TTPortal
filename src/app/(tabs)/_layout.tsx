@@ -1,7 +1,8 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Lucide } from '../../components/Icon';
-import { Colors, Fonts } from '../../theme';
+import { Fonts } from '../../theme';
+import { useTheme } from '../../hooks/useTheme';
 import { useSession } from '../../hooks/useSession';
 
 const TAB_CONFIG = [
@@ -16,13 +17,18 @@ const TAB_ICON_SIZE = 22;
 
 export default function TabLayout() {
   const { session } = useSession();
+  const { colors } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.green,
-        tabBarInactiveTintColor: Colors.inkFaint,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textFaint,
+        tabBarStyle: {
+          backgroundColor: colors.bgAlt,
+          borderTopColor: colors.border,
+        },
         tabBarLabelStyle: {
           fontFamily: Fonts.body,
           fontSize: 10,

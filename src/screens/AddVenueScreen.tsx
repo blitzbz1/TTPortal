@@ -1,9 +1,11 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
-import { Colors, Fonts, Radius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { createVenue } from '../services/venues';
@@ -13,6 +15,9 @@ export function AddVenueScreen() {
   const router = useRouter();
   const { user } = useSession();
   const { s } = useI18n();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [type, setType] = useState<VenueType>('parc_exterior');
@@ -103,18 +108,19 @@ export function AddVenueScreen() {
         <View style={styles.sheetHeader}>
           <Text style={styles.sheetTitle}>{s('addVenueTitle')}</Text>
           <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
-            <Lucide name="x" size={16} color={Colors.inkFaint} />
+            <Lucide name="x" size={16} color={colors.textFaint} />
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.formScroll}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView style={styles.formScroll} keyboardShouldPersistTaps="handled">
           {/* Name Field */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>{s('fieldName')}</Text>
             <TextInput
               style={[styles.input, styles.inputText]}
               placeholder={s('fieldNamePlaceholder')}
-              placeholderTextColor={Colors.inkFaint}
+              placeholderTextColor={colors.textFaint}
               value={name}
               onChangeText={setName}
             />
@@ -150,7 +156,7 @@ export function AddVenueScreen() {
               <TextInput
                 style={[styles.input, styles.inputText]}
                 placeholder="2"
-                placeholderTextColor={Colors.inkFaint}
+                placeholderTextColor={colors.textFaint}
                 value={tablesCount}
                 onChangeText={setTablesCount}
                 keyboardType="numeric"
@@ -160,7 +166,7 @@ export function AddVenueScreen() {
               <Text style={styles.fieldLabel}>{s('fieldCity')}</Text>
               <View style={[styles.input, styles.inputSelect]}>
                 <Text style={styles.inputValue}>{city}</Text>
-                <Lucide name="chevron-down" size={16} color={Colors.inkFaint} />
+                <Lucide name="chevron-down" size={16} color={colors.textFaint} />
               </View>
             </View>
           </View>
@@ -172,20 +178,20 @@ export function AddVenueScreen() {
               <TextInput
                 style={[styles.input, styles.inputText, { flex: 1 }]}
                 placeholder={s('addressPlaceholder')}
-                placeholderTextColor={Colors.inkFaint}
+                placeholderTextColor={colors.textFaint}
                 value={address}
                 onChangeText={setAddress}
               />
               <TouchableOpacity
-                style={[styles.geocodeBtn, geoLat !== null && { backgroundColor: Colors.greenLight }]}
+                style={[styles.geocodeBtn, geoLat !== null && { backgroundColor: colors.primaryLight }]}
                 onPress={handleGeocode}
                 disabled={geocoding}
               >
                 {geocoding ? (
-                  <ActivityIndicator size="small" color={Colors.white} />
+                  <ActivityIndicator size="small" color={colors.textOnPrimary} />
                 ) : (
                   <>
-                    <Lucide name="map-pin" size={14} color={Colors.white} />
+                    <Lucide name="map-pin" size={14} color={colors.textOnPrimary} />
                     <Text style={styles.geocodeBtnText}>
                       {geoLat !== null ? '\u2713' : s('pinOnMap')}
                     </Text>
@@ -201,7 +207,7 @@ export function AddVenueScreen() {
             <TextInput
               style={[styles.textarea, styles.textareaInput]}
               placeholder={s('notesPlaceholder')}
-              placeholderTextColor={Colors.inkFaint}
+              placeholderTextColor={colors.textFaint}
               value={notes}
               onChangeText={setNotes}
               multiline
@@ -216,224 +222,227 @@ export function AddVenueScreen() {
             </TouchableOpacity>
             <TouchableOpacity style={[styles.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
               {loading ? (
-                <ActivityIndicator size="small" color={Colors.white} />
+                <ActivityIndicator size="small" color={colors.textOnPrimary} />
               ) : (
                 <>
-                  <Lucide name="plus" size={16} color={Colors.white} />
+                  <Lucide name="plus" size={16} color={colors.textOnPrimary} />
                   <Text style={styles.submitText}>{s('addBtn')}</Text>
                 </>
               )}
             </TouchableOpacity>
           </View>
         </ScrollView>
+        </KeyboardAvoidingView>
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0a140a88',
-  },
-  mapBg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#d4e4d0',
-  },
-  sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 684,
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 32,
-    elevation: 10,
-  },
-  handleWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 28,
-  },
-  handleBar: {
-    width: 36,
-    height: 4,
-    borderRadius: 100,
-    backgroundColor: Colors.border,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  sheetTitle: {
-    fontFamily: Fonts.heading,
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.ink,
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  formScroll: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  field: {
-    gap: 6,
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.inkFaint,
-    letterSpacing: 0.7,
-  },
-  input: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.bg,
-    borderRadius: 8,
-    height: 42,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  inputText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.ink,
-  },
-  inputSelect: {
-    justifyContent: 'space-between',
-  },
-  inputPlaceholder: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.inkFaint,
-  },
-  inputValue: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.ink,
-  },
-  typeRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  typeBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.bg,
-    borderRadius: 8,
-    height: 42,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  typeBtnActive: {
-    backgroundColor: Colors.greenPale,
-    borderColor: Colors.greenDim,
-  },
-  typeBtnText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.inkMuted,
-  },
-  typeBtnTextActive: {
-    color: Colors.greenMid,
-    fontWeight: '600',
-  },
-  fieldRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  geocodeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.green,
-    borderRadius: 8,
-    height: 42,
-    paddingHorizontal: 14,
-    gap: 6,
-  },
-  geocodeBtnText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  textarea: {
-    backgroundColor: Colors.bg,
-    borderRadius: 8,
-    height: 70,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  textareaInput: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.ink,
-    textAlignVertical: 'top',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 8,
-    paddingBottom: 16,
-  },
-  cancelBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.md,
-    height: 46,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  cancelText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.inkMuted,
-  },
-  submitBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.green,
-    borderRadius: Radius.md,
-    height: 46,
-    gap: 8,
-  },
-  submitText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+    },
+    mapBg: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.mapBg,
+    },
+    sheet: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 684,
+      backgroundColor: colors.bgAlt,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: -8 },
+      shadowOpacity: 0.08,
+      shadowRadius: 32,
+      elevation: 10,
+    },
+    handleWrap: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: 28,
+    },
+    handleBar: {
+      width: 36,
+      height: 4,
+      borderRadius: 100,
+      backgroundColor: colors.border,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingBottom: 12,
+    },
+    sheetTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    closeBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    formScroll: {
+      flex: 1,
+      paddingHorizontal: 20,
+    },
+    field: {
+      gap: 6,
+      marginBottom: 16,
+    },
+    fieldLabel: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.textFaint,
+      letterSpacing: 0.7,
+    },
+    input: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.bg,
+      borderRadius: 8,
+      height: 42,
+      paddingHorizontal: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    inputText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.text,
+    },
+    inputSelect: {
+      justifyContent: 'space-between',
+    },
+    inputPlaceholder: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.textFaint,
+    },
+    inputValue: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.text,
+    },
+    typeRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    typeBtn: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.bg,
+      borderRadius: 8,
+      height: 42,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    typeBtnActive: {
+      backgroundColor: colors.primaryPale,
+      borderColor: colors.primaryDim,
+    },
+    typeBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    typeBtnTextActive: {
+      color: colors.primaryMid,
+      fontWeight: '600',
+    },
+    fieldRow: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    addressRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    geocodeBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      height: 42,
+      paddingHorizontal: 14,
+      gap: 6,
+    },
+    geocodeBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    textarea: {
+      backgroundColor: colors.bg,
+      borderRadius: 8,
+      height: 70,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    textareaInput: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.text,
+      textAlignVertical: 'top',
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: 12,
+      paddingVertical: 8,
+      paddingBottom: 16,
+    },
+    cancelBtn: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: Radius.md,
+      height: 46,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    cancelText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    submitBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: Radius.md,
+      height: 46,
+      gap: 8,
+    },
+    submitText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+  });
+}

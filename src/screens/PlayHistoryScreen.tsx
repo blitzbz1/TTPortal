@@ -3,7 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
-import { Colors, Fonts } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getPlayHistory, getCheckinStats } from '../services/checkins';
@@ -21,6 +23,8 @@ export function PlayHistoryScreen() {
   const { user } = useSession();
   const router = useRouter();
   const { s } = useI18n();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -136,9 +140,9 @@ export function PlayHistoryScreen() {
   const grouped = groupByDay(displayHistory);
 
   const summaryStats = [
-    { value: String(stats?.total_checkins ?? history.length), label: s('checkins'), bg: Colors.greenPale, color: Colors.green },
-    { value: String(stats?.unique_venues ?? 0), label: s('locations'), bg: Colors.purplePale, color: Colors.purple },
-    { value: computeTotalTime(), label: s('timePlayed'), bg: Colors.amberPale, color: Colors.orange },
+    { value: String(stats?.total_checkins ?? history.length), label: s('checkins'), bg: colors.primaryPale, color: colors.primary },
+    { value: String(stats?.unique_venues ?? 0), label: s('locations'), bg: colors.purplePale, color: colors.purple },
+    { value: computeTotalTime(), label: s('timePlayed'), bg: colors.amberPale, color: colors.accent },
   ];
 
   return (
@@ -146,15 +150,15 @@ export function PlayHistoryScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Lucide name="arrow-left" size={24} color={Colors.ink} />
+          <Lucide name="arrow-left" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('playHistoryTitle')}</Text>
         <TouchableOpacity
-          style={[styles.filterBtn, filterMonth && { backgroundColor: Colors.greenPale, borderColor: Colors.greenDim }]}
+          style={[styles.filterBtn, filterMonth && { backgroundColor: colors.primaryPale, borderColor: colors.primaryDim }]}
           onPress={() => setFilterMonth((v) => !v)}
         >
-          <Lucide name="calendar" size={14} color={filterMonth ? Colors.green : Colors.inkMuted} />
-          <Text style={[styles.filterText, filterMonth && { color: Colors.green, fontWeight: '600' }]}>
+          <Lucide name="calendar" size={14} color={filterMonth ? colors.primary : colors.textMuted} />
+          <Text style={[styles.filterText, filterMonth && { color: colors.primary, fontWeight: '600' }]}>
             {filterMonth
               ? new Date().toLocaleDateString('ro-RO', { month: 'short', year: 'numeric' })
               : s('allTime') || 'Tot'}
@@ -163,7 +167,7 @@ export function PlayHistoryScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color={Colors.green} style={{ flex: 1, marginTop: 40 }} />
+        <ActivityIndicator size="large" color={colors.primary} style={{ flex: 1, marginTop: 40 }} />
       ) : (
         <ScrollView style={styles.scroll}>
           {/* Stats Summary */}
@@ -178,14 +182,14 @@ export function PlayHistoryScreen() {
 
           {/* Streak Bar */}
           <View style={styles.streakBar}>
-            <Lucide name="flame" size={18} color={Colors.orangeBright} />
+            <Lucide name="flame" size={18} color={colors.accentBright} />
             <Text style={styles.streakText}>{s('playHistoryLabel')}</Text>
           </View>
 
           {/* Timeline */}
           {displayHistory.length === 0 ? (
             <View style={{ alignItems: 'center', marginTop: 20, padding: 16 }}>
-              <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
+              <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>
                 {s('noCheckins')}
               </Text>
             </View>
@@ -194,7 +198,7 @@ export function PlayHistoryScreen() {
               {grouped.map((day, dayIdx) => (
                 <View key={day.dateKey}>
                   <View style={styles.dayLabel}>
-                    <View style={[styles.dayDot, { backgroundColor: dayIdx === 0 ? Colors.green : Colors.inkFaint }]} />
+                    <View style={[styles.dayDot, { backgroundColor: dayIdx === 0 ? colors.primary : colors.textFaint }]} />
                     <Text style={styles.dayText}>{day.dayLabel}</Text>
                   </View>
                   {day.entries.map((entry: any) => (
@@ -203,8 +207,8 @@ export function PlayHistoryScreen() {
                       style={styles.entry}
                       onPress={() => router.push(`/venue/${entry.venue_id}` as any)}
                     >
-                      <View style={[styles.entryIcon, { backgroundColor: Colors.greenPale }]}>
-                        <Lucide name="map-pin" size={18} color={Colors.greenLight} />
+                      <View style={[styles.entryIcon, { backgroundColor: colors.primaryPale }]}>
+                        <Lucide name="map-pin" size={18} color={colors.primaryLight} />
                       </View>
                       <View style={styles.entryInfo}>
                         <Text style={styles.entryTitle}>
@@ -218,7 +222,7 @@ export function PlayHistoryScreen() {
                           </Text>
                         </View>
                       </View>
-                      <Lucide name="chevron-right" size={18} color={Colors.inkFaint} />
+                      <Lucide name="chevron-right" size={18} color={colors.textFaint} />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -229,10 +233,10 @@ export function PlayHistoryScreen() {
                 <View style={styles.loadMore}>
                   <TouchableOpacity style={styles.loadMoreBtn} onPress={loadMore} disabled={loadingMore}>
                     {loadingMore ? (
-                      <ActivityIndicator size="small" color={Colors.inkMuted} />
+                      <ActivityIndicator size="small" color={colors.textMuted} />
                     ) : (
                       <>
-                        <Lucide name="chevrons-down" size={16} color={Colors.inkMuted} />
+                        <Lucide name="chevrons-down" size={16} color={colors.textMuted} />
                         <Text style={styles.loadMoreText}>{s('loadOlder')}</Text>
                       </>
                     )}
@@ -247,182 +251,184 @@ export function PlayHistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.white,
-    height: 52,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  headerTitle: {
-    fontFamily: Fonts.heading,
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.ink,
-  },
-  filterBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.bgDark,
-    borderRadius: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  filterText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.inkMuted,
-  },
-  scroll: {
-    flex: 1,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    padding: 16,
-    paddingBottom: 8,
-  },
-  statCard: {
-    flex: 1,
-    alignItems: 'center',
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
-  },
-  statValue: {
-    fontFamily: Fonts.heading,
-    fontSize: 24,
-    fontWeight: '800',
-  },
-  statLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    fontWeight: '500',
-    color: Colors.inkMuted,
-  },
-  streakBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  streakText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.orange,
-  },
-  timeline: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  dayLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    gap: 8,
-  },
-  dayDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  dayText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.inkMuted,
-  },
-  entry: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingLeft: 16,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    borderLeftWidth: 2,
-    borderLeftColor: Colors.borderLight,
-  },
-  entryIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  entryInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  entryTitle: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.ink,
-  },
-  entryDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  entryTime: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.inkFaint,
-  },
-  entryDot: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.inkFaint,
-  },
-  entryDuration: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.inkFaint,
-  },
-  entryFriends: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  entryFriendsText: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.purpleMid,
-  },
-  loadMore: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  loadMoreBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.bgDark,
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  loadMoreText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.inkMuted,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.bgAlt,
+      height: 52,
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    filterBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.bgMuted,
+      borderRadius: 16,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      gap: 4,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    filterText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.textMuted,
+    },
+    scroll: {
+      flex: 1,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      gap: 10,
+      padding: 16,
+      paddingBottom: 8,
+    },
+    statCard: {
+      flex: 1,
+      alignItems: 'center',
+      borderRadius: 12,
+      padding: 12,
+      gap: 4,
+    },
+    statValue: {
+      fontFamily: Fonts.heading,
+      fontSize: 24,
+      fontWeight: '800',
+    },
+    statLabel: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.textMuted,
+    },
+    streakBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      gap: 8,
+    },
+    streakText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.accent,
+    },
+    timeline: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+    },
+    dayLabel: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 8,
+      gap: 8,
+    },
+    dayDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    dayText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textMuted,
+    },
+    entry: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingLeft: 16,
+      gap: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+      borderLeftWidth: 2,
+      borderLeftColor: colors.borderLight,
+    },
+    entryIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    entryInfo: {
+      flex: 1,
+      gap: 2,
+    },
+    entryTitle: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    entryDetails: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    entryTime: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      color: colors.textFaint,
+    },
+    entryDot: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      color: colors.textFaint,
+    },
+    entryDuration: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      color: colors.textFaint,
+    },
+    entryFriends: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    entryFriendsText: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.purpleMid,
+    },
+    loadMore: {
+      alignItems: 'center',
+      paddingVertical: 16,
+    },
+    loadMoreBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.bgMuted,
+      borderRadius: 20,
+      paddingVertical: 8,
+      paddingHorizontal: 20,
+      gap: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    loadMoreText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.textMuted,
+    },
+  });
+}

@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking, Share, ActivityIndicator, Platform, Modal, Pressable, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
-import { Colors, Fonts, Radius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getVenueById } from '../services/venues';
@@ -20,6 +22,9 @@ export function VenueDetailScreen({ venueId }: Props) {
   const router = useRouter();
   const { user } = useSession();
   const { s } = useI18n();
+  const { colors } = useTheme();
+  const { cm, styles } = useMemo(() => createStyles(colors), [colors]);
+
   const [venue, setVenue] = useState<(Venue & { venue_stats: VenueStats | null }) | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [favorited, setFavorited] = useState(false);
@@ -195,7 +200,7 @@ export function VenueDetailScreen({ venueId }: Props) {
   if (loading) {
     return (
       <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color={Colors.green} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -203,7 +208,7 @@ export function VenueDetailScreen({ venueId }: Props) {
   if (!venue) {
     return (
       <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
-        <Text style={{ color: Colors.inkMuted }}>{s('notFound')}</Text>
+        <Text style={{ color: colors.textMuted }}>{s('notFound')}</Text>
       </View>
     );
   }
@@ -217,15 +222,15 @@ export function VenueDetailScreen({ venueId }: Props) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Lucide name="arrow-left" size={20} color={Colors.ink} />
+          <Lucide name="arrow-left" size={20} color={colors.text} />
           <Text style={styles.backText}>{s('back')}</Text>
         </TouchableOpacity>
         <View style={styles.headerActions}>
           <TouchableOpacity onPress={handleToggleFavorite}>
-            <Lucide name={favorited ? 'heart' : 'heart'} size={20} color={favorited ? Colors.red : Colors.inkFaint} />
+            <Lucide name={favorited ? 'heart' : 'heart'} size={20} color={favorited ? colors.red : colors.textFaint} />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleShare}>
-            <Lucide name="share-2" size={20} color={Colors.inkFaint} />
+            <Lucide name="share-2" size={20} color={colors.textFaint} />
           </TouchableOpacity>
         </View>
       </View>
@@ -235,7 +240,7 @@ export function VenueDetailScreen({ venueId }: Props) {
         <View style={styles.photoStrip}>
           <View style={styles.photoPlaceholder} />
           <View style={styles.photoCount}>
-            <Lucide name="image" size={12} color={Colors.white} />
+            <Lucide name="image" size={12} color={colors.textOnPrimary} />
             <Text style={styles.photoCountText}>{(venue.photos?.length ?? 0) + ' ' + s('photosCount')}</Text>
           </View>
         </View>
@@ -248,7 +253,7 @@ export function VenueDetailScreen({ venueId }: Props) {
               <View style={styles.infoBadges}>
                 {venue.verified && (
                   <View style={styles.badgeVerified}>
-                    <Lucide name="check" size={10} color={Colors.greenMid} />
+                    <Lucide name="check" size={10} color={colors.primaryMid} />
                     <Text style={styles.badgeVerifiedText}>{s('verified')}</Text>
                   </View>
                 )}
@@ -269,19 +274,19 @@ export function VenueDetailScreen({ venueId }: Props) {
 
           <View style={styles.infoGrid}>
             <View style={styles.infoRow}>
-              <Lucide name="map-pin" size={16} color={Colors.inkFaint} />
+              <Lucide name="map-pin" size={16} color={colors.textFaint} />
               <Text style={styles.infoRowText}>{venue.address || s('addressUnknown')}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Lucide name="table-2" size={16} color={Colors.inkFaint} />
+              <Lucide name="table-2" size={16} color={colors.textFaint} />
               <Text style={styles.infoRowText}>{(venue.tables_count ?? '?') + ' ' + s('tablesState') + ' ' + (venue.condition ?? s('conditionUnknown'))}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Lucide name="clock" size={16} color={Colors.inkFaint} />
+              <Lucide name="clock" size={16} color={colors.textFaint} />
               <Text style={styles.infoRowText}>{venue.hours || s('freeAccess247')}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Lucide name="lamp-floor" size={16} color={Colors.inkFaint} />
+              <Lucide name="lamp-floor" size={16} color={colors.textFaint} />
               <Text style={styles.infoRowText}>
                 {(venue.night_lighting ? s('nightLighting') : s('noLighting')) + ' \u00B7 ' + (venue.nets ? s('netsPresent') : s('noNets'))}
               </Text>
@@ -290,16 +295,16 @@ export function VenueDetailScreen({ venueId }: Props) {
 
           {/* Evaluate Condition */}
           <TouchableOpacity style={styles.evalBtn} onPress={() => router.push(`/(protected)/condition-vote/${venueId}` as any)}>
-            <Lucide name="vote" size={16} color={Colors.greenMid} />
+            <Lucide name="vote" size={16} color={colors.primaryMid} />
             <Text style={styles.evalText}>{s('evaluateCondition')}</Text>
-            <Lucide name="chevron-right" size={14} color={Colors.greenMid} />
+            <Lucide name="chevron-right" size={14} color={colors.primaryMid} />
           </TouchableOpacity>
         </View>
 
         {/* Friends Here */}
         <View style={styles.friendsSection}>
           <View style={styles.friendsTitle}>
-            <Lucide name="users" size={14} color={Colors.purple} />
+            <Lucide name="users" size={14} color={colors.purple} />
             <Text style={styles.friendsTitleText}>{s('friendsHereNow')}</Text>
           </View>
           <View style={styles.checkinRow}>
@@ -314,7 +319,7 @@ export function VenueDetailScreen({ venueId }: Props) {
           {activeCheckin ? (
             <View style={styles.activeCheckinWrap}>
               <View style={styles.activeCheckinInfo}>
-                <Lucide name="check-circle" size={16} color={Colors.greenLight} />
+                <Lucide name="check-circle" size={16} color={colors.primaryLight} />
                 <Text style={styles.activeCheckinText}>
                   {s('checkinSuccess').replace('!', '')} {activeCheckin.ended_at
                     ? `· ${s('untilTime')} ${new Date(activeCheckin.ended_at).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}`
@@ -323,7 +328,7 @@ export function VenueDetailScreen({ venueId }: Props) {
               </View>
               <TouchableOpacity style={styles.checkoutBtn} onPress={handleCheckout} disabled={checkinLoading}>
                 {checkinLoading ? (
-                  <ActivityIndicator size="small" color={Colors.red} />
+                  <ActivityIndicator size="small" color={colors.red} />
                 ) : (
                   <Text style={styles.checkoutBtnText}>Checkout</Text>
                 )}
@@ -332,10 +337,10 @@ export function VenueDetailScreen({ venueId }: Props) {
           ) : (
             <TouchableOpacity style={styles.checkinBtn} onPress={openCheckinModal} disabled={checkinLoading}>
               {checkinLoading ? (
-                <ActivityIndicator size="small" color={Colors.white} />
+                <ActivityIndicator size="small" color={colors.textOnPrimary} />
               ) : (
                 <>
-                  <Lucide name="map-pin" size={16} color={Colors.white} />
+                  <Lucide name="map-pin" size={16} color={colors.textOnPrimary} />
                   <Text style={styles.checkinBtnText}>{s('checkinHere')}</Text>
                 </>
               )}
@@ -348,7 +353,7 @@ export function VenueDetailScreen({ venueId }: Props) {
           <Text style={styles.directionsTitle}>{s('navigation')}</Text>
           <View style={styles.directionsRow}>
             <TouchableOpacity style={styles.dirGoogle} onPress={handleDirectionGoogle}>
-              <Lucide name="navigation" size={14} color={Colors.greenMid} />
+              <Lucide name="navigation" size={14} color={colors.primaryMid} />
               <Text style={styles.dirGoogleText}>Google</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.dirOther} onPress={handleDirectionApple}>
@@ -365,7 +370,7 @@ export function VenueDetailScreen({ venueId }: Props) {
           <View style={styles.reviewsHeader}>
             <Text style={styles.reviewsTitle}>{s('reviewsCount') + ' (' + reviews.length + ')'}</Text>
             <TouchableOpacity style={styles.writeReviewBtn} onPress={() => router.push(`/(protected)/review/${venueId}` as any)} testID="write-review-btn" accessibilityLabel="Scrie recenzie">
-              <Lucide name="pen-line" size={12} color={Colors.greenMid} />
+              <Lucide name="pen-line" size={12} color={colors.primaryMid} />
               <Text style={styles.writeReviewText}>{s('writeBtn')}</Text>
             </TouchableOpacity>
           </View>
@@ -399,26 +404,26 @@ export function VenueDetailScreen({ venueId }: Props) {
             {customMode === 'none' && (
               <View style={cm.options}>
                 <TouchableOpacity style={cm.optionBtn} onPress={() => doCheckin(60)}>
-                  <Lucide name="clock" size={18} color={Colors.green} />
+                  <Lucide name="clock" size={18} color={colors.primary} />
                   <Text style={cm.optionText}>{s('oneHour')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={cm.optionBtn} onPress={() => doCheckin(120)}>
-                  <Lucide name="clock" size={18} color={Colors.green} />
+                  <Lucide name="clock" size={18} color={colors.primary} />
                   <Text style={cm.optionText}>{s('twoHours')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={cm.optionBtn} onPress={() => doCheckin(180)}>
-                  <Lucide name="clock" size={18} color={Colors.green} />
+                  <Lucide name="clock" size={18} color={colors.primary} />
                   <Text style={cm.optionText}>{s('threeHours')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={cm.optionBtn} onPress={() => setCustomMode('minutes')}>
-                  <Lucide name="timer" size={18} color={Colors.orangeBright} />
+                  <Lucide name="timer" size={18} color={colors.accentBright} />
                   <Text style={cm.optionText}>{s('customTime')}</Text>
-                  <View style={{ marginLeft: 'auto' }}><Lucide name="chevron-right" size={14} color={Colors.inkFaint} /></View>
+                  <View style={{ marginLeft: 'auto' }}><Lucide name="chevron-right" size={14} color={colors.textFaint} /></View>
                 </TouchableOpacity>
                 <TouchableOpacity style={cm.optionBtn} onPress={() => setCustomMode('until')}>
-                  <Lucide name="alarm-clock" size={18} color={Colors.purple} />
+                  <Lucide name="alarm-clock" size={18} color={colors.purple} />
                   <Text style={cm.optionText}>{s('untilTime')}</Text>
-                  <View style={{ marginLeft: 'auto' }}><Lucide name="chevron-right" size={14} color={Colors.inkFaint} /></View>
+                  <View style={{ marginLeft: 'auto' }}><Lucide name="chevron-right" size={14} color={colors.textFaint} /></View>
                 </TouchableOpacity>
               </View>
             )}
@@ -430,7 +435,7 @@ export function VenueDetailScreen({ venueId }: Props) {
                   style={cm.input}
                   keyboardType="number-pad"
                   placeholder="e.g. 90"
-                  placeholderTextColor={Colors.inkFaint}
+                  placeholderTextColor={colors.textFaint}
                   value={customMinutes}
                   onChangeText={setCustomMinutes}
                   autoFocus
@@ -454,7 +459,7 @@ export function VenueDetailScreen({ venueId }: Props) {
                     style={[cm.input, cm.timeInput]}
                     keyboardType="number-pad"
                     placeholder="HH"
-                    placeholderTextColor={Colors.inkFaint}
+                    placeholderTextColor={colors.textFaint}
                     value={untilHour}
                     onChangeText={(t) => setUntilHour(t.replace(/\D/g, '').slice(0, 2))}
                     maxLength={2}
@@ -465,7 +470,7 @@ export function VenueDetailScreen({ venueId }: Props) {
                     style={[cm.input, cm.timeInput]}
                     keyboardType="number-pad"
                     placeholder="MM"
-                    placeholderTextColor={Colors.inkFaint}
+                    placeholderTextColor={colors.textFaint}
                     value={untilMinute}
                     onChangeText={(t) => setUntilMinute(t.replace(/\D/g, '').slice(0, 2))}
                     maxLength={2}
@@ -488,400 +493,403 @@ export function VenueDetailScreen({ venueId }: Props) {
   );
 }
 
-/* ── Checkin modal styles ── */
-const cm = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', alignItems: 'center' },
-  sheet: { backgroundColor: Colors.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingBottom: 32, width: '100%', maxWidth: 430 },
-  handleWrap: { alignItems: 'center', paddingVertical: 10 },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: Colors.border },
-  title: { fontFamily: Fonts.heading, fontSize: 18, fontWeight: '700', color: Colors.ink, marginBottom: 16 },
-  options: { gap: 8 },
-  optionBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.bg, borderRadius: Radius.md, padding: 14, borderWidth: 1, borderColor: Colors.borderLight },
-  optionText: { fontFamily: Fonts.body, fontSize: 15, fontWeight: '500', color: Colors.ink },
-  customSection: { gap: 12 },
-  customLabel: { fontFamily: Fonts.body, fontSize: 13, fontWeight: '600', color: Colors.inkMuted },
-  input: { borderWidth: 1.5, borderColor: Colors.border, borderRadius: Radius.md, padding: 12, fontFamily: Fonts.body, fontSize: 16, color: Colors.ink, backgroundColor: Colors.white },
-  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  timeInput: { flex: 1, textAlign: 'center' },
-  timeSep: { fontFamily: Fonts.heading, fontSize: 22, fontWeight: '700', color: Colors.ink },
-  customActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  backBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, borderWidth: 1, borderColor: Colors.border },
-  backBtnText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: Colors.inkMuted },
-  confirmBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, backgroundColor: Colors.green },
-  confirmBtnText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: Colors.white },
-});
+function createStyles(colors: ThemeColors) {
+  const cm = StyleSheet.create({
+    overlay: { flex: 1, backgroundColor: colors.overlayHeavy, justifyContent: 'flex-end', alignItems: 'center' },
+    sheet: { backgroundColor: colors.bgAlt, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingBottom: 32, width: '100%', maxWidth: 430 },
+    handleWrap: { alignItems: 'center', paddingVertical: 10 },
+    handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border },
+    title: { fontFamily: Fonts.heading, fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 16 },
+    options: { gap: 8 },
+    optionBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.bg, borderRadius: Radius.md, padding: 14, borderWidth: 1, borderColor: colors.borderLight },
+    optionText: { fontFamily: Fonts.body, fontSize: 15, fontWeight: '500', color: colors.text },
+    customSection: { gap: 12 },
+    customLabel: { fontFamily: Fonts.body, fontSize: 13, fontWeight: '600', color: colors.textMuted },
+    input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: Radius.md, padding: 12, fontFamily: Fonts.body, fontSize: 16, color: colors.text, backgroundColor: colors.bgAlt },
+    timeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    timeInput: { flex: 1, textAlign: 'center' },
+    timeSep: { fontFamily: Fonts.heading, fontSize: 22, fontWeight: '700', color: colors.text },
+    customActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+    backBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, borderWidth: 1, borderColor: colors.border },
+    backBtnText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: colors.textMuted },
+    confirmBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, backgroundColor: colors.primary },
+    confirmBtnText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: colors.textOnPrimary },
+  });
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.white,
-    height: 52,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  backText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '500',
-    color: Colors.inkMuted,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  scroll: {
-    flex: 1,
-  },
-  photoStrip: {
-    height: 200,
-    backgroundColor: Colors.bgMid,
-    position: 'relative',
-  },
-  photoPlaceholder: {
-    flex: 1,
-    backgroundColor: Colors.bgDark,
-  },
-  photoCount: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#00000088',
-    borderRadius: 100,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    gap: 4,
-  },
-  photoCountText: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.white,
-  },
-  venueInfo: {
-    backgroundColor: Colors.white,
-    padding: 16,
-    gap: 14,
-  },
-  infoTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  infoTitleGroup: {
-    flex: 1,
-    gap: 6,
-  },
-  infoTitle: {
-    fontFamily: Fonts.heading,
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.ink,
-  },
-  infoBadges: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  badgeVerified: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.greenPale,
-    borderRadius: 100,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    gap: 4,
-  },
-  badgeVerifiedText: {
-    fontFamily: Fonts.body,
-    fontSize: 10,
-    fontWeight: '600',
-    color: Colors.greenMid,
-  },
-  badgeFree: {
-    backgroundColor: Colors.bluePale,
-    borderRadius: 100,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-  },
-  badgeFreeText: {
-    fontFamily: Fonts.body,
-    fontSize: 10,
-    fontWeight: '600',
-    color: Colors.blue,
-  },
-  infoRating: {
-    alignItems: 'flex-end',
-    gap: 2,
-  },
-  ratingStars: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.orange,
-  },
-  ratingCount: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.inkFaint,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.bgMid,
-  },
-  infoGrid: {
-    gap: 10,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  infoRowText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.inkMuted,
-  },
-  evalBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.greenPale,
-    borderRadius: Radius.md,
-    height: 38,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.greenDim,
-  },
-  evalText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.greenMid,
-  },
-  friendsSection: {
-    backgroundColor: Colors.purplePale,
-    padding: 16,
-    gap: 10,
-  },
-  friendsTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  friendsTitleText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.purple,
-  },
-  checkinRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  checkinAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.purpleMid,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkinInitials: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  checkinInfo: {
-    gap: 1,
-  },
-  checkinName: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.ink,
-  },
-  checkinTime: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.inkFaint,
-  },
-  checkinBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.purple,
-    borderRadius: Radius.md,
-    height: 40,
-    gap: 8,
-  },
-  checkinBtnText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  activeCheckinWrap: {
-    gap: 8,
-  },
-  activeCheckinInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.greenPale,
-    borderRadius: Radius.md,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: Colors.greenDim,
-  },
-  activeCheckinText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.greenMid,
-    flex: 1,
-  },
-  checkoutBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.md,
-    height: 40,
-    borderWidth: 1.5,
-    borderColor: Colors.red,
-    backgroundColor: Colors.redPale,
-  },
-  checkoutBtnText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.red,
-  },
-  directionsSection: {
-    backgroundColor: Colors.white,
-    padding: 16,
-    gap: 10,
-  },
-  directionsTitle: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.ink,
-  },
-  directionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  dirGoogle: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.greenPale,
-    borderRadius: Radius.md,
-    height: 40,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.greenDim,
-  },
-  dirGoogleText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.greenMid,
-  },
-  dirOther: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.md,
-    height: 40,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  dirOtherText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.inkMuted,
-  },
-  reviewsSection: {
-    backgroundColor: Colors.white,
-    padding: 16,
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-  },
-  reviewsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  reviewsTitle: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.ink,
-  },
-  writeReviewBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.greenPale,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: Colors.greenDim,
-  },
-  writeReviewText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.greenMid,
-  },
-  reviewCard: {
-    borderRadius: Radius.md,
-    padding: 12,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  reviewTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  reviewAuthor: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.ink,
-  },
-  reviewStars: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.orange,
-  },
-  reviewText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.inkMuted,
-    lineHeight: 13 * 1.45,
-  },
-  reviewDate: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.inkFaint,
-  },
-});
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.bgAlt,
+      height: 52,
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    backBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    backText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textMuted,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    scroll: {
+      flex: 1,
+    },
+    photoStrip: {
+      height: 200,
+      backgroundColor: colors.bgMid,
+      position: 'relative',
+    },
+    photoPlaceholder: {
+      flex: 1,
+      backgroundColor: colors.bgMuted,
+    },
+    photoCount: {
+      position: 'absolute',
+      bottom: 12,
+      left: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.overlayHeavy,
+      borderRadius: 100,
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+      gap: 4,
+    },
+    photoCountText: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textOnPrimary,
+    },
+    venueInfo: {
+      backgroundColor: colors.bgAlt,
+      padding: 16,
+      gap: 14,
+    },
+    infoTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    infoTitleGroup: {
+      flex: 1,
+      gap: 6,
+    },
+    infoTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    infoBadges: {
+      flexDirection: 'row',
+      gap: 6,
+    },
+    badgeVerified: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primaryPale,
+      borderRadius: 100,
+      paddingVertical: 2,
+      paddingHorizontal: 8,
+      gap: 4,
+    },
+    badgeVerifiedText: {
+      fontFamily: Fonts.body,
+      fontSize: 10,
+      fontWeight: '600',
+      color: colors.primaryMid,
+    },
+    badgeFree: {
+      backgroundColor: colors.bluePale,
+      borderRadius: 100,
+      paddingVertical: 2,
+      paddingHorizontal: 8,
+    },
+    badgeFreeText: {
+      fontFamily: Fonts.body,
+      fontSize: 10,
+      fontWeight: '600',
+      color: colors.blue,
+    },
+    infoRating: {
+      alignItems: 'flex-end',
+      gap: 2,
+    },
+    ratingStars: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.accent,
+    },
+    ratingCount: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      color: colors.textFaint,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.bgMid,
+    },
+    infoGrid: {
+      gap: 10,
+    },
+    infoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    infoRowText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    evalBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primaryPale,
+      borderRadius: Radius.md,
+      height: 38,
+      gap: 8,
+      borderWidth: 1,
+      borderColor: colors.primaryDim,
+    },
+    evalText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primaryMid,
+    },
+    friendsSection: {
+      backgroundColor: colors.purplePale,
+      padding: 16,
+      gap: 10,
+    },
+    friendsTitle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    friendsTitleText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.purple,
+    },
+    checkinRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    checkinAvatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.purpleMid,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkinInitials: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    checkinInfo: {
+      gap: 1,
+    },
+    checkinName: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    checkinTime: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textFaint,
+    },
+    checkinBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.purple,
+      borderRadius: Radius.md,
+      height: 40,
+      gap: 8,
+    },
+    checkinBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    activeCheckinWrap: {
+      gap: 8,
+    },
+    activeCheckinInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: colors.primaryPale,
+      borderRadius: Radius.md,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: colors.primaryDim,
+    },
+    activeCheckinText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.primaryMid,
+      flex: 1,
+    },
+    checkoutBtn: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: Radius.md,
+      height: 40,
+      borderWidth: 1.5,
+      borderColor: colors.red,
+      backgroundColor: colors.redPale,
+    },
+    checkoutBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.red,
+    },
+    directionsSection: {
+      backgroundColor: colors.bgAlt,
+      padding: 16,
+      gap: 10,
+    },
+    directionsTitle: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    directionsRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    dirGoogle: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primaryPale,
+      borderRadius: Radius.md,
+      height: 40,
+      gap: 6,
+      borderWidth: 1,
+      borderColor: colors.primaryDim,
+    },
+    dirGoogleText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primaryMid,
+    },
+    dirOther: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: Radius.md,
+      height: 40,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    dirOtherText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    reviewsSection: {
+      backgroundColor: colors.bgAlt,
+      padding: 16,
+      gap: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.borderLight,
+    },
+    reviewsHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    reviewsTitle: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    writeReviewBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primaryPale,
+      borderRadius: 8,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      gap: 4,
+      borderWidth: 1,
+      borderColor: colors.primaryDim,
+    },
+    writeReviewText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primaryMid,
+    },
+    reviewCard: {
+      borderRadius: Radius.md,
+      padding: 12,
+      gap: 8,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    reviewTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    reviewAuthor: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    reviewStars: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      color: colors.accent,
+    },
+    reviewText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.textMuted,
+      lineHeight: 13 * 1.45,
+    },
+    reviewDate: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textFaint,
+    },
+  });
+
+  return { cm, styles };
+}

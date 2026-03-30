@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Colors } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 
@@ -20,6 +21,8 @@ interface ProfilePopoverProps {
 export function ProfilePopover({ visible, onClose }: ProfilePopoverProps) {
   const { user, signOut } = useSession();
   const { s } = useI18n();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (!visible) return null;
 
@@ -69,51 +72,53 @@ function truncateEmail(email: string): string {
   return email.slice(0, 25) + '...';
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    position: 'absolute',
-    top: -1000,
-    left: -1000,
-    right: -1000,
-    bottom: -1000,
-    zIndex: 10,
-  },
-  popover: {
-    position: 'absolute',
-    top: 40,
-    right: 0,
-    backgroundColor: Colors.white,
-    borderRadius: 10,
-    padding: 16,
-    minWidth: 200,
-    zIndex: 11,
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  name: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.ink,
-    marginBottom: 4,
-  },
-  email: {
-    fontSize: 13,
-    color: Colors.inkMuted,
-    marginBottom: 12,
-  },
-  signOutButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: Colors.bgDark,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  signOutText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: Colors.red,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    overlay: {
+      position: 'absolute',
+      top: -1000,
+      left: -1000,
+      right: -1000,
+      bottom: -1000,
+      zIndex: 10,
+    },
+    popover: {
+      position: 'absolute',
+      top: 40,
+      right: 0,
+      backgroundColor: colors.bgAlt,
+      borderRadius: 10,
+      padding: 16,
+      minWidth: 200,
+      zIndex: 11,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    name: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    email: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginBottom: 12,
+    },
+    signOutButton: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      backgroundColor: colors.bgMuted,
+      borderRadius: 6,
+      alignItems: 'center',
+    },
+    signOutText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.red,
+    },
+  });
+}

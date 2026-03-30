@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Lucide } from './Icon';
-import { Colors } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { ProfilePopover } from './ProfilePopover';
 
@@ -14,6 +15,8 @@ import { ProfilePopover } from './ProfilePopover';
 export function HeaderProfileIcon() {
   const { session, user } = useSession();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [popoverVisible, setPopoverVisible] = useState(false);
 
   const isAuthenticated = !!session;
@@ -45,7 +48,7 @@ export function HeaderProfileIcon() {
             </Text>
           </View>
         ) : (
-          <Lucide name="user" size={24} color={Colors.inkMuted} />
+          <Lucide name="user" size={24} color={colors.textMuted} />
         )}
       </Pressable>
       {isAuthenticated && (
@@ -71,25 +74,27 @@ function getInitials(fullName?: string): string {
   return (first + last).toUpperCase();
 }
 
-const styles = StyleSheet.create({
-  wrapper: {
-    position: 'relative',
-  },
-  container: {
-    padding: 4,
-    marginRight: 8,
-  },
-  initialsCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  initialsText: {
-    color: Colors.white,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    wrapper: {
+      position: 'relative',
+    },
+    container: {
+      padding: 4,
+      marginRight: 8,
+    },
+    initialsCircle: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    initialsText: {
+      color: colors.textOnPrimary,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+  });
+}

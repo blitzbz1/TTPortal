@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { TabBar } from '../components/TabBar';
-import { Colors, Fonts, Radius } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, Radius } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getEvents, getEventParticipants, joinEvent, leaveEvent, cancelEvent, stopRecurrence, sendEventInvites, sendEventUpdate } from '../services/events';
@@ -32,6 +34,8 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const { user } = useSession();
   const { s } = useI18n();
   const router = useRouter();
+  const { colors } = useTheme();
+  const { styles, ms } = useMemo(() => createStyles(colors), [colors]);
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -121,21 +125,21 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     });
   };
 
-  const getBadgeInfo = (event: any) => {
+  const getBadgeInfo = useCallback((event: any) => {
     if (event.status === 'completed') {
-      return { text: s('completed'), bg: Colors.borderLight, color: Colors.inkMuted };
+      return { text: s('completed'), bg: colors.borderLight, color: colors.textMuted };
     }
     if (event.status === 'cancelled') {
-      return { text: s('cancelled'), bg: '#fde8e8', color: Colors.red };
+      return { text: s('cancelled'), bg: colors.cancelledBadgeBg, color: colors.red };
     }
     if (event.status === 'confirmed') {
-      return { text: s('confirmed'), bg: Colors.greenPale, color: Colors.greenMid };
+      return { text: s('confirmed'), bg: colors.primaryPale, color: colors.primaryMid };
     }
     if (event.event_type === 'tournament') {
-      return { text: s('tournament'), bg: Colors.bluePale, color: Colors.blue };
+      return { text: s('tournament'), bg: colors.bluePale, color: colors.blue };
     }
-    return { text: s('open'), bg: Colors.amberPale, color: Colors.orange };
-  };
+    return { text: s('open'), bg: colors.amberPale, color: colors.accent };
+  }, [colors, s]);
 
   const getInitials = (name?: string) => {
     if (!name) return '??';
@@ -149,8 +153,8 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
 
   const getDuration = (start: string, end?: string) => {
     if (!end) return null;
-    const ms = new Date(end).getTime() - new Date(start).getTime();
-    const hours = Math.round(ms / 3600000);
+    const msVal = new Date(end).getTime() - new Date(start).getTime();
+    const hours = Math.round(msVal / 3600000);
     return hours > 0 ? hours : null;
   };
 
@@ -170,12 +174,12 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         <View style={styles.headerRight}>
           {user ? (
             <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/(protected)/create-event' as any)}>
-              <Lucide name="plus" size={14} color={Colors.white} />
+              <Lucide name="plus" size={14} color={colors.textOnPrimary} />
               <Text style={styles.createText}>{s('create')}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/sign-in')}>
-              <Lucide name="log-in" size={14} color={Colors.white} />
+              <Lucide name="log-in" size={14} color={colors.textOnPrimary} />
               <Text style={styles.createText}>{s('authLogin')}</Text>
             </TouchableOpacity>
           )}
@@ -204,10 +208,10 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
 
         {/* Event Cards */}
         {loading ? (
-          <ActivityIndicator size="large" color={Colors.orangeBright} style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color={colors.accentBright} style={{ marginTop: 40 }} />
         ) : events.length === 0 ? (
           <View style={{ alignItems: 'center', marginTop: 40, padding: 16 }}>
-            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: Colors.inkFaint }}>
+            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>
               {s('noEvents')}
             </Text>
           </View>
@@ -226,12 +230,12 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                   {/* Top */}
                   <View style={styles.eventTop}>
                     <View style={styles.eventDateWrap}>
-                      <Lucide name="calendar" size={14} color={Colors.orangeBright} />
+                      <Lucide name="calendar" size={14} color={colors.accentBright} />
                       <Text style={styles.eventDate}>
                         {formatDate(event.starts_at)} {'\u00B7'} {formatTime(event.starts_at)}
                       </Text>
                       {event.recurrence_rule && (
-                        <Lucide name="repeat" size={13} color={Colors.purple} />
+                        <Lucide name="repeat" size={13} color={colors.purple} />
                       )}
                     </View>
                     <View style={[styles.eventBadge, { backgroundColor: badge.bg }]}>
@@ -243,7 +247,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
 
                   {/* Location */}
                   <View style={styles.eventMid}>
-                    <Lucide name="map-pin" size={14} color={Colors.inkFaint} />
+                    <Lucide name="map-pin" size={14} color={colors.textFaint} />
                     <Text style={styles.eventLocation}>
                       {event.title ? `${venueName} — ${event.title}` : venueName}
                     </Text>
@@ -266,7 +270,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                         </View>
                       ))}
                       <Text style={styles.attendeesText}>
-                        {participants.length}/{event.max_participants ?? '∞'} {s('spots')}
+                        {participants.length}/{event.max_participants ?? '\u221E'} {s('spots')}
                       </Text>
                     </View>
                     {!isPast(event) && event.organizer_id !== user?.id && (
@@ -277,7 +281,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                         <Lucide
                           name={isJoined ? 'check' : 'user-plus'}
                           size={14}
-                          color={isJoined ? Colors.white : Colors.green}
+                          color={isJoined ? colors.textOnPrimary : colors.primary}
                         />
                         <Text style={[styles.joinText, isJoined ? styles.joinedText : styles.notJoinedText]}>
                           {isJoined ? s('joined') : s('join')}
@@ -333,7 +337,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                   {/* Info rows */}
                   <View style={ms.infoBlock}>
                     <View style={ms.infoRow}>
-                      <Lucide name="calendar" size={16} color={Colors.orangeBright} />
+                      <Lucide name="calendar" size={16} color={colors.accentBright} />
                       <Text style={ms.infoText}>
                         {formatDate(ev.starts_at)} {'\u00B7'} {formatTime(ev.starts_at)}
                         {ev.ends_at ? ` – ${formatTime(ev.ends_at)}` : ''}
@@ -342,7 +346,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
 
                     {duration != null && (
                       <View style={ms.infoRow}>
-                        <Lucide name="clock" size={16} color={Colors.inkFaint} />
+                        <Lucide name="clock" size={16} color={colors.textFaint} />
                         <Text style={ms.infoText}>
                           {s('duration')}: {duration} {s('hours')}
                         </Text>
@@ -350,7 +354,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                     )}
 
                     <View style={ms.infoRow}>
-                      <Lucide name="map-pin" size={16} color={Colors.greenMid} />
+                      <Lucide name="map-pin" size={16} color={colors.primaryMid} />
                       <Text style={ms.infoText}>
                         {venueName}{venueCity ? `, ${venueCity}` : ''}
                       </Text>
@@ -358,7 +362,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
 
                     {ev.table_number != null && (
                       <View style={ms.infoRow}>
-                        <Lucide name="hash" size={16} color={Colors.inkFaint} />
+                        <Lucide name="hash" size={16} color={colors.textFaint} />
                         <Text style={ms.infoText}>
                           {s('tableNumber')} {ev.table_number}
                         </Text>
@@ -367,14 +371,14 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
 
                     {ev.event_type === 'tournament' && (
                       <View style={ms.infoRow}>
-                        <Lucide name="trophy" size={16} color={Colors.amber} />
+                        <Lucide name="trophy" size={16} color={colors.amber} />
                         <Text style={ms.infoText}>{s('tournament')}</Text>
                       </View>
                     )}
 
                     {ev.recurrence_rule && (
                       <View style={ms.infoRow}>
-                        <Lucide name="repeat" size={16} color={Colors.purple} />
+                        <Lucide name="repeat" size={16} color={colors.purple} />
                         <Text style={ms.infoText}>
                           {ev.recurrence_rule === 'daily' ? s('recurringDaily') :
                            ev.recurrence_rule === 'weekly' ? s('recurringWeekly') :
@@ -397,12 +401,12 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                     <View style={ms.sectionHeader}>
                       <Text style={ms.sectionTitle}>{s('participants')}</Text>
                       <Text style={ms.countBadge}>
-                        {detailParticipants.length}/{ev.max_participants ?? '∞'}
+                        {detailParticipants.length}/{ev.max_participants ?? '\u221E'}
                       </Text>
                     </View>
 
                     {detailLoading ? (
-                      <ActivityIndicator size="small" color={Colors.orangeBright} style={{ marginVertical: 12 }} />
+                      <ActivityIndicator size="small" color={colors.accentBright} style={{ marginVertical: 12 }} />
                     ) : detailParticipants.length === 0 ? (
                       <Text style={ms.emptyText}>{s('noEvents')}</Text>
                     ) : (
@@ -441,7 +445,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                   {/* Friends summary */}
                   {friendParticipants.length > 0 && (
                     <View style={ms.friendsSummary}>
-                      <Lucide name="users" size={16} color={Colors.purpleMid} />
+                      <Lucide name="users" size={16} color={colors.purpleMid} />
                       <Text style={ms.friendsSummaryText}>
                         {friendParticipants.length} {s('friendsParticipating')}
                       </Text>
@@ -455,7 +459,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                       <TextInput
                         style={ms.updateInput}
                         placeholder={s('updatePlaceholder')}
-                        placeholderTextColor={Colors.inkFaint}
+                        placeholderTextColor={colors.textFaint}
                         value={updateText}
                         onChangeText={setUpdateText}
                         multiline
@@ -476,7 +480,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                           }
                         }}
                       >
-                        <Lucide name="megaphone" size={16} color={Colors.white} />
+                        <Lucide name="megaphone" size={16} color={colors.textOnPrimary} />
                         <Text style={ms.updateBtnText}>
                           {sendingUpdate ? s('loading') : s('sendUpdate')}
                         </Text>
@@ -494,7 +498,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                         <Lucide
                           name={isJoined ? 'log-out' : 'user-plus'}
                           size={16}
-                          color={isJoined ? Colors.red : Colors.white}
+                          color={isJoined ? colors.red : colors.textOnPrimary}
                         />
                         <Text style={[ms.actionText, isJoined ? ms.actionLeaveText : ms.actionJoinText]}>
                           {isJoined ? s('joined') : s('join')}
@@ -506,7 +510,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                         style={[ms.actionBtn, ms.actionInvite]}
                         onPress={() => setInviteModalVisible(true)}
                       >
-                        <Lucide name="send" size={16} color={Colors.purple} />
+                        <Lucide name="send" size={16} color={colors.purple} />
                         <Text style={[ms.actionText, ms.actionInviteText]}>
                           {s('inviteToEvent')}
                         </Text>
@@ -546,7 +550,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                             );
                           }}
                         >
-                          <Lucide name="repeat" size={14} color={Colors.white} />
+                          <Lucide name="repeat" size={14} color={colors.textOnPrimary} />
                           <Text style={ms.dangerBtnText}>
                             {s('stopRecurrence')}
                           </Text>
@@ -577,7 +581,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                           );
                         }}
                       >
-                        <Lucide name="x-circle" size={14} color={Colors.white} />
+                        <Lucide name="x-circle" size={14} color={colors.textOnPrimary} />
                         <Text style={ms.dangerBtnText}>{s('cancelEvent')}</Text>
                       </TouchableOpacity>
                     </View>
@@ -606,456 +610,460 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.green,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    minHeight: 52,
-  },
-  headerTitle: {
-    fontFamily: Fonts.heading,
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  profileBtn: {
-    padding: 4,
-  },
-  bellBtn: {
-    position: 'relative',
-    padding: 4,
-  },
-  bellBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: Colors.red,
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  bellBadgeText: {
-    fontFamily: Fonts.body,
-    fontSize: 9,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  createBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.orangeBright,
-    borderRadius: 8,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    gap: 4,
-  },
-  createText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  scroll: {
-    flex: 1,
-  },
-  tabs: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-  },
-  tab: {
-    flex: 1,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  tabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: Colors.orangeBright,
-  },
-  tabText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.inkFaint,
-  },
-  tabTextActive: {
-    fontWeight: '600',
-    color: Colors.orangeBright,
-  },
-  eventsList: {
-    padding: 16,
-    paddingTop: 12,
-    gap: 12,
-  },
-  eventCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    padding: 16,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  eventTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  eventDateWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  eventDate: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.ink,
-  },
-  eventBadge: {
-    borderRadius: Radius.md,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-  },
-  eventBadgeText: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  eventMid: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  eventLocation: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.inkMuted,
-  },
-  eventBot: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  avatarStack: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  stackAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: Colors.white,
-  },
-  stackInitials: {
-    fontFamily: Fonts.body,
-    fontSize: 10,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  attendeesText: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.inkFaint,
-    marginLeft: 8,
-  },
-  joinBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: Radius.md,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    gap: 6,
-  },
-  joinedBtn: {
-    backgroundColor: Colors.green,
-  },
-  notJoinedBtn: {
-    borderWidth: 1.5,
-    borderColor: Colors.green,
-  },
-  joinText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  joinedText: {
-    color: Colors.white,
-  },
-  notJoinedText: {
-    color: Colors.green,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.primary,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      minHeight: 52,
+    },
+    headerTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    profileBtn: {
+      padding: 4,
+    },
+    bellBtn: {
+      position: 'relative',
+      padding: 4,
+    },
+    bellBadge: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      backgroundColor: colors.red,
+      borderRadius: 8,
+      minWidth: 16,
+      height: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 3,
+    },
+    bellBadgeText: {
+      fontFamily: Fonts.body,
+      fontSize: 9,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    createBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.accentBright,
+      borderRadius: 8,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+      gap: 4,
+    },
+    createText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    scroll: {
+      flex: 1,
+    },
+    tabs: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+    },
+    tab: {
+      flex: 1,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    tabActive: {
+      borderBottomWidth: 2,
+      borderBottomColor: colors.accentBright,
+    },
+    tabText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.textFaint,
+    },
+    tabTextActive: {
+      fontWeight: '600',
+      color: colors.accentBright,
+    },
+    eventsList: {
+      padding: 16,
+      paddingTop: 12,
+      gap: 12,
+    },
+    eventCard: {
+      backgroundColor: colors.bgAlt,
+      borderRadius: 14,
+      padding: 16,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    eventTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    eventDateWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    eventDate: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    eventBadge: {
+      borderRadius: Radius.md,
+      paddingVertical: 3,
+      paddingHorizontal: 8,
+    },
+    eventBadgeText: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    eventMid: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    eventLocation: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    eventBot: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    avatarStack: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    stackAvatar: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: colors.bgAlt,
+    },
+    stackInitials: {
+      fontFamily: Fonts.body,
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    attendeesText: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textFaint,
+      marginLeft: 8,
+    },
+    joinBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: Radius.md,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      gap: 6,
+    },
+    joinedBtn: {
+      backgroundColor: colors.primary,
+    },
+    notJoinedBtn: {
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+    },
+    joinText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    joinedText: {
+      color: colors.textOnPrimary,
+    },
+    notJoinedText: {
+      color: colors.primary,
+    },
+  });
 
-/* ===== Bottom Sheet (modal) styles ===== */
-const ms = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    maxHeight: '85%',
-  },
-  handleWrap: {
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.border,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginBottom: 16,
-  },
-  title: {
-    fontFamily: Fonts.heading,
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.ink,
-    flex: 1,
-  },
-  infoBlock: {
-    gap: 10,
-    marginBottom: 20,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  infoText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.inkMuted,
-    flex: 1,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.ink,
-    marginBottom: 6,
-  },
-  countBadge: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.orangeBright,
-    marginBottom: 6,
-  },
-  descText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.inkMuted,
-    lineHeight: 20,
-  },
-  emptyText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.inkFaint,
-    fontStyle: 'italic',
-  },
-  participantList: {
-    gap: 8,
-  },
-  pRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 4,
-  },
-  pAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pAvatarFriend: {
-    backgroundColor: Colors.purpleMid,
-  },
-  pInitials: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  pInfo: {
-    flex: 1,
-  },
-  pName: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '500',
-    color: Colors.ink,
-  },
-  pBadge: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.inkFaint,
-  },
-  friendsSummary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.purplePale,
-    borderRadius: Radius.md,
-    padding: 12,
-    marginBottom: 20,
-  },
-  friendsSummaryText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.purpleMid,
-  },
-  updateSection: {
-    marginBottom: 16,
-    gap: 10,
-  },
-  updateInput: {
-    backgroundColor: Colors.bgDark,
-    borderRadius: Radius.md,
-    padding: 12,
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.ink,
-    minHeight: 60,
-    textAlignVertical: 'top',
-  },
-  updateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.orange,
-    borderRadius: Radius.lg,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  updateBtnText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-  },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.lg,
-    paddingVertical: 14,
-    gap: 8,
-  },
-  actionJoin: {
-    backgroundColor: Colors.green,
-  },
-  actionLeave: {
-    backgroundColor: Colors.redPale,
-    borderWidth: 1,
-    borderColor: Colors.red,
-  },
-  actionInvite: {
-    backgroundColor: Colors.purplePale,
-    borderWidth: 1,
-    borderColor: Colors.purple,
-  },
-  actionInviteText: {
-    color: Colors.purple,
-  },
-  dangerZone: {
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.borderLight,
-    gap: 4,
-  },
-  dangerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: Colors.red,
-    borderRadius: Radius.md,
-  },
-  dangerBtnText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  actionText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  actionJoinText: {
-    color: Colors.white,
-  },
-  actionLeaveText: {
-    color: Colors.red,
-  },
-  closeBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.lg,
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  closeBtnText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.inkMuted,
-  },
-});
+  /* ===== Bottom Sheet (modal) styles ===== */
+  const ms = StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: colors.bgAlt,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingHorizontal: 20,
+      maxHeight: '85%',
+    },
+    handleWrap: {
+      alignItems: 'center',
+      paddingVertical: 10,
+    },
+    handle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.border,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: 12,
+      marginBottom: 16,
+    },
+    title: {
+      fontFamily: Fonts.heading,
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      flex: 1,
+    },
+    infoBlock: {
+      gap: 10,
+      marginBottom: 20,
+    },
+    infoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    infoText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.textMuted,
+      flex: 1,
+    },
+    section: {
+      marginBottom: 20,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 10,
+    },
+    sectionTitle: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    countBadge: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.accentBright,
+      marginBottom: 6,
+    },
+    descText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.textMuted,
+      lineHeight: 20,
+    },
+    emptyText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.textFaint,
+      fontStyle: 'italic',
+    },
+    participantList: {
+      gap: 8,
+    },
+    pRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 4,
+    },
+    pAvatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pAvatarFriend: {
+      backgroundColor: colors.purpleMid,
+    },
+    pInitials: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    pInfo: {
+      flex: 1,
+    },
+    pName: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.text,
+    },
+    pBadge: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textFaint,
+    },
+    friendsSummary: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: colors.purplePale,
+      borderRadius: Radius.md,
+      padding: 12,
+      marginBottom: 20,
+    },
+    friendsSummaryText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.purpleMid,
+    },
+    updateSection: {
+      marginBottom: 16,
+      gap: 10,
+    },
+    updateInput: {
+      backgroundColor: colors.bgMuted,
+      borderRadius: Radius.md,
+      padding: 12,
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.text,
+      minHeight: 60,
+      textAlignVertical: 'top',
+    },
+    updateBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.accent,
+      borderRadius: Radius.lg,
+      paddingVertical: 12,
+      gap: 8,
+    },
+    updateBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 4,
+    },
+    actionBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: Radius.lg,
+      paddingVertical: 14,
+      gap: 8,
+    },
+    actionJoin: {
+      backgroundColor: colors.primary,
+    },
+    actionLeave: {
+      backgroundColor: colors.redPale,
+      borderWidth: 1,
+      borderColor: colors.red,
+    },
+    actionInvite: {
+      backgroundColor: colors.purplePale,
+      borderWidth: 1,
+      borderColor: colors.purple,
+    },
+    actionInviteText: {
+      color: colors.purple,
+    },
+    dangerZone: {
+      marginTop: 20,
+      paddingTop: 16,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.borderLight,
+      gap: 4,
+    },
+    dangerBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      backgroundColor: colors.red,
+      borderRadius: Radius.md,
+    },
+    dangerBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+    actionText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    actionJoinText: {
+      color: colors.textOnPrimary,
+    },
+    actionLeaveText: {
+      color: colors.red,
+    },
+    closeBtn: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: Radius.lg,
+      paddingVertical: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    closeBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+  });
+
+  return { styles, ms };
+}

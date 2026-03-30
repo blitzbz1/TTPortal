@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Lucide } from './Icon';
-import { Colors, Fonts } from '../theme';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { useSession } from '../hooks/useSession';
 
@@ -17,6 +19,8 @@ interface TabBarProps {
 export function TabBar({ activeTab, onTabPress }: TabBarProps) {
   const { s } = useI18n();
   const { session } = useSession();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const ALL_TABS: { key: TabKey; icon: string; label: string }[] = [
     { key: 'map', icon: 'map', label: s('tabMap') },
@@ -43,7 +47,7 @@ export function TabBar({ activeTab, onTabPress }: TabBarProps) {
             <Lucide
               name={tab.icon}
               size={22}
-              color={isActive ? Colors.green : Colors.inkFaint}
+              color={isActive ? colors.primary : colors.textFaint}
             />
             <Text
               style={[
@@ -60,30 +64,32 @@ export function TabBar({ activeTab, onTabPress }: TabBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    height: 56,
-    backgroundColor: Colors.white,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingTop: 4,
-    paddingBottom: 8,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-  },
-  label: {
-    fontFamily: Fonts.body,
-    fontSize: 10,
-    fontWeight: '500',
-    color: Colors.inkFaint,
-  },
-  labelActive: {
-    color: Colors.green,
-    fontWeight: '600',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      height: 56,
+      backgroundColor: colors.bgAlt,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: 4,
+      paddingBottom: 8,
+    },
+    tab: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 2,
+    },
+    label: {
+      fontFamily: Fonts.body,
+      fontSize: 10,
+      fontWeight: '500',
+      color: colors.textFaint,
+    },
+    labelActive: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+  });
+}
