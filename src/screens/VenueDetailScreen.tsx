@@ -40,7 +40,8 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
-  const photoWidth = Dimensions.get('window').width;
+  const screenWidth = Dimensions.get('window').width;
+  const photoWidth = Platform.OS === 'web' ? Math.min(screenWidth, 430) : screenWidth;
   const photoHeight = Math.round(photoWidth * 9 / 16);
   const [checkinModalVisible, setCheckinModalVisible] = useState(false);
   const [customMode, setCustomMode] = useState<'none' | 'minutes' | 'until'>('none');
