@@ -100,9 +100,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
         options: { data: { full_name: name } },
       });
       if (error) {
-        logger.warn('Sign up failed', { email, code: error.code });
+        logger.warn('Sign up failed', { code: error.code });
       } else {
-        logger.info('User signed up', { email });
+        logger.info('User signed up');
       }
       return { error };
     },
@@ -116,9 +116,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
         password,
       });
       if (error) {
-        logger.warn('Sign in failed', { email, code: error.code });
+        logger.warn('Sign in failed', { code: error.code });
       } else {
-        logger.info('User signed in', { email });
+        logger.info('User signed in');
       }
       return { error };
     },
@@ -246,9 +246,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
         redirectTo: 'ttportal://reset-password',
       });
       if (error) {
-        logger.warn('Reset password failed', { email, code: error.code });
+        logger.warn('Reset password failed', { code: error.code });
       } else {
-        logger.info('Password reset email sent', { email });
+        logger.info('Password reset email sent');
       }
       return { error };
     },

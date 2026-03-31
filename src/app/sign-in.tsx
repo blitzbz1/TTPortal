@@ -19,7 +19,7 @@ import type { ThemeColors } from '../theme';
 import { Fonts, Radius, Shadows } from '../theme';
 import { Lucide } from '../components/Icon';
 import { logger } from '../lib/logger';
-import { isValidEmail, mapAuthErrorToKey } from '../lib/auth-utils';
+import { isValidEmail, isStrongPassword, mapAuthErrorToKey, sanitizeRoute } from '../lib/auth-utils';
 
 const TERMS_URL = 'https://ttportal.ro/terms';
 const PRIVACY_URL = 'https://ttportal.ro/privacy';
@@ -63,8 +63,8 @@ export default function SignInScreen() {
       setError(s('validationEmailInvalid'));
       return;
     }
-    if (password.length < 8) {
-      setError(s('validationPasswordMin'));
+    if (!isStrongPassword(password)) {
+      setError(s('validationPasswordStrength'));
       return;
     }
 
@@ -84,8 +84,8 @@ export default function SignInScreen() {
         setError(s(mapAuthErrorToKey(authError)));
         return;
       }
-      logger.info(isLogin ? 'login success' : 'signup success', { email });
-      router.replace((returnTo || '/(tabs)') as any);
+      logger.info(isLogin ? 'login success' : 'signup success');
+      router.replace(sanitizeRoute(returnTo) as any);
     } catch (err) {
       logger.error(activeTab === 'login' ? 'login exception' : 'signup exception', err);
       setError(s('errorNetwork'));
@@ -106,7 +106,7 @@ export default function SignInScreen() {
         return;
       }
       logger.info('Google sign-in success');
-      router.replace((returnTo || '/(tabs)') as any);
+      router.replace(sanitizeRoute(returnTo) as any);
     } catch (err) {
       logger.error('Google sign-in exception', err);
       setError(s('errorNetwork'));
@@ -127,7 +127,7 @@ export default function SignInScreen() {
         return;
       }
       logger.info('Apple sign-in success');
-      router.replace((returnTo || '/(tabs)') as any);
+      router.replace(sanitizeRoute(returnTo) as any);
     } catch (err) {
       logger.error('Apple sign-in exception', err);
       setError(s('errorNetwork'));
@@ -194,6 +194,7 @@ export default function SignInScreen() {
                 accessibilityLabel={s('authFullName')}
                 style={styles.textInput}
                 testID="input-name"
+                maxLength={100}
               />
             </View>
           )}
@@ -212,6 +213,7 @@ export default function SignInScreen() {
               autoComplete="email"
               style={styles.textInput}
               testID="input-email"
+              maxLength={254}
             />
           </View>
 
@@ -228,6 +230,7 @@ export default function SignInScreen() {
               autoCapitalize="none"
               style={[styles.textInput, { flex: 1 }]}
               testID="input-password"
+              maxLength={128}
             />
             <Pressable
               onPress={() => setPasswordVisible((v) => !v)}

@@ -362,5 +362,8 @@
   "addPhoto": "Add photo",
   "photoUploaded": "Photo uploaded",
   "photoUploadError": "Could not upload photo",
-  "photoPermissionDenied": "Photo library access denied"
+  "photoPermissionDenied": "Photo library access denied",
+  "selectAll": "Select all",
+  "genericError": "Something went wrong. Please try again.",
+  "validationPasswordStrength": "Password must be at least 8 characters with one uppercase letter and one number"
 }

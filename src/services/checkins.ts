@@ -15,11 +15,12 @@ export async function checkin(data: CheckinInsert) {
   return supabase.from('checkins').insert(withExpiry).select().single();
 }
 
-export async function checkout(checkinId: number) {
+export async function checkout(checkinId: number, userId: string) {
   return supabase
     .from('checkins')
     .update({ ended_at: new Date().toISOString() })
     .eq('id', checkinId)
+    .eq('user_id', userId)
     .select()
     .single();
 }

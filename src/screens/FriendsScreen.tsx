@@ -98,22 +98,24 @@ export function FriendsScreen() {
   }, [fetchData]);
 
   const handleAccept = useCallback(async (id: number) => {
-    const { error } = await acceptRequest(id);
+    if (!user) return;
+    const { error } = await acceptRequest(id, user.id);
     if (error) {
       Alert.alert(s('error'), s('acceptError'));
       return;
     }
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, user]);
 
   const handleDecline = useCallback(async (id: number) => {
-    const { error } = await declineRequest(id);
+    if (!user) return;
+    const { error } = await declineRequest(id, user.id);
     if (error) {
       Alert.alert(s('error'), s('declineError'));
       return;
     }
     setPending((prev) => prev.filter((p) => p.id !== id));
-  }, []);
+  }, [user]);
 
   const handleInvite = useCallback(() => {
     setInviteEmail('');
@@ -127,15 +129,17 @@ export function FriendsScreen() {
     setInviteLoading(true);
     setInviteResult('idle');
 
-    // Look up the user by email
+    // Look up users by name
     const { data: results } = await searchUsers(inviteEmail.trim());
-    const target = results?.find((u: any) => u.email?.toLowerCase() === inviteEmail.trim().toLowerCase());
 
-    if (!target) {
+    if (!results || results.length === 0) {
       setInviteResult('not_found');
       setInviteLoading(false);
       return;
     }
+
+    // Use the first matching result
+    const target = results[0];
 
     if (target.id === user.id) {
       setInviteResult('error');
@@ -383,11 +387,10 @@ export function FriendsScreen() {
             <View style={im.inputRow}>
               <TextInput
                 style={im.input}
-                placeholder="email@exemplu.com"
+                placeholder={s('searchFriends')}
                 placeholderTextColor={colors.textFaint}
                 value={inviteEmail}
                 onChangeText={(t) => { setInviteEmail(t); setInviteResult('idle'); }}
-                keyboardType="email-address"
                 autoCapitalize="none"
                 autoFocus
               />

@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { VenueInsert, VenueType } from '../types/database';
+import { escapeLikePattern } from '../lib/auth-utils';
 
 export async function getVenues(city?: string, type?: VenueType) {
   let query = supabase
@@ -101,7 +102,7 @@ export async function searchVenues(query: string) {
     .from('venues')
     .select('id, name, type, city, lat, lng, condition')
     .eq('approved', true)
-    .ilike('name', `%${query}%`)
+    .ilike('name', `%${escapeLikePattern(query)}%`)
     .order('name')
     .limit(20);
 }

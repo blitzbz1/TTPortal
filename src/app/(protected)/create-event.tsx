@@ -187,9 +187,9 @@ export default function CreateEventRoute() {
 
   const handleInviteConfirm = useCallback(async (selectedIds: string[]) => {
     setFriendPickerVisible(false);
-    if (selectedIds.length > 0 && createdEventId) await sendEventInvites(createdEventId, selectedIds);
+    if (selectedIds.length > 0 && createdEventId) await sendEventInvites(createdEventId, selectedIds, user!.id);
     router.back();
-  }, [createdEventId, router]);
+  }, [createdEventId, router, user]);
 
   const handleInviteSkip = useCallback(() => { setFriendPickerVisible(false); router.back(); }, [router]);
 

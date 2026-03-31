@@ -9,6 +9,7 @@ import { Fonts, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { createVenue } from '../services/venues';
+import { safeErrorMessage } from '../lib/auth-utils';
 import { CityPickerModal } from '../components/CityPickerModal';
 import type { VenueType } from '../types/database';
 
@@ -34,6 +35,13 @@ export function AddVenueScreen() {
   const handleSubmit = useCallback(async () => {
     if (!name.trim()) { Alert.alert(s('error'), s('nameRequired')); return; }
     if (!address.trim()) { Alert.alert(s('error'), s('addressRequired')); return; }
+    if (tablesCount) {
+      const count = parseInt(tablesCount, 10);
+      if (isNaN(count) || count < 1 || count > 100) {
+        Alert.alert(s('error'), s('genericError'));
+        return;
+      }
+    }
     setLoading(true);
     const { error } = await createVenue({
       name: name.trim(),
@@ -53,14 +61,12 @@ export function AddVenueScreen() {
       free_access: null,
       night_lighting: null,
       nets: null,
-      verified: false,
       tariff: null,
       website: null,
       submitted_by: user?.id ?? null,
-      approved: false,
     });
     setLoading(false);
-    if (error) { Alert.alert(s('error'), error.message); return; }
+    if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
     Alert.alert(s('success'), s('venueSubmitted'));
     router.back();
   }, [name, address, type, city, tablesCount, notes, user, router, geoLat, geoLng]);
@@ -109,6 +115,7 @@ export function AddVenueScreen() {
               placeholderTextColor={colors.textFaint}
               value={name}
               onChangeText={setName}
+              maxLength={100}
             />
           </View>
 
@@ -167,6 +174,7 @@ export function AddVenueScreen() {
                 placeholderTextColor={colors.textFaint}
                 value={address}
                 onChangeText={setAddress}
+                maxLength={200}
               />
               <TouchableOpacity
                 style={[styles.geocodeBtn, geoLat !== null && { backgroundColor: colors.primaryLight }]}
@@ -196,6 +204,7 @@ export function AddVenueScreen() {
               placeholderTextColor={colors.textFaint}
               value={notes}
               onChangeText={setNotes}
+              maxLength={500}
               multiline
               textAlignVertical="top"
             />

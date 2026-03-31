@@ -19,6 +19,7 @@ import { Fonts, Radius, Shadows } from '../theme';
 import { Lucide } from '../components/Icon';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
+import { isStrongPassword } from '../lib/auth-utils';
 
 type TokenStatus = 'loading' | 'valid' | 'expired' | 'used';
 
@@ -67,8 +68,8 @@ export default function ResetPasswordScreen() {
   }, [code]);
 
   const handleSubmit = useCallback(async () => {
-    if (newPassword.length < 8) {
-      setError(s('validationPasswordMin'));
+    if (!isStrongPassword(newPassword)) {
+      setError(s('validationPasswordStrength'));
       return;
     }
 
@@ -90,6 +91,9 @@ export default function ResetPasswordScreen() {
       logger.info('password reset successful');
       setSuccess(true);
       router.replace({ pathname: '/sign-in', params: { initialTab: 'login' } });
+    } catch (err) {
+      logger.error('reset password exception', err);
+      setError(s('errorNetwork'));
     } finally {
       setLoading(false);
     }

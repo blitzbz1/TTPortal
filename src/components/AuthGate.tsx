@@ -15,11 +15,12 @@ interface AuthGateProps {
  * Use on add-venue, write-review, and edit-venue trigger points.
  */
 export function AuthGate({ children }: AuthGateProps) {
-  const { session } = useSession();
+  const { session, isLoading } = useSession();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
+    if (isLoading) return;
     if (!session) {
       logger.info('AuthGate: redirecting unauthenticated user', {
         returnTo: pathname,
@@ -29,7 +30,9 @@ export function AuthGate({ children }: AuthGateProps) {
         params: { returnTo: pathname },
       });
     }
-  }, [session, pathname, router]);
+  }, [session, isLoading, pathname, router]);
+
+  if (isLoading) return null;
 
   if (!session) {
     return null;

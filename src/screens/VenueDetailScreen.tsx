@@ -18,6 +18,7 @@ import { getFriendIds } from '../services/friends';
 import { isFavorite, addFavorite, removeFavorite } from '../services/favorites';
 import type { Venue, Review, VenueStats } from '../types/database';
 import { Card } from '../components/Card';
+import { safeErrorMessage } from '../lib/auth-utils';
 
 interface Props {
   venueId?: string;
@@ -51,7 +52,7 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [untilMinute, setUntilMinute] = useState('');
 
   useEffect(() => {
-    if (!venueId) return;
+    if (!venueId || isNaN(Number(venueId)) || Number(venueId) < 1) return;
     let cancelled = false;
 
     async function load() {
@@ -133,12 +134,12 @@ export function VenueDetailScreen({ venueId }: Props) {
       const msg = `${s('alreadyCheckedIn')} ${venueName}. ${s('checkoutAndContinue')}`;
       if (Platform.OS === 'web') {
         if (!window.confirm(msg)) return;
-        await checkout(existing.id);
+        await checkout(existing.id, user.id);
       } else {
         return new Promise<void>((resolve) => {
           Alert.alert(s('alreadyCheckedIn') + ' ' + venueName, s('checkoutAndContinue'), [
             { text: s('cancel'), style: 'cancel', onPress: () => resolve() },
-            { text: s('yes'), onPress: async () => { await checkout(existing.id); showDurationModal(); resolve(); } },
+            { text: s('yes'), onPress: async () => { await checkout(existing.id, user.id); showDurationModal(); resolve(); } },
           ]);
         });
       }
@@ -161,7 +162,7 @@ export function VenueDetailScreen({ venueId }: Props) {
       friends: [],
     });
     setCheckinLoading(false);
-    if (error) { showAlert(s('error'), error.message); return; }
+    if (error) { showAlert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
     // Refresh active checkin state
     const { data: active } = await getUserActiveCheckin(user.id, Number(venueId));
     setActiveCheckin(active ?? null);
@@ -190,13 +191,13 @@ export function VenueDetailScreen({ venueId }: Props) {
   }, [customMode, customMinutes, untilHour, untilMinute, doCheckin, showAlert]);
 
   const handleCheckout = useCallback(async () => {
-    if (!activeCheckin) return;
+    if (!activeCheckin || !user) return;
     setCheckinLoading(true);
-    const { error } = await checkout(activeCheckin.id);
+    const { error } = await checkout(activeCheckin.id, user.id);
     setCheckinLoading(false);
-    if (error) { showAlert(s('error'), error.message); return; }
+    if (error) { showAlert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
     setActiveCheckin(null);
-  }, [activeCheckin, showAlert]);
+  }, [activeCheckin, showAlert, user]);
 
   const handleAddPhoto = useCallback(async () => {
     if (!venue || !venueId) return;
@@ -215,6 +216,17 @@ export function VenueDetailScreen({ venueId }: Props) {
     setUploading(true);
     try {
       const asset = result.assets[0];
+      // Validate file size (max 10MB)
+      if (asset.fileSize && asset.fileSize > 10 * 1024 * 1024) {
+        showAlert(s('error'), s('photoTooLarge'));
+        return;
+      }
+      // Validate MIME type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/heic', 'image/heif'];
+      if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
+        showAlert(s('error'), s('photoUploadError'));
+        return;
+      }
       // Resize to max 1024px on longest side and convert to JPEG
       const isLandscape = (asset.width ?? 0) >= (asset.height ?? 0);
       const needsResize = (asset.width ?? 0) > 1024 || (asset.height ?? 0) > 1024;
@@ -254,11 +266,11 @@ export function VenueDetailScreen({ venueId }: Props) {
     if (!user || !venueId) return;
     if (favorited) {
       const { error } = await removeFavorite(user.id, Number(venueId));
-      if (error) { Alert.alert(s('error'), error.message); return; }
+      if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
       setFavorited(false);
     } else {
       const { error } = await addFavorite(user.id, Number(venueId));
-      if (error) { Alert.alert(s('error'), error.message); return; }
+      if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
       setFavorited(true);
     }
   }, [user, venueId, favorited]);

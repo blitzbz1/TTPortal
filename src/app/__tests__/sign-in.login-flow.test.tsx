@@ -126,7 +126,7 @@ async function fillAndSubmitLogin(
   user: ReturnType<typeof userEvent.setup>,
 ) {
   await user.type(getByTestId('input-email'), 'john@example.com');
-  await user.type(getByTestId('input-password'), 'password123');
+  await user.type(getByTestId('input-password'), 'Password1');
   await user.press(getByTestId('submit-button'));
 }
 
@@ -228,7 +228,7 @@ describe('SignInScreen — login flow (T017)', () => {
   it('returnTo param is honored after successful login', async () => {
     mockSearchParams.mockReturnValue({
       initialTab: 'login',
-      returnTo: '/add-venue',
+      returnTo: '/(protected)/add-venue',
     });
 
     const { getByTestId } = render(<SignInScreen />);
@@ -236,7 +236,7 @@ describe('SignInScreen — login flow (T017)', () => {
     await fillAndSubmitLogin(getByTestId, user);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/add-venue');
+      expect(mockReplace).toHaveBeenCalledWith('/(protected)/add-venue');
     });
   });
 });

@@ -11,6 +11,7 @@ import { useNotifications } from '../hooks/useNotifications';
 import { useI18n } from '../hooks/useI18n';
 import { getNotifications, markAsRead, deleteNotification, deleteAllNotifications } from '../services/notifications';
 import { acceptRequest, declineRequest, getPendingRequests } from '../services/friends';
+import { sanitizeRoute } from '../lib/auth-utils';
 
 function getIconMap(colors: ThemeColors): Record<string, { name: string; color: string; bg: string }> {
   return {
@@ -112,7 +113,7 @@ export function NotificationsScreen() {
 
   const handleTap = useCallback(async (notification: any) => {
     if (!notification.read) {
-      await markAsRead(notification.id);
+      await markAsRead(notification.id, user!.id);
       setNotifications((prev) =>
         prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n)),
       );
@@ -120,15 +121,16 @@ export function NotificationsScreen() {
     }
     const data = notification.data;
     if (data?.screen) {
-      router.push(data.screen as any);
+      const safeRoute = sanitizeRoute(data.screen);
+      router.push(safeRoute as any);
     }
-  }, [router, refreshUnreadCount]);
+  }, [router, refreshUnreadCount, user]);
 
   const handleDelete = useCallback(async (id: number) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
-    await deleteNotification(id);
+    await deleteNotification(id, user!.id);
     refreshUnreadCount();
-  }, [refreshUnreadCount]);
+  }, [refreshUnreadCount, user]);
 
   const handleDeleteAll = useCallback(async () => {
     if (!user) return;
@@ -150,25 +152,25 @@ export function NotificationsScreen() {
   const handleAcceptFriend = useCallback(async (senderId: string, notifId: number) => {
     const friendshipId = pendingMap.get(senderId);
     if (!friendshipId) return;
-    const { error } = await acceptRequest(friendshipId);
+    const { error } = await acceptRequest(friendshipId, user!.id);
     if (error) return;
     setRespondedIds((prev) => new Set(prev).add(senderId));
     // Mark notification as read
-    await markAsRead(notifId);
+    await markAsRead(notifId, user!.id);
     setNotifications((prev) => prev.map((n) => n.id === notifId ? { ...n, read: true } : n));
     refreshUnreadCount();
-  }, [pendingMap, refreshUnreadCount]);
+  }, [pendingMap, refreshUnreadCount, user]);
 
   const handleDeclineFriend = useCallback(async (senderId: string, notifId: number) => {
     const friendshipId = pendingMap.get(senderId);
     if (!friendshipId) return;
-    const { error } = await declineRequest(friendshipId);
+    const { error } = await declineRequest(friendshipId, user!.id);
     if (error) return;
     setRespondedIds((prev) => new Set(prev).add(senderId));
-    await markAsRead(notifId);
+    await markAsRead(notifId, user!.id);
     setNotifications((prev) => prev.map((n) => n.id === notifId ? { ...n, read: true } : n));
     refreshUnreadCount();
-  }, [pendingMap, refreshUnreadCount]);
+  }, [pendingMap, refreshUnreadCount, user]);
 
   const handleClearAll = useCallback(async () => {
     await clearAll();

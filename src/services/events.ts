@@ -66,34 +66,38 @@ export async function leaveEvent(eventId: number, userId: string) {
     .eq('user_id', userId);
 }
 
-export async function stopRecurrence(eventId: number) {
+export async function stopRecurrence(eventId: number, organizerId: string) {
   return supabase
     .from('events')
     .update({ recurrence_rule: null, recurrence_day: null })
     .eq('id', eventId)
+    .eq('organizer_id', organizerId)
     .select()
     .single();
 }
 
-export async function cancelEvent(eventId: number) {
+export async function cancelEvent(eventId: number, organizerId: string) {
   return supabase
     .from('events')
     .update({ status: 'cancelled' })
     .eq('id', eventId)
+    .eq('organizer_id', organizerId)
     .select()
     .single();
 }
 
-export async function sendEventInvites(eventId: number, friendIds: string[]) {
+export async function sendEventInvites(eventId: number, friendIds: string[], organizerId: string) {
   return supabase.rpc('send_event_invites', {
     p_event_id: eventId,
     p_friend_ids: friendIds,
+    p_organizer_id: organizerId,
   });
 }
 
-export async function sendEventUpdate(eventId: number, message: string) {
+export async function sendEventUpdate(eventId: number, message: string, organizerId: string) {
   return supabase.rpc('send_event_update', {
     p_event_id: eventId,
     p_message: message,
+    p_organizer_id: organizerId,
   });
 }

@@ -420,7 +420,7 @@ describe('CreateEventRoute – friend invites', () => {
     fireEvent.press(confirmButtons[confirmButtons.length - 1]);
     await act(async () => {});
 
-    expect(mockSendEventInvites).toHaveBeenCalledWith(42, ['friend-1']);
+    expect(mockSendEventInvites).toHaveBeenCalledWith(42, ['friend-1'], 'user-123');
     expect(mockBack).toHaveBeenCalled();
   });
 

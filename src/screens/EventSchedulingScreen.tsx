@@ -488,7 +488,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                         disabled={sendingUpdate || !updateText.trim()}
                         onPress={async () => {
                           setSendingUpdate(true);
-                          const { error } = await sendEventUpdate(ev.id, updateText.trim());
+                          const { error } = await sendEventUpdate(ev.id, updateText.trim(), user!.id);
                           setSendingUpdate(false);
                           if (error) {
                             Alert.alert(s('error'), error.message);
@@ -555,7 +555,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                                   text: s('stopRecurrence'),
                                   style: 'destructive',
                                   onPress: async () => {
-                                    const { error } = await stopRecurrence(ev.id);
+                                    const { error } = await stopRecurrence(ev.id, user!.id);
                                     if (error) {
                                       Alert.alert(s('error'), error.message);
                                     } else {
@@ -586,7 +586,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                                 text: s('cancelEvent'),
                                 style: 'destructive',
                                 onPress: async () => {
-                                  const { error } = await cancelEvent(ev.id);
+                                  const { error } = await cancelEvent(ev.id, user!.id);
                                   if (error) {
                                     Alert.alert(s('error'), error.message);
                                   } else {
@@ -618,7 +618,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
           onConfirm={async (ids) => {
             setInviteModalVisible(false);
             if (ids.length > 0) {
-              await sendEventInvites(selectedEvent.id, ids);
+              await sendEventInvites(selectedEvent.id, ids, user.id);
             }
           }}
           onClose={() => setInviteModalVisible(false)}

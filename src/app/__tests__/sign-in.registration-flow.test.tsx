@@ -49,7 +49,7 @@ async function fillAndSubmit(
 ) {
   await user.type(getByTestId('input-name'), 'John Doe');
   await user.type(getByTestId('input-email'), 'john@example.com');
-  await user.type(getByTestId('input-password'), 'password123');
+  await user.type(getByTestId('input-password'), 'Password1');
   await user.press(getByTestId('submit-button'));
 }
 
@@ -86,7 +86,7 @@ describe('SignInScreen — registration flow (T013)', () => {
   });
 
   it('successful signUp navigates to returnTo param when present', async () => {
-    mockSearchParams.mockReturnValue({ returnTo: '/add-venue' });
+    mockSearchParams.mockReturnValue({ returnTo: '/(protected)/add-venue' });
 
     const { getByTestId } = render(<SignInScreen />);
     fireEvent.press(getByTestId('tab-signup'));
@@ -94,7 +94,7 @@ describe('SignInScreen — registration flow (T013)', () => {
     await fillAndSubmit(getByTestId, user);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/add-venue');
+      expect(mockReplace).toHaveBeenCalledWith('/(protected)/add-venue');
     });
   });
 
@@ -154,7 +154,7 @@ describe('SignInScreen — registration flow (T013)', () => {
 
     await user.type(getByTestId('input-name'), 'John Doe');
     await user.type(getByTestId('input-email'), 'john@example.com');
-    await user.type(getByTestId('input-password'), 'password123');
+    await user.type(getByTestId('input-password'), 'Password1');
 
     // Press submit — signUp is now pending
     await user.press(getByTestId('submit-button'));

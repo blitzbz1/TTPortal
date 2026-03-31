@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { escapeLikePattern } from '../lib/auth-utils';
 
 export async function sendRequest(requesterId: string, addresseeId: string) {
   return supabase
@@ -8,20 +9,22 @@ export async function sendRequest(requesterId: string, addresseeId: string) {
     .single();
 }
 
-export async function acceptRequest(id: number) {
+export async function acceptRequest(id: number, userId: string) {
   return supabase
     .from('friendships')
     .update({ status: 'accepted' })
     .eq('id', id)
+    .eq('addressee_id', userId)
     .select()
     .single();
 }
 
-export async function declineRequest(id: number) {
+export async function declineRequest(id: number, userId: string) {
   return supabase
     .from('friendships')
     .update({ status: 'declined' })
     .eq('id', id)
+    .eq('addressee_id', userId)
     .select()
     .single();
 }
@@ -93,9 +96,10 @@ export async function getFriendIds(userId: string): Promise<string[]> {
 }
 
 export async function searchUsers(query: string) {
+  if (query.length < 3) return { data: [], error: null };
   return supabase
     .from('profiles')
-    .select('id, full_name, email, avatar_url, city')
-    .ilike('email', `%${query}%`)
+    .select('id, full_name, avatar_url, city')
+    .ilike('full_name', `%${escapeLikePattern(query)}%`)
     .limit(10);
 }

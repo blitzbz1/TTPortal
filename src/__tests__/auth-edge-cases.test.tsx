@@ -267,7 +267,7 @@ describe('auth edge cases', () => {
       // Fill signup form
       await user.type(getByTestId('input-name'), 'Test User');
       await user.type(getByTestId('input-email'), 'oauth@example.com');
-      await user.type(getByTestId('input-password'), 'password123');
+      await user.type(getByTestId('input-password'), 'Password1');
       await user.press(getByTestId('submit-button'));
 
       await waitFor(() => {
@@ -295,14 +295,14 @@ describe('auth edge cases', () => {
 
       await user.type(getByTestId('input-name'), 'Test User');
       await user.type(getByTestId('input-email'), 'linked@example.com');
-      await user.type(getByTestId('input-password'), 'password123');
+      await user.type(getByTestId('input-password'), 'Password1');
       await user.press(getByTestId('submit-button'));
 
       await waitFor(() => {
         expect(mockSignUp).toHaveBeenCalledWith(
           'Test User',
           'linked@example.com',
-          'password123',
+          'Password1',
         );
       });
       expect(mockReplace).not.toHaveBeenCalled();

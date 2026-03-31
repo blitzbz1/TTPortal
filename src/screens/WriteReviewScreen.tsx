@@ -10,6 +10,7 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getVenueById } from '../services/venues';
 import { createReview } from '../services/reviews';
+import { safeErrorMessage } from '../lib/auth-utils';
 
 interface Props {
   venueId?: string;
@@ -27,7 +28,7 @@ export function WriteReviewScreen({ venueId }: Props) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!venueId) return;
+    if (!venueId || isNaN(Number(venueId)) || Number(venueId) < 1) return;
     let cancelled = false;
     async function load() {
       const { data } = await getVenueById(Number(venueId));
@@ -48,11 +49,9 @@ export function WriteReviewScreen({ venueId }: Props) {
       reviewer_name: user?.user_metadata?.full_name || s('anon'),
       rating,
       body: reviewText.trim(),
-      flagged: false,
-      flag_count: 0,
     });
     setLoading(false);
-    if (error) { Alert.alert(s('error'), error.message); return; }
+    if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
     Alert.alert(s('success'), s('reviewPublished'));
     router.back();
   }, [rating, reviewText, user, venueId, router]);
@@ -120,6 +119,7 @@ export function WriteReviewScreen({ venueId }: Props) {
               placeholderTextColor={colors.textFaint}
               value={reviewText}
               onChangeText={setReviewText}
+              maxLength={2000}
               multiline
               textAlignVertical="top"
             />

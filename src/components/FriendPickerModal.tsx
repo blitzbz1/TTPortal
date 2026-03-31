@@ -89,6 +89,16 @@ export function FriendPickerModal({
     });
   }, []);
 
+  const allSelected = friends.length > 0 && selected.size === friends.length;
+
+  const toggleAll = useCallback(() => {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(friends.map((f) => f.id)));
+    }
+  }, [allSelected, friends]);
+
   const handleConfirm = useCallback(() => {
     onConfirm(Array.from(selected));
   }, [selected, onConfirm]);
@@ -116,6 +126,15 @@ export function FriendPickerModal({
               autoCorrect={false}
             />
           </View>
+
+          {!loading && friends.length > 1 && (
+            <TouchableOpacity style={styles.selectAllRow} onPress={toggleAll} activeOpacity={0.6}>
+              <Text style={styles.selectAllText}>{s('selectAll')}</Text>
+              <View style={[styles.checkbox, allSelected && styles.checkboxSelected]}>
+                {allSelected && <Lucide name="check" size={14} color={colors.textOnPrimary} />}
+              </View>
+            </TouchableOpacity>
+          )}
 
           {loading ? (
             <View style={styles.loader}>
@@ -230,6 +249,21 @@ function createStyles(colors: ThemeColors) {
       fontSize: 14,
       color: colors.text,
       padding: 0,
+    },
+    selectAllRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.borderLight,
+    },
+    selectAllText: {
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
     },
     loader: { paddingVertical: 40, alignItems: 'center' },
     emptyText: { fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint },

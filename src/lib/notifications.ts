@@ -53,7 +53,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     });
   }
 
-  logger.info('Push token obtained', { token: tokenData.data });
+  logger.debug('Push token obtained');
   return tokenData.data;
 }
 

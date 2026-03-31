@@ -147,11 +147,12 @@ describe('sendEventInvites', () => {
   it('calls rpc with send_event_invites and correct params', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null });
 
-    await sendEventInvites(5, ['u-1', 'u-2']);
+    await sendEventInvites(5, ['u-1', 'u-2'], 'org-1');
 
     expect(mockRpc).toHaveBeenCalledWith('send_event_invites', {
       p_event_id: 5,
       p_friend_ids: ['u-1', 'u-2'],
+      p_organizer_id: 'org-1',
     });
   });
 
@@ -159,7 +160,7 @@ describe('sendEventInvites', () => {
     const rpcError = { message: 'Not authorized' };
     mockRpc.mockResolvedValue({ data: null, error: rpcError });
 
-    const { error } = await sendEventInvites(99, ['u-1']);
+    const { error } = await sendEventInvites(99, ['u-1'], 'org-1');
 
     expect(error).toEqual(rpcError);
   });
@@ -171,11 +172,12 @@ describe('sendEventUpdate', () => {
   it('calls rpc with send_event_update and correct params', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null });
 
-    await sendEventUpdate(10, 'Se schimbă ora la 18:00');
+    await sendEventUpdate(10, 'Se schimbă ora la 18:00', 'org-1');
 
     expect(mockRpc).toHaveBeenCalledWith('send_event_update', {
       p_event_id: 10,
       p_message: 'Se schimbă ora la 18:00',
+      p_organizer_id: 'org-1',
     });
   });
 
@@ -183,7 +185,7 @@ describe('sendEventUpdate', () => {
     const rpcError = { message: 'Not authorized' };
     mockRpc.mockResolvedValue({ data: null, error: rpcError });
 
-    const { error } = await sendEventUpdate(99, 'test');
+    const { error } = await sendEventUpdate(99, 'test', 'org-1');
 
     expect(error).toEqual(rpcError);
   });
@@ -196,7 +198,7 @@ describe('stopRecurrence', () => {
     const chain = createQueryChain({ id: 5 });
     mockFrom.mockReturnValue(chain);
 
-    await stopRecurrence(5);
+    await stopRecurrence(5, 'org-1');
 
     expect(mockFrom).toHaveBeenCalledWith('events');
     expect(chain.update).toHaveBeenCalledWith({ recurrence_rule: null, recurrence_day: null });
@@ -207,7 +209,7 @@ describe('stopRecurrence', () => {
     const chain = createQueryChain(null, { message: 'fail' });
     mockFrom.mockReturnValue(chain);
 
-    const { error } = await stopRecurrence(99);
+    const { error } = await stopRecurrence(99, 'org-1');
 
     expect(error).toEqual({ message: 'fail' });
   });

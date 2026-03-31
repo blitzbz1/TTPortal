@@ -6,6 +6,7 @@ import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, Radius, Shadows } from '../theme';
+import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import {
   getPendingVenues,
@@ -15,15 +16,27 @@ import {
   keepReview,
   deleteReview,
 } from '../services/admin';
+import { getProfile } from '../services/profiles';
 
 export function AdminModerationScreen() {
   const [pendingVenues, setPendingVenues] = useState<any[]>([]);
   const [flaggedReviews, setFlaggedReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(true);
   const router = useRouter();
+  const { user } = useSession();
   const { s } = useI18n();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  useEffect(() => {
+    if (!user) return;
+    getProfile(user.id).then(({ data }) => {
+      setIsAdmin(data?.is_admin === true);
+      setAdminLoading(false);
+    });
+  }, [user]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -44,40 +57,46 @@ export function AdminModerationScreen() {
   }, [fetchData]);
 
   const handleApprove = useCallback(async (id: number) => {
-    const { error } = await approveVenue(id);
+    const { error } = await approveVenue(id, user!.id);
     if (error) {
       Alert.alert(s('error'), s('approveError'));
       return;
     }
     setPendingVenues((prev) => prev.filter((v) => v.id !== id));
-  }, []);
+  }, [user]);
 
   const handleReject = useCallback(async (id: number) => {
-    const { error } = await rejectVenue(id);
+    const { error } = await rejectVenue(id, user!.id);
     if (error) {
       Alert.alert(s('error'), s('rejectError'));
       return;
     }
     setPendingVenues((prev) => prev.filter((v) => v.id !== id));
-  }, []);
+  }, [user]);
 
   const handleKeep = useCallback(async (id: number) => {
-    const { error } = await keepReview(id);
+    const { error } = await keepReview(id, user!.id);
     if (error) {
       Alert.alert(s('error'), s('keepError'));
       return;
     }
     setFlaggedReviews((prev) => prev.filter((r) => r.id !== id));
-  }, []);
+  }, [user]);
 
   const handleDelete = useCallback(async (id: number) => {
-    const { error } = await deleteReview(id);
+    const { error } = await deleteReview(id, user!.id);
     if (error) {
       Alert.alert(s('error'), s('deleteError'));
       return;
     }
     setFlaggedReviews((prev) => prev.filter((r) => r.id !== id));
-  }, []);
+  }, [user]);
+
+  if (adminLoading) return <ActivityIndicator />;
+  if (!isAdmin) {
+    router.back();
+    return null;
+  }
 
   const stats = [
     { value: String(pendingVenues.length), label: s('pendingStat'), bg: colors.amberPale, color: colors.accent },

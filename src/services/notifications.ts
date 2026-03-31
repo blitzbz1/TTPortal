@@ -37,18 +37,20 @@ export async function getUnreadCount(userId: string) {
   return { data: count ?? 0, error };
 }
 
-export async function markAsRead(notificationId: number) {
+export async function markAsRead(notificationId: number, userId: string) {
   return supabase
     .from('notifications')
     .update({ read: true })
-    .eq('id', notificationId);
+    .eq('id', notificationId)
+    .eq('recipient_id', userId);
 }
 
-export async function deleteNotification(notificationId: number) {
+export async function deleteNotification(notificationId: number, userId: string) {
   return supabase
     .from('notifications')
     .delete()
-    .eq('id', notificationId);
+    .eq('id', notificationId)
+    .eq('recipient_id', userId);
 }
 
 export async function deleteAllNotifications(userId: string) {

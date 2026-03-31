@@ -82,7 +82,7 @@ describe('ResetPasswordScreen — T040', () => {
     await user.press(getByTestId('submit-button'));
 
     await waitFor(() => {
-      expect(getByText('Minim 8 caractere')).toBeTruthy();
+      expect(getByText('Parola trebuie să aibă cel puțin 8 caractere, o literă mare și o cifră')).toBeTruthy();
     });
     expect(mockUpdateUser).not.toHaveBeenCalled();
   });

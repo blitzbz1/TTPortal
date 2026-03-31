@@ -77,7 +77,7 @@ describe('SignInScreen — login form validation (T016)', () => {
     const { getByTestId, getByText } = render(<SignInScreen />);
 
     await user.type(getByTestId('input-email'), 'not-an-email');
-    await user.type(getByTestId('input-password'), 'password123');
+    await user.type(getByTestId('input-password'), 'Password1');
     await user.press(getByTestId('submit-button'));
 
     await waitFor(() => {
@@ -94,7 +94,7 @@ describe('SignInScreen — login form validation (T016)', () => {
     await user.press(getByTestId('submit-button'));
 
     await waitFor(() => {
-      expect(getByText('Minim 8 caractere')).toBeTruthy();
+      expect(getByText('Parola trebuie să aibă cel puțin 8 caractere, o literă mare și o cifră')).toBeTruthy();
     });
     expect(mockSignIn).not.toHaveBeenCalled();
   });
@@ -103,13 +103,13 @@ describe('SignInScreen — login form validation (T016)', () => {
     const { getByTestId } = render(<SignInScreen />);
 
     await user.type(getByTestId('input-email'), 'john@example.com');
-    await user.type(getByTestId('input-password'), 'password123');
+    await user.type(getByTestId('input-password'), 'Password1');
     await user.press(getByTestId('submit-button'));
 
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalledWith(
         'john@example.com',
-        'password123',
+        'Password1',
       );
     });
   });

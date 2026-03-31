@@ -78,7 +78,7 @@ describe('SignInScreen — registration form validation (T012)', () => {
 
     // Fill email and password but leave name empty
     await user.type(getByTestId('input-email'), 'test@example.com');
-    await user.type(getByTestId('input-password'), 'password123');
+    await user.type(getByTestId('input-password'), 'Password1');
     await user.press(getByTestId('submit-button'));
 
     await waitFor(() => {
@@ -93,7 +93,7 @@ describe('SignInScreen — registration form validation (T012)', () => {
 
     await user.type(getByTestId('input-name'), 'John Doe');
     await user.type(getByTestId('input-email'), 'not-an-email');
-    await user.type(getByTestId('input-password'), 'password123');
+    await user.type(getByTestId('input-password'), 'Password1');
     await user.press(getByTestId('submit-button'));
 
     await waitFor(() => {
@@ -112,7 +112,7 @@ describe('SignInScreen — registration form validation (T012)', () => {
     await user.press(getByTestId('submit-button'));
 
     await waitFor(() => {
-      expect(getByText('Minim 8 caractere')).toBeTruthy();
+      expect(getByText('Parola trebuie să aibă cel puțin 8 caractere, o literă mare și o cifră')).toBeTruthy();
     });
     expect(mockSignUp).not.toHaveBeenCalled();
   });
@@ -123,14 +123,14 @@ describe('SignInScreen — registration form validation (T012)', () => {
 
     await user.type(getByTestId('input-name'), 'John Doe');
     await user.type(getByTestId('input-email'), 'john@example.com');
-    await user.type(getByTestId('input-password'), 'password123');
+    await user.type(getByTestId('input-password'), 'Password1');
     await user.press(getByTestId('submit-button'));
 
     await waitFor(() => {
       expect(mockSignUp).toHaveBeenCalledWith(
         'John Doe',
         'john@example.com',
-        'password123',
+        'Password1',
       );
     });
   });

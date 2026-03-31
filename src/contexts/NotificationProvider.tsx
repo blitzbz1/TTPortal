@@ -7,6 +7,7 @@ import { upsertPushToken, deletePushToken } from '../services/pushTokens';
 import { getUnreadCount, markAllAsRead } from '../services/notifications';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
+import { sanitizeRoute } from '../lib/auth-utils';
 
 export interface NotificationContextValue {
   unreadCount: number;
@@ -97,7 +98,8 @@ export function NotificationProvider({ children }: Props) {
       responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
         const data = response.notification.request.content.data;
         if (data?.screen) {
-          router.push(data.screen as any);
+          const safeRoute = sanitizeRoute(data.screen as string);
+          router.push(safeRoute as any);
         }
         refreshUnreadCount();
       });
