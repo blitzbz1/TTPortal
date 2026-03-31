@@ -274,16 +274,16 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                     {/* Bottom */}
                     <View style={styles.eventBot}>
                       <View style={styles.avatarStack}>
-                        {participants.slice(0, 3).map((p: any, i: number) => (
+                        {participants.slice(0, 5).map((p: any, i: number) => (
                           <View
                             key={p.user_id}
                             style={[
                               styles.stackAvatar,
-                              { marginLeft: i > 0 ? -8 : 0, zIndex: 3 - i },
+                              { marginLeft: i > 0 ? -8 : 0, zIndex: 5 - i },
                             ]}
                           >
                             <Text style={styles.stackInitials}>
-                              {getInitials(p.user_id?.slice(0, 2))}
+                              {getInitials(p.profiles?.full_name)}
                             </Text>
                           </View>
                         ))}
@@ -291,7 +291,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                           {participants.length}/{event.max_participants ?? '\u221E'} {s('spots')}
                         </Text>
                       </View>
-                      {!isPast(event) && event.organizer_id !== user?.id && (
+                      {activeTab !== 'past' && !isPast(event) && event.organizer_id !== user?.id && (
                         <TouchableOpacity
                           style={[styles.joinBtn, isJoined ? styles.joinedBtn : styles.notJoinedBtn]}
                           onPress={(e) => { e.stopPropagation(); handleJoin(event); }}

@@ -89,9 +89,30 @@ export async function getPlayHistory(
 }
 
 export async function getCheckinStats(userId: string) {
-  return supabase
-    .from('leaderboard_checkins')
-    .select('total_checkins, unique_venues')
-    .eq('user_id', userId)
-    .single();
+  // Fetch checkins and event participations in parallel
+  const [checkinsRes, participationsRes] = await Promise.all([
+    supabase
+      .from('checkins')
+      .select('venue_id')
+      .eq('user_id', userId),
+    supabase
+      .from('event_participants')
+      .select('events(venue_id)')
+      .eq('user_id', userId),
+  ]);
+
+  const checkinVenues = (checkinsRes.data ?? []).map((c) => c.venue_id);
+  const eventVenues = (participationsRes.data ?? [])
+    .map((p: any) => p.events?.venue_id)
+    .filter(Boolean);
+
+  const allVenueIds = new Set([...checkinVenues, ...eventVenues]);
+
+  return {
+    data: {
+      total_checkins: checkinVenues.length,
+      unique_venues: allVenueIds.size,
+    },
+    error: null,
+  };
 }
