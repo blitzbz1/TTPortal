@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Linking, Switch, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Linking, Switch, Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Card } from '../components/Card';
@@ -99,18 +99,24 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
     }
   }, [user]);
 
-  const handleLogout = useCallback(() => {
-    Alert.alert(
-      s('logout'),
-      s('confirmLogout'),
-      [
-        { text: s('cancel'), style: 'cancel' },
-        { text: s('logout'), style: 'destructive', onPress: async () => {
-          await signOut();
-          router.replace('/sign-in' as any);
-        }},
-      ]
-    );
+  const handleLogout = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      if (!window.confirm(s('confirmLogout'))) return;
+      await signOut();
+      router.replace('/sign-in' as any);
+    } else {
+      Alert.alert(
+        s('logout'),
+        s('confirmLogout'),
+        [
+          { text: s('cancel'), style: 'cancel' },
+          { text: s('logout'), style: 'destructive', onPress: async () => {
+            await signOut();
+            router.replace('/sign-in' as any);
+          }},
+        ]
+      );
+    }
   }, [signOut, router, s]);
 
   if (loading) {
