@@ -100,6 +100,6 @@ export async function searchUsers(query: string) {
   return supabase
     .from('profiles')
     .select('id, full_name, avatar_url, city')
-    .ilike('full_name', `%${escapeLikePattern(query)}%`)
-    .limit(10);
+    .ilike('email', escapeLikePattern(query.trim()))
+    .limit(5);
 }
