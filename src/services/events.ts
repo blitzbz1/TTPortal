@@ -8,7 +8,7 @@ export async function getEvents(
   const now = new Date().toISOString();
   let query = supabase
     .from('events')
-    .select('*, venues(name, city), event_participants(user_id, profiles(full_name))');
+    .select('*, venues(name, city), event_participants(user_id)');
 
   if (filter === 'upcoming') {
     query = query.gte('starts_at', now).neq('status', 'cancelled');
@@ -19,7 +19,31 @@ export async function getEvents(
     query = query.eq('organizer_id', userId);
   }
 
-  return query.order('starts_at', { ascending: filter === 'upcoming' }).limit(50);
+  const result = await query.order('starts_at', { ascending: filter === 'upcoming' }).limit(50);
+  if (result.error || !result.data?.length) return result;
+
+  // Resolve participant profile names separately (no FK between event_participants and profiles)
+  const allUserIds = new Set<string>();
+  for (const event of result.data) {
+    for (const p of (event as any).event_participants ?? []) {
+      allUserIds.add(p.user_id);
+    }
+  }
+  if (allUserIds.size > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', Array.from(allUserIds));
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+    for (const event of result.data) {
+      (event as any).event_participants = ((event as any).event_participants ?? []).map((p: any) => ({
+        ...p,
+        profiles: profileMap.get(p.user_id) ?? null,
+      }));
+    }
+  }
+
+  return result;
 }
 
 export async function getEventParticipants(eventId: number) {

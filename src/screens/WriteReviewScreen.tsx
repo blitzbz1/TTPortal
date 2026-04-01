@@ -11,6 +11,7 @@ import { useI18n } from '../hooks/useI18n';
 import { getVenueById } from '../services/venues';
 import { createReview } from '../services/reviews';
 import { safeErrorMessage } from '../lib/auth-utils';
+import { hapticLight } from '../lib/haptics';
 
 interface Props {
   venueId?: string;
@@ -24,8 +25,20 @@ export function WriteReviewScreen({ venueId }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [rating, setRating] = useState(4);
   const [reviewText, setReviewText] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [venueName, setVenueName] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const TAG_KEYS = [
+    { key: 'goodTables', label: 'tagGoodTables' },
+    { key: 'newPaddles', label: 'tagNewPaddles' },
+    { key: 'goodLighting', label: 'tagGoodLighting' },
+    { key: 'crowded', label: 'tagCrowded' },
+    { key: 'quiet', label: 'tagQuiet' },
+    { key: 'friendlyStaff', label: 'tagFriendlyStaff' },
+    { key: 'clean', label: 'tagClean' },
+    { key: 'nearbyParking', label: 'tagParking' },
+  ] as const;
 
   useEffect(() => {
     if (!venueId || isNaN(Number(venueId)) || Number(venueId) < 1) return;
@@ -38,23 +51,34 @@ export function WriteReviewScreen({ venueId }: Props) {
     return () => { cancelled = true; };
   }, [venueId]);
 
+  const toggleTag = useCallback((key: string) => {
+    hapticLight();
+    setTags((prev) =>
+      prev.includes(key) ? prev.filter((t) => t !== key) : [...prev, key],
+    );
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     if (rating < 1) { Alert.alert(s('error'), s('selectRating')); return; }
     if (!reviewText.trim()) { Alert.alert(s('error'), s('writeReviewRequired')); return; }
     if (!user || !venueId) return;
     setLoading(true);
+    let body = reviewText.trim();
+    if (tags.length > 0) {
+      body += `\n\n\u{1F3F7}\uFE0F tags: ${tags.join(', ')}`;
+    }
     const { error } = await createReview({
       venue_id: Number(venueId),
       user_id: user.id,
       reviewer_name: user?.user_metadata?.full_name || s('anon'),
       rating,
-      body: reviewText.trim(),
+      body,
     });
     setLoading(false);
     if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
     Alert.alert(s('success'), s('reviewPublished'));
     router.back();
-  }, [rating, reviewText, user, venueId, router]);
+  }, [rating, reviewText, tags, user, venueId, router]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -100,13 +124,35 @@ export function WriteReviewScreen({ venueId }: Props) {
                 <TouchableOpacity
                   key={star}
                   style={[styles.starBtn, star <= rating ? styles.starBtnActive : styles.starBtnInactive]}
-                  onPress={() => setRating(star)}
+                  onPress={() => { hapticLight(); setRating(star); }}
                 >
                   <Text style={[styles.starText, star <= rating ? styles.starTextActive : styles.starTextInactive]}>
                     {'\u2605'}
                   </Text>
                 </TouchableOpacity>
               ))}
+            </View>
+          </View>
+
+          {/* Tags */}
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>{s('fieldTags')}</Text>
+            <View style={styles.tagsRow}>
+              {TAG_KEYS.map((t) => {
+                const selected = tags.includes(t.key);
+                return (
+                  <TouchableOpacity
+                    key={t.key}
+                    testID={`tag-${t.key}`}
+                    style={[styles.tagPill, selected && styles.tagPillSelected]}
+                    onPress={() => toggleTag(t.key)}
+                  >
+                    <Text style={[styles.tagText, selected && styles.tagTextSelected]}>
+                      {s(t.label)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
@@ -276,6 +322,32 @@ function createStyles(colors: ThemeColors) {
     },
     starTextInactive: {
       color: colors.textFaint,
+    },
+    tagsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    tagPill: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: colors.bgMuted,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    tagPillSelected: {
+      backgroundColor: colors.primaryPale,
+      borderColor: colors.primaryDim,
+    },
+    tagText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    tagTextSelected: {
+      color: colors.primaryMid,
+      fontWeight: '600',
     },
     textarea: {
       backgroundColor: colors.bg,

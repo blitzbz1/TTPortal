@@ -1,14 +1,17 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Card } from '../components/Card';
 import { Lucide } from '../components/Icon';
+import { FavoriteCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
+import { EmptyState } from '../components/EmptyState';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
+import { useNotifications } from '../hooks/useNotifications';
 import { getFavorites, removeFavorite } from '../services/favorites';
 
 type SortMode = 'recent' | 'name';
@@ -21,10 +24,11 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
   const insets = useSafeAreaInsets();
   const [favorites, setFavorites] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [sortMode, setSortMode] = useState<SortMode>('recent');
+  const [sortMode, setSortMode] = useState<SortMode>('name');
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useSession();
   const { s } = useI18n();
+  const { unreadCount } = useNotifications();
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -123,21 +127,31 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={styles.headerTitle}>{s('favorites')}</Text>
-        <TouchableOpacity style={styles.sortBtn} onPress={handleToggleSort}>
-          <Lucide name="arrow-up-down" size={14} color={colors.textOnPrimary} />
-          <Text style={styles.sortText}>{sortMode === 'recent' ? s('sortRecent') : s('sortName')}</Text>
+        <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(protected)/notifications' as any)} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+            <Lucide name="bell" size={18} color={colors.textOnPrimary} />
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
         {loading ? (
-          <ActivityIndicator size="large" color={colors.accentBright} style={{ marginTop: 40 }} />
-        ) : sortedFavorites.length === 0 ? (
-          <View style={{ alignItems: 'center', marginTop: 40, padding: 16 }}>
-            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>
-              {s('noFavorites')}
-            </Text>
+          <View style={{ gap: 10 }}>
+            <SkeletonList count={3}><FavoriteCardSkeleton /></SkeletonList>
           </View>
+        ) : sortedFavorites.length === 0 ? (
+          <EmptyState
+            icon="heart"
+            title={s('emptyFavoritesTitle')}
+            description={s('emptyFavoritesDesc')}
+            ctaLabel={s('emptyFavoritesCta')}
+            onCtaPress={() => router.push('/(tabs)/' as any)}
+            iconColor={colors.red}
+            iconBg={colors.redPale}
+          />
         ) : (
           sortedFavorites.map((fav) => {
             const venue = fav.venues;
@@ -207,6 +221,33 @@ function createStyles(colors: ThemeColors) {
     headerTitle: {
       fontFamily: Fonts.heading,
       fontSize: 18,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    bellBtn: {
+      position: 'relative',
+      padding: 4,
+    },
+    bellBadge: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      backgroundColor: colors.red,
+      borderRadius: 8,
+      minWidth: 16,
+      height: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 3,
+    },
+    bellBadgeText: {
+      fontFamily: Fonts.body,
+      fontSize: 9,
       fontWeight: '700',
       color: colors.textOnPrimary,
     },

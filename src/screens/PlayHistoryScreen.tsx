@@ -9,6 +9,7 @@ import { Fonts, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getPlayHistory, getCheckinStats } from '../services/checkins';
+import { EmptyState } from '../components/EmptyState';
 
 const PAGE_SIZE = 20;
 
@@ -188,11 +189,15 @@ export function PlayHistoryScreen() {
 
           {/* Timeline */}
           {displayHistory.length === 0 ? (
-            <View style={{ alignItems: 'center', marginTop: 20, padding: 16 }}>
-              <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>
-                {s('noCheckins')}
-              </Text>
-            </View>
+            <EmptyState
+              icon="map-pin"
+              title={s('emptyHistoryTitle')}
+              description={s('emptyHistoryDesc')}
+              ctaLabel={s('emptyHistoryCta')}
+              onCtaPress={() => router.push('/(tabs)/' as any)}
+              iconColor={colors.primaryLight}
+              iconBg={colors.primaryPale}
+            />
           ) : (
             <View style={styles.timeline}>
               {grouped.map((day, dayIdx) => (

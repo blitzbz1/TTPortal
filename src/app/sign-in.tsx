@@ -85,7 +85,11 @@ export default function SignInScreen() {
         return;
       }
       logger.info(isLogin ? 'login success' : 'signup success');
-      router.replace(sanitizeRoute(returnTo) as any);
+      if (!isLogin) {
+        router.replace('/onboarding' as any);
+      } else {
+        router.replace(sanitizeRoute(returnTo) as any);
+      }
     } catch (err) {
       logger.error(activeTab === 'login' ? 'login exception' : 'signup exception', err);
       setError(s('errorNetwork'));

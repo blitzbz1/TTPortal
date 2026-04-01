@@ -4,14 +4,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { Card } from '../components/Card';
+import { EventCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
+import { EmptyState } from '../components/EmptyState';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
+import { useNotifications } from '../hooks/useNotifications';
 import { getEvents, getEventParticipants, joinEvent, leaveEvent, cancelEvent, stopRecurrence, sendEventInvites, sendEventUpdate } from '../services/events';
 import { getFriendIds } from '../services/friends';
 import { FriendPickerModal } from '../components/FriendPickerModal';
+import { hapticMedium } from '../lib/haptics';
 
 type EventTab = 'upcoming' | 'past' | 'mine';
 
@@ -34,6 +38,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useSession();
   const { s, lang } = useI18n();
+  const { unreadCount } = useNotifications();
   const router = useRouter();
   const { colors } = useTheme();
   const { styles, ms } = useMemo(() => createStyles(colors), [colors]);
@@ -188,19 +193,14 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={styles.headerTitle}>{s('events')}</Text>
-        <View style={styles.headerRight}>
-          {user ? (
-            <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/(protected)/create-event' as any)}>
-              <Lucide name="plus" size={14} color={colors.textOnPrimary} />
-              <Text style={styles.createText}>{s('create')}</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/sign-in')}>
-              <Lucide name="log-in" size={14} color={colors.textOnPrimary} />
-              <Text style={styles.createText}>{s('authLogin')}</Text>
-            </TouchableOpacity>
+        <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(protected)/notifications' as any)} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+          <Lucide name="bell" size={18} color={colors.textOnPrimary} />
+          {unreadCount > 0 && (
+            <View style={styles.bellBadge}>
+              <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
           )}
-        </View>
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scroll} keyboardDismissMode="on-drag" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
@@ -225,13 +225,19 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
 
         {/* Event Cards */}
         {loading ? (
-          <ActivityIndicator size="large" color={colors.accentBright} style={{ marginTop: 40 }} />
-        ) : events.length === 0 ? (
-          <View style={{ alignItems: 'center', marginTop: 40, padding: 16 }}>
-            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>
-              {s('noEvents')}
-            </Text>
+          <View style={{ padding: 16, gap: 12 }}>
+            <SkeletonList count={3}><EventCardSkeleton /></SkeletonList>
           </View>
+        ) : events.length === 0 ? (
+          <EmptyState
+            icon="calendar"
+            title={s('emptyEventsTitle')}
+            description={s('emptyEventsDesc')}
+            ctaLabel={user ? s('emptyEventsCta') : undefined}
+            onCtaPress={user ? () => router.push('/(protected)/create-event' as any) : undefined}
+            iconColor={colors.accentBright}
+            iconBg={colors.amberPale}
+          />
         ) : (
           <View style={styles.eventsList}>
             {events.map((event) => {
@@ -294,7 +300,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                       {activeTab !== 'past' && !isPast(event) && event.organizer_id !== user?.id && (
                         <TouchableOpacity
                           style={[styles.joinBtn, isJoined ? styles.joinedBtn : styles.notJoinedBtn]}
-                          onPress={(e) => { e.stopPropagation(); handleJoin(event); }}
+                          onPress={(e) => { e.stopPropagation(); hapticMedium(); handleJoin(event); }}
                         >
                           <Lucide
                             name={isJoined ? 'check' : 'user-plus'}
@@ -315,6 +321,17 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         )}
       </ScrollView>
 
+      {/* FAB — Create Event */}
+      {user && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => router.push('/(protected)/create-event' as any)}
+          activeOpacity={0.8}
+          testID="create-event-fab"
+        >
+          <Lucide name="plus" size={24} color={colors.textOnPrimary} />
+        </TouchableOpacity>
+      )}
 
       {/* ===== Event Detail Bottom Sheet ===== */}
       <Modal
@@ -650,14 +667,6 @@ function createStyles(colors: ThemeColors) {
       fontWeight: '700',
       color: colors.textOnPrimary,
     },
-    headerRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    profileBtn: {
-      padding: 4,
-    },
     bellBtn: {
       position: 'relative',
       padding: 4,
@@ -680,21 +689,22 @@ function createStyles(colors: ThemeColors) {
       fontWeight: '700',
       color: colors.textOnPrimary,
     },
-    createBtn: {
+    headerRight: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.accentBright,
-      borderRadius: 8,
-      paddingVertical: 5,
-      paddingHorizontal: 10,
-      gap: 4,
-      ...Shadows.md,
+      gap: 8,
     },
-    createText: {
-      fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.textOnPrimary,
+    fab: {
+      position: 'absolute',
+      bottom: 24,
+      right: 20,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.accentBright,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...Shadows.lg,
     },
     scroll: {
       flex: 1,

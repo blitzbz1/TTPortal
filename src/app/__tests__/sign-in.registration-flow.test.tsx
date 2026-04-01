@@ -74,18 +74,18 @@ describe('SignInScreen — registration flow (T013)', () => {
     mockReplace.mockReset();
   });
 
-  it('successful signUp navigates to /(tabs)/ by default', async () => {
+  it('successful signUp navigates to /onboarding', async () => {
     const { getByTestId } = render(<SignInScreen />);
     fireEvent.press(getByTestId('tab-signup'));
 
     await fillAndSubmit(getByTestId, user);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
+      expect(mockReplace).toHaveBeenCalledWith('/onboarding');
     });
   });
 
-  it('successful signUp navigates to returnTo param when present', async () => {
+  it('successful signUp navigates to /onboarding even with returnTo param', async () => {
     mockSearchParams.mockReturnValue({ returnTo: '/(protected)/add-venue' });
 
     const { getByTestId } = render(<SignInScreen />);
@@ -94,7 +94,7 @@ describe('SignInScreen — registration flow (T013)', () => {
     await fillAndSubmit(getByTestId, user);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/(protected)/add-venue');
+      expect(mockReplace).toHaveBeenCalledWith('/onboarding');
     });
   });
 

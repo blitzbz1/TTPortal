@@ -88,6 +88,54 @@ export async function getPlayHistory(
     .range(offset, offset + limit - 1);
 }
 
+export async function getVenueChampion(venueId: number) {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Get all checkins in last 30 days, then deduplicate per user per day client-side
+  const { data, error } = await supabase
+    .from('checkins')
+    .select('user_id, started_at, profiles(full_name)')
+    .eq('venue_id', venueId)
+    .gte('started_at', thirtyDaysAgo)
+    .order('started_at', { ascending: false });
+
+  if (error || !data?.length) return { data: null, error };
+
+  // Count unique days per user
+  const userDays = new Map<string, Set<string>>();
+  const userNames = new Map<string, string>();
+
+  for (const row of data) {
+    const day = row.started_at.split('T')[0];
+    if (!userDays.has(row.user_id)) userDays.set(row.user_id, new Set());
+    userDays.get(row.user_id)!.add(day);
+    if (!userNames.has(row.user_id)) {
+      userNames.set(row.user_id, (row as any).profiles?.full_name ?? '?');
+    }
+  }
+
+  // Find the user with most unique days
+  let championId = '';
+  let maxDays = 0;
+  for (const [userId, days] of userDays) {
+    if (days.size > maxDays) {
+      maxDays = days.size;
+      championId = userId;
+    }
+  }
+
+  if (!championId || maxDays < 2) return { data: null, error: null }; // Need at least 2 days to be champion
+
+  return {
+    data: {
+      userId: championId,
+      fullName: userNames.get(championId) ?? '?',
+      dayCount: maxDays,
+    },
+    error: null,
+  };
+}
+
 export async function getCheckinStats(userId: string) {
   // Fetch checkins and event participations in parallel
   const [checkinsRes, participationsRes] = await Promise.all([

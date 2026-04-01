@@ -48,7 +48,6 @@ describe('TabLayout i18n', () => {
     // s() should have been called with tab label keys
     expect(mockS).toHaveBeenCalledWith('tabMap');
     expect(mockS).toHaveBeenCalledWith('tabEvents');
-    expect(mockS).toHaveBeenCalledWith('tabLeaderboard');
     expect(mockS).toHaveBeenCalledWith('tabFavorites');
     expect(mockS).toHaveBeenCalledWith('tabProfile');
   });

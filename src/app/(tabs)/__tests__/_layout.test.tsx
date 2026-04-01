@@ -120,15 +120,14 @@ describe('TabLayout', () => {
     const expectedTabs = [
       { name: 'index', label: 'Hartă', icon: 'map' },
       { name: 'events', label: 'Evenimente', icon: 'calendar' },
-      { name: 'leaderboard', label: 'Clasament', icon: 'trophy' },
       { name: 'favorites', label: 'Favorite', icon: 'heart' },
       { name: 'profile', label: 'Profil', icon: 'user' },
     ];
 
-    it('renders exactly 5 tab screens', () => {
+    it('renders exactly 4 tab screens', () => {
       const { getAllByTestId } = render(<TabLayout />);
       const tabScreens = getAllByTestId(/^tab-screen-/);
-      expect(tabScreens).toHaveLength(5);
+      expect(tabScreens).toHaveLength(4);
     });
 
     it.each(expectedTabs)(
@@ -152,7 +151,6 @@ describe('TabLayout', () => {
       expect(labelTexts).toEqual([
         'Hartă',
         'Evenimente',
-        'Clasament',
         'Favorite',
         'Profil',
       ]);

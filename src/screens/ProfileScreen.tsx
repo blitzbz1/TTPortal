@@ -1,25 +1,28 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Linking, Switch, Alert, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Card } from '../components/Card';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Shadows } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getProfile, getProfileStats, updateProfile } from '../services/profiles';
+import { getProfile, getProfileStats } from '../services/profiles';
+import { useNotifications } from '../hooks/useNotifications';
+import { getUserReviewCount } from '../services/reviews';
+import { getFriends } from '../services/friends';
 import type { Profile } from '../types/database';
+import { ProfileSkeleton } from '../components/SkeletonLoader';
+import { ChallengeBanner } from '../components/ChallengeBanner';
 
-function getQuickActions(colors: ThemeColors) {
-  return [
-    { icon: 'users', labelKey: 'friends' as const, color: colors.primaryMid, bg: colors.primaryPale, border: colors.primaryDim, route: '/(protected)/friends' as const },
-    { icon: 'trophy', labelKey: 'playHistory' as const, color: colors.purple, bg: colors.purplePale, border: colors.purpleDim, route: '/(protected)/play-history' as const },
-    { icon: 'bookmark', labelKey: 'favorites' as const, color: colors.accent, bg: colors.amberPale, border: colors.amberDeep, route: '/(tabs)/favorites' as const },
-  ];
-}
-
+const BADGES = [
+  { key: 'firstServe', icon: 'zap', labelKey: 'badgeFirstServe' },
+  { key: 'explorer', icon: 'compass', labelKey: 'badgeExplorer' },
+  { key: 'reviewer', icon: 'pen-line', labelKey: 'badgeReviewer' },
+  { key: 'social', icon: 'users', labelKey: 'badgeSocial' },
+  { key: 'regular', icon: 'flame', labelKey: 'badgeRegular' },
+] as const;
 
 interface ProfileScreenProps {
   hideTabBar?: boolean;
@@ -29,18 +32,18 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, signOut } = useSession();
-  const { lang, setLang, s } = useI18n();
-  const { colors, mode, setMode, isDark } = useTheme();
+  const { s } = useI18n();
+  const { colors } = useTheme();
+  const { unreadCount } = useNotifications();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const quickActions = useMemo(() => getQuickActions(colors), [colors]);
-
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [stats, setStats] = useState<{ total_checkins: number; events_joined: number } | null>(null);
+  const [stats, setStats] = useState<{ total_checkins: number; unique_venues: number; events_joined: number } | null>(null);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [friendCount, setFriendCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [profileError, setProfileError] = useState(false);
-  const [notifyCheckins, setNotifyCheckins] = useState(true);
 
   const loadProfile = useCallback(async () => {
     if (!user) return;
@@ -51,11 +54,16 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
       const profileRes = await getProfile(user.id);
       if (profileRes.data) {
         setProfile(profileRes.data as Profile);
-        setNotifyCheckins((profileRes.data as any).notify_friend_checkins ?? true);
       }
 
-      const statsRes = await getProfileStats(user.id);
-      if (statsRes.data) setStats(statsRes.data as { total_checkins: number; events_joined: number });
+      const [statsRes, reviewRes, friendsRes] = await Promise.all([
+        getProfileStats(user.id),
+        getUserReviewCount(user.id),
+        getFriends(user.id),
+      ]);
+      if (statsRes.data) setStats(statsRes.data as { total_checkins: number; unique_venues: number; events_joined: number });
+      setReviewCount(reviewRes.data ?? 0);
+      setFriendCount(friendsRes.data?.length ?? 0);
     } catch {
       setProfileError(true);
     } finally {
@@ -80,24 +88,18 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const city = profile?.city || '';
   const usernameDisplay = [username, city].filter(Boolean).join(' \u00B7 ');
 
-  const dynamicStats = [
-    { value: String(stats?.total_checkins ?? 0), label: s('checkins') },
-    { value: String(stats?.events_joined ?? 0), label: s('eventsJoined') },
-  ];
-
-  const handleQuickAction = useCallback((route: string | null) => {
-    if (route) {
-      router.push(route as any);
-    }
-  }, [router]);
-
-
-  const handleToggleCheckinNotif = useCallback(async (value: boolean) => {
-    setNotifyCheckins(value);
-    if (user) {
-      await updateProfile(user.id, { notify_friend_checkins: value });
-    }
-  }, [user]);
+  const unlockedBadges = useMemo(() => {
+    const totalCheckins = stats?.total_checkins ?? 0;
+    const uniqueVenues = stats?.unique_venues ?? 0;
+    return new Set(
+      [
+        totalCheckins >= 1 && 'firstServe',
+        uniqueVenues >= 5 && 'explorer',
+        reviewCount >= 5 && 'reviewer',
+        friendCount >= 5 && 'social',
+      ].filter(Boolean) as string[],
+    );
+  }, [stats, reviewCount, friendCount]);
 
   const handleLogout = useCallback(async () => {
     if (Platform.OS === 'web') {
@@ -105,17 +107,13 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
       await signOut();
       router.replace('/sign-in' as any);
     } else {
-      Alert.alert(
-        s('logout'),
-        s('confirmLogout'),
-        [
-          { text: s('cancel'), style: 'cancel' },
-          { text: s('logout'), style: 'destructive', onPress: async () => {
-            await signOut();
-            router.replace('/sign-in' as any);
-          }},
-        ]
-      );
+      Alert.alert(s('logout'), s('confirmLogout'), [
+        { text: s('cancel'), style: 'cancel' },
+        { text: s('logout'), style: 'destructive', onPress: async () => {
+          await signOut();
+          router.replace('/sign-in' as any);
+        }},
+      ]);
     }
   }, [signOut, router, s]);
 
@@ -123,11 +121,8 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
     return (
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: insets.top }]}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Lucide name="arrow-left" size={22} color={colors.textOnPrimary} />
-          </TouchableOpacity>
           <Text style={styles.headerTitle}>{s('myProfile')}</Text>
-          <View style={{ width: 22 }} />
+          <View style={{ width: 26 }} />
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           {profileError ? (
@@ -139,167 +134,135 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
               </TouchableOpacity>
             </>
           ) : (
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ProfileSkeleton />
           )}
         </View>
       </View>
     );
   }
 
+  const statsData = [
+    { value: stats?.total_checkins ?? 0, label: s('checkins') },
+    { value: stats?.unique_venues ?? 0, label: s('venuesVisited') },
+    { value: friendCount, label: s('friends') },
+  ];
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Lucide name="arrow-left" size={22} color={colors.textOnPrimary} />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('myProfile')}</Text>
-        <View style={{ width: 22 }} />
+        <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(protected)/notifications' as any)} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+          <Lucide name="bell" size={18} color={colors.textOnPrimary} />
+          {unreadCount > 0 && (
+            <View style={styles.bellBadge}>
+              <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scroll}>
-        {/* Profile Hero */}
-        <Card shadow="sm" borderRadius={0} style={styles.hero}>
-          <View style={styles.avatarWrap}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials}</Text>
-            </View>
+        {/* Profile Hero — centered avatar, name, stats */}
+        <View style={styles.hero}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initials}</Text>
           </View>
           <Text style={styles.name}>{fullName || s('user')}</Text>
           {usernameDisplay ? <Text style={styles.username}>{usernameDisplay}</Text> : null}
-        </Card>
-
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          {dynamicStats.map((stat) => (
-            <Card key={stat.label} shadow="sm" borderRadius={14} style={styles.statCard}>
-              <Text style={styles.statValue}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
-            </Card>
-          ))}
         </View>
 
-        {/* Quick Actions */}
+        {/* Badges */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{s('quickActions')}</Text>
-          <View style={styles.quickRow}>
-            {quickActions.map((action) => (
-              <Card key={action.labelKey} shadow="sm" borderRadius={14} style={styles.quickBtn}>
-                <TouchableOpacity
-                  style={styles.quickBtnInner}
-                  onPress={() => handleQuickAction(action.route)}
-                >
-                  <Lucide name={action.icon} size={22} color={action.color} />
-                  <Text style={[styles.quickLabel, { color: action.color }]}>{s(action.labelKey)}</Text>
-                </TouchableOpacity>
-              </Card>
-            ))}
-          </View>
-        </View>
-
-        {/* Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{s('settings')}</Text>
-
-          {/* Notificari */}
-          <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/(protected)/notifications' as any)}>
-            <View style={styles.settingsLeft}>
-              <Lucide name="bell" size={18} color={colors.textMuted} />
-              <Text style={styles.settingsLabel}>{s('notifications')}</Text>
-            </View>
-            <Lucide name="chevron-right" size={16} color={colors.textFaint} />
-          </TouchableOpacity>
-
-          {/* Notificari check-in prieteni */}
-          <View style={styles.settingsRow}>
-            <View style={styles.settingsLeft}>
-              <Lucide name="map-pin" size={18} color={colors.textMuted} />
-              <View>
-                <Text style={styles.settingsLabel}>{s('notifyFriendCheckins')}</Text>
-                <Text style={styles.settingsDesc}>{s('notifyFriendCheckinsDesc')}</Text>
-              </View>
-            </View>
-            <Switch
-              value={notifyCheckins}
-              onValueChange={handleToggleCheckinNotif}
-              trackColor={{ false: colors.border, true: colors.primaryLight }}
-              thumbColor={colors.bgAlt}
-            />
-          </View>
-
-          {/* Limba */}
-          <View style={styles.settingsRow}>
-            <View style={styles.settingsLeft}>
-              <Lucide name="globe" size={18} color={colors.textMuted} />
-              <Text style={styles.settingsLabel}>{s('language')}</Text>
-            </View>
-            <View style={styles.themeToggle}>
-              {(['ro', 'en'] as const).map((l) => (
-                <TouchableOpacity
-                  key={l}
-                  style={[styles.themeOption, lang === l && styles.themeOptionActive]}
-                  onPress={() => setLang(l)}
-                >
-                  <Text style={[styles.themeOptionText, lang === l && styles.themeOptionTextActive]}>
-                    {l.toUpperCase()}
+          <Text style={styles.sectionTitle}>{s('badgesTitle')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgeRow}>
+            {BADGES.map((badge) => {
+              const unlocked = unlockedBadges.has(badge.key);
+              return (
+                <View key={badge.key} style={styles.badgeItem}>
+                  <View style={[styles.badgeCircle, !unlocked && styles.badgeCircleLocked]}>
+                    <View style={!unlocked ? { opacity: 0.4 } : undefined}>
+                      <Lucide
+                        name={badge.icon}
+                        size={22}
+                        color={unlocked ? colors.primary : colors.textFaint}
+                      />
+                    </View>
+                    {!unlocked && (
+                      <View style={styles.lockOverlay}>
+                        <Lucide name="lock" size={10} color={colors.textOnPrimary} />
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.badgeLabel, !unlocked && styles.badgeLabelLocked]}>
+                    {s(badge.labelKey)}
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+                </View>
+              );
+            })}
+          </ScrollView>
+        </View>
 
-          {/* Tema */}
-          <View style={styles.settingsRow}>
-            <View style={styles.settingsLeft}>
-              <Lucide name={isDark ? 'moon' : 'sun'} size={18} color={colors.textMuted} />
-              <Text style={styles.settingsLabel}>{s('theme')}</Text>
-            </View>
-            <View style={styles.themeToggle}>
-              {([{ key: 'light', icon: 'sun' }, { key: 'dark', icon: 'moon' }, { key: 'system', icon: 'monitor' }] as const).map(({ key: m, icon }) => (
-                <TouchableOpacity
-                  key={m}
-                  style={[styles.themeOption, mode === m && styles.themeOptionActive]}
-                  onPress={() => setMode(m)}
-                >
-                  <Lucide name={icon} size={14} color={mode === m ? colors.text : colors.textFaint} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+        {/* Monthly Challenge */}
+        <View style={styles.section}>
+          <ChallengeBanner />
+        </View>
 
-          {/* Confidentialitate */}
-          <TouchableOpacity style={styles.settingsRow} onPress={() => Linking.openSettings()}>
-            <View style={styles.settingsLeft}>
-              <Lucide name="shield" size={18} color={colors.textMuted} />
-              <Text style={styles.settingsLabel}>{s('privacy')}</Text>
+        {/* Navigation Links */}
+        <View style={styles.section}>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/friends' as any)}>
+            <View style={[styles.navIcon, { backgroundColor: colors.primaryPale }]}>
+              <Lucide name="users" size={18} color={colors.primaryMid} />
             </View>
+            <Text style={styles.navLabel}>{s('friends')}</Text>
+            <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/play-history' as any)}>
+            <View style={[styles.navIcon, { backgroundColor: colors.purplePale }]}>
+              <Lucide name="trophy" size={18} color={colors.purple} />
+            </View>
+            <Text style={styles.navLabel}>{s('playHistory')}</Text>
+            <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/leaderboard' as any)}>
+            <View style={[styles.navIcon, { backgroundColor: colors.amberPale }]}>
+              <Lucide name="bar-chart-3" size={18} color={colors.accent} />
+            </View>
+            <Text style={styles.navLabel}>{s('leaderboard')}</Text>
+            <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/settings' as any)}>
+            <View style={[styles.navIcon, { backgroundColor: colors.bgMuted }]}>
+              <Lucide name="settings" size={18} color={colors.textMuted} />
+            </View>
+            <Text style={styles.navLabel}>{s('settings')}</Text>
             <Lucide name="chevron-right" size={16} color={colors.textFaint} />
           </TouchableOpacity>
 
-          {/* Admin / Moderare - only if admin */}
           {profile?.is_admin && (
-            <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/(protected)/admin' as any)}>
-              <View style={styles.settingsLeft}>
-                <Lucide name="shield-check" size={18} color={colors.textMuted} />
-                <Text style={styles.settingsLabel}>{s('moderation')}</Text>
+            <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/admin' as any)}>
+              <View style={[styles.navIcon, { backgroundColor: colors.primaryPale }]}>
+                <Lucide name="shield-check" size={18} color={colors.primaryMid} />
               </View>
-              <View style={styles.adminBadge}>
-                <View style={styles.adminPill}>
-                  <Text style={styles.adminPillText}>{s('admin')}</Text>
-                </View>
-                <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+              <Text style={styles.navLabel}>{s('moderation')}</Text>
+              <View style={styles.adminPill}>
+                <Text style={styles.adminPillText}>{s('admin')}</Text>
               </View>
+              <Lucide name="chevron-right" size={16} color={colors.textFaint} />
             </TouchableOpacity>
           )}
+        </View>
 
-          {/* Logout */}
+        {/* Logout */}
+        <View style={styles.section}>
           <TouchableOpacity style={styles.logoutRow} onPress={handleLogout}>
             <Lucide name="log-out" size={18} color={colors.red} />
             <Text style={styles.logoutText}>{s('logout')}</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
 
+        <View style={{ height: 32 }} />
+      </ScrollView>
     </View>
   );
 }
@@ -326,61 +289,94 @@ function createStyles(colors: ThemeColors) {
       fontWeight: '700',
       color: colors.textOnPrimary,
     },
+    bellBtn: {
+      position: 'relative',
+      padding: 4,
+    },
+    bellBadge: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      backgroundColor: colors.red,
+      borderRadius: 8,
+      minWidth: 16,
+      height: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 3,
+    },
+    bellBadgeText: {
+      fontFamily: Fonts.body,
+      fontSize: 9,
+      fontWeight: '700',
+      color: colors.textOnPrimary,
+    },
     scroll: {
       flex: 1,
     },
+
+    /* ── Hero ── */
     hero: {
       alignItems: 'center',
-      paddingTop: 28,
-      paddingBottom: 24,
-      paddingHorizontal: 24,
-      gap: 16,
-    },
-    avatarWrap: {
-      width: 88,
-      height: 88,
+      paddingTop: 24,
+      paddingBottom: 16,
+      paddingHorizontal: 16,
+      gap: 6,
     },
     avatar: {
-      width: 88,
-      height: 88,
-      borderRadius: 44,
+      width: 64,
+      height: 64,
+      borderRadius: 32,
       backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
-      ...Shadows.lg,
+      ...Shadows.md,
+      marginBottom: 4,
     },
     avatarText: {
       fontFamily: Fonts.heading,
-      fontSize: 32,
+      fontSize: 24,
       fontWeight: '700',
       color: colors.textOnPrimary,
     },
     name: {
       fontFamily: Fonts.heading,
-      fontSize: 22,
+      fontSize: 20,
       fontWeight: '700',
       color: colors.text,
     },
     username: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: 13,
       color: colors.textFaint,
     },
     statsRow: {
       flexDirection: 'row',
-      gap: 10,
-      paddingHorizontal: 16,
-      paddingTop: 16,
+      alignItems: 'center',
+      marginTop: 12,
+      backgroundColor: colors.bgAlt,
+      borderRadius: Radius.md,
+      paddingVertical: 10,
+      paddingHorizontal: 4,
+      ...Shadows.sm,
     },
-    statCard: {
+    statItem: {
       flex: 1,
       alignItems: 'center',
-      padding: 14,
-      gap: 4,
+      flexDirection: 'column',
+      gap: 2,
+    },
+    statDivider: {
+      position: 'absolute',
+      left: 0,
+      top: 4,
+      bottom: 4,
+      width: 1,
+      backgroundColor: colors.borderLight,
     },
     statValue: {
       fontFamily: Fonts.heading,
-      fontSize: 28,
+      fontSize: 20,
       fontWeight: '700',
       color: colors.primary,
     },
@@ -390,6 +386,8 @@ function createStyles(colors: ThemeColors) {
       fontWeight: '500',
       color: colors.textFaint,
     },
+
+    /* ── Sections ── */
     section: {
       paddingHorizontal: 16,
       paddingTop: 20,
@@ -397,92 +395,87 @@ function createStyles(colors: ThemeColors) {
     },
     sectionTitle: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
-    quickRow: {
-      flexDirection: 'row',
-      gap: 10,
+
+    /* ── Badges ── */
+    badgeRow: {
+      gap: 14,
+      paddingVertical: 4,
     },
-    quickBtn: {
-      flex: 1,
-    },
-    quickBtnInner: {
+    badgeItem: {
       alignItems: 'center',
-      paddingVertical: 16,
-      paddingHorizontal: 12,
-      gap: 10,
+      width: 62,
     },
-    quickLabel: {
+    badgeCircle: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.primaryPale,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    badgeCircleLocked: {
+      backgroundColor: colors.bgMuted,
+    },
+    lockOverlay: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: colors.textFaint,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: colors.bgAlt,
+    },
+    badgeLabel: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: 10,
+      fontWeight: '500',
+      color: colors.text,
+      marginTop: 5,
+      textAlign: 'center',
     },
-    settingsRow: {
+    badgeLabelLocked: {
+      color: colors.textFaint,
+    },
+
+    /* ── Nav Links ── */
+    navRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 14,
+      paddingVertical: 12,
+      gap: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.borderLight,
     },
-    settingsLeft: {
-      flexDirection: 'row',
+    navIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
       alignItems: 'center',
-      gap: 12,
+      justifyContent: 'center',
     },
-    settingsLabel: {
+    navLabel: {
+      flex: 1,
       fontFamily: Fonts.body,
-      fontSize: 14,
-      color: colors.text,
-    },
-    settingsDesc: {
-      fontFamily: Fonts.body,
-      fontSize: 11,
-      color: colors.textFaint,
-      marginTop: 1,
-    },
-    settingsValue: {
-      fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: 15,
       fontWeight: '500',
-      color: colors.textFaint,
-    },
-    themeToggle: {
-      flexDirection: 'row',
-      backgroundColor: colors.bgMuted,
-      borderRadius: 8,
-      padding: 2,
-    },
-    themeOption: {
-      paddingVertical: 6,
-      paddingHorizontal: 10,
-      borderRadius: 6,
-    },
-    themeOptionActive: {
-      backgroundColor: colors.bgAlt,
-    },
-    themeOptionText: {
-      fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '500',
-      color: colors.textFaint,
-    },
-    themeOptionTextActive: {
       color: colors.text,
-      fontWeight: '600',
-    },
-    adminBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
     },
     adminPill: {
       backgroundColor: colors.primaryPale,
       borderRadius: 8,
       paddingVertical: 2,
       paddingHorizontal: 6,
+      marginRight: 4,
     },
     adminPillText: {
       fontFamily: Fonts.body,
@@ -490,16 +483,18 @@ function createStyles(colors: ThemeColors) {
       fontWeight: '700',
       color: colors.primaryMid,
     },
+
+    /* ── Logout ── */
     logoutRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       paddingVertical: 14,
-      gap: 12,
-      ...Shadows.sm,
+      gap: 8,
       backgroundColor: colors.redPale,
-      borderRadius: 12,
-      paddingHorizontal: 12,
-      marginTop: 4,
+      borderRadius: Radius.md,
+      borderWidth: 1,
+      borderColor: colors.redBorder,
     },
     logoutText: {
       fontFamily: Fonts.body,

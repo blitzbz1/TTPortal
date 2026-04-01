@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking, Share, ActivityIndicator, Platform, Modal, Pressable, TextInput, Image, FlatList, Dimensions } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking, Share, ActivityIndicator, Platform, Modal, Pressable, TextInput, Image, FlatList, Dimensions, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -11,14 +11,22 @@ import { useI18n } from '../hooks/useI18n';
 import { getVenueById, uploadVenuePhoto, addPhotoToVenue } from '../services/venues';
 import { getProfile } from '../services/profiles';
 import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
+
+// Lazy-load ImageManipulator to avoid crash when native module is missing
+let ImageManipulator: typeof import('expo-image-manipulator') | null = null;
+try { ImageManipulator = require('expo-image-manipulator'); } catch {}
 import { getReviewsForVenue } from '../services/reviews';
-import { checkin, checkout, getUserActiveCheckin, getUserAnyActiveCheckin, getActiveFriendCheckins } from '../services/checkins';
+import { checkin, checkout, getUserActiveCheckin, getUserAnyActiveCheckin, getActiveFriendCheckins, getVenueChampion } from '../services/checkins';
 import { getFriendIds } from '../services/friends';
 import { isFavorite, addFavorite, removeFavorite } from '../services/favorites';
 import type { Venue, Review, VenueStats } from '../types/database';
 import { Card } from '../components/Card';
 import { safeErrorMessage } from '../lib/auth-utils';
+import { VenueActionRow } from '../components/VenueActionRow';
+import { CheckinSuccessSheet } from '../components/CheckinSuccessSheet';
+import { ReviewCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
+import { EmptyState } from '../components/EmptyState';
+import { hapticLight } from '../lib/haptics';
 
 interface Props {
   venueId?: string;
@@ -50,6 +58,11 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [customMinutes, setCustomMinutes] = useState('');
   const [untilHour, setUntilHour] = useState('');
   const [untilMinute, setUntilMinute] = useState('');
+  const [successSheetVisible, setSuccessSheetVisible] = useState(false);
+  const [lastCheckinEndTime, setLastCheckinEndTime] = useState<string | undefined>();
+  const [champion, setChampion] = useState<{ userId: string; fullName: string; dayCount: number } | null>(null);
+
+  const heartScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (!venueId || isNaN(Number(venueId)) || Number(venueId) < 1) return;
@@ -97,6 +110,13 @@ export function VenueDetailScreen({ venueId }: Props) {
           // non-critical
         }
       }
+
+      // Load venue champion
+      try {
+        const { data: champ } = await getVenueChampion(Number(venueId));
+        if (!cancelled) setChampion(champ);
+      } catch {}
+
       setLoading(false);
     }
 
@@ -166,7 +186,9 @@ export function VenueDetailScreen({ venueId }: Props) {
     // Refresh active checkin state
     const { data: active } = await getUserActiveCheckin(user.id, Number(venueId));
     setActiveCheckin(active ?? null);
-    showAlert(s('success'), s('checkinSuccess'));
+    const endTimeStr = endedAt.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+    setLastCheckinEndTime(endTimeStr);
+    setSuccessSheetVisible(true);
   }, [user, venueId, showAlert]);
 
   const handleCustomConfirm = useCallback(() => {
@@ -233,13 +255,17 @@ export function VenueDetailScreen({ venueId }: Props) {
       const actions = needsResize
         ? [{ resize: isLandscape ? { width: 1024 } : { height: 1024 } }]
         : [];
-      const manipulated = await ImageManipulator.manipulateAsync(
-        asset.uri,
-        actions,
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
-      );
+      let uploadUri = asset.uri;
+      if (ImageManipulator) {
+        const manipulated = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          actions,
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+        );
+        uploadUri = manipulated.uri;
+      }
 
-      const { url, error: uploadErr } = await uploadVenuePhoto(Number(venueId), manipulated.uri);
+      const { url, error: uploadErr } = await uploadVenuePhoto(Number(venueId), uploadUri);
       if (uploadErr || !url) {
         showAlert(s('error'), s('photoUploadError'));
         return;
@@ -262,18 +288,28 @@ export function VenueDetailScreen({ venueId }: Props) {
     }
   }, [venue, venueId, showAlert, s]);
 
+  const animateHeart = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(heartScale, { toValue: 1.4, duration: 150, useNativeDriver: true }),
+      Animated.timing(heartScale, { toValue: 1.0, duration: 150, useNativeDriver: true }),
+    ]).start();
+  }, [heartScale]);
+
   const handleToggleFavorite = useCallback(async () => {
     if (!user || !venueId) return;
+    hapticLight();
     if (favorited) {
       const { error } = await removeFavorite(user.id, Number(venueId));
       if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
       setFavorited(false);
+      animateHeart();
     } else {
       const { error } = await addFavorite(user.id, Number(venueId));
       if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
       setFavorited(true);
+      animateHeart();
     }
-  }, [user, venueId, favorited]);
+  }, [user, venueId, favorited, animateHeart]);
 
   const handleDirectionGoogle = useCallback(() => {
     if (!venue) return;
@@ -320,15 +356,17 @@ export function VenueDetailScreen({ venueId }: Props) {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
           <Lucide name="arrow-left" size={20} color={colors.text} />
           <Text style={styles.backText}>{s('back')}</Text>
         </TouchableOpacity>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={handleToggleFavorite} accessibilityLabel={favorited ? s('favRemove') : s('favAdd')} accessibilityRole="button">
-            <Lucide name="heart" size={20} color={favorited ? colors.red : colors.textFaint} />
+          <TouchableOpacity onPress={handleToggleFavorite} accessibilityLabel={favorited ? s('favRemove') : s('favAdd')} accessibilityRole="button" hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+            <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+              <Lucide name="heart" size={20} color={favorited ? colors.red : colors.textFaint} />
+            </Animated.View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleShare}>
+          <TouchableOpacity onPress={handleShare} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
             <Lucide name="share-2" size={20} color={colors.textFaint} />
           </TouchableOpacity>
         </View>
@@ -396,6 +434,17 @@ export function VenueDetailScreen({ venueId }: Props) {
           )}
         </View>
 
+        {/* Action Row */}
+        <VenueActionRow
+          favorited={favorited}
+          checkedIn={!!activeCheckin}
+          checkinLoading={checkinLoading}
+          onCheckin={activeCheckin ? handleCheckout : openCheckinModal}
+          onReview={() => router.push(`/(protected)/review/${venueId}` as any)}
+          onFavorite={handleToggleFavorite}
+          onShare={handleShare}
+        />
+
         {/* Venue Info */}
         <Card shadow="sm" borderRadius={0} style={styles.venueInfo}>
           <View style={styles.infoTop}>
@@ -443,6 +492,15 @@ export function VenueDetailScreen({ venueId }: Props) {
               </Text>
             </View>
           </View>
+
+          {champion && (
+            <View style={styles.championRow}>
+              <Lucide name="crown" size={16} color={colors.amber} />
+              <Text style={styles.championText}>
+                {s('venueChampion')}: {champion.fullName} ({champion.dayCount} {s('daysPlayed')})
+              </Text>
+            </View>
+          )}
 
           {/* Evaluate Condition */}
           <TouchableOpacity style={styles.evalBtn} onPress={() => router.push(`/(protected)/condition-vote/${venueId}` as any)}>
@@ -541,7 +599,15 @@ export function VenueDetailScreen({ venueId }: Props) {
           </View>
 
           {reviews.length === 0 && (
-            <Text style={styles.reviewText}>{s('noReviewsYet')}</Text>
+            <EmptyState
+              icon="pen-line"
+              title={s('emptyReviewsTitle')}
+              description={s('emptyReviewsDesc')}
+              ctaLabel={s('emptyReviewsCta')}
+              onCtaPress={() => router.push(`/(protected)/review/${venueId}` as any)}
+              iconColor={colors.primaryMid}
+              iconBg={colors.primaryPale}
+            />
           )}
 
           {reviews.map((review) => (
@@ -556,6 +622,14 @@ export function VenueDetailScreen({ venueId }: Props) {
           ))}
         </View>
       </ScrollView>
+
+      {/* Check-in Success Sheet */}
+      <CheckinSuccessSheet
+        visible={successSheetVisible}
+        venueName={venue?.name ?? ''}
+        endTime={lastCheckinEndTime}
+        onDismiss={() => setSuccessSheetVisible(false)}
+      />
 
       {/* Checkin Duration Modal */}
       <Modal visible={checkinModalVisible} transparent animationType="slide" onRequestClose={() => setCheckinModalVisible(false)}>
@@ -854,6 +928,23 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.body,
       fontSize: 13,
       color: colors.textMuted,
+    },
+    championRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: colors.amberPale,
+      borderRadius: Radius.md,
+      padding: 10,
+      borderWidth: 1,
+      borderColor: colors.amberDeep,
+    },
+    championText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.accent,
+      flex: 1,
     },
     evalBtn: {
       flexDirection: 'row',

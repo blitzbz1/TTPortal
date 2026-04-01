@@ -11,6 +11,7 @@ import { useI18n } from '../hooks/useI18n';
 import { getFriends, getPendingRequests, acceptRequest, declineRequest, searchUsers, sendRequest } from '../services/friends';
 import { getActiveFriendCheckins } from '../services/checkins';
 import { Card } from '../components/Card';
+import { EmptyState } from '../components/EmptyState';
 
 type FriendsTab = 'all' | 'playing' | 'pending';
 
@@ -289,11 +290,15 @@ export function FriendsScreen() {
                   </View>
                 </View>
                 {filteredFriends.length === 0 ? (
-                  <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                    <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>
-                      {searchQuery ? s('noFriendFound') : s('noFriendsYet')}
-                    </Text>
-                  </View>
+                  <EmptyState
+                    icon={searchQuery ? 'search' : 'users'}
+                    title={searchQuery ? s('noFriendFound') : s('emptyFriendsTitle')}
+                    description={searchQuery ? s('emptySearchDesc') : s('emptyFriendsDesc')}
+                    ctaLabel={searchQuery ? undefined : s('emptyFriendsCta')}
+                    onCtaPress={searchQuery ? undefined : handleInvite}
+                    iconColor={colors.purple}
+                    iconBg={colors.purplePale}
+                  />
                 ) : (
                   filteredFriends.map((friendItem, index) => {
                     const profile = friendItem.friend;
@@ -325,11 +330,12 @@ export function FriendsScreen() {
             {activeTab === 'playing' && (
               <View style={styles.section}>
                 {playingFriends.length === 0 ? (
-                  <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                    <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>
-                      {s('noFriendsPlaying')}
-                    </Text>
-                  </View>
+                  <EmptyState
+                    icon="activity"
+                    title={s('noFriendsPlaying')}
+                    iconColor={colors.primaryLight}
+                    iconBg={colors.primaryPale}
+                  />
                 ) : (
                   playingFriends.map((friendItem, index) => {
                     const profile = friendItem.friend;

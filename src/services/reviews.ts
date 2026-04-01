@@ -17,3 +17,11 @@ export async function createReview(data: ReviewInsert) {
 export async function flagReview(id: number) {
   return supabase.rpc('flag_review', { review_id: id });
 }
+
+export async function getUserReviewCount(userId: string) {
+  const { count, error } = await supabase
+    .from('reviews')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId);
+  return { data: count ?? 0, error };
+}

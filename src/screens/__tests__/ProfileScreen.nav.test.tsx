@@ -20,6 +20,9 @@ jest.mock('../../hooks/useI18n', () => ({
     setLang: jest.fn(),
   }),
 }));
+jest.mock('../../hooks/useNotifications', () => ({
+  useNotifications: () => ({ unreadCount: 0 }),
+}));
 jest.mock('../../hooks/useTheme', () => ({
   useTheme: () => ({
     colors: require('../../theme').lightColors,

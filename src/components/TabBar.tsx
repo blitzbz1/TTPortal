@@ -1,11 +1,12 @@
-import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useMemo, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { useSession } from '../hooks/useSession';
+import { hapticSelection } from '../lib/haptics';
 
 export type TabKey = 'map' | 'events' | 'leaderboard' | 'favorites' | 'profile';
 
@@ -21,6 +22,24 @@ export function TabBar({ activeTab, onTabPress }: TabBarProps) {
   const { session } = useSession();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const scaleValues = useRef<Record<string, Animated.Value>>({}).current;
+
+  const getScale = (key: string) => {
+    if (!scaleValues[key]) scaleValues[key] = new Animated.Value(1);
+    return scaleValues[key];
+  };
+
+  const animatePress = (key: string) => {
+    const scale = getScale(key);
+    scale.setValue(0.85);
+    Animated.spring(scale, {
+      toValue: 1,
+      friction: 4,
+      tension: 100,
+      useNativeDriver: true,
+    }).start();
+  };
 
   const TABS = useMemo(() => {
     const all: { key: TabKey; icon: string; label: string }[] = [
@@ -39,22 +58,24 @@ export function TabBar({ activeTab, onTabPress }: TabBarProps) {
           <TouchableOpacity
             key={tab.key}
             style={styles.tab}
-            onPress={() => onTabPress?.(tab.key)}
+            onPress={() => { animatePress(tab.key); hapticSelection(); onTabPress?.(tab.key); }}
             activeOpacity={0.7}
           >
-            <Lucide
-              name={tab.icon}
-              size={22}
-              color={isActive ? colors.primary : colors.textFaint}
-            />
-            <Text
-              style={[
-                styles.label,
-                isActive && styles.labelActive,
-              ]}
-            >
-              {tab.label}
-            </Text>
+            <Animated.View style={{ transform: [{ scale: getScale(tab.key) }], alignItems: 'center' }}>
+              <Lucide
+                name={tab.icon}
+                size={22}
+                color={isActive ? colors.primary : colors.textFaint}
+              />
+              <Text
+                style={[
+                  styles.label,
+                  isActive && styles.labelActive,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </Animated.View>
           </TouchableOpacity>
         );
       })}

@@ -12,6 +12,8 @@ import { useI18n } from '../hooks/useI18n';
 import { getNotifications, markAsRead, deleteNotification, deleteAllNotifications } from '../services/notifications';
 import { acceptRequest, declineRequest, getPendingRequests } from '../services/friends';
 import { sanitizeRoute } from '../lib/auth-utils';
+import { NotificationSkeleton, SkeletonList } from '../components/SkeletonLoader';
+import { EmptyState } from '../components/EmptyState';
 
 function getIconMap(colors: ThemeColors): Record<string, { name: string; color: string; bg: string }> {
   return {
@@ -212,12 +214,16 @@ export function NotificationsScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color={colors.primary} style={{ flex: 1, marginTop: 40 }} />
-      ) : notifications.length === 0 ? (
-        <View style={styles.empty}>
-          <Lucide name="bell-off" size={48} color={colors.textFaint} />
-          <Text style={styles.emptyText}>{s('noNotifications')}</Text>
+        <View style={{ flex: 1, paddingTop: 8 }}>
+          <SkeletonList count={4}><NotificationSkeleton /></SkeletonList>
         </View>
+      ) : notifications.length === 0 ? (
+        <EmptyState
+          icon="bell-off"
+          title={s('emptyNotificationsTitle')}
+          description={s('emptyNotificationsDesc')}
+          iconColor={colors.textFaint}
+        />
       ) : (
         <ScrollView style={styles.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
           {notifications.map((n) => {

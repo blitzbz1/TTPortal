@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, Platform, RefreshControl, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, Platform, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Callout } from 'react-native-maps';
 import { useRouter } from 'expo-router';
@@ -7,6 +7,10 @@ import * as Location from 'expo-location';
 import { Lucide } from '../components/Icon';
 import { Card } from '../components/Card';
 import { CityPickerModal } from '../components/CityPickerModal';
+import { VenueCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
+import { EmptyState } from '../components/EmptyState';
+import { DraggableSheet } from '../components/DraggableSheet';
+import { hapticSelection } from '../lib/haptics';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, Radius, Shadows } from '../theme';
@@ -18,6 +22,7 @@ import { useSession } from '../hooks/useSession';
 import { useNotifications } from '../hooks/useNotifications';
 import { useI18n } from '../hooks/useI18n';
 import type { Venue, VenueCondition } from '../types/database';
+import { setCacheItem, getCacheItem } from '../lib/offline-cache';
 
 type VenueWithStats = Venue & {
   venue_stats: {
@@ -86,6 +91,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const [locating, setLocating] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState(false);
+  const [fromCache, setFromCache] = useState(false);
   const mapRef = useRef<MapView>(null);
 
   const filters: { key: FilterKey; label: string; icon?: string }[] = [
@@ -116,11 +122,23 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const fetchVenues = useCallback(async () => {
     setLoading(true);
     setFetchError(false);
+    setFromCache(false);
     try {
       const { data } = await getVenues(selectedCity);
-      if (data) setVenues(data as VenueWithStats[]);
+      if (data) {
+        setVenues(data as VenueWithStats[]);
+        setCacheItem(`venues_${selectedCity}`, data);
+      }
     } catch {
-      setFetchError(true);
+      // Try loading from cache
+      const cached = getCacheItem<VenueWithStats[]>(`venues_${selectedCity}`);
+      if (cached) {
+        setVenues(cached);
+        setFetchError(false); // Don't show error if we have cached data
+        setFromCache(true);
+      } else {
+        setFetchError(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -270,40 +288,33 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     <View style={styles.container}>
       {/* App Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerEmoji}>{'\uD83C\uDFD3'}</Text>
-          <Text style={styles.headerTitle}>TT PORTAL</Text>
+        <Text style={styles.headerTitle}>TT Portal</Text>
+        <View style={styles.headerCenter}>
+          <TouchableOpacity style={styles.cityPicker} onPress={() => setCityModalVisible(true)}>
+            <Lucide name="map-pin" size={14} color={colors.textOnPrimary} />
+            <Text style={styles.cityText}>{selectedCity}</Text>
+            <Lucide name="chevron-down" size={12} color="#ffffffaa" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.cityPicker} onPress={() => setCityModalVisible(true)}>
-          <Text style={styles.cityText}>{selectedCity}</Text>
-          <Lucide name="chevron-down" size={14} color="#ffffffaa" />
-        </TouchableOpacity>
-        <View style={styles.headerRight}>
-          {user ? (
-            <>
-              <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(protected)/notifications' as any)}>
-                <Lucide name="bell" size={18} color={colors.textOnPrimary} />
-                {unreadCount > 0 && (
-                  <View style={styles.bellBadge}>
-                    <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.profileBtn} onPress={() => router.push('/(tabs)/profile' as any)}>
-                <Lucide name="user" size={18} color={colors.textOnPrimary} />
-              </TouchableOpacity>
-            </>
-          ) : (
-            <TouchableOpacity style={styles.loginBtn} onPress={() => router.push('/sign-in')}>
-              <Lucide name="log-in" size={14} color={colors.textOnPrimary} />
-              <Text style={styles.addBtnText}>{s('authLogin')}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {user ? (
+          <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(protected)/notifications' as any)} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+            <Lucide name="bell" size={18} color={colors.textOnPrimary} />
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.loginBtn} onPress={() => router.push('/sign-in')}>
+            <Lucide name="log-in" size={14} color={colors.textOnPrimary} />
+            <Text style={styles.addBtnText}>{s('authLogin')}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Map Area */}
-      <View style={styles.mapArea}>
+      {/* Map + Draggable Sheet */}
+      <View style={styles.mapContainer}>
         <MapView
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
@@ -389,155 +400,163 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
             />
           )}
         </TouchableOpacity>
-      </View>
 
-      {/* Venue List Panel */}
-      <View style={styles.panel}>
-        {/* Search Row */}
-        <View style={styles.searchRow}>
-          <Card shadow="sm" borderRadius={Radius.md} style={{ flex: 1 }}>
-            <View style={styles.searchBar}>
-              <Lucide name="search" size={16} color={colors.textFaint} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder={s('searchPlaceholder')}
-                placeholderTextColor={colors.textFaint}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                returnKeyType="search"
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8} testID="search-clear">
-                  <Lucide name="x" size={16} color={colors.textFaint} />
-                </TouchableOpacity>
-              )}
-            </View>
-          </Card>
-          <TouchableOpacity
-            style={[styles.nearMeListBtn, nearMeEnabled && styles.nearMeListBtnActive]}
-            onPress={handleNearMe}
-            disabled={locating}
-            testID="near-me-list-button"
-          >
-            {locating ? (
-              <ActivityIndicator
-                size="small"
-                color={nearMeEnabled ? colors.textOnPrimary : colors.primaryMid}
-              />
-            ) : (
-              <Lucide
-                name="locate"
-                size={14}
-                color={nearMeEnabled ? colors.textOnPrimary : colors.primaryMid}
-              />
-            )}
-            <Text style={[styles.nearMeListText, nearMeEnabled && styles.nearMeListTextActive]}>
-              {s('nearMe')}
-            </Text>
-          </TouchableOpacity>
-          {user && (
-            <TouchableOpacity style={styles.addChip} onPress={() => router.push('/(protected)/add-venue' as any)}>
-              <Lucide name="plus" size={14} color={colors.textOnPrimary} />
-              <Text style={styles.addChipText}>{s('addBtn')}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll}>
-          <View style={styles.filtersRow}>
-            {filters.map((f) => (
-              <TouchableOpacity
-                key={f.key}
-                style={[styles.filterChip, activeFilter === f.key && styles.filterChipActive]}
-                onPress={() => setActiveFilter(f.key)}
-              >
-                {f.icon && <Lucide name={f.icon} size={12} color={activeFilter === f.key ? colors.textOnPrimary : colors.primaryMid} />}
-                <Text style={[styles.filterText, activeFilter === f.key && styles.filterTextActive]}>
-                  {f.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
-
-        {/* List Header */}
-        <View style={styles.listHeader}>
-          <Text style={styles.listHeaderText} testID="venues-count">{filteredVenues.length} {s('venuesShown')}</Text>
-          {activeFriendsCount > 0 && (
-            <View style={styles.friendsOnline}>
-              <View style={[styles.friendsDot, { backgroundColor: colors.purpleMid }]} />
-              <Text style={styles.friendsText}>{activeFriendsCount} {s('friendsActive')}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Venue Cards */}
-        {loading ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 32 }}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        ) : fetchError ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 32, gap: 12 }}>
-            <Lucide name="alert-triangle" size={28} color={colors.textFaint} />
-            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>{s('venueLoadError')}</Text>
-            <TouchableOpacity onPress={fetchVenues} style={{ backgroundColor: colors.primaryPale, borderRadius: Radius.md, paddingVertical: 8, paddingHorizontal: 16 }}>
-              <Text style={{ fontFamily: Fonts.body, fontSize: 13, fontWeight: '600', color: colors.primaryMid }}>{s('retry')}</Text>
-            </TouchableOpacity>
-          </View>
-        ) : filteredVenues.length === 0 ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 32 }}>
-            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>{s('noVenues')}</Text>
-          </View>
-        ) : (
-          <ScrollView style={styles.venueList} testID="venue-list" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
-            {filteredVenues.map((venue, index) => {
-              const conditionInfo = conditionLabel(venue.condition);
-              const avgRating = venue.venue_stats?.avg_rating;
-              const starsText = avgRating != null ? `\u2605 ${avgRating.toFixed(1)}` : '';
-              const tablesText = venue.tables_count != null ? `${venue.tables_count} ${s('tables')}` : '';
-
-              return (
-                <Card key={venue.id} shadow="sm" borderRadius={Radius.md} style={{ marginBottom: 6 }}>
-                  <TouchableOpacity
-                    style={[styles.venueCard, index === 0 && styles.venueCardHighlight]}
-                    onPress={() => router.push(`/venue/${venue.id}` as any)}
-                    accessibilityLabel={venue.name}
-                  >
-                    <View style={styles.venueLeft}>
-                      <Text style={styles.venueName}>{venue.name}</Text>
-                      <View style={styles.venueMeta}>
-                        <Text style={styles.venueType}>{typeLabel(venue.type)}</Text>
-                        {tablesText ? (
-                          <>
-                            <Text style={styles.venueMetaSep}>{'\u00B7'}</Text>
-                            <Text style={styles.venueTables}>{tablesText}</Text>
-                          </>
-                        ) : null}
-                        <View style={[styles.conditionDot, { backgroundColor: conditionInfo.color }]} />
-                        <Text style={[styles.venueCondition, { color: conditionInfo.color }]}>
-                          {conditionInfo.label}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.venueRight}>
-                      {venue.distanceKm != null ? (
-                        <View style={styles.distanceBadge}>
-                          <Text style={styles.distanceText}>{formatDistance(venue.distanceKm)}</Text>
-                        </View>
-                      ) : venue.city ? (
-                        <View style={styles.distanceBadge}>
-                          <Text style={styles.distanceText}>{venue.city}</Text>
-                        </View>
-                      ) : null}
-                      {starsText ? <Text style={styles.venueStars}>{starsText}</Text> : null}
-                    </View>
+        <DraggableSheet>
+          {/* Search Row */}
+          <View style={styles.searchRow}>
+            <Card shadow="sm" borderRadius={Radius.md} style={{ flex: 1 }}>
+              <View style={styles.searchBar}>
+                <Lucide name="search" size={16} color={colors.textFaint} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder={s('searchPlaceholder')}
+                  placeholderTextColor={colors.textFaint}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  returnKeyType="search"
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8} testID="search-clear">
+                    <Lucide name="x" size={16} color={colors.textFaint} />
                   </TouchableOpacity>
-                </Card>
-              );
-            })}
+                )}
+              </View>
+            </Card>
+            <TouchableOpacity
+              style={[styles.nearMeListBtn, nearMeEnabled && styles.nearMeListBtnActive]}
+              onPress={handleNearMe}
+              disabled={locating}
+              testID="near-me-list-button"
+            >
+              {locating ? (
+                <ActivityIndicator
+                  size="small"
+                  color={nearMeEnabled ? colors.textOnPrimary : colors.primaryMid}
+                />
+              ) : (
+                <Lucide
+                  name="locate"
+                  size={14}
+                  color={nearMeEnabled ? colors.textOnPrimary : colors.primaryMid}
+                />
+              )}
+              <Text style={[styles.nearMeListText, nearMeEnabled && styles.nearMeListTextActive]}>
+                {s('nearMe')}
+              </Text>
+            </TouchableOpacity>
+            {user && (
+              <TouchableOpacity style={styles.addChip} onPress={() => router.push('/(protected)/add-venue' as any)}>
+                <Lucide name="plus" size={14} color={colors.textOnPrimary} />
+                <Text style={styles.addChipText}>{s('addBtn')}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Filters */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll}>
+            <View style={styles.filtersRow}>
+              {filters.map((f) => (
+                <TouchableOpacity
+                  key={f.key}
+                  style={[styles.filterChip, activeFilter === f.key && styles.filterChipActive]}
+                  onPress={() => { hapticSelection(); setActiveFilter(f.key); }}
+                >
+                  {f.icon && <Lucide name={f.icon} size={12} color={activeFilter === f.key ? colors.textOnPrimary : colors.primaryMid} />}
+                  <Text style={[styles.filterText, activeFilter === f.key && styles.filterTextActive]}>
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </ScrollView>
-        )}
+
+          {/* List Header */}
+          <View style={styles.listHeader}>
+            <Text style={styles.listHeaderText} testID="venues-count">{filteredVenues.length} {s('venuesShown')}</Text>
+            {activeFriendsCount > 0 && (
+              <View style={styles.friendsOnline}>
+                <View style={[styles.friendsDot, { backgroundColor: colors.purpleMid }]} />
+                <Text style={styles.friendsText}>{activeFriendsCount} {s('friendsActive')}</Text>
+              </View>
+            )}
+          </View>
+
+          {fromCache && (
+            <View style={styles.offlineBanner}>
+              <Lucide name="wifi-off" size={12} color={colors.textFaint} />
+              <Text style={styles.offlineText}>{s('offlineData')}</Text>
+            </View>
+          )}
+
+          {/* Venue Cards */}
+          {loading ? (
+            <View style={{ paddingHorizontal: 12, paddingTop: 8 }}>
+              <SkeletonList count={4}><VenueCardSkeleton /></SkeletonList>
+            </View>
+          ) : fetchError ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 32, gap: 12 }}>
+              <Lucide name="alert-triangle" size={28} color={colors.textFaint} />
+              <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>{s('venueLoadError')}</Text>
+              <TouchableOpacity onPress={fetchVenues} style={{ backgroundColor: colors.primaryPale, borderRadius: Radius.md, paddingVertical: 8, paddingHorizontal: 16 }}>
+                <Text style={{ fontFamily: Fonts.body, fontSize: 13, fontWeight: '600', color: colors.primaryMid }}>{s('retry')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : filteredVenues.length === 0 ? (
+            <EmptyState
+              icon="search"
+              title={s('emptyVenuesTitle')}
+              description={s('emptyVenuesDesc')}
+            />
+          ) : (
+            <ScrollView style={styles.venueList} testID="venue-list" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
+              {filteredVenues.map((venue, index) => {
+                const conditionInfo = conditionLabel(venue.condition);
+                const avgRating = venue.venue_stats?.avg_rating;
+                const starsText = avgRating != null ? `\u2605 ${avgRating.toFixed(1)}` : '';
+                const tablesText = venue.tables_count != null ? `${venue.tables_count} ${s('tables')}` : '';
+
+                return (
+                  <Card key={venue.id} shadow="sm" borderRadius={Radius.md} style={{ marginBottom: 6 }}>
+                    <TouchableOpacity
+                      style={[styles.venueCard, index === 0 && styles.venueCardHighlight]}
+                      onPress={() => router.push(`/venue/${venue.id}` as any)}
+                      accessibilityLabel={venue.name}
+                    >
+                      <View style={styles.venueLeft}>
+                        <Text style={styles.venueName}>{venue.name}</Text>
+                        <View style={styles.venueMeta}>
+                          <Text style={styles.venueType}>{typeLabel(venue.type)}</Text>
+                          {tablesText ? (
+                            <>
+                              <Text style={styles.venueMetaSep}>{'\u00B7'}</Text>
+                              <Text style={styles.venueTables}>{tablesText}</Text>
+                            </>
+                          ) : null}
+                          <View style={[styles.conditionDot, { backgroundColor: conditionInfo.color }]} />
+                          <Text style={[styles.venueCondition, { color: conditionInfo.color }]}>
+                            {conditionInfo.label}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.venueRight}>
+                        {venue.distanceKm != null ? (
+                          <View style={styles.distanceBadge}>
+                            <Text style={styles.distanceText}>{formatDistance(venue.distanceKm)}</Text>
+                          </View>
+                        ) : venue.city ? (
+                          <View style={styles.distanceBadge}>
+                            <Text style={styles.distanceText}>{venue.city}</Text>
+                          </View>
+                        ) : null}
+                        {starsText ? <Text style={styles.venueStars}>{starsText}</Text> : null}
+                      </View>
+                    </TouchableOpacity>
+                  </Card>
+                );
+              })}
+            </ScrollView>
+          )}
+        </DraggableSheet>
       </View>
 
 
@@ -567,20 +586,15 @@ function createStyles(colors: ThemeColors) {
       minHeight: 52,
       ...Shadows.bar,
     },
-    headerLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    headerEmoji: {
-      fontSize: 16,
-    },
     headerTitle: {
       fontFamily: Fonts.heading,
-      fontSize: 14,
-      fontWeight: '800',
+      fontSize: 18,
+      fontWeight: '700',
       color: colors.textOnPrimary,
-      letterSpacing: 1,
+    },
+    headerCenter: {
+      flex: 1,
+      alignItems: 'center',
     },
     cityPicker: {
       flexDirection: 'row',
@@ -623,14 +637,6 @@ function createStyles(colors: ThemeColors) {
       gap: 4,
       ...Shadows.md,
     },
-    headerRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    profileBtn: {
-      padding: 4,
-    },
     bellBtn: {
       position: 'relative',
       padding: 4,
@@ -653,10 +659,10 @@ function createStyles(colors: ThemeColors) {
       fontWeight: '700',
       color: colors.textOnPrimary,
     },
-    mapArea: {
-      height: Math.round(Dimensions.get('window').height * 0.45),
-      backgroundColor: colors.mapBg,
+    mapContainer: {
+      flex: 1,
       position: 'relative',
+      backgroundColor: colors.mapBg,
     },
     legend: {
       position: 'absolute',
@@ -712,14 +718,6 @@ function createStyles(colors: ThemeColors) {
     },
     nearMeBtnActive: {
       backgroundColor: colors.primary,
-    },
-    panel: {
-      flex: 1,
-      backgroundColor: colors.bg,
-      paddingTop: 8,
-      boxShadow: Shadows.bar.boxShadow.map((s, i) =>
-        i === 0 ? { ...s, offsetY: -3 } : { ...s, offsetY: 1 },
-      ),
     },
     searchRow: {
       flexDirection: 'row',
@@ -785,7 +783,7 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'center',
       backgroundColor: colors.bgAlt,
       borderRadius: 100,
-      height: 30,
+      height: 36,
       paddingHorizontal: 14,
       gap: 4,
       ...Shadows.sm,
@@ -848,6 +846,21 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.body,
       fontSize: 11,
       color: colors.purpleMid,
+    },
+    offlineBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      backgroundColor: colors.amberPale,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.amberDeep,
+    },
+    offlineText: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      color: colors.textFaint,
     },
     venueList: {
       flex: 1,

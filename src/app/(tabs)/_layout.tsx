@@ -11,9 +11,8 @@ const TAB_ICON_SIZE = 22;
 const TAB_CONFIG = [
   { name: 'index', labelKey: 'tabMap', icon: 'map', authOnly: false },
   { name: 'events', labelKey: 'tabEvents', icon: 'calendar', authOnly: false },
-  { name: 'leaderboard', labelKey: 'tabLeaderboard', icon: 'trophy', authOnly: true },
   { name: 'favorites', labelKey: 'tabFavorites', icon: 'heart', authOnly: true },
-  { name: 'profile', labelKey: 'tabProfile', icon: 'user', authOnly: true, hidden: true },
+  { name: 'profile', labelKey: 'tabProfile', icon: 'user', authOnly: true },
 ] as const;
 
 export default function TabLayout() {

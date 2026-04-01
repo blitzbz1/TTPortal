@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { CityPickerModal } from '../components/CityPickerModal';
 import { useTheme } from '../hooks/useTheme';
@@ -9,6 +10,9 @@ import { Fonts, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getLeaderboard } from '../services/leaderboard';
+import { LeaderboardSkeleton } from '../components/SkeletonLoader';
+import { EmptyState } from '../components/EmptyState';
+import { hapticSelection } from '../lib/haptics';
 
 type LBTab = 'checkins' | 'reviews' | 'locations';
 
@@ -27,7 +31,9 @@ interface LeaderboardsScreenProps {
 
 export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenProps) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<LBTab>('checkins');
+  const [period, setPeriod] = useState<'week' | 'all'>('all');
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cityModalVisible, setCityModalVisible] = useState(false);
@@ -45,7 +51,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
     setLoading(true);
     try {
       const type = TAB_TO_TYPE[activeTab];
-      const { data } = await getLeaderboard(type, selectedCity ?? undefined);
+      const { data } = await getLeaderboard(type, selectedCity ?? undefined, period);
       if (data) {
         setEntries(data);
       } else {
@@ -54,7 +60,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
     } finally {
       setLoading(false);
     }
-  }, [activeTab, selectedCity]);
+  }, [activeTab, selectedCity, period]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -98,6 +104,9 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+          <Lucide name="arrow-left" size={22} color={colors.textOnPrimary} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('leaderboard')}</Text>
         <TouchableOpacity style={styles.filterBtn} onPress={() => setCityModalVisible(true)}>
           <Lucide name="map-pin" size={14} color={colors.textOnPrimary} />
@@ -106,6 +115,26 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
       </View>
 
       <ScrollView style={styles.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
+        {/* Period Toggle */}
+        <View style={styles.periodWrap}>
+          <View style={styles.periodToggle}>
+            {([
+              { key: 'week' as const, label: s('periodWeek') },
+              { key: 'all' as const, label: s('periodAll') },
+            ]).map((opt) => (
+              <TouchableOpacity
+                key={opt.key}
+                style={[styles.periodOption, period === opt.key && styles.periodOptionActive]}
+                onPress={() => { hapticSelection(); setPeriod(opt.key); }}
+              >
+                <Text style={[styles.periodText, period === opt.key && styles.periodTextActive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         {/* Tabs */}
         <View style={styles.tabs}>
           {[
@@ -126,13 +155,15 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
         </View>
 
         {loading ? (
-          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+          <LeaderboardSkeleton />
         ) : entries.length === 0 ? (
-          <View style={{ alignItems: 'center', marginTop: 40, padding: 16 }}>
-            <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>
-              {s('noLeaderboard')}
-            </Text>
-          </View>
+          <EmptyState
+            icon="trophy"
+            title={s('emptyLeaderboardTitle')}
+            description={s('emptyLeaderboardDesc')}
+            iconColor={colors.accent}
+            iconBg={colors.amberPale}
+          />
         ) : (
           <>
             {/* Podium */}
@@ -264,6 +295,37 @@ function createStyles(colors: ThemeColors) {
     },
     scroll: {
       flex: 1,
+    },
+    periodWrap: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 4,
+    },
+    periodToggle: {
+      flexDirection: 'row',
+      backgroundColor: colors.bgMuted,
+      borderRadius: 8,
+      padding: 3,
+    },
+    periodOption: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 7,
+      borderRadius: 6,
+    },
+    periodOptionActive: {
+      backgroundColor: colors.bgAlt,
+      ...Shadows.sm,
+    },
+    periodText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.textFaint,
+    },
+    periodTextActive: {
+      fontWeight: '600',
+      color: colors.text,
     },
     tabs: {
       flexDirection: 'row',
