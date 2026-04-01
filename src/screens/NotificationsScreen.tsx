@@ -79,8 +79,9 @@ export function NotificationsScreen() {
   const [pendingMap, setPendingMap] = useState<Map<string, number>>(new Map()); // sender_id → friendship id
   const [respondedIds, setRespondedIds] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const ICON_MAP = useMemo(() => getIconMap(colors), [colors]);
 
   const fetchNotifications = useCallback(async () => {
@@ -196,7 +197,7 @@ export function NotificationsScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Lucide name="arrow-left" size={24} color={colors.textOnPrimary} />
+          <Lucide name="arrow-left" size={24} color={headerFg} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('notifications')}</Text>
         <View style={styles.headerActions}>
@@ -207,7 +208,7 @@ export function NotificationsScreen() {
           )}
           {notifications.length > 0 && (
             <TouchableOpacity onPress={handleDeleteAll}>
-              <Lucide name="trash-2" size={18} color={colors.textOnPrimary} />
+              <Lucide name="trash-2" size={18} color={headerFg} />
             </TouchableOpacity>
           )}
         </View>
@@ -293,7 +294,7 @@ function createSwStyles(colors: ThemeColors) {
   });
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -303,7 +304,7 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: colors.primary,
+      backgroundColor: isDark ? colors.bgAlt : colors.primary,
       paddingVertical: 10,
       paddingHorizontal: Spacing.md,
       minHeight: 52,
@@ -313,7 +314,7 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.heading,
       fontSize: FontSize.xxl,
       fontWeight: FontWeight.bold,
-      color: colors.textOnPrimary,
+      color: isDark ? colors.text : colors.textOnPrimary,
     },
     headerActions: {
       flexDirection: 'row',
@@ -324,7 +325,7 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.body,
       fontSize: FontSize.base,
       fontWeight: FontWeight.semibold,
-      color: colors.textOnPrimary,
+      color: isDark ? colors.text : colors.textOnPrimary,
     },
     scroll: {
       flex: 1,
