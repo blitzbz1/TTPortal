@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { useSession } from '../hooks/useSession';
 import { hapticSelection } from '../lib/haptics';
@@ -91,8 +91,8 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.bgAlt,
       borderTopWidth: 1,
       borderTopColor: colors.border,
-      paddingTop: 4,
-      paddingBottom: 8,
+      paddingTop: Spacing.xxs,
+      paddingBottom: Spacing.xs,
     },
     tab: {
       flex: 1,
@@ -102,13 +102,13 @@ function createStyles(colors: ThemeColors) {
     },
     label: {
       fontFamily: Fonts.body,
-      fontSize: 10,
-      fontWeight: '500',
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.medium,
       color: colors.textFaint,
     },
     labelActive: {
       color: colors.primary,
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
     },
   });
 }

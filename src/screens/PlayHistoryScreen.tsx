@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getPlayHistory, getCheckinStats } from '../services/checkins';
@@ -268,15 +268,15 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'space-between',
       backgroundColor: colors.bgAlt,
       height: 52,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
       ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       color: colors.text,
     },
     filterBtn: {
@@ -292,8 +292,8 @@ function createStyles(colors: ThemeColors) {
     },
     filterText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '500',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.medium,
       color: colors.textMuted,
     },
     scroll: {
@@ -302,50 +302,50 @@ function createStyles(colors: ThemeColors) {
     statsRow: {
       flexDirection: 'row',
       gap: 10,
-      padding: 16,
-      paddingBottom: 8,
+      padding: Spacing.md,
+      paddingBottom: Spacing.xs,
     },
     statCard: {
       flex: 1,
       alignItems: 'center',
       borderRadius: 12,
-      padding: 12,
-      gap: 4,
+      padding: Spacing.sm,
+      gap: Spacing.xxs,
       ...Shadows.sm,
     },
     statValue: {
       fontFamily: Fonts.heading,
-      fontSize: 24,
-      fontWeight: '800',
+      fontSize: FontSize.display,
+      fontWeight: FontWeight.extrabold,
     },
     statLabel: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '500',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.medium,
       color: colors.textMuted,
     },
     streakBar: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      gap: 8,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.xs,
+      gap: Spacing.xs,
     },
     streakText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.accent,
     },
     timeline: {
-      paddingHorizontal: 16,
-      paddingTop: 12,
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.sm,
     },
     dayLabel: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 8,
-      gap: 8,
+      paddingVertical: Spacing.xs,
+      gap: Spacing.xs,
     },
     dayDot: {
       width: 8,
@@ -354,16 +354,16 @@ function createStyles(colors: ThemeColors) {
     },
     dayText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '700',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.bold,
       color: colors.textMuted,
     },
     entry: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 12,
-      paddingLeft: 16,
-      gap: 12,
+      paddingVertical: Spacing.sm,
+      paddingLeft: Spacing.md,
+      gap: Spacing.sm,
       borderBottomWidth: 1,
       borderBottomColor: colors.borderLight,
       borderLeftWidth: 2,
@@ -383,28 +383,28 @@ function createStyles(colors: ThemeColors) {
     },
     entryTitle: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     entryDetails: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: Spacing.xs,
     },
     entryTime: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textFaint,
     },
     entryDot: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textFaint,
     },
     entryDuration: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textFaint,
     },
     entryFriends: {
@@ -414,20 +414,20 @@ function createStyles(colors: ThemeColors) {
     },
     entryFriendsText: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.purpleMid,
     },
     loadMore: {
       alignItems: 'center',
-      paddingVertical: 16,
+      paddingVertical: Spacing.md,
     },
     loadMoreBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.bgMuted,
       borderRadius: 20,
-      paddingVertical: 8,
-      paddingHorizontal: 20,
+      paddingVertical: Spacing.xs,
+      paddingHorizontal: Spacing.lg,
       gap: 6,
       borderWidth: 1,
       borderColor: colors.border,
@@ -435,8 +435,8 @@ function createStyles(colors: ThemeColors) {
     },
     loadMoreText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '500',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.medium,
       color: colors.textMuted,
     },
   });

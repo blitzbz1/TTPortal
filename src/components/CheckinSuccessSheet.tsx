@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, Animated, S
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { hapticSuccess } from '../lib/haptics';
 
@@ -116,8 +116,8 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.bgAlt,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
-      paddingHorizontal: 24,
-      paddingBottom: 32,
+      paddingHorizontal: Spacing.xl,
+      paddingBottom: Spacing.xxl,
       width: '100%',
       maxWidth: 430,
       alignItems: 'center',
@@ -140,19 +140,19 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primaryLight,
       alignItems: 'center',
       justifyContent: 'center',
-      marginTop: 16,
-      marginBottom: 16,
+      marginTop: Spacing.md,
+      marginBottom: Spacing.md,
       ...Shadows.md,
     },
     title: {
       fontFamily: Fonts.heading,
-      fontSize: 20,
-      fontWeight: '700',
+      fontSize: FontSize.xxxl,
+      fontWeight: FontWeight.bold,
       color: colors.text,
     },
     venue: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.textMuted,
       marginTop: 4,
     },
@@ -160,26 +160,26 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      marginTop: 8,
+      marginTop: Spacing.xs,
     },
     timeText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textFaint,
     },
     xpRow: {
-      marginTop: 16,
+      marginTop: Spacing.md,
       backgroundColor: colors.primaryPale,
       borderRadius: Radius.md,
-      paddingVertical: 8,
-      paddingHorizontal: 20,
+      paddingVertical: Spacing.xs,
+      paddingHorizontal: Spacing.lg,
       borderWidth: 1,
       borderColor: colors.primaryDim,
     },
     xpText: {
       fontFamily: Fonts.heading,
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       color: colors.primaryLight,
     },
     shareBtn: {
@@ -189,19 +189,19 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       borderRadius: Radius.lg,
       paddingVertical: 14,
-      paddingHorizontal: 32,
-      gap: 8,
-      marginTop: 20,
+      paddingHorizontal: Spacing.xxl,
+      gap: Spacing.xs,
+      marginTop: Spacing.lg,
       ...Shadows.md,
     },
     shareBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     dismissBtn: {
-      marginTop: 12,
+      marginTop: Spacing.sm,
       borderRadius: Radius.lg,
       paddingVertical: 14,
       paddingHorizontal: 48,
@@ -210,8 +210,8 @@ function createStyles(colors: ThemeColors) {
     },
     dismissText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.textMuted,
     },
   });

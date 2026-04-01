@@ -13,7 +13,7 @@ import { DraggableSheet } from '../components/DraggableSheet';
 import { hapticSelection } from '../lib/haptics';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, Radius, Shadows, FontSize, FontWeight, Spacing } from '../theme';
 import { getVenues } from '../services/venues';
 import { getCities } from '../services/cities';
 import { getActiveFriendCheckins } from '../services/checkins';
@@ -582,14 +582,14 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'space-between',
       backgroundColor: colors.primary,
       paddingVertical: 10,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       minHeight: 52,
       ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     headerCenter: {
@@ -608,23 +608,23 @@ function createStyles(colors: ThemeColors) {
     },
     cityText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '500',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.medium,
       color: colors.textOnPrimary,
     },
     addBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.accentBright,
-      borderRadius: 8,
+      borderRadius: Spacing.xs,
       paddingVertical: 5,
       paddingHorizontal: 10,
-      gap: 4,
+      gap: Spacing.xxs,
     },
     addBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     loginBtn: {
@@ -656,7 +656,7 @@ function createStyles(colors: ThemeColors) {
     bellBadgeText: {
       fontFamily: Fonts.body,
       fontSize: 9,
-      fontWeight: '700',
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     mapContainer: {
@@ -701,7 +701,7 @@ function createStyles(colors: ThemeColors) {
     },
     legendText: {
       fontFamily: Fonts.body,
-      fontSize: 10,
+      fontSize: FontSize.xs,
       color: colors.textMuted,
     },
     nearMeBtn: {
@@ -721,26 +721,26 @@ function createStyles(colors: ThemeColors) {
     },
     searchRow: {
       flexDirection: 'row',
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       gap: 10,
     },
     searchBar: {
       flexDirection: 'row',
       alignItems: 'center',
       height: 34,
-      paddingHorizontal: 12,
-      gap: 8,
+      paddingHorizontal: Spacing.sm,
+      gap: Spacing.xs,
     },
     searchInput: {
       flex: 1,
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.text,
       padding: 0,
     },
     searchText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textFaint,
     },
     nearMeListBtn: {
@@ -761,8 +761,8 @@ function createStyles(colors: ThemeColors) {
     },
     nearMeListText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.primaryMid,
     },
     nearMeListTextActive: {
@@ -773,9 +773,9 @@ function createStyles(colors: ThemeColors) {
     },
     filtersRow: {
       flexDirection: 'row',
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      gap: 8,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.xs,
+      gap: Spacing.xs,
     },
     filterChip: {
       flexDirection: 'row',
@@ -785,7 +785,7 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 100,
       height: 36,
       paddingHorizontal: 14,
-      gap: 4,
+      gap: Spacing.xxs,
       ...Shadows.sm,
     },
     filterChipActive: {
@@ -795,8 +795,8 @@ function createStyles(colors: ThemeColors) {
     },
     filterText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '500',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.medium,
       color: colors.text,
     },
     addChip: {
@@ -805,37 +805,37 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.accentBright,
       borderRadius: Radius.md,
       paddingVertical: 5,
-      paddingHorizontal: 12,
-      gap: 4,
+      paddingHorizontal: Spacing.sm,
+      gap: Spacing.xxs,
       ...Shadows.md,
     },
     addChipText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     filterTextActive: {
       color: colors.textOnPrimary,
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
     },
     listHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       paddingVertical: 6,
     },
     listHeaderText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '500',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.medium,
       color: colors.textFaint,
     },
     friendsOnline: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: Spacing.xxs,
     },
     friendsDot: {
       width: 6,
@@ -844,7 +844,7 @@ function createStyles(colors: ThemeColors) {
     },
     friendsText: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.purpleMid,
     },
     offlineBanner: {
@@ -859,12 +859,12 @@ function createStyles(colors: ThemeColors) {
     },
     offlineText: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textFaint,
     },
     venueList: {
       flex: 1,
-      paddingHorizontal: 12,
+      paddingHorizontal: Spacing.sm,
     },
     venueCard: {
       flexDirection: 'row',
@@ -883,8 +883,8 @@ function createStyles(colors: ThemeColors) {
     },
     venueName: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     venueMeta: {
@@ -894,17 +894,17 @@ function createStyles(colors: ThemeColors) {
     },
     venueType: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textMuted,
     },
     venueMetaSep: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textFaint,
     },
     venueTables: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textMuted,
     },
     conditionDot: {
@@ -914,8 +914,8 @@ function createStyles(colors: ThemeColors) {
     },
     venueCondition: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '500',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.medium,
     },
     venueRight: {
       alignItems: 'flex-end',
@@ -929,14 +929,14 @@ function createStyles(colors: ThemeColors) {
     },
     distanceText: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '500',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.medium,
       color: colors.blue,
     },
     venueStars: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '500',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.medium,
       color: colors.accent,
     },
   });
@@ -1004,14 +1004,14 @@ function createStyles(colors: ThemeColors) {
     },
     calloutTitle: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
       marginBottom: 2,
     },
     calloutSub: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textFaint,
     },
   });

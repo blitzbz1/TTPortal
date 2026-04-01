@@ -10,7 +10,7 @@ import { useRouter } from 'expo-router';
 import { useI18n } from '../hooks/useI18n';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { CityPickerModal } from '../components/CityPickerModal';
 import { Lucide } from '../components/Icon';
 
@@ -193,8 +193,8 @@ function createStyles(colors: ThemeColors) {
     dots: {
       flexDirection: 'row',
       justifyContent: 'center',
-      gap: 8,
-      marginBottom: 16,
+      gap: Spacing.xs,
+      marginBottom: Spacing.md,
     },
     dot: {
       width: 8,
@@ -213,26 +213,26 @@ function createStyles(colors: ThemeColors) {
     },
     stepContent: {
       alignItems: 'center',
-      gap: 20,
+      gap: Spacing.lg,
     },
     heading: {
       fontFamily: Fonts.heading,
       fontSize: 28,
-      fontWeight: '700',
+      fontWeight: FontWeight.bold,
       color: colors.text,
       textAlign: 'center',
     },
     logo: {
       fontFamily: Fonts.heading,
       fontSize: 36,
-      fontWeight: '800',
+      fontWeight: FontWeight.extrabold,
       color: colors.primary,
       textAlign: 'center',
     },
     label: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '500',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.medium,
       color: colors.textMuted,
       textTransform: 'uppercase',
       letterSpacing: 1,
@@ -247,7 +247,7 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       backgroundColor: colors.bgAlt,
       borderRadius: Radius.md,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       paddingVertical: 14,
       gap: 10,
       borderWidth: 1,
@@ -264,12 +264,12 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'center',
-      gap: 12,
-      marginTop: 12,
+      gap: Spacing.sm,
+      marginTop: Spacing.sm,
     },
     pill: {
-      paddingHorizontal: 20,
-      paddingVertical: 12,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.sm,
       borderRadius: Radius.full,
       backgroundColor: colors.bgAlt,
       borderWidth: 1,
@@ -282,25 +282,25 @@ function createStyles(colors: ThemeColors) {
     },
     pillText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '500',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.medium,
       color: colors.textMuted,
     },
     pillTextActive: {
       color: colors.primary,
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
     },
     description: {
       fontFamily: Fonts.body,
-      fontSize: 16,
+      fontSize: FontSize.xl,
       color: colors.textMuted,
       textAlign: 'center',
       lineHeight: 24,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
     },
     footer: {
       alignItems: 'center',
-      gap: 16,
+      gap: Spacing.md,
     },
     primaryButton: {
       width: '100%',
@@ -313,16 +313,16 @@ function createStyles(colors: ThemeColors) {
     },
     primaryButtonText: {
       fontFamily: Fonts.body,
-      fontSize: 16,
-      fontWeight: '700',
+      fontSize: FontSize.xl,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     skipButton: {
-      paddingVertical: 8,
+      paddingVertical: Spacing.xs,
     },
     skipText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.textFaint,
     },
   });

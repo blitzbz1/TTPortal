@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Animated, StyleSheet } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Radius } from '../theme';
+import { Spacing, Radius } from '../theme';
 
 /* ── Base shimmer block ── */
 interface SkeletonBoxProps {
@@ -245,38 +245,38 @@ function createStyles(colors: ThemeColors) {
     eventCard: {
       backgroundColor: colors.bgAlt,
       borderRadius: 14,
-      padding: 16,
-      marginBottom: 12,
+      padding: Spacing.md,
+      marginBottom: Spacing.sm,
     },
     reviewCard: {
       backgroundColor: colors.bgAlt,
       borderRadius: Radius.md,
-      padding: 12,
-      marginBottom: 8,
+      padding: Spacing.sm,
+      marginBottom: Spacing.xs,
     },
     friendCard: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.bgAlt,
       borderRadius: 14,
-      padding: 12,
-      marginBottom: 8,
-      gap: 12,
+      padding: Spacing.sm,
+      marginBottom: Spacing.xs,
+      gap: Spacing.sm,
     },
     podium: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'flex-end',
-      paddingVertical: 24,
-      paddingHorizontal: 24,
-      gap: 16,
+      paddingVertical: Spacing.xl,
+      paddingHorizontal: Spacing.xl,
+      gap: Spacing.md,
     },
     rankRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       paddingVertical: 10,
-      gap: 12,
+      gap: Spacing.sm,
     },
     notifCard: {
       flexDirection: 'row',
@@ -284,9 +284,9 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.bgAlt,
       borderRadius: Radius.md,
       padding: 14,
-      marginHorizontal: 12,
-      marginTop: 8,
-      gap: 12,
+      marginHorizontal: Spacing.sm,
+      marginTop: Spacing.xs,
+      gap: Spacing.sm,
     },
     favCard: {
       flexDirection: 'row',
@@ -295,18 +295,18 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 14,
       padding: 14,
       marginBottom: 10,
-      gap: 12,
+      gap: Spacing.sm,
     },
     profileHero: {
       alignItems: 'center',
       paddingTop: 28,
-      paddingBottom: 24,
+      paddingBottom: Spacing.xl,
     },
     statsRow: {
       flexDirection: 'row',
       gap: 10,
-      paddingHorizontal: 16,
-      paddingTop: 16,
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.md,
       justifyContent: 'space-between',
     },
   });

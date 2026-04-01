@@ -15,7 +15,7 @@ import {
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { getFriends } from '../services/friends';
 
@@ -211,7 +211,7 @@ function createStyles(colors: ThemeColors) {
       borderTopLeftRadius: Radius.xl,
       borderTopRightRadius: Radius.xl,
       maxHeight: '75%',
-      paddingBottom: 32,
+      paddingBottom: Spacing.xxl,
       width: '100%',
       maxWidth: 430,
       ...Shadows.lg,
@@ -220,33 +220,33 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingVertical: 16,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
     title: {
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       fontFamily: Fonts.heading,
       color: colors.text,
     },
     searchRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginHorizontal: 20,
-      marginVertical: 12,
-      paddingHorizontal: 12,
+      marginHorizontal: Spacing.lg,
+      marginVertical: Spacing.sm,
+      paddingHorizontal: Spacing.sm,
       paddingVertical: 10,
       backgroundColor: colors.bgMuted,
       borderRadius: Radius.md,
-      gap: 8,
+      gap: Spacing.xs,
       ...Shadows.sm,
     },
     searchInput: {
       flex: 1,
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.text,
       padding: 0,
     },
@@ -254,25 +254,25 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
+      paddingHorizontal: Spacing.lg,
       paddingVertical: 10,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.borderLight,
     },
     selectAllText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.primary,
     },
     loader: { paddingVertical: 40, alignItems: 'center' },
-    emptyText: { fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint },
+    emptyText: { fontFamily: Fonts.body, fontSize: FontSize.lg, color: colors.textFaint },
     list: { flexShrink: 1 },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
+      paddingHorizontal: Spacing.lg,
       paddingVertical: 14,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.borderLight,
@@ -280,8 +280,8 @@ function createStyles(colors: ThemeColors) {
     },
     rowContent: { flex: 1 },
     rowText: { fontSize: 15, fontFamily: Fonts.body, color: colors.text },
-    rowTextSelected: { fontWeight: '600', color: colors.primary },
-    rowSubtext: { fontSize: 13, fontFamily: Fonts.body, color: colors.textFaint, marginTop: 2 },
+    rowTextSelected: { fontWeight: FontWeight.semibold, color: colors.primary },
+    rowSubtext: { fontSize: FontSize.md, fontFamily: Fonts.body, color: colors.textFaint, marginTop: 2 },
     checkbox: {
       width: 24,
       height: 24,
@@ -297,7 +297,7 @@ function createStyles(colors: ThemeColors) {
     },
     footer: {
       flexDirection: 'row',
-      paddingHorizontal: 20,
+      paddingHorizontal: Spacing.lg,
       paddingTop: 16,
       gap: 12,
     },
@@ -309,7 +309,7 @@ function createStyles(colors: ThemeColors) {
     },
     skipText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.textFaint,
     },
     confirmBtn: {
@@ -320,14 +320,14 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primaryLight,
       borderRadius: 12,
       paddingVertical: 14,
-      gap: 8,
+      gap: Spacing.xs,
       ...Shadows.md,
     },
     confirmBtnDisabled: { opacity: 0.4 },
     confirmText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
   });

@@ -15,7 +15,7 @@ import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { getVenues, searchVenues } from '../services/venues';
 
 interface VenueOption {
@@ -148,7 +148,7 @@ function createStyles(colors: ThemeColors) {
       borderTopLeftRadius: Radius.xl,
       borderTopRightRadius: Radius.xl,
       maxHeight: '70%',
-      paddingBottom: 32,
+      paddingBottom: Spacing.xxl,
       width: '100%',
       maxWidth: 430,
       ...Shadows.lg,
@@ -157,43 +157,43 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingVertical: 16,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
     title: {
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       fontFamily: Fonts.heading,
       color: colors.text,
     },
     searchRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginHorizontal: 20,
-      marginVertical: 12,
-      paddingHorizontal: 12,
+      marginHorizontal: Spacing.lg,
+      marginVertical: Spacing.sm,
+      paddingHorizontal: Spacing.sm,
       paddingVertical: 10,
       backgroundColor: colors.bgMuted,
       borderRadius: Radius.md,
-      gap: 8,
+      gap: Spacing.xs,
       ...Shadows.sm,
     },
     searchInput: {
       flex: 1,
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.text,
       padding: 0,
     },
     loader: { paddingVertical: 40, alignItems: 'center' },
-    emptyText: { fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint },
+    emptyText: { fontFamily: Fonts.body, fontSize: FontSize.lg, color: colors.textFaint },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
+      paddingHorizontal: Spacing.lg,
       paddingVertical: 14,
       marginHorizontal: 4,
       marginVertical: 2,
@@ -202,7 +202,7 @@ function createStyles(colors: ThemeColors) {
     },
     rowContent: { flex: 1 },
     rowText: { fontSize: 15, fontFamily: Fonts.body, color: colors.text },
-    rowTextSelected: { fontWeight: '600', color: colors.primary },
-    rowSubtext: { fontSize: 13, fontFamily: Fonts.body, color: colors.textFaint, marginTop: 2 },
+    rowTextSelected: { fontWeight: FontWeight.semibold, color: colors.primary },
+    rowSubtext: { fontSize: FontSize.md, fontFamily: Fonts.body, color: colors.textFaint, marginTop: 2 },
   });
 }

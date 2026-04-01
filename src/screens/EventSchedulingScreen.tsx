@@ -8,7 +8,7 @@ import { EventCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { useNotifications } from '../hooks/useNotifications';
@@ -657,19 +657,19 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'space-between',
       backgroundColor: colors.primary,
       paddingVertical: 10,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       minHeight: 52,
       ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     bellBtn: {
       position: 'relative',
-      padding: 4,
+      padding: Spacing.xxs,
     },
     bellBadge: {
       position: 'absolute',
@@ -686,13 +686,13 @@ function createStyles(colors: ThemeColors) {
     bellBadgeText: {
       fontFamily: Fonts.body,
       fontSize: 9,
-      fontWeight: '700',
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     headerRight: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: Spacing.xs,
     },
     fab: {
       position: 'absolute',
@@ -711,7 +711,7 @@ function createStyles(colors: ThemeColors) {
     },
     tabs: {
       flexDirection: 'row',
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
     },
     tab: {
       flex: 1,
@@ -727,21 +727,21 @@ function createStyles(colors: ThemeColors) {
     },
     tabText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.textFaint,
     },
     tabTextActive: {
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
       color: colors.accentBright,
     },
     eventsList: {
-      padding: 16,
-      paddingTop: 12,
-      gap: 12,
+      padding: Spacing.md,
+      paddingTop: Spacing.sm,
+      gap: Spacing.sm,
     },
     eventCard: {
-      padding: 16,
-      gap: 12,
+      padding: Spacing.md,
+      gap: Spacing.sm,
     },
     eventTop: {
       flexDirection: 'row',
@@ -751,33 +751,33 @@ function createStyles(colors: ThemeColors) {
     eventDateWrap: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: Spacing.xs,
     },
     eventDate: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     eventBadge: {
       borderRadius: Radius.md,
       paddingVertical: 3,
-      paddingHorizontal: 8,
+      paddingHorizontal: Spacing.xs,
     },
     eventBadgeText: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '600',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.semibold,
     },
     eventMid: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: Spacing.sm,
     },
     eventLocation: {
       flex: 1,
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textMuted,
     },
     eventBot: {
@@ -801,22 +801,22 @@ function createStyles(colors: ThemeColors) {
     },
     stackInitials: {
       fontFamily: Fonts.body,
-      fontSize: 10,
-      fontWeight: '700',
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     attendeesText: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textFaint,
-      marginLeft: 8,
+      marginLeft: Spacing.xs,
     },
     joinBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       borderRadius: Radius.md,
       paddingVertical: 8,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       gap: 6,
       ...Shadows.sm,
     },
@@ -830,8 +830,8 @@ function createStyles(colors: ThemeColors) {
     },
     joinText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
     },
     joinedText: {
       color: colors.textOnPrimary,
@@ -873,19 +873,19 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      gap: 12,
-      marginBottom: 16,
+      gap: Spacing.sm,
+      marginBottom: Spacing.md,
     },
     title: {
       fontFamily: Fonts.heading,
-      fontSize: 20,
-      fontWeight: '700',
+      fontSize: FontSize.xxxl,
+      fontWeight: FontWeight.bold,
       color: colors.text,
       flex: 1,
     },
     infoBlock: {
       gap: 10,
-      marginBottom: 20,
+      marginBottom: Spacing.lg,
     },
     infoRow: {
       flexDirection: 'row',
@@ -894,12 +894,12 @@ function createStyles(colors: ThemeColors) {
     },
     infoText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.textMuted,
       flex: 1,
     },
     section: {
-      marginBottom: 20,
+      marginBottom: Spacing.lg,
     },
     sectionHeader: {
       flexDirection: 'row',
@@ -909,32 +909,32 @@ function createStyles(colors: ThemeColors) {
     },
     sectionTitle: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.bold,
       color: colors.text,
       marginBottom: 6,
     },
     countBadge: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.accentBright,
       marginBottom: 6,
     },
     descText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.textMuted,
       lineHeight: 20,
     },
     emptyText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textFaint,
       fontStyle: 'italic',
     },
     participantList: {
-      gap: 8,
+      gap: Spacing.xs,
     },
     pRow: {
       flexDirection: 'row',
@@ -955,8 +955,8 @@ function createStyles(colors: ThemeColors) {
     },
     pInitials: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '700',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     pInfo: {
@@ -964,13 +964,13 @@ function createStyles(colors: ThemeColors) {
     },
     pName: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '500',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.medium,
       color: colors.text,
     },
     pBadge: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textFaint,
     },
     friendsSummary: {
@@ -979,25 +979,25 @@ function createStyles(colors: ThemeColors) {
       gap: 8,
       backgroundColor: colors.purplePale,
       borderRadius: Radius.md,
-      padding: 12,
-      marginBottom: 20,
+      padding: Spacing.sm,
+      marginBottom: Spacing.lg,
     },
     friendsSummaryText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.purpleMid,
     },
     updateSection: {
-      marginBottom: 16,
+      marginBottom: Spacing.md,
       gap: 10,
     },
     updateInput: {
       backgroundColor: colors.bgMuted,
       borderRadius: Radius.md,
-      padding: 12,
+      padding: Spacing.sm,
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.text,
       minHeight: 60,
       textAlignVertical: 'top',
@@ -1013,8 +1013,8 @@ function createStyles(colors: ThemeColors) {
     },
     updateBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     actions: {
@@ -1060,20 +1060,20 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'center',
       gap: 6,
       paddingVertical: 10,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       backgroundColor: colors.red,
       borderRadius: Radius.md,
     },
     dangerBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     actionText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
     },
     actionJoinText: {
       color: colors.textOnPrimary,
@@ -1092,8 +1092,8 @@ function createStyles(colors: ThemeColors) {
     },
     closeBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.textMuted,
     },
   });

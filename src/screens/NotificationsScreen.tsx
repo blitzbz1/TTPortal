@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useNotifications } from '../hooks/useNotifications';
 import { useI18n } from '../hooks/useI18n';
@@ -276,8 +276,8 @@ function createSwStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
       position: 'relative',
-      marginHorizontal: 12,
-      marginTop: 8,
+      marginHorizontal: Spacing.sm,
+      marginTop: Spacing.xs,
     },
     deleteBackground: {
       position: 'absolute',
@@ -305,25 +305,25 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'space-between',
       backgroundColor: colors.primary,
       paddingVertical: 10,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       minHeight: 52,
       ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     headerActions: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: Spacing.sm,
     },
     actionText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     scroll: {
@@ -333,19 +333,19 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 12,
+      gap: Spacing.sm,
     },
     emptyText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.textFaint,
     },
     card: {
       flexDirection: 'row',
       alignItems: 'center',
       padding: 14,
-      paddingHorizontal: 16,
-      gap: 12,
+      paddingHorizontal: Spacing.md,
+      gap: Spacing.sm,
       borderRadius: Radius.md,
       backgroundColor: colors.bgAlt,
       ...Shadows.sm,
@@ -367,26 +367,26 @@ function createStyles(colors: ThemeColors) {
     },
     cardTitle: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '500',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.medium,
       color: colors.text,
     },
     cardTitleUnread: {
-      fontWeight: '700',
+      fontWeight: FontWeight.bold,
     },
     cardBody: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textMuted,
     },
     cardTime: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textFaint,
     },
     inlineActions: {
       flexDirection: 'row',
-      gap: 8,
+      gap: Spacing.xs,
       marginTop: 6,
     },
     acceptBtn: {
@@ -395,14 +395,14 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       borderRadius: 14,
       paddingVertical: 5,
-      paddingHorizontal: 12,
-      gap: 4,
+      paddingHorizontal: Spacing.sm,
+      gap: Spacing.xxs,
       ...Shadows.sm,
     },
     acceptBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     declineBtn: {
@@ -410,21 +410,21 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       borderRadius: 14,
       paddingVertical: 5,
-      paddingHorizontal: 12,
-      gap: 4,
+      paddingHorizontal: Spacing.sm,
+      gap: Spacing.xxs,
       backgroundColor: colors.bgAlt,
       ...Shadows.sm,
     },
     declineBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '500',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.medium,
       color: colors.red,
     },
     respondedText: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '600',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.semibold,
       color: colors.primaryMid,
       marginTop: 4,
     },

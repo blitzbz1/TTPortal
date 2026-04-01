@@ -8,7 +8,7 @@ import { FavoriteCardSkeleton, SkeletonList } from '../components/SkeletonLoader
 import { EmptyState } from '../components/EmptyState';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { useNotifications } from '../hooks/useNotifications';
@@ -215,13 +215,13 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       paddingVertical: 10,
       minHeight: 52,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     headerRight: {
@@ -231,7 +231,7 @@ function createStyles(colors: ThemeColors) {
     },
     bellBtn: {
       position: 'relative',
-      padding: 4,
+      padding: Spacing.xxs,
     },
     bellBadge: {
       position: 'absolute',
@@ -248,7 +248,7 @@ function createStyles(colors: ThemeColors) {
     bellBadgeText: {
       fontFamily: Fonts.body,
       fontSize: 9,
-      fontWeight: '700',
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     sortBtn: {
@@ -263,16 +263,16 @@ function createStyles(colors: ThemeColors) {
     },
     sortText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     scroll: {
       flex: 1,
     },
     scrollContent: {
-      padding: 16,
-      paddingTop: 12,
+      padding: Spacing.md,
+      paddingTop: Spacing.sm,
       gap: 10,
     },
     favCard: {
@@ -282,7 +282,7 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       padding: 14,
-      gap: 12,
+      gap: Spacing.sm,
     },
     favIcon: {
       width: 48,
@@ -298,7 +298,7 @@ function createStyles(colors: ThemeColors) {
     favName: {
       fontFamily: Fonts.body,
       fontSize: 15,
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     favMeta: {
@@ -313,8 +313,8 @@ function createStyles(colors: ThemeColors) {
     },
     favTypeText: {
       fontFamily: Fonts.body,
-      fontSize: 10,
-      fontWeight: '600',
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.semibold,
       color: colors.textMuted,
     },
     conditionDot: {
@@ -324,18 +324,18 @@ function createStyles(colors: ThemeColors) {
     },
     favCondition: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '500',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.medium,
     },
     favStars: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '600',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.semibold,
       color: colors.amber,
     },
     favSub: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textFaint,
     },
   });

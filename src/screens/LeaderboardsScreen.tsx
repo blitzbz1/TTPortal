@@ -6,7 +6,7 @@ import { Lucide } from '../components/Icon';
 import { CityPickerModal } from '../components/CityPickerModal';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getLeaderboard } from '../services/leaderboard';
@@ -268,13 +268,13 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       paddingVertical: 10,
       minHeight: 52,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     filterBtn: {
@@ -289,16 +289,16 @@ function createStyles(colors: ThemeColors) {
     },
     filterText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     scroll: {
       flex: 1,
     },
     periodWrap: {
-      paddingHorizontal: 16,
-      paddingTop: 12,
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.sm,
       paddingBottom: 4,
     },
     periodToggle: {
@@ -320,16 +320,16 @@ function createStyles(colors: ThemeColors) {
     },
     periodText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textFaint,
     },
     periodTextActive: {
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     tabs: {
       flexDirection: 'row',
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
     },
     tab: {
       flex: 1,
@@ -345,20 +345,20 @@ function createStyles(colors: ThemeColors) {
     },
     tabText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.textFaint,
     },
     tabTextActive: {
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
       color: colors.primary,
     },
     podium: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'flex-end',
-      paddingVertical: 24,
-      paddingHorizontal: 24,
-      gap: 12,
+      paddingVertical: Spacing.xl,
+      paddingHorizontal: Spacing.xl,
+      gap: Spacing.sm,
     },
     podiumItem: {
       alignItems: 'center',
@@ -378,30 +378,30 @@ function createStyles(colors: ThemeColors) {
     },
     podiumInitials: {
       fontFamily: Fonts.body,
-      fontWeight: '700',
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     podiumName: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     podiumNameHighlight: {
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.bold,
     },
     podiumScore: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textFaint,
     },
     podiumScoreHighlight: {
       color: colors.primaryLight,
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
     },
     rankList: {
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       gap: 2,
     },
     rankRow: {
@@ -409,13 +409,13 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       borderRadius: Radius.md,
       padding: 10,
-      paddingHorizontal: 12,
-      gap: 12,
+      paddingHorizontal: Spacing.sm,
+      gap: Spacing.sm,
     },
     rankNum: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.bold,
       color: colors.textFaint,
       width: 20,
       textAlign: 'center',
@@ -429,8 +429,8 @@ function createStyles(colors: ThemeColors) {
     },
     rankInitials: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '700',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     rankInfo: {
@@ -439,44 +439,44 @@ function createStyles(colors: ThemeColors) {
     },
     rankName: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     rankScore: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textFaint,
     },
     myRank: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.primaryPale,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      gap: 12,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.md,
+      gap: Spacing.sm,
       borderTopWidth: 1,
       borderTopColor: colors.primaryDim,
       ...Shadows.md,
     },
     myNum: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.bold,
       color: colors.primary,
       width: 20,
       textAlign: 'center',
     },
     myName: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.primary,
     },
     myScore: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '500',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.medium,
       color: colors.primaryLight,
     },
   });

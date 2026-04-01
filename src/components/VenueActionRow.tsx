@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Animated }
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { hapticLight } from '../lib/haptics';
 
@@ -122,7 +122,7 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       backgroundColor: colors.bgAlt,
       paddingVertical: 10,
-      paddingHorizontal: 8,
+      paddingHorizontal: Spacing.xs,
       borderBottomWidth: 1,
       borderBottomColor: colors.borderLight,
       ...Shadows.sm,
@@ -130,7 +130,7 @@ function createStyles(colors: ThemeColors) {
     action: {
       flex: 1,
       alignItems: 'center',
-      gap: 4,
+      gap: Spacing.xxs,
     },
     iconCircle: {
       width: 44,
@@ -142,8 +142,8 @@ function createStyles(colors: ThemeColors) {
     },
     label: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '500',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.medium,
       color: colors.textMuted,
       textAlign: 'center',
     },

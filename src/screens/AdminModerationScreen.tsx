@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import {
@@ -256,25 +256,25 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'space-between',
       backgroundColor: colors.primary,
       height: 52,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     adminBadge: {
       backgroundColor: colors.primaryLight,
       borderRadius: 12,
-      paddingVertical: 4,
+      paddingVertical: Spacing.xxs,
       paddingHorizontal: 10,
     },
     adminBadgeText: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '700',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     scroll: {
@@ -282,9 +282,9 @@ function createStyles(colors: ThemeColors) {
     },
     statsRow: {
       flexDirection: 'row',
-      gap: 8,
-      padding: 16,
-      paddingBottom: 12,
+      gap: Spacing.xs,
+      padding: Spacing.md,
+      paddingBottom: Spacing.sm,
     },
     statCard: {
       flex: 1,
@@ -297,28 +297,28 @@ function createStyles(colors: ThemeColors) {
     statValue: {
       fontFamily: Fonts.heading,
       fontSize: 22,
-      fontWeight: '800',
+      fontWeight: FontWeight.extrabold,
     },
     statLabel: {
       fontFamily: Fonts.body,
-      fontSize: 10,
-      fontWeight: '500',
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.medium,
       color: colors.textMuted,
     },
     secLabel: {
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      paddingBottom: 8,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+      paddingBottom: Spacing.xs,
     },
     secLabelText: {
       fontFamily: Fonts.body,
-      fontSize: 10,
-      fontWeight: '700',
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.bold,
       color: colors.textFaint,
       letterSpacing: 1,
     },
     modList: {
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       gap: 10,
     },
     modCard: {
@@ -337,8 +337,8 @@ function createStyles(colors: ThemeColors) {
     },
     modTitle: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
       flex: 1,
     },
@@ -346,22 +346,22 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.amberPale,
       borderRadius: 8,
       paddingVertical: 2,
-      paddingHorizontal: 8,
+      paddingHorizontal: Spacing.xs,
     },
     modBadgeText: {
       fontFamily: Fonts.body,
-      fontSize: 10,
-      fontWeight: '600',
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.semibold,
       color: colors.accent,
     },
     modMeta: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textFaint,
     },
     modActions: {
       flexDirection: 'row',
-      gap: 8,
+      gap: Spacing.xs,
     },
     approveBtn: {
       flex: 1,
@@ -376,8 +376,8 @@ function createStyles(colors: ThemeColors) {
     },
     approveBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     editBtn: {
@@ -393,8 +393,8 @@ function createStyles(colors: ThemeColors) {
     },
     editBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textMuted,
     },
     rejectBtn: {
@@ -411,12 +411,12 @@ function createStyles(colors: ThemeColors) {
     },
     rejectBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.red,
     },
     flagList: {
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       gap: 10,
     },
     flagCard: {
@@ -438,13 +438,13 @@ function createStyles(colors: ThemeColors) {
     },
     flagAuthor: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     flagMeta: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textFaint,
     },
     flagBadge: {
@@ -455,19 +455,19 @@ function createStyles(colors: ThemeColors) {
     },
     flagBadgeText: {
       fontFamily: Fonts.body,
-      fontSize: 10,
-      fontWeight: '600',
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.semibold,
       color: colors.red,
     },
     flagText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       fontStyle: 'italic',
       color: colors.textMuted,
     },
     flagActions: {
       flexDirection: 'row',
-      gap: 8,
+      gap: Spacing.xs,
     },
     keepBtn: {
       flex: 1,
@@ -483,8 +483,8 @@ function createStyles(colors: ThemeColors) {
     },
     keepBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textMuted,
     },
     deleteBtn: {
@@ -500,8 +500,8 @@ function createStyles(colors: ThemeColors) {
     },
     deleteBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
   });

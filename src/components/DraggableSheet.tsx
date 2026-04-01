@@ -2,7 +2,7 @@ import React, { useRef, useMemo } from 'react';
 import { View, Animated, PanResponder, Dimensions, StyleSheet } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Shadows } from '../theme';
+import { Spacing, Shadows } from '../theme';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SNAP_TOP = SCREEN_HEIGHT * 0.1;    // full-screen (90% visible)

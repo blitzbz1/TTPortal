@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getVenueById } from '../services/venues';
@@ -237,13 +237,13 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingBottom: 12,
+      paddingHorizontal: Spacing.lg,
+      paddingBottom: Spacing.sm,
     },
     sheetTitle: {
       fontFamily: Fonts.heading,
       fontSize: 19,
-      fontWeight: '700',
+      fontWeight: FontWeight.bold,
       color: colors.text,
     },
     closeBtn: {
@@ -257,8 +257,8 @@ function createStyles(colors: ThemeColors) {
     venueCtx: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingBottom: 16,
+      paddingHorizontal: Spacing.lg,
+      paddingBottom: Spacing.md,
       gap: 10,
     },
     venueIcon: {
@@ -275,36 +275,36 @@ function createStyles(colors: ThemeColors) {
     },
     venueNameStyle: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     venueSub: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textFaint,
     },
     voteForm: {
       flex: 1,
-      paddingHorizontal: 20,
+      paddingHorizontal: Spacing.lg,
     },
     label: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.textMuted,
-      marginBottom: 8,
-      marginTop: 16,
+      marginBottom: Spacing.xs,
+      marginTop: Spacing.md,
     },
     optGrid: {
-      gap: 8,
+      gap: Spacing.xs,
     },
     optCard: {
       flexDirection: 'row',
       alignItems: 'center',
       borderRadius: 12,
       padding: 14,
-      gap: 12,
+      gap: Spacing.sm,
       borderWidth: 1,
       borderColor: colors.border,
       ...Shadows.sm,
@@ -320,13 +320,13 @@ function createStyles(colors: ThemeColors) {
     },
     optLabel: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     optDesc: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textFaint,
     },
     photoBtn: {
@@ -335,7 +335,7 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'center',
       borderRadius: Radius.md,
       height: 60,
-      gap: 8,
+      gap: Spacing.xs,
       borderWidth: 1.5,
       borderColor: colors.border,
       borderStyle: 'dashed',
@@ -343,8 +343,8 @@ function createStyles(colors: ThemeColors) {
     },
     photoBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '500',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.medium,
       color: colors.textFaint,
     },
     voteStats: {
@@ -352,22 +352,22 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       backgroundColor: colors.bgMuted,
       borderRadius: Radius.md,
-      padding: 12,
-      gap: 8,
-      marginTop: 16,
-      marginBottom: 16,
+      padding: Spacing.sm,
+      gap: Spacing.xs,
+      marginTop: Spacing.md,
+      marginBottom: Spacing.md,
     },
     voteStatsTextStyle: {
       flex: 1,
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textMuted,
     },
     footer: {
       flexDirection: 'row',
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      gap: 8,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.sm,
+      gap: Spacing.xs,
       borderTopWidth: 1,
       borderTopColor: colors.borderLight,
     },
@@ -382,8 +382,8 @@ function createStyles(colors: ThemeColors) {
     },
     cancelText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '500',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.medium,
       color: colors.textMuted,
     },
     submitBtn: {
@@ -393,14 +393,14 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       borderRadius: Radius.md,
       paddingVertical: 10,
-      paddingHorizontal: 20,
+      paddingHorizontal: Spacing.lg,
       gap: 6,
       ...Shadows.md,
     },
     submitText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
   });

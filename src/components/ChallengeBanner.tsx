@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { useSession } from '../hooks/useSession';
 import { getCurrentChallenge, getChallengeProgress } from '../lib/challenges';
@@ -58,8 +58,8 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.amberPale,
       borderRadius: Radius.md,
       padding: 10,
-      marginHorizontal: 16,
-      marginBottom: 8,
+      marginHorizontal: Spacing.md,
+      marginBottom: Spacing.xs,
       gap: 10,
       borderWidth: 1,
       borderColor: colors.amberDeep,
@@ -78,13 +78,13 @@ function createStyles(colors: ThemeColors) {
     },
     title: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '700',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.bold,
       color: colors.text,
     },
     desc: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textMuted,
     },
     progressBg: {
@@ -103,8 +103,8 @@ function createStyles(colors: ThemeColors) {
     },
     count: {
       fontFamily: Fonts.heading,
-      fontSize: 16,
-      fontWeight: '700',
+      fontSize: FontSize.xl,
+      fontWeight: FontWeight.bold,
       color: colors.accent,
     },
     countComplete: {

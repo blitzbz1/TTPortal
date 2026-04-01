@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius } from '../theme';
 
 export function ForgotPasswordScreen() {
   const { colors } = useTheme();
@@ -66,17 +66,17 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       justifyContent: 'space-between',
       paddingTop: 60,
-      paddingBottom: 32,
+      paddingBottom: Spacing.xxl,
       paddingHorizontal: 28,
     },
     top: {
       alignItems: 'center',
-      gap: 16,
+      gap: Spacing.md,
     },
     logo: {
       fontFamily: Fonts.heading,
-      fontSize: 24,
-      fontWeight: '800',
+      fontSize: FontSize.display,
+      fontWeight: FontWeight.extrabold,
       color: colors.textOnPrimary,
     },
     iconWrap: {
@@ -90,12 +90,12 @@ function createStyles(colors: ThemeColors) {
     title: {
       fontFamily: Fonts.heading,
       fontSize: 22,
-      fontWeight: '700',
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     desc: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.primaryDim,
       textAlign: 'center',
       width: 300,
@@ -114,7 +114,7 @@ function createStyles(colors: ThemeColors) {
     },
     inputPlaceholder: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.textFaint,
     },
     submitBtn: {
@@ -124,12 +124,12 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primaryLight,
       borderRadius: 12,
       height: 50,
-      gap: 8,
+      gap: Spacing.xs,
     },
     submitText: {
       fontFamily: Fonts.body,
       fontSize: 15,
-      fontWeight: '700',
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     hintBox: {
@@ -143,7 +143,7 @@ function createStyles(colors: ThemeColors) {
     hintText: {
       flex: 1,
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textFaint,
     },
     bottom: {
@@ -156,8 +156,8 @@ function createStyles(colors: ThemeColors) {
     },
     backText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '500',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.medium,
       color: colors.primaryDim,
     },
   });

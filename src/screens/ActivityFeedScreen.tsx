@@ -8,7 +8,7 @@ import { EmptyState } from '../components/EmptyState';
 import { NotificationSkeleton, SkeletonList } from '../components/SkeletonLoader';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getFriendIds } from '../services/friends';
@@ -159,14 +159,14 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'space-between',
       backgroundColor: colors.primary,
       paddingVertical: 10,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       minHeight: 52,
       ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     scroll: {
@@ -176,8 +176,8 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'flex-start',
       padding: 14,
-      paddingHorizontal: 16,
-      gap: 12,
+      paddingHorizontal: Spacing.md,
+      gap: Spacing.sm,
       borderBottomWidth: 1,
       borderBottomColor: colors.borderLight,
     },
@@ -194,25 +194,25 @@ function createStyles(colors: ThemeColors) {
     },
     cardText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.text,
       lineHeight: 18,
     },
     userName: {
-      fontWeight: '700',
+      fontWeight: FontWeight.bold,
     },
     venueName: {
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
       color: colors.primaryMid,
     },
     ratingText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.accent,
     },
     timeText: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textFaint,
     },
   });

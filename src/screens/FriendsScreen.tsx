@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getFriends, getPendingRequests, acceptRequest, declineRequest, searchUsers, sendRequest } from '../services/friends';
@@ -466,15 +466,15 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'space-between',
       backgroundColor: colors.bgAlt,
       height: 52,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
       ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       color: colors.text,
     },
     inviteBtn: {
@@ -483,22 +483,22 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       borderRadius: 16,
       paddingVertical: 6,
-      paddingHorizontal: 12,
+      paddingHorizontal: Spacing.sm,
       gap: 6,
       ...Shadows.md,
     },
     inviteBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     scroll: {
       flex: 1,
     },
     searchWrap: {
-      padding: 12,
-      paddingHorizontal: 16,
+      padding: Spacing.sm,
+      paddingHorizontal: Spacing.md,
     },
     searchBar: {
       flexDirection: 'row',
@@ -506,21 +506,21 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.bgMuted,
       borderRadius: Radius.md,
       height: 40,
-      paddingHorizontal: 12,
-      gap: 8,
+      paddingHorizontal: Spacing.sm,
+      gap: Spacing.xs,
       ...Shadows.sm,
     },
     searchInput: {
       flex: 1,
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.text,
       height: 40,
       padding: 0,
     },
     tabs: {
       flexDirection: 'row',
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
     },
     tab: {
       flex: 1,
@@ -536,23 +536,23 @@ function createStyles(colors: ThemeColors) {
     },
     tabText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.textFaint,
     },
     tabTextActive: {
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
       color: colors.primary,
     },
     section: {
-      paddingHorizontal: 16,
-      paddingTop: 16,
-      paddingBottom: 8,
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.md,
+      paddingBottom: Spacing.xs,
       gap: 10,
     },
     sectionLabel: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.textMuted,
     },
     inviteCard: {
@@ -560,8 +560,8 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       backgroundColor: colors.purplePale,
       borderRadius: 12,
-      padding: 12,
-      gap: 12,
+      padding: Spacing.sm,
+      gap: Spacing.sm,
       borderWidth: 1,
       borderColor: colors.purpleMid,
       ...Shadows.sm,
@@ -575,8 +575,8 @@ function createStyles(colors: ThemeColors) {
     },
     inviteInitials: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     inviteInfo: {
@@ -585,19 +585,19 @@ function createStyles(colors: ThemeColors) {
     },
     inviteName: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     inviteMutual: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textFaint,
     },
     inviteActions: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: Spacing.xs,
     },
     acceptBtn: {
       backgroundColor: colors.primary,
@@ -607,20 +607,20 @@ function createStyles(colors: ThemeColors) {
     },
     acceptText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     friendsLabel: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingBottom: 8,
+      paddingBottom: Spacing.xs,
     },
     onlineCount: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: Spacing.xxs,
     },
     onlineDot: {
       width: 8,
@@ -630,16 +630,16 @@ function createStyles(colors: ThemeColors) {
     },
     onlineText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '500',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.medium,
       color: colors.primaryLight,
     },
     friendRow: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingVertical: 10,
-      paddingHorizontal: 12,
-      gap: 12,
+      paddingHorizontal: Spacing.sm,
+      gap: Spacing.sm,
     },
     friendAvatarWrap: {
       width: 44,
@@ -654,8 +654,8 @@ function createStyles(colors: ThemeColors) {
     },
     friendInitials: {
       fontFamily: Fonts.body,
-      fontSize: 16,
-      fontWeight: '700',
+      fontSize: FontSize.xl,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     friendOnlineDot: {
@@ -675,13 +675,13 @@ function createStyles(colors: ThemeColors) {
     },
     friendName: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     friendStatus: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textFaint,
     },
     playingDot: {
@@ -697,13 +697,13 @@ function createStyles(colors: ThemeColors) {
     },
     playingVenue: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '500',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.medium,
       color: colors.primaryMid,
     },
     playingTime: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textFaint,
     },
     playingBadge: {
@@ -715,7 +715,7 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'center',
     },
     playingBadgeText: {
-      fontSize: 16,
+      fontSize: FontSize.xl,
     },
     addBtn: {
       flexDirection: 'row',
@@ -723,42 +723,42 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       borderRadius: 16,
       paddingVertical: 6,
-      paddingHorizontal: 12,
-      gap: 4,
+      paddingHorizontal: Spacing.sm,
+      gap: Spacing.xxs,
     },
     addBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     sentBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: Spacing.xxs,
       paddingVertical: 6,
-      paddingHorizontal: 12,
+      paddingHorizontal: Spacing.sm,
       borderRadius: 16,
       borderWidth: 1,
       borderColor: colors.border,
     },
     sentText: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '500',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.medium,
       color: colors.textFaint,
     },
     shareSection: {
-      padding: 16,
-      paddingTop: 12,
+      padding: Spacing.md,
+      paddingTop: Spacing.sm,
     },
     shareCard: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.primaryPale,
       borderRadius: 12,
-      padding: 16,
-      gap: 12,
+      padding: Spacing.md,
+      gap: Spacing.sm,
       borderWidth: 1,
       borderColor: colors.primaryDim,
     },
@@ -776,13 +776,13 @@ function createStyles(colors: ThemeColors) {
     },
     shareTitle: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     shareDesc: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textMuted,
     },
   });
@@ -792,18 +792,18 @@ function createStyles(colors: ThemeColors) {
     sheet: { backgroundColor: colors.bgAlt, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingBottom: 32, width: '100%', maxWidth: 430, ...Shadows.lg },
     handleWrap: { alignItems: 'center', paddingVertical: 10 },
     handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border },
-    title: { fontFamily: Fonts.heading, fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 4 },
-    desc: { fontFamily: Fonts.body, fontSize: 13, color: colors.textFaint, marginBottom: 16 },
-    inputRow: { marginBottom: 12 },
-    input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: Radius.md, padding: 14, fontFamily: Fonts.body, fontSize: 16, color: colors.text },
-    resultRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, paddingHorizontal: 4 },
-    resultText: { fontFamily: Fonts.body, fontSize: 13, fontWeight: '500' },
+    title: { fontFamily: Fonts.heading, fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: colors.text, marginBottom: Spacing.xxs },
+    desc: { fontFamily: Fonts.body, fontSize: FontSize.md, color: colors.textFaint, marginBottom: Spacing.md },
+    inputRow: { marginBottom: Spacing.sm },
+    input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: Radius.md, padding: 14, fontFamily: Fonts.body, fontSize: FontSize.xl, color: colors.text },
+    resultRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.sm, paddingHorizontal: Spacing.xxs },
+    resultText: { fontFamily: Fonts.body, fontSize: FontSize.md, fontWeight: FontWeight.medium },
     actions: { flexDirection: 'row', gap: 10, marginTop: 4 },
     cancelBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, borderWidth: 1, borderColor: colors.border },
-    cancelText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: colors.textMuted },
+    cancelText: { fontFamily: Fonts.body, fontSize: FontSize.lg, fontWeight: FontWeight.semibold, color: colors.textMuted },
     sendBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, backgroundColor: colors.primary, gap: 6 },
     sendBtnDisabled: { opacity: 0.5 },
-    sendText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: colors.textOnPrimary },
+    sendText: { fontFamily: Fonts.body, fontSize: FontSize.lg, fontWeight: FontWeight.semibold, color: colors.textOnPrimary },
   });
 
   return { styles, im };

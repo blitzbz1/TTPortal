@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Share, Platform } from 'react
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 
 interface ShareCardProps {
@@ -77,15 +77,15 @@ function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
       alignItems: 'center',
-      gap: 16,
+      gap: Spacing.md,
     },
     card: {
       width: 280,
       backgroundColor: colors.primary,
       borderRadius: 20,
-      padding: 24,
+      padding: Spacing.xl,
       alignItems: 'center',
-      gap: 12,
+      gap: Spacing.sm,
       ...Shadows.lg,
     },
     brand: {
@@ -94,12 +94,12 @@ function createStyles(colors: ThemeColors) {
       gap: 6,
     },
     brandEmoji: {
-      fontSize: 14,
+      fontSize: FontSize.lg,
     },
     brandText: {
       fontFamily: Fonts.heading,
-      fontSize: 12,
-      fontWeight: '800',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.extrabold,
       color: colors.textOnPrimary,
       opacity: 0.7,
       letterSpacing: 1,
@@ -114,14 +114,14 @@ function createStyles(colors: ThemeColors) {
     },
     title: {
       fontFamily: Fonts.heading,
-      fontSize: 20,
-      fontWeight: '700',
+      fontSize: FontSize.xxxl,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
       textAlign: 'center',
     },
     subtitle: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textOnPrimary,
       opacity: 0.8,
       textAlign: 'center',
@@ -129,7 +129,7 @@ function createStyles(colors: ThemeColors) {
     stat: {
       fontFamily: Fonts.heading,
       fontSize: 28,
-      fontWeight: '800',
+      fontWeight: FontWeight.extrabold,
       color: colors.textOnPrimary,
     },
     actions: {
@@ -141,30 +141,30 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       backgroundColor: colors.primary,
       borderRadius: Radius.lg,
-      paddingVertical: 12,
-      paddingHorizontal: 24,
-      gap: 8,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.xl,
+      gap: Spacing.xs,
       ...Shadows.md,
     },
     shareBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     closeBtn: {
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: Radius.lg,
-      paddingVertical: 12,
-      paddingHorizontal: 24,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.xl,
       borderWidth: 1,
       borderColor: colors.border,
     },
     closeBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.textMuted,
     },
   });

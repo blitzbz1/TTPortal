@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Shadows } from '../theme';
+import { Shadows, FontSize, FontWeight, Spacing } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 
@@ -89,32 +89,32 @@ function createStyles(colors: ThemeColors) {
       right: 0,
       backgroundColor: colors.bgAlt,
       borderRadius: 10,
-      padding: 16,
+      padding: Spacing.md,
       minWidth: 200,
       zIndex: 11,
       ...Shadows.md,
     },
     name: {
-      fontSize: 16,
-      fontWeight: '600',
+      fontSize: FontSize.xl,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
-      marginBottom: 4,
+      marginBottom: Spacing.xxs,
     },
     email: {
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textMuted,
-      marginBottom: 12,
+      marginBottom: Spacing.sm,
     },
     signOutButton: {
-      paddingVertical: 8,
-      paddingHorizontal: 12,
+      paddingVertical: Spacing.xs,
+      paddingHorizontal: Spacing.sm,
       backgroundColor: colors.bgMuted,
       borderRadius: 6,
       alignItems: 'center',
     },
     signOutText: {
-      fontSize: 14,
-      fontWeight: '500',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.medium,
       color: colors.red,
     },
   });

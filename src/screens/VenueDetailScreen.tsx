@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getVenueById, uploadVenuePhoto, addPhotoToVenue } from '../services/venues';
@@ -738,21 +738,21 @@ function createStyles(colors: ThemeColors) {
     sheet: { backgroundColor: colors.bgAlt, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingBottom: 32, width: '100%', maxWidth: 430, ...Shadows.lg },
     handleWrap: { alignItems: 'center', paddingVertical: 10 },
     handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border },
-    title: { fontFamily: Fonts.heading, fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 16 },
-    options: { gap: 8 },
-    optionBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.bg, borderRadius: Radius.md, padding: 14, borderWidth: 1, borderColor: colors.borderLight, ...Shadows.sm },
-    optionText: { fontFamily: Fonts.body, fontSize: 15, fontWeight: '500', color: colors.text },
+    title: { fontFamily: Fonts.heading, fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: colors.text, marginBottom: Spacing.md },
+    options: { gap: Spacing.xs },
+    optionBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: colors.bg, borderRadius: Radius.md, padding: 14, borderWidth: 1, borderColor: colors.borderLight, ...Shadows.sm },
+    optionText: { fontFamily: Fonts.body, fontSize: 15, fontWeight: FontWeight.medium, color: colors.text },
     customSection: { gap: 12 },
-    customLabel: { fontFamily: Fonts.body, fontSize: 13, fontWeight: '600', color: colors.textMuted },
-    input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: Radius.md, padding: 12, fontFamily: Fonts.body, fontSize: 16, color: colors.text, backgroundColor: colors.bgAlt },
-    timeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    customLabel: { fontFamily: Fonts.body, fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: colors.textMuted },
+    input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: Radius.md, padding: Spacing.sm, fontFamily: Fonts.body, fontSize: FontSize.xl, color: colors.text, backgroundColor: colors.bgAlt },
+    timeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
     timeInput: { flex: 1, textAlign: 'center' },
-    timeSep: { fontFamily: Fonts.heading, fontSize: 22, fontWeight: '700', color: colors.text },
+    timeSep: { fontFamily: Fonts.heading, fontSize: 22, fontWeight: FontWeight.bold, color: colors.text },
     customActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
     backBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, borderWidth: 1, borderColor: colors.border },
-    backBtnText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: colors.textMuted },
+    backBtnText: { fontFamily: Fonts.body, fontSize: FontSize.lg, fontWeight: FontWeight.semibold, color: colors.textMuted },
     confirmBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.lg, paddingVertical: 14, backgroundColor: colors.primary, ...Shadows.md },
-    confirmBtnText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: '600', color: colors.textOnPrimary },
+    confirmBtnText: { fontFamily: Fonts.body, fontSize: FontSize.lg, fontWeight: FontWeight.semibold, color: colors.textOnPrimary },
   });
 
   const styles = StyleSheet.create({
@@ -766,7 +766,7 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'space-between',
       backgroundColor: colors.bgAlt,
       height: 52,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
       ...Shadows.bar,
@@ -778,13 +778,13 @@ function createStyles(colors: ThemeColors) {
     },
     backText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '500',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.medium,
       color: colors.textMuted,
     },
     headerActions: {
       flexDirection: 'row',
-      gap: 12,
+      gap: Spacing.sm,
     },
     scroll: {
       flex: 1,
@@ -846,11 +846,11 @@ function createStyles(colors: ThemeColors) {
     },
     photoCountText: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textOnPrimary,
     },
     venueInfo: {
-      padding: 16,
+      padding: Spacing.md,
       gap: 14,
     },
     infoTop: {
@@ -863,8 +863,8 @@ function createStyles(colors: ThemeColors) {
     },
     infoTitle: {
       fontFamily: Fonts.heading,
-      fontSize: 20,
-      fontWeight: '700',
+      fontSize: FontSize.xxxl,
+      fontWeight: FontWeight.bold,
       color: colors.text,
     },
     infoBadges: {
@@ -882,8 +882,8 @@ function createStyles(colors: ThemeColors) {
     },
     badgeVerifiedText: {
       fontFamily: Fonts.body,
-      fontSize: 10,
-      fontWeight: '600',
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.semibold,
       color: colors.primaryMid,
     },
     badgeFree: {
@@ -894,8 +894,8 @@ function createStyles(colors: ThemeColors) {
     },
     badgeFreeText: {
       fontFamily: Fonts.body,
-      fontSize: 10,
-      fontWeight: '600',
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.semibold,
       color: colors.blue,
     },
     infoRating: {
@@ -904,12 +904,12 @@ function createStyles(colors: ThemeColors) {
     },
     ratingStars: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.accent,
     },
     ratingCount: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.textFaint,
     },
     divider: {
@@ -926,7 +926,7 @@ function createStyles(colors: ThemeColors) {
     },
     infoRowText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textMuted,
     },
     championRow: {
@@ -941,8 +941,8 @@ function createStyles(colors: ThemeColors) {
     },
     championText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '500',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.medium,
       color: colors.accent,
       flex: 1,
     },
@@ -960,13 +960,13 @@ function createStyles(colors: ThemeColors) {
     },
     evalText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.primaryMid,
     },
     friendsSection: {
       backgroundColor: colors.purplePale,
-      padding: 16,
+      padding: Spacing.md,
       gap: 10,
       ...Shadows.sm,
     },
@@ -977,8 +977,8 @@ function createStyles(colors: ThemeColors) {
     },
     friendsTitleText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.purple,
     },
     checkinRow: {
@@ -996,8 +996,8 @@ function createStyles(colors: ThemeColors) {
     },
     checkinInitials: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '700',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     checkinInfo: {
@@ -1005,13 +1005,13 @@ function createStyles(colors: ThemeColors) {
     },
     checkinName: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     checkinTime: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textFaint,
     },
     checkinBtn: {
@@ -1026,27 +1026,27 @@ function createStyles(colors: ThemeColors) {
     },
     checkinBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     activeCheckinWrap: {
-      gap: 8,
+      gap: Spacing.xs,
     },
     activeCheckinInfo: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: Spacing.xs,
       backgroundColor: colors.primaryPale,
       borderRadius: Radius.md,
-      padding: 12,
+      padding: Spacing.sm,
       borderWidth: 1,
       borderColor: colors.primaryDim,
     },
     activeCheckinText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '500',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.medium,
       color: colors.primaryMid,
       flex: 1,
     },
@@ -1061,23 +1061,23 @@ function createStyles(colors: ThemeColors) {
     },
     checkoutBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.red,
     },
     directionsSection: {
-      padding: 16,
+      padding: Spacing.md,
       gap: 10,
     },
     directionsTitle: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     directionsRow: {
       flexDirection: 'row',
-      gap: 8,
+      gap: Spacing.xs,
     },
     dirGoogle: {
       flex: 1,
@@ -1092,8 +1092,8 @@ function createStyles(colors: ThemeColors) {
     },
     dirGoogleText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     dirOther: {
@@ -1108,14 +1108,14 @@ function createStyles(colors: ThemeColors) {
     },
     dirOtherText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     reviewsSection: {
       backgroundColor: colors.bgAlt,
-      padding: 16,
-      gap: 12,
+      padding: Spacing.md,
+      gap: Spacing.sm,
       borderTopWidth: 1,
       borderTopColor: colors.borderLight,
     },
@@ -1126,8 +1126,8 @@ function createStyles(colors: ThemeColors) {
     },
     reviewsTitle: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     writeReviewBtn: {
@@ -1136,21 +1136,21 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primaryPale,
       borderRadius: 8,
       paddingVertical: 6,
-      paddingHorizontal: 12,
-      gap: 4,
+      paddingHorizontal: Spacing.sm,
+      gap: Spacing.xxs,
       borderWidth: 1,
       borderColor: colors.primaryDim,
       ...Shadows.sm,
     },
     writeReviewText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.primaryMid,
     },
     reviewCard: {
-      padding: 12,
-      gap: 8,
+      padding: Spacing.sm,
+      gap: Spacing.xs,
     },
     reviewTop: {
       flexDirection: 'row',
@@ -1159,18 +1159,18 @@ function createStyles(colors: ThemeColors) {
     },
     reviewAuthor: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.text,
     },
     reviewStars: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: colors.accent,
     },
     reviewText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textMuted,
       lineHeight: 13 * 1.45,
     },

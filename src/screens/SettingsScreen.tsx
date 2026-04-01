@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getProfile, updateProfile } from '../services/profiles';
@@ -136,27 +136,27 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'space-between',
       backgroundColor: colors.bgAlt,
       height: 52,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
       ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       color: colors.text,
     },
     scroll: {
       flex: 1,
-      paddingTop: 8,
+      paddingTop: Spacing.xs,
     },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingVertical: 14,
-      paddingHorizontal: 16,
-      gap: 12,
+      paddingHorizontal: Spacing.md,
+      gap: Spacing.sm,
       borderBottomWidth: 1,
       borderBottomColor: colors.borderLight,
     },
@@ -175,12 +175,12 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       fontFamily: Fonts.body,
       fontSize: 15,
-      fontWeight: '500',
+      fontWeight: FontWeight.medium,
       color: colors.text,
     },
     rowDesc: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textFaint,
     },
     toggle: {
@@ -199,13 +199,13 @@ function createStyles(colors: ThemeColors) {
     },
     toggleText: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '500',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.medium,
       color: colors.textFaint,
     },
     toggleTextActive: {
       color: colors.text,
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
     },
   });
 }

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
+import { FontSize, FontWeight, Spacing } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { ProfilePopover } from './ProfilePopover';
 
@@ -80,8 +81,8 @@ function createStyles(colors: ThemeColors) {
       position: 'relative',
     },
     container: {
-      padding: 4,
-      marginRight: 8,
+      padding: Spacing.xxs,
+      marginRight: Spacing.xs,
     },
     initialsCircle: {
       width: 32,
@@ -93,8 +94,8 @@ function createStyles(colors: ThemeColors) {
     },
     initialsText: {
       color: colors.textOnPrimary,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
     },
   });
 }

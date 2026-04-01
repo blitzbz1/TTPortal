@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius } from '../theme';
 
 const CITIES = [
   { name: 'București', count: '54' },
@@ -88,12 +88,12 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       justifyContent: 'space-between',
       paddingTop: 60,
-      paddingBottom: 32,
+      paddingBottom: Spacing.xxl,
       paddingHorizontal: 28,
     },
     top: {
       alignItems: 'center',
-      gap: 12,
+      gap: Spacing.sm,
     },
     badge: {
       flexDirection: 'row',
@@ -102,21 +102,21 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 100,
       paddingVertical: 6,
       paddingHorizontal: 14,
-      gap: 8,
+      gap: Spacing.xs,
     },
     badgeEmoji: {
-      fontSize: 16,
+      fontSize: FontSize.xl,
     },
     badgeText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '500',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.medium,
       color: '#ffffffcc',
     },
     title: {
       fontFamily: Fonts.heading,
       fontSize: 34,
-      fontWeight: '800',
+      fontWeight: FontWeight.extrabold,
       color: colors.textOnPrimary,
       letterSpacing: 2,
     },
@@ -129,7 +129,7 @@ function createStyles(colors: ThemeColors) {
     },
     middle: {
       alignItems: 'center',
-      gap: 24,
+      gap: Spacing.xl,
     },
     locationBtn: {
       flexDirection: 'row',
@@ -144,12 +144,12 @@ function createStyles(colors: ThemeColors) {
     locationText: {
       fontFamily: Fonts.body,
       fontSize: 15,
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
       color: colors.primary,
     },
     orText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: '#ffffff80',
     },
     cityGrid: {
@@ -159,7 +159,7 @@ function createStyles(colors: ThemeColors) {
     },
     cityColumn: {
       flex: 1,
-      gap: 8,
+      gap: Spacing.xs,
     },
     cityRow: {
       flexDirection: 'row',
@@ -172,19 +172,19 @@ function createStyles(colors: ThemeColors) {
     },
     cityName: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '500',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.medium,
       color: colors.textOnPrimary,
     },
     cityCount: {
       fontFamily: Fonts.body,
-      fontSize: 12,
+      fontSize: FontSize.base,
       color: '#ffffff66',
     },
     bottom: {
       flexDirection: 'row',
       justifyContent: 'center',
-      gap: 4,
+      gap: Spacing.xxs,
     },
     langActive: {
       backgroundColor: '#ffffff20',
@@ -194,8 +194,8 @@ function createStyles(colors: ThemeColors) {
     },
     langActiveText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     langInactive: {
@@ -205,8 +205,8 @@ function createStyles(colors: ThemeColors) {
     },
     langInactiveText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '500',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.medium,
       color: '#ffffff66',
     },
   });

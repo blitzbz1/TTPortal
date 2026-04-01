@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getVenueById } from '../services/venues';
@@ -230,12 +230,12 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 20,
-      paddingBottom: 12,
+      paddingBottom: Spacing.sm,
     },
     sheetTitle: {
       fontFamily: Fonts.heading,
-      fontSize: 20,
-      fontWeight: '700',
+      fontSize: FontSize.xxxl,
+      fontWeight: FontWeight.bold,
       color: colors.text,
     },
     closeBtn: {
@@ -254,22 +254,22 @@ function createStyles(colors: ThemeColors) {
     },
     venueNameText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textMuted,
     },
     formScroll: {
       flex: 1,
-      paddingHorizontal: 20,
-      paddingTop: 16,
+      paddingHorizontal: Spacing.lg,
+      paddingTop: Spacing.md,
     },
     field: {
       gap: 6,
-      marginBottom: 16,
+      marginBottom: Spacing.md,
     },
     fieldLabel: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '600',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.semibold,
       color: colors.textFaint,
       letterSpacing: 0.7,
     },
@@ -286,17 +286,17 @@ function createStyles(colors: ThemeColors) {
     },
     inputPlaceholder: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textFaint,
     },
     inputValue: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.text,
     },
     starsRow: {
       flexDirection: 'row',
-      gap: 8,
+      gap: Spacing.xs,
     },
     starBtn: {
       width: 44,
@@ -315,7 +315,7 @@ function createStyles(colors: ThemeColors) {
       borderColor: colors.border,
     },
     starText: {
-      fontSize: 20,
+      fontSize: FontSize.xxxl,
     },
     starTextActive: {
       color: colors.textOnPrimary,
@@ -326,10 +326,10 @@ function createStyles(colors: ThemeColors) {
     tagsRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 8,
+      gap: Spacing.xs,
     },
     tagPill: {
-      paddingHorizontal: 12,
+      paddingHorizontal: Spacing.sm,
       paddingVertical: 6,
       borderRadius: 16,
       backgroundColor: colors.bgMuted,
@@ -342,12 +342,12 @@ function createStyles(colors: ThemeColors) {
     },
     tagText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textMuted,
     },
     tagTextSelected: {
       color: colors.primaryMid,
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
     },
     textarea: {
       backgroundColor: colors.bg,
@@ -360,14 +360,14 @@ function createStyles(colors: ThemeColors) {
     },
     textareaInput: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.text,
       textAlignVertical: 'top',
     },
     actions: {
       flexDirection: 'row',
-      gap: 12,
-      paddingVertical: 8,
+      gap: Spacing.sm,
+      paddingVertical: Spacing.xs,
     },
     cancelBtn: {
       flex: 1,
@@ -380,8 +380,8 @@ function createStyles(colors: ThemeColors) {
     },
     cancelText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.textMuted,
     },
     submitBtn: {
@@ -392,13 +392,13 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       borderRadius: Radius.md,
       height: 46,
-      gap: 8,
+      gap: Spacing.xs,
       ...Shadows.md,
     },
     submitText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
   });

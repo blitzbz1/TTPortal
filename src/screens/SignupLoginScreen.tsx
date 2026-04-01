@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius } from '../theme';
 
 type AuthTab = 'signup' | 'login';
 
@@ -125,29 +125,29 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       justifyContent: 'space-between',
       paddingTop: 60,
-      paddingBottom: 32,
+      paddingBottom: Spacing.xxl,
       paddingHorizontal: 28,
     },
     branding: {
       alignItems: 'center',
-      gap: 12,
+      gap: Spacing.sm,
     },
     subtitle: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '500',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.medium,
       color: colors.primaryDim,
       opacity: 0.7,
     },
     logo: {
       fontFamily: Fonts.heading,
       fontSize: 42,
-      fontWeight: '800',
+      fontWeight: FontWeight.extrabold,
       color: colors.textOnPrimary,
     },
     tagline: {
       fontFamily: Fonts.body,
-      fontSize: 16,
+      fontSize: FontSize.xl,
       color: colors.primaryDim,
       textAlign: 'center',
       width: 260,
@@ -172,13 +172,13 @@ function createStyles(colors: ThemeColors) {
     },
     authTabText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '500',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.medium,
       color: colors.primaryDim,
     },
     authTabTextActive: {
       color: colors.primary,
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
     },
     inputField: {
       flexDirection: 'row',
@@ -191,7 +191,7 @@ function createStyles(colors: ThemeColors) {
     },
     inputPlaceholder: {
       fontFamily: Fonts.body,
-      fontSize: 14,
+      fontSize: FontSize.lg,
       color: colors.textFaint,
     },
     submitBtn: {
@@ -201,18 +201,18 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primaryLight,
       borderRadius: 12,
       height: 50,
-      gap: 8,
+      gap: Spacing.xs,
     },
     submitText: {
       fontFamily: Fonts.body,
-      fontSize: 16,
-      fontWeight: '700',
+      fontSize: FontSize.xl,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     divider: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: Spacing.sm,
       paddingVertical: 4,
     },
     dividerLine: {
@@ -222,13 +222,13 @@ function createStyles(colors: ThemeColors) {
     },
     dividerText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '500',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.medium,
       color: colors.textFaint,
     },
     socialRow: {
       flexDirection: 'row',
-      gap: 12,
+      gap: Spacing.sm,
     },
     googleBtn: {
       flex: 1,
@@ -238,18 +238,18 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.bgAlt,
       borderRadius: Radius.md,
       height: 46,
-      gap: 8,
+      gap: Spacing.xs,
     },
     googleIcon: {
       fontFamily: Fonts.heading,
-      fontSize: 18,
-      fontWeight: '800',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.extrabold,
       color: colors.primary,
     },
     googleText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.primary,
     },
     appleBtn: {
@@ -265,24 +265,24 @@ function createStyles(colors: ThemeColors) {
     },
     appleText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     bottom: {
       alignItems: 'center',
-      gap: 16,
+      gap: Spacing.md,
     },
     terms: {
       fontFamily: Fonts.body,
-      fontSize: 11,
+      fontSize: FontSize.sm,
       color: colors.textFaint,
       textAlign: 'center',
       width: 280,
     },
     langRow: {
       flexDirection: 'row',
-      gap: 4,
+      gap: Spacing.xxs,
     },
     langActive: {
       backgroundColor: colors.bgAlt,
@@ -294,8 +294,8 @@ function createStyles(colors: ThemeColors) {
     },
     langActiveText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '700',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.bold,
       color: colors.primary,
     },
     langInactive: {
@@ -307,8 +307,8 @@ function createStyles(colors: ThemeColors) {
     },
     langInactiveText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '500',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.medium,
       color: colors.textFaint,
     },
   });

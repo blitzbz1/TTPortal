@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { createVenue } from '../services/venues';
@@ -247,29 +247,29 @@ function createStyles(colors: ThemeColors) {
     },
     header: {
       fontFamily: Fonts.heading,
-      fontSize: 24,
-      fontWeight: '800',
+      fontSize: FontSize.display,
+      fontWeight: FontWeight.extrabold,
       color: colors.text,
-      paddingHorizontal: 24,
-      paddingTop: 16,
-      paddingBottom: 8,
+      paddingHorizontal: Spacing.xl,
+      paddingTop: Spacing.md,
+      paddingBottom: Spacing.xs,
     },
     formScroll: {
       flex: 1,
     },
     formContent: {
-      padding: 24,
-      paddingTop: 8,
+      padding: Spacing.xl,
+      paddingTop: Spacing.xs,
       gap: 0,
     },
     field: {
       gap: 6,
-      marginBottom: 16,
+      marginBottom: Spacing.md,
     },
     fieldLabel: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '600',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.semibold,
       color: colors.textFaint,
       letterSpacing: 0.7,
     },
@@ -285,7 +285,7 @@ function createStyles(colors: ThemeColors) {
     },
     inputText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.text,
     },
     inputSelect: {
@@ -293,17 +293,17 @@ function createStyles(colors: ThemeColors) {
     },
     inputPlaceholder: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textFaint,
     },
     inputValue: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.text,
     },
     typeRow: {
       flexDirection: 'row',
-      gap: 8,
+      gap: Spacing.xs,
     },
     typeBtn: {
       flex: 1,
@@ -323,20 +323,20 @@ function createStyles(colors: ThemeColors) {
     },
     typeBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textMuted,
     },
     typeBtnTextActive: {
       color: colors.primaryMid,
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
     },
     fieldRow: {
       flexDirection: 'row',
-      gap: 12,
+      gap: Spacing.sm,
     },
     addressRow: {
       flexDirection: 'row',
-      gap: 8,
+      gap: Spacing.xs,
       ...Shadows.sm,
       borderRadius: Radius.md,
     },
@@ -352,8 +352,8 @@ function createStyles(colors: ThemeColors) {
     },
     geocodeBtnText: {
       fontFamily: Fonts.body,
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
     textarea: {
@@ -367,15 +367,15 @@ function createStyles(colors: ThemeColors) {
     },
     textareaInput: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.text,
       textAlignVertical: 'top',
     },
     actions: {
       flexDirection: 'row',
-      gap: 12,
-      paddingVertical: 8,
-      paddingBottom: 16,
+      gap: Spacing.sm,
+      paddingVertical: Spacing.xs,
+      paddingBottom: Spacing.md,
     },
     cancelBtn: {
       flex: 1,
@@ -390,8 +390,8 @@ function createStyles(colors: ThemeColors) {
     },
     cancelText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.textMuted,
     },
     submitBtn: {
@@ -402,13 +402,13 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primaryLight,
       borderRadius: 12,
       height: 50,
-      gap: 8,
+      gap: Spacing.xs,
       ...Shadows.md,
     },
     submitText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
   });

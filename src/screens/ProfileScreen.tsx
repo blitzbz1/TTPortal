@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getProfile, getProfileStats } from '../services/profiles';
@@ -280,18 +280,18 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       paddingVertical: 10,
       minHeight: 52,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.md,
       ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     bellBtn: {
       position: 'relative',
-      padding: 4,
+      padding: Spacing.xxs,
     },
     bellBadge: {
       position: 'absolute',
@@ -308,7 +308,7 @@ function createStyles(colors: ThemeColors) {
     bellBadgeText: {
       fontFamily: Fonts.body,
       fontSize: 9,
-      fontWeight: '700',
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     scroll: {
@@ -318,9 +318,9 @@ function createStyles(colors: ThemeColors) {
     /* ── Hero ── */
     hero: {
       alignItems: 'center',
-      paddingTop: 24,
-      paddingBottom: 16,
-      paddingHorizontal: 16,
+      paddingTop: Spacing.xl,
+      paddingBottom: Spacing.md,
+      paddingHorizontal: Spacing.md,
       gap: 6,
     },
     avatar: {
@@ -335,19 +335,19 @@ function createStyles(colors: ThemeColors) {
     },
     avatarText: {
       fontFamily: Fonts.heading,
-      fontSize: 24,
-      fontWeight: '700',
+      fontSize: FontSize.display,
+      fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
     name: {
       fontFamily: Fonts.heading,
-      fontSize: 20,
-      fontWeight: '700',
+      fontSize: FontSize.xxxl,
+      fontWeight: FontWeight.bold,
       color: colors.text,
     },
     username: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textFaint,
     },
     statsRow: {
@@ -376,27 +376,27 @@ function createStyles(colors: ThemeColors) {
     },
     statValue: {
       fontFamily: Fonts.heading,
-      fontSize: 20,
-      fontWeight: '700',
+      fontSize: FontSize.xxxl,
+      fontWeight: FontWeight.bold,
       color: colors.primary,
     },
     statLabel: {
       fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: '500',
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.medium,
       color: colors.textFaint,
     },
 
     /* ── Sections ── */
     section: {
-      paddingHorizontal: 16,
-      paddingTop: 20,
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.lg,
       gap: 10,
     },
     sectionTitle: {
       fontFamily: Fonts.body,
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.textMuted,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
@@ -405,7 +405,7 @@ function createStyles(colors: ThemeColors) {
     /* ── Badges ── */
     badgeRow: {
       gap: 14,
-      paddingVertical: 4,
+      paddingVertical: Spacing.xxs,
     },
     badgeItem: {
       alignItems: 'center',
@@ -437,8 +437,8 @@ function createStyles(colors: ThemeColors) {
     },
     badgeLabel: {
       fontFamily: Fonts.body,
-      fontSize: 10,
-      fontWeight: '500',
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.medium,
       color: colors.text,
       marginTop: 5,
       textAlign: 'center',
@@ -451,8 +451,8 @@ function createStyles(colors: ThemeColors) {
     navRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 12,
-      gap: 12,
+      paddingVertical: Spacing.sm,
+      gap: Spacing.sm,
       borderBottomWidth: 1,
       borderBottomColor: colors.borderLight,
     },
@@ -467,7 +467,7 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       fontFamily: Fonts.body,
       fontSize: 15,
-      fontWeight: '500',
+      fontWeight: FontWeight.medium,
       color: colors.text,
     },
     adminPill: {
@@ -479,8 +479,8 @@ function createStyles(colors: ThemeColors) {
     },
     adminPillText: {
       fontFamily: Fonts.body,
-      fontSize: 10,
-      fontWeight: '700',
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.bold,
       color: colors.primaryMid,
     },
 
@@ -490,7 +490,7 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 14,
-      gap: 8,
+      gap: Spacing.xs,
       backgroundColor: colors.redPale,
       borderRadius: Radius.md,
       borderWidth: 1,
@@ -498,8 +498,8 @@ function createStyles(colors: ThemeColors) {
     },
     logoutText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '500',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.medium,
       color: colors.red,
     },
   });

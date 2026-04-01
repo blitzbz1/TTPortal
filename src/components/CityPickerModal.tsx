@@ -11,7 +11,7 @@ import {
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { getCities } from '../services/cities';
 
@@ -146,21 +146,21 @@ function createStyles(colors: ThemeColors) {
       maxHeight: '70%',
       width: '100%',
       maxWidth: 430,
-      paddingBottom: 32,
+      paddingBottom: Spacing.xxl,
       ...Shadows.lg,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingVertical: 16,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
     title: {
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
       fontFamily: Fonts.heading,
       color: colors.text,
     },
@@ -172,7 +172,7 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
+      paddingHorizontal: Spacing.lg,
       paddingVertical: 14,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.borderLight,
@@ -183,7 +183,7 @@ function createStyles(colors: ThemeColors) {
       color: colors.text,
     },
     rowTextSelected: {
-      fontWeight: '600',
+      fontWeight: FontWeight.semibold,
       color: colors.primary,
     },
   });

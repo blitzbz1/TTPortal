@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, Radius, Shadows } from '../theme';
+import { Fonts, Radius, Shadows, FontSize, FontWeight, Spacing } from '../theme';
 
 interface EmptyStateProps {
   icon: string;
@@ -49,8 +49,8 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 48,
-      paddingHorizontal: 32,
-      gap: 12,
+      paddingHorizontal: Spacing.xxl,
+      gap: Spacing.sm,
     },
     iconWrap: {
       width: 72,
@@ -59,18 +59,18 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.bgMuted,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 4,
+      marginBottom: Spacing.xxs,
     },
     title: {
       fontFamily: Fonts.heading,
-      fontSize: 16,
-      fontWeight: '700',
+      fontSize: FontSize.xl,
+      fontWeight: FontWeight.bold,
       color: colors.text,
       textAlign: 'center',
     },
     description: {
       fontFamily: Fonts.body,
-      fontSize: 13,
+      fontSize: FontSize.md,
       color: colors.textMuted,
       textAlign: 'center',
       lineHeight: 18,
@@ -79,14 +79,14 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
       borderRadius: Radius.md,
       paddingVertical: 10,
-      paddingHorizontal: 24,
-      marginTop: 4,
+      paddingHorizontal: Spacing.xl,
+      marginTop: Spacing.xxs,
       ...Shadows.sm,
     },
     ctaText: {
       fontFamily: Fonts.body,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
       color: colors.textOnPrimary,
     },
   });
