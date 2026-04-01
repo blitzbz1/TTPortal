@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { CityPickerModal } from '../components/CityPickerModal';
@@ -30,7 +30,6 @@ interface LeaderboardsScreenProps {
 }
 
 export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenProps) {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<LBTab>('checkins');
   const [period, setPeriod] = useState<'week' | 'all'>('all');
@@ -101,11 +100,11 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
   const myEntry = entries.find((e) => e.user_id === user?.id);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-          <Lucide name="arrow-left" size={22} color={colors.textOnPrimary} />
+          <Lucide name="arrow-left" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('leaderboard')}</Text>
         <TouchableOpacity style={styles.filterBtn} onPress={() => setCityModalVisible(true)}>
@@ -251,7 +250,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
         onSelect={(c) => { setSelectedCity(c); setCityModalVisible(false); }}
         onClose={() => setCityModalVisible(false)}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -265,17 +264,18 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: colors.primary,
-      paddingVertical: 10,
-      minHeight: 52,
+      backgroundColor: colors.bgAlt,
+      height: 52,
       paddingHorizontal: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
       ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
       fontSize: FontSize.xxl,
       fontWeight: FontWeight.bold,
-      color: colors.textOnPrimary,
+      color: colors.text,
     },
     filterBtn: {
       flexDirection: 'row',

@@ -30,8 +30,9 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
   const { s } = useI18n();
   const { unreadCount } = useNotifications();
   const router = useRouter();
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark } = useTheme();
+  const headerFg = isDark ? colors.text : colors.textOnPrimary;
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const fetchFavorites = useCallback(async () => {
     if (!user) return;
@@ -128,7 +129,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={styles.headerTitle}>{s('favorites')}</Text>
         <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(protected)/notifications' as any)} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-            <Lucide name="bell" size={18} color={colors.textOnPrimary} />
+            <Lucide name="bell" size={18} color={headerFg} />
             {unreadCount > 0 && (
               <View style={styles.bellBadge}>
                 <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -202,7 +203,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -212,7 +213,7 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: colors.primary,
+      backgroundColor: isDark ? colors.bgAlt : colors.primary,
       paddingVertical: 10,
       minHeight: 52,
       paddingHorizontal: Spacing.md,
@@ -222,7 +223,7 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.heading,
       fontSize: FontSize.xxl,
       fontWeight: FontWeight.bold,
-      color: colors.textOnPrimary,
+      color: isDark ? colors.text : colors.textOnPrimary,
     },
     headerRight: {
       flexDirection: 'row',

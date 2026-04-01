@@ -15,6 +15,8 @@ export default function ProtectedLayout() {
       <Stack.Screen name="admin" options={{ headerShown: false }} />
       <Stack.Screen name="create-event" options={{ headerShown: false }} />
       <Stack.Screen name="notifications" options={{ headerShown: false }} />
+      <Stack.Screen name="settings" options={{ headerShown: false }} />
+      <Stack.Screen name="leaderboard" options={{ headerShown: false }} />
     </Stack>
   );
 }

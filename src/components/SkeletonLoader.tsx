@@ -47,17 +47,17 @@ export function VenueCardSkeleton() {
   return (
     <View style={styles.venueCard} testID="venue-card-skeleton">
       <View style={styles.venueCardInner}>
-        <View style={{ flex: 1, gap: 8 }}>
+        <View style={{ flex: 1, gap: Spacing.xs }}>
           <SkeletonBox width="70%" height={14} />
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: Spacing.xs }}>
             <SkeletonBox width={60} height={12} />
             <SkeletonBox width={40} height={12} />
             <SkeletonBox width={50} height={12} />
           </View>
         </View>
         <View style={{ alignItems: 'flex-end', gap: 6 }}>
-          <SkeletonBox width={50} height={20} borderRadius={4} />
-          <SkeletonBox width={30} height={12} />
+          <SkeletonBox width={50} height={22} borderRadius={Spacing.xxs} />
+          <SkeletonBox width={30} height={14} />
         </View>
       </View>
     </View>
@@ -234,13 +234,14 @@ function createStyles(colors: ThemeColors) {
     venueCard: {
       backgroundColor: colors.bgAlt,
       borderRadius: Radius.md,
-      marginBottom: 6,
-      padding: 10,
+      marginBottom: Spacing.xs,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.md,
     },
     venueCardInner: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: Spacing.sm,
     },
     eventCard: {
       backgroundColor: colors.bgAlt,

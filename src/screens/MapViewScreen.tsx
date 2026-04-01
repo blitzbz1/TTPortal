@@ -75,8 +75,9 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const { s } = useI18n();
   const { user } = useSession();
   const { unreadCount } = useNotifications();
-  const { colors } = useTheme();
-  const { styles, pinStyles } = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark } = useTheme();
+  const headerFg = isDark ? colors.text : colors.textOnPrimary;
+  const { styles, pinStyles } = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const [venues, setVenues] = useState<VenueWithStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -291,14 +292,14 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
         <Text style={styles.headerTitle}>TT Portal</Text>
         <View style={styles.headerCenter}>
           <TouchableOpacity style={styles.cityPicker} onPress={() => setCityModalVisible(true)}>
-            <Lucide name="map-pin" size={14} color={colors.textOnPrimary} />
+            <Lucide name="map-pin" size={14} color={headerFg} />
             <Text style={styles.cityText}>{selectedCity}</Text>
-            <Lucide name="chevron-down" size={12} color="#ffffffaa" />
+            <Lucide name="chevron-down" size={12} color={isDark ? colors.textFaint : '#ffffffaa'} />
           </TouchableOpacity>
         </View>
         {user ? (
           <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(protected)/notifications' as any)} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-            <Lucide name="bell" size={18} color={colors.textOnPrimary} />
+            <Lucide name="bell" size={18} color={headerFg} />
             {unreadCount > 0 && (
               <View style={styles.bellBadge}>
                 <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -381,27 +382,29 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
           ))}
         </Card>
 
-        <TouchableOpacity
-          style={[styles.nearMeBtn, nearMeEnabled && styles.nearMeBtnActive]}
-          onPress={handleNearMe}
-          disabled={locating}
-          testID="near-me-map-button"
+        <DraggableSheet
+          floatingContent={
+            <TouchableOpacity
+              style={[styles.nearMeBtn, nearMeEnabled && styles.nearMeBtnActive]}
+              onPress={handleNearMe}
+              disabled={locating}
+              testID="near-me-map-button"
+            >
+              {locating ? (
+                <ActivityIndicator
+                  size="small"
+                  color={nearMeEnabled ? colors.textOnPrimary : colors.primary}
+                />
+              ) : (
+                <Lucide
+                  name="locate"
+                  size={22}
+                  color={nearMeEnabled ? colors.textOnPrimary : colors.primary}
+                />
+              )}
+            </TouchableOpacity>
+          }
         >
-          {locating ? (
-            <ActivityIndicator
-              size="small"
-              color={nearMeEnabled ? colors.textOnPrimary : colors.primary}
-            />
-          ) : (
-            <Lucide
-              name="locate"
-              size={22}
-              color={nearMeEnabled ? colors.textOnPrimary : colors.primary}
-            />
-          )}
-        </TouchableOpacity>
-
-        <DraggableSheet>
           {/* Search Row */}
           <View style={styles.searchRow}>
             <Card shadow="sm" borderRadius={Radius.md} style={{ flex: 1 }}>
@@ -422,28 +425,6 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
                 )}
               </View>
             </Card>
-            <TouchableOpacity
-              style={[styles.nearMeListBtn, nearMeEnabled && styles.nearMeListBtnActive]}
-              onPress={handleNearMe}
-              disabled={locating}
-              testID="near-me-list-button"
-            >
-              {locating ? (
-                <ActivityIndicator
-                  size="small"
-                  color={nearMeEnabled ? colors.textOnPrimary : colors.primaryMid}
-                />
-              ) : (
-                <Lucide
-                  name="locate"
-                  size={14}
-                  color={nearMeEnabled ? colors.textOnPrimary : colors.primaryMid}
-                />
-              )}
-              <Text style={[styles.nearMeListText, nearMeEnabled && styles.nearMeListTextActive]}>
-                {s('nearMe')}
-              </Text>
-            </TouchableOpacity>
             {user && (
               <TouchableOpacity style={styles.addChip} onPress={() => router.push('/(protected)/add-venue' as any)}>
                 <Lucide name="plus" size={14} color={colors.textOnPrimary} />
@@ -460,6 +441,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
                   key={f.key}
                   style={[styles.filterChip, activeFilter === f.key && styles.filterChipActive]}
                   onPress={() => { hapticSelection(); setActiveFilter(f.key); }}
+                  hitSlop={{ top: 6, bottom: 6 }}
                 >
                   {f.icon && <Lucide name={f.icon} size={12} color={activeFilter === f.key ? colors.textOnPrimary : colors.primaryMid} />}
                   <Text style={[styles.filterText, activeFilter === f.key && styles.filterTextActive]}>
@@ -490,15 +472,15 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
 
           {/* Venue Cards */}
           {loading ? (
-            <View style={{ paddingHorizontal: 12, paddingTop: 8 }}>
+            <View style={{ paddingHorizontal: Spacing.sm, paddingTop: Spacing.xs }}>
               <SkeletonList count={4}><VenueCardSkeleton /></SkeletonList>
             </View>
           ) : fetchError ? (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 32, gap: 12 }}>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.xxl, gap: Spacing.sm }}>
               <Lucide name="alert-triangle" size={28} color={colors.textFaint} />
-              <Text style={{ fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint }}>{s('venueLoadError')}</Text>
-              <TouchableOpacity onPress={fetchVenues} style={{ backgroundColor: colors.primaryPale, borderRadius: Radius.md, paddingVertical: 8, paddingHorizontal: 16 }}>
-                <Text style={{ fontFamily: Fonts.body, fontSize: 13, fontWeight: '600', color: colors.primaryMid }}>{s('retry')}</Text>
+              <Text style={{ fontFamily: Fonts.body, fontSize: FontSize.lg, color: colors.textFaint }}>{s('venueLoadError')}</Text>
+              <TouchableOpacity onPress={fetchVenues} style={{ backgroundColor: colors.primaryPale, borderRadius: Radius.md, paddingVertical: Spacing.xs, paddingHorizontal: Spacing.md }}>
+                <Text style={{ fontFamily: Fonts.body, fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: colors.primaryMid }}>{s('retry')}</Text>
               </TouchableOpacity>
             </View>
           ) : filteredVenues.length === 0 ? (
@@ -516,7 +498,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
                 const tablesText = venue.tables_count != null ? `${venue.tables_count} ${s('tables')}` : '';
 
                 return (
-                  <Card key={venue.id} shadow="sm" borderRadius={Radius.md} style={{ marginBottom: 6 }}>
+                  <Card key={venue.id} shadow="sm" borderRadius={Radius.md} style={{ marginBottom: Spacing.xs }}>
                     <TouchableOpacity
                       style={[styles.venueCard, index === 0 && styles.venueCardHighlight]}
                       onPress={() => router.push(`/venue/${venue.id}` as any)}
@@ -570,7 +552,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, isDark: boolean) {
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -580,7 +562,7 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: colors.primary,
+      backgroundColor: isDark ? colors.bgAlt : colors.primary,
       paddingVertical: 10,
       paddingHorizontal: Spacing.md,
       minHeight: 52,
@@ -590,7 +572,7 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.heading,
       fontSize: FontSize.xxl,
       fontWeight: FontWeight.bold,
-      color: colors.textOnPrimary,
+      color: isDark ? colors.text : colors.textOnPrimary,
     },
     headerCenter: {
       flex: 1,
@@ -599,7 +581,7 @@ function createStyles(colors: ThemeColors) {
     cityPicker: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: '#ffffff18',
+      backgroundColor: isDark ? colors.bgMuted : '#ffffff18',
       borderRadius: 100,
       paddingVertical: 5,
       paddingHorizontal: 12,
@@ -610,7 +592,7 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.body,
       fontSize: FontSize.md,
       fontWeight: FontWeight.medium,
-      color: colors.textOnPrimary,
+      color: isDark ? colors.text : colors.textOnPrimary,
     },
     addBtn: {
       flexDirection: 'row',
@@ -705,9 +687,6 @@ function createStyles(colors: ThemeColors) {
       color: colors.textMuted,
     },
     nearMeBtn: {
-      position: 'absolute',
-      right: 14,
-      bottom: 14,
       width: 44,
       height: 44,
       borderRadius: 22,
@@ -722,7 +701,7 @@ function createStyles(colors: ThemeColors) {
     searchRow: {
       flexDirection: 'row',
       paddingHorizontal: Spacing.md,
-      gap: 10,
+      gap: Spacing.xs,
     },
     searchBar: {
       flexDirection: 'row',
@@ -743,31 +722,6 @@ function createStyles(colors: ThemeColors) {
       fontSize: FontSize.md,
       color: colors.textFaint,
     },
-    nearMeListBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.primaryPale,
-      borderRadius: Radius.md,
-      height: 40,
-      paddingHorizontal: 12,
-      gap: 6,
-      borderWidth: 1,
-      borderColor: colors.primaryDim,
-    },
-    nearMeListBtnActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-      ...Shadows.md,
-    },
-    nearMeListText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.base,
-      fontWeight: FontWeight.semibold,
-      color: colors.primaryMid,
-    },
-    nearMeListTextActive: {
-      color: colors.textOnPrimary,
-    },
     filtersScroll: {
       flexGrow: 0,
     },
@@ -783,8 +737,8 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'center',
       backgroundColor: colors.bgAlt,
       borderRadius: 100,
-      height: 36,
-      paddingHorizontal: 14,
+      height: 32,
+      paddingHorizontal: Spacing.sm,
       gap: Spacing.xxs,
       ...Shadows.sm,
     },
@@ -824,11 +778,11 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: Spacing.md,
-      paddingVertical: 6,
+      paddingVertical: Spacing.xxs,
     },
     listHeaderText: {
       fontFamily: Fonts.body,
-      fontSize: FontSize.base,
+      fontSize: FontSize.sm,
       fontWeight: FontWeight.medium,
       color: colors.textFaint,
     },
@@ -869,9 +823,9 @@ function createStyles(colors: ThemeColors) {
     venueCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 10,
-      paddingHorizontal: 12,
-      gap: 10,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.md,
+      gap: Spacing.sm,
     },
     venueCardHighlight: {
       borderLeftWidth: 3,
@@ -879,11 +833,11 @@ function createStyles(colors: ThemeColors) {
     },
     venueLeft: {
       flex: 1,
-      gap: 4,
+      gap: Spacing.xxs,
     },
     venueName: {
       fontFamily: Fonts.body,
-      fontSize: FontSize.md,
+      fontSize: FontSize.lg,
       fontWeight: FontWeight.semibold,
       color: colors.text,
     },
@@ -894,48 +848,48 @@ function createStyles(colors: ThemeColors) {
     },
     venueType: {
       fontFamily: Fonts.body,
-      fontSize: FontSize.sm,
+      fontSize: FontSize.base,
       color: colors.textMuted,
     },
     venueMetaSep: {
       fontFamily: Fonts.body,
-      fontSize: FontSize.sm,
+      fontSize: FontSize.base,
       color: colors.textFaint,
     },
     venueTables: {
       fontFamily: Fonts.body,
-      fontSize: FontSize.sm,
+      fontSize: FontSize.base,
       color: colors.textMuted,
     },
     conditionDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
+      width: 7,
+      height: 7,
+      borderRadius: 3.5,
     },
     venueCondition: {
       fontFamily: Fonts.body,
-      fontSize: FontSize.sm,
+      fontSize: FontSize.base,
       fontWeight: FontWeight.medium,
     },
     venueRight: {
       alignItems: 'flex-end',
-      gap: 4,
+      gap: Spacing.xxs,
     },
     distanceBadge: {
       backgroundColor: colors.bluePale,
-      borderRadius: 4,
-      paddingVertical: 2,
-      paddingHorizontal: 8,
+      borderRadius: Spacing.xxs,
+      paddingVertical: Spacing.xxs,
+      paddingHorizontal: Spacing.xs,
     },
     distanceText: {
       fontFamily: Fonts.body,
-      fontSize: FontSize.sm,
+      fontSize: FontSize.base,
       fontWeight: FontWeight.medium,
       color: colors.blue,
     },
     venueStars: {
       fontFamily: Fonts.body,
-      fontSize: FontSize.sm,
+      fontSize: FontSize.base,
       fontWeight: FontWeight.medium,
       color: colors.accent,
     },

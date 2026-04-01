@@ -11,9 +11,11 @@ const SNAP_BOTTOM = SCREEN_HEIGHT * 0.72; // peek (28% visible)
 
 interface DraggableSheetProps {
   children: React.ReactNode;
+  /** Content rendered floating above the sheet top edge, moves with the sheet */
+  floatingContent?: React.ReactNode;
 }
 
-export function DraggableSheet({ children }: DraggableSheetProps) {
+export function DraggableSheet({ children, floatingContent }: DraggableSheetProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -70,6 +72,11 @@ export function DraggableSheet({ children }: DraggableSheetProps) {
       style={[styles.sheet, { transform: [{ translateY }] }]}
       testID="draggable-sheet"
     >
+      {floatingContent && (
+        <View style={styles.floating} pointerEvents="box-none">
+          {floatingContent}
+        </View>
+      )}
       <View style={styles.handleArea} {...panResponder.panHandlers}>
         <View style={styles.handle} />
       </View>
@@ -91,7 +98,14 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.bg,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
+      overflow: 'visible',
       ...Shadows.lg,
+    },
+    floating: {
+      position: 'absolute',
+      top: -58,
+      right: 14,
+      zIndex: 10,
     },
     handleArea: {
       alignItems: 'center',
