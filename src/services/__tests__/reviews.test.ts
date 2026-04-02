@@ -1,3 +1,5 @@
+import { getUserReviewCount } from '../reviews';
+
 jest.mock('../../lib/supabase', () => {
   const selectMock = jest.fn();
   const eqMock = jest.fn();
@@ -15,8 +17,6 @@ jest.mock('../../lib/supabase', () => {
     __mocks: { fromMock, selectMock, eqMock },
   };
 });
-
-import { getUserReviewCount } from '../reviews';
 const { __mocks } = require('../../lib/supabase');
 
 describe('getUserReviewCount', () => {

@@ -69,7 +69,7 @@ export function AddVenueScreen() {
     if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
     Alert.alert(s('success'), s('venueSubmitted'));
     router.back();
-  }, [name, address, type, city, tablesCount, notes, user, router, geoLat, geoLng]);
+  }, [name, address, type, city, tablesCount, notes, user, router, geoLat, geoLng, s]);
 
   const handleGeocode = useCallback(async () => {
     if (!address.trim()) {

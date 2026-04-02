@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Animated, PanResponder, Platform, Alert, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, PanResponder, Platform, Alert, RefreshControl } from 'react-native';
+import Animated, {
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
+import { hapticMedium } from '../lib/haptics';
+import { Duration, Springs } from '../lib/motion';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -32,40 +42,65 @@ function getIconMap(colors: ThemeColors): Record<string, { name: string; color: 
 const DELETE_THRESHOLD = -80;
 
 function SwipeableRow({ children, onDelete, colors }: { children: React.ReactNode; onDelete: () => void; colors: ThemeColors }) {
-  const translateX = useRef(new Animated.Value(0)).current;
+  const translateX = useSharedValue(0);
+  const rowHeight = useSharedValue<number | undefined>(undefined);
+  const rowOpacity = useSharedValue(1);
   const sw = useMemo(() => createSwStyles(colors), [colors]);
   const [swiping, setSwiping] = useState(false);
+  const hapticFired = useRef(false);
 
   const panResponderRef = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy),
-      onPanResponderGrant: () => { setSwiping(true); },
+      onPanResponderGrant: () => { setSwiping(true); hapticFired.current = false; },
       onPanResponderMove: (_, g) => {
-        if (g.dx < 0) translateX.setValue(g.dx);
+        if (g.dx < 0) {
+          translateX.value = g.dx;
+          if (g.dx < DELETE_THRESHOLD && !hapticFired.current) {
+            hapticFired.current = true;
+            hapticMedium();
+          }
+        }
       },
       onPanResponderRelease: (_, g) => {
         if (g.dx < DELETE_THRESHOLD) {
-          Animated.timing(translateX, { toValue: -300, duration: 200, useNativeDriver: true }).start(onDelete);
-        } else {
-          Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start(() => {
-            setSwiping(false);
+          translateX.value = withTiming(-400, { duration: Duration.fast }, () => {
+            rowHeight.value = withTiming(0, { duration: Duration.base });
+            rowOpacity.value = withTiming(0, { duration: Duration.fast }, () => {
+              runOnJS(onDelete)();
+            });
           });
+        } else {
+          translateX.value = withSpring(0, Springs.snappy);
+          setSwiping(false);
         }
       },
     }),
   ).current;
 
+  const slideStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const containerStyle = useAnimatedStyle(() => ({
+    height: rowHeight.value,
+    opacity: rowOpacity.value,
+    overflow: 'hidden' as const,
+  }));
+
   return (
-    <View style={sw.container}>
-      {swiping && (
-        <View style={sw.deleteBackground}>
-          <Lucide name="trash-2" size={18} color={colors.textOnPrimary} />
-        </View>
-      )}
-      <Animated.View style={{ transform: [{ translateX }] }} {...panResponderRef.panHandlers}>
-        {children}
-      </Animated.View>
-    </View>
+    <Animated.View style={containerStyle}>
+      <View style={sw.container}>
+        {swiping && (
+          <View style={sw.deleteBackground}>
+            <Lucide name="trash-2" size={18} color={colors.textOnPrimary} />
+          </View>
+        )}
+        <Animated.View style={slideStyle} {...panResponderRef.panHandlers}>
+          {children}
+        </Animated.View>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -150,7 +185,7 @@ export function NotificationsScreen() {
         { text: s('deleteNotification'), style: 'destructive', onPress: doDelete },
       ]);
     }
-  }, [user, refreshUnreadCount]);
+  }, [user, refreshUnreadCount, s]);
 
   const handleAcceptFriend = useCallback(async (senderId: string, notifId: number) => {
     const friendshipId = pendingMap.get(senderId);
@@ -227,44 +262,46 @@ export function NotificationsScreen() {
         />
       ) : (
         <ScrollView style={styles.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
-          {notifications.map((n) => {
+          {notifications.map((n, index) => {
             const icon = ICON_MAP[n.type] || ICON_MAP.friend_request;
             return (
-              <SwipeableRow key={n.id} onDelete={() => handleDelete(n.id)} colors={colors}>
-                <TouchableOpacity
-                  style={[styles.card, !n.read && styles.cardUnread]}
-                  onPress={() => handleTap(n)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.iconWrap, { backgroundColor: icon.bg }]}>
-                    <Lucide name={icon.name} size={20} color={icon.color} />
-                  </View>
-                  <View style={styles.cardContent}>
-                    <Text style={[styles.cardTitle, !n.read && styles.cardTitleUnread]}>
-                      {n.title}
-                    </Text>
-                    <Text style={styles.cardBody}>{n.body}</Text>
-                    {/* Inline Accept/Decline for friend requests */}
-                    {n.type === 'friend_request' && n.sender_id && pendingMap.has(n.sender_id) && !respondedIds.has(n.sender_id) && (
-                      <View style={styles.inlineActions}>
-                        <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAcceptFriend(n.sender_id, n.id)}>
-                          <Lucide name="check" size={14} color={colors.textOnPrimary} />
-                          <Text style={styles.acceptBtnText}>{s('accept')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.declineBtn} onPress={() => handleDeclineFriend(n.sender_id, n.id)}>
-                          <Lucide name="x" size={14} color={colors.red} />
-                          <Text style={styles.declineBtnText}>{s('decline')}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                    {n.type === 'friend_request' && respondedIds.has(n.sender_id) && (
-                      <Text style={styles.respondedText}>{s('accepted')}</Text>
-                    )}
-                    <Text style={styles.cardTime}>{formatTime(n.created_at)}</Text>
-                  </View>
-                  {!n.read && <View style={styles.unreadDot} />}
-                </TouchableOpacity>
-              </SwipeableRow>
+              <Animated.View key={n.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
+                <SwipeableRow onDelete={() => handleDelete(n.id)} colors={colors}>
+                  <TouchableOpacity
+                    style={[styles.card, !n.read && styles.cardUnread]}
+                    onPress={() => handleTap(n)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.iconWrap, { backgroundColor: icon.bg }]}>
+                      <Lucide name={icon.name} size={20} color={icon.color} />
+                    </View>
+                    <View style={styles.cardContent}>
+                      <Text style={[styles.cardTitle, !n.read && styles.cardTitleUnread]}>
+                        {n.title}
+                      </Text>
+                      <Text style={styles.cardBody}>{n.body}</Text>
+                      {/* Inline Accept/Decline for friend requests */}
+                      {n.type === 'friend_request' && n.sender_id && pendingMap.has(n.sender_id) && !respondedIds.has(n.sender_id) && (
+                        <View style={styles.inlineActions}>
+                          <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAcceptFriend(n.sender_id, n.id)}>
+                            <Lucide name="check" size={14} color={colors.textOnPrimary} />
+                            <Text style={styles.acceptBtnText}>{s('accept')}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.declineBtn} onPress={() => handleDeclineFriend(n.sender_id, n.id)}>
+                            <Lucide name="x" size={14} color={colors.red} />
+                            <Text style={styles.declineBtnText}>{s('decline')}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      {n.type === 'friend_request' && respondedIds.has(n.sender_id) && (
+                        <Text style={styles.respondedText}>{s('accepted')}</Text>
+                      )}
+                      <Text style={styles.cardTime}>{formatTime(n.created_at)}</Text>
+                    </View>
+                    {!n.read && <View style={styles.unreadDot} />}
+                  </TouchableOpacity>
+                </SwipeableRow>
+              </Animated.View>
             );
           })}
         </ScrollView>

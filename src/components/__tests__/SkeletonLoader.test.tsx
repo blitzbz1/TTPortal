@@ -1,11 +1,6 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 
-const mockUseTheme = jest.fn();
-jest.mock('../../hooks/useTheme', () => ({
-  useTheme: () => mockUseTheme(),
-}));
-
 import {
   SkeletonBox,
   VenueCardSkeleton,
@@ -18,6 +13,11 @@ import {
   ProfileSkeleton,
   SkeletonList,
 } from '../SkeletonLoader';
+
+const mockUseTheme = jest.fn();
+jest.mock('../../hooks/useTheme', () => ({
+  useTheme: () => mockUseTheme(),
+}));
 
 const mockColors = {
   bg: '#fafaf8',

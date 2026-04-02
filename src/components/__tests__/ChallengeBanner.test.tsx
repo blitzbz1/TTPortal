@@ -1,6 +1,8 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 
+import { ChallengeBanner } from '../ChallengeBanner';
+
 jest.mock('../../hooks/useTheme', () => ({
   useTheme: () => ({
     colors: require('../../theme').lightColors,
@@ -31,8 +33,6 @@ jest.mock('../../services/challenges', () => ({
     monthReviews: 1,
   }),
 }));
-
-import { ChallengeBanner } from '../ChallengeBanner';
 
 beforeEach(() => {
   jest.clearAllMocks();

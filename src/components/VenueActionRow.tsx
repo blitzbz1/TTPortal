@@ -1,11 +1,17 @@
-import React, { useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Animated } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import ReanimatedAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Shadows } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { hapticLight } from '../lib/haptics';
+import { Springs } from '../lib/motion';
 
 interface VenueActionRowProps {
   favorited: boolean;
@@ -30,13 +36,16 @@ export function VenueActionRow({
   const { s } = useI18n();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const favScale = useRef(new Animated.Value(1)).current;
+  const favScale = useSharedValue(1);
+
+  const favAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: favScale.value }],
+  }));
 
   const animateFavorite = () => {
-    Animated.sequence([
-      Animated.timing(favScale, { toValue: 1.3, duration: 150, useNativeDriver: true }),
-      Animated.timing(favScale, { toValue: 1.0, duration: 150, useNativeDriver: true }),
-    ]).start();
+    favScale.value = withSpring(1.4, Springs.bouncy, () => {
+      favScale.value = withSpring(1, Springs.gentle);
+    });
   };
 
   const actions = [
@@ -94,7 +103,7 @@ export function VenueActionRow({
           {action.loading ? (
             <ActivityIndicator size="small" color={colors.primary} />
           ) : (
-            <Animated.View style={action.key === 'favorite' ? { transform: [{ scale: favScale }] } : undefined}>
+            <ReanimatedAnimated.View style={action.key === 'favorite' ? favAnimStyle : undefined}>
               <View style={[styles.iconCircle, action.active && { backgroundColor: action.activeColor + '18' }]}>
                 <Lucide
                   name={action.icon}
@@ -102,7 +111,7 @@ export function VenueActionRow({
                   color={action.active ? action.activeColor : colors.textMuted}
                 />
               </View>
-            </Animated.View>
+            </ReanimatedAnimated.View>
           )}
           <Text
             style={[styles.label, action.active && { color: action.activeColor, fontWeight: '600' }]}

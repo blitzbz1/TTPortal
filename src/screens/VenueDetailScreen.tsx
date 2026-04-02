@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Linking, Share, ActivityIndicator, Platform, Modal, Pressable, TextInput, Image, FlatList, Dimensions, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Linking, Share, ActivityIndicator, Platform, Modal, Pressable, TextInput, Image, FlatList, Dimensions, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -11,10 +11,6 @@ import { useI18n } from '../hooks/useI18n';
 import { getVenueById, uploadVenuePhoto, addPhotoToVenue } from '../services/venues';
 import { getProfile } from '../services/profiles';
 import * as ImagePicker from 'expo-image-picker';
-
-// Lazy-load ImageManipulator to avoid crash when native module is missing
-let ImageManipulator: typeof import('expo-image-manipulator') | null = null;
-try { ImageManipulator = require('expo-image-manipulator'); } catch {}
 import { getReviewsForVenue } from '../services/reviews';
 import { checkin, checkout, getUserActiveCheckin, getUserAnyActiveCheckin, getActiveFriendCheckins, getVenueChampion } from '../services/checkins';
 import { getFriendIds } from '../services/friends';
@@ -24,9 +20,19 @@ import { Card } from '../components/Card';
 import { safeErrorMessage } from '../lib/auth-utils';
 import { VenueActionRow } from '../components/VenueActionRow';
 import { CheckinSuccessSheet } from '../components/CheckinSuccessSheet';
-import { ReviewCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
 import { hapticLight } from '../lib/haptics';
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
+
+// Lazy-load ImageManipulator to avoid crash when native module is missing
+let ImageManipulator: typeof import('expo-image-manipulator') | null = null;
+try { ImageManipulator = require('expo-image-manipulator'); } catch {}
 
 interface Props {
   venueId?: string;
@@ -63,6 +69,18 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [champion, setChampion] = useState<{ userId: string; fullName: string; dayCount: number } | null>(null);
 
   const heartScale = useRef(new Animated.Value(1)).current;
+
+  // Scroll-driven collapsing header animation
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+  const photoAnimStyle = useAnimatedStyle(() => ({
+    height: interpolate(scrollY.value, [0, 150], [photoHeight, 100], Extrapolation.CLAMP),
+    opacity: interpolate(scrollY.value, [0, 120], [1, 0.6], Extrapolation.CLAMP),
+  }));
 
   useEffect(() => {
     if (!venueId || isNaN(Number(venueId)) || Number(venueId) < 1) return;
@@ -165,7 +183,7 @@ export function VenueDetailScreen({ venueId }: Props) {
       }
     }
     showDurationModal();
-  }, [user, venueId, showDurationModal]);
+  }, [user, venueId, showDurationModal, s]);
 
   const doCheckin = useCallback(async (durationMinutes: number) => {
     if (!user || !venueId) return;
@@ -189,7 +207,7 @@ export function VenueDetailScreen({ venueId }: Props) {
     const endTimeStr = endedAt.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
     setLastCheckinEndTime(endTimeStr);
     setSuccessSheetVisible(true);
-  }, [user, venueId, showAlert]);
+  }, [user, venueId, showAlert, s]);
 
   const handleCustomConfirm = useCallback(() => {
     if (customMode === 'minutes') {
@@ -210,7 +228,7 @@ export function VenueDetailScreen({ venueId }: Props) {
       const diffMin = Math.round((target.getTime() - now.getTime()) / 60_000);
       doCheckin(diffMin);
     }
-  }, [customMode, customMinutes, untilHour, untilMinute, doCheckin, showAlert]);
+  }, [customMode, customMinutes, untilHour, untilMinute, doCheckin, showAlert, s]);
 
   const handleCheckout = useCallback(async () => {
     if (!activeCheckin || !user) return;
@@ -219,7 +237,7 @@ export function VenueDetailScreen({ venueId }: Props) {
     setCheckinLoading(false);
     if (error) { showAlert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
     setActiveCheckin(null);
-  }, [activeCheckin, showAlert, user]);
+  }, [activeCheckin, showAlert, user, s]);
 
   const handleAddPhoto = useCallback(async () => {
     if (!venue || !venueId) return;
@@ -309,7 +327,7 @@ export function VenueDetailScreen({ venueId }: Props) {
       setFavorited(true);
       animateHeart();
     }
-  }, [user, venueId, favorited, animateHeart]);
+  }, [user, venueId, favorited, animateHeart, s]);
 
   const handleDirectionGoogle = useCallback(() => {
     if (!venue) return;
@@ -372,9 +390,9 @@ export function VenueDetailScreen({ venueId }: Props) {
         </View>
       </View>
 
-      <ScrollView style={styles.scroll}>
+      <Reanimated.ScrollView style={styles.scroll} onScroll={scrollHandler} scrollEventThrottle={16}>
         {/* Photo Strip */}
-        <View style={[styles.photoStrip, { height: photoHeight }]}>
+        <Reanimated.View style={[styles.photoStrip, photoAnimStyle]}>
           {venue.photos && venue.photos.length > 0 ? (
             <>
               <FlatList
@@ -432,7 +450,7 @@ export function VenueDetailScreen({ venueId }: Props) {
               )}
             </TouchableOpacity>
           )}
-        </View>
+        </Reanimated.View>
 
         {/* Action Row */}
         <VenueActionRow
@@ -621,7 +639,7 @@ export function VenueDetailScreen({ venueId }: Props) {
             </Card>
           ))}
         </View>
-      </ScrollView>
+      </Reanimated.ScrollView>
 
       {/* Check-in Success Sheet */}
       <CheckinSuccessSheet
@@ -790,9 +808,9 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
     },
     photoStrip: {
-      height: 200,
       backgroundColor: colors.bgMid,
       position: 'relative',
+      overflow: 'hidden',
     },
     photoPlaceholder: {
       flex: 1,

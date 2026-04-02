@@ -1,4 +1,6 @@
 // Mock expo-sqlite before any imports
+import { getEventParticipants, getEvents, sendEventInvites, sendEventUpdate, stopRecurrence } from '../events';
+
 jest.mock('expo-sqlite', () => ({
   openDatabaseSync: () => ({
     execSync: jest.fn(),
@@ -35,8 +37,6 @@ jest.mock('../../lib/supabase', () => ({
     rpc: (...args: any[]) => mockRpc(...args),
   },
 }));
-
-import { getEventParticipants, getEvents, sendEventInvites, sendEventUpdate, stopRecurrence } from '../events';
 
 describe('getEventParticipants', () => {
   beforeEach(() => jest.clearAllMocks());

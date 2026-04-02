@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 
+import { WriteReviewScreen } from '../WriteReviewScreen';
+
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn() }),
 }));
@@ -46,8 +48,6 @@ const mockHapticLight = jest.fn();
 jest.mock('../../lib/haptics', () => ({
   hapticLight: () => mockHapticLight(),
 }));
-
-import { WriteReviewScreen } from '../WriteReviewScreen';
 
 beforeEach(() => {
   jest.clearAllMocks();

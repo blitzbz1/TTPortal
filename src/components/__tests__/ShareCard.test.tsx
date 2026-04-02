@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 
+import { ShareCard } from '../ShareCard';
+
 jest.mock('../../hooks/useTheme', () => ({
   useTheme: () => ({
     colors: require('../../theme').lightColors,
@@ -18,8 +20,6 @@ jest.mock('../Icon', () => ({
     return <View testID={`icon-${name}`} {...props} />;
   },
 }));
-
-import { ShareCard } from '../ShareCard';
 
 beforeEach(() => {
   jest.clearAllMocks();

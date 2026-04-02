@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { Easings } from '../lib/motion';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
@@ -17,18 +19,27 @@ export function ChallengeBanner() {
 
   const challenge = getCurrentChallenge();
   const [progress, setProgress] = useState(0);
+  const progressWidth = useSharedValue(0);
 
   useEffect(() => {
     if (!user) return;
     getMonthlyStats(user.id).then((stats) => {
       setProgress(getChallengeProgress(challenge, stats));
     });
-  }, [user, challenge.id]);
-
-  if (!user) return null;
+  }, [user, challenge]);
 
   const percentage = Math.round((progress / challenge.target) * 100);
   const completed = progress >= challenge.target;
+
+  useEffect(() => {
+    progressWidth.value = withTiming(percentage, { duration: 600, easing: Easings.decelerate });
+  }, [percentage, progressWidth]);
+
+  const progressAnimStyle = useAnimatedStyle(() => ({
+    width: `${progressWidth.value}%`,
+  }));
+
+  if (!user) return null;
 
   return (
     <View style={styles.container} testID="challenge-banner">
@@ -40,7 +51,7 @@ export function ChallengeBanner() {
         <Text style={styles.desc}>{s(challenge.descKey)}</Text>
         {/* Progress bar */}
         <View style={styles.progressBg}>
-          <View style={[styles.progressFill, { width: `${percentage}%` }, completed && styles.progressComplete]} />
+          <Animated.View style={[styles.progressFill, progressAnimStyle, completed && styles.progressComplete]} />
         </View>
       </View>
       <Text style={[styles.count, completed && styles.countComplete]}>

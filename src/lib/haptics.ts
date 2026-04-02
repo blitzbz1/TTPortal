@@ -27,3 +27,11 @@ export function hapticSuccess() {
 export function hapticSelection() {
   Haptics?.selectionAsync();
 }
+
+export function hapticError() {
+  Haptics?.notificationAsync(Haptics.NotificationFeedbackType.Error);
+}
+
+export function hapticHeavy() {
+  Haptics?.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+}

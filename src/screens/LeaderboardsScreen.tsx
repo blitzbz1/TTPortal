@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -208,16 +209,18 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
             {/* Rank List */}
             <View style={styles.rankList}>
               {rankEntries.map((r, idx) => (
-                <View key={r.user_id ?? idx} style={styles.rankRow}>
-                  <Text style={styles.rankNum}>{r.rank ?? idx + 4}</Text>
-                  <View style={[styles.rankAvatar, { backgroundColor: PODIUM_COLORS[idx % PODIUM_COLORS.length] }]}>
-                    <Text style={styles.rankInitials}>{getInitials(r.full_name)}</Text>
+                <Animated.View key={r.user_id ?? idx} entering={FadeInDown.delay(Math.min(idx, 8) * 60).duration(300)}>
+                  <View style={styles.rankRow}>
+                    <Text style={styles.rankNum}>{r.rank ?? idx + 4}</Text>
+                    <View style={[styles.rankAvatar, { backgroundColor: PODIUM_COLORS[idx % PODIUM_COLORS.length] }]}>
+                      <Text style={styles.rankInitials}>{getInitials(r.full_name)}</Text>
+                    </View>
+                    <View style={styles.rankInfo}>
+                      <Text style={styles.rankName}>{r.full_name ?? s('user')}</Text>
+                      <Text style={styles.rankScore}>{getScoreLabel(r)}</Text>
+                    </View>
                   </View>
-                  <View style={styles.rankInfo}>
-                    <Text style={styles.rankName}>{r.full_name ?? s('user')}</Text>
-                    <Text style={styles.rankScore}>{getScoreLabel(r)}</Text>
-                  </View>
-                </View>
+                </Animated.View>
               ))}
             </View>
 

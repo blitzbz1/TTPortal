@@ -1,4 +1,6 @@
 // Mock expo-sqlite before any imports
+import { getFriends, getPendingRequests } from '../friends';
+
 jest.mock('expo-sqlite', () => ({
   openDatabaseSync: () => ({
     execSync: jest.fn(),
@@ -26,8 +28,6 @@ const mockFrom = jest.fn();
 jest.mock('../../lib/supabase', () => ({
   supabase: { from: (...args: any[]) => mockFrom(...args) },
 }));
-
-import { getFriends, getPendingRequests } from '../friends';
 
 describe('getFriends', () => {
   beforeEach(() => jest.clearAllMocks());

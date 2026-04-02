@@ -5,6 +5,15 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
+import Animated, {
+  FadeInRight,
+  FadeOutLeft,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
+import { Springs } from '../lib/motion';
+import { hapticSelection } from '../lib/haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useI18n } from '../hooks/useI18n';
@@ -54,6 +63,7 @@ export function OnboardingScreen() {
   };
 
   const toggleInterest = (key: string) => {
+    hapticSelection();
     setSelectedInterests((prev) => {
       const next = new Set(prev);
       if (next.has(key)) {
@@ -68,10 +78,7 @@ export function OnboardingScreen() {
   const renderDots = () => (
     <View style={styles.dots}>
       {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-        <View
-          key={i}
-          style={[styles.dot, i === step && styles.dotActive]}
-        />
+        <DotIndicator key={i} active={i === step} colors={colors} styles={styles} />
       ))}
     </View>
   );
@@ -156,7 +163,15 @@ export function OnboardingScreen() {
     >
       {renderDots()}
 
-      <View style={styles.body}>{stepRenderers[step]()}</View>
+      <View style={styles.body}>
+        <Animated.View
+          key={`step-${step}`}
+          entering={FadeInRight.duration(300)}
+          exiting={FadeOutLeft.duration(200)}
+        >
+          {stepRenderers[step]()}
+        </Animated.View>
+      </View>
 
       <View style={styles.footer}>
         <Pressable
@@ -183,6 +198,23 @@ export function OnboardingScreen() {
   );
 }
 
+function DotIndicator({ active, colors, styles: s }: { active: boolean; colors: ThemeColors; styles: ReturnType<typeof createStyles> }) {
+  const width = useSharedValue(active ? 24 : 8);
+  const bg = useSharedValue(active ? 1 : 0);
+
+  React.useEffect(() => {
+    width.value = withSpring(active ? 24 : 8, Springs.snappy);
+    bg.value = withSpring(active ? 1 : 0, Springs.snappy);
+  }, [active, width, bg]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    width: width.value,
+    backgroundColor: bg.value > 0.5 ? colors.primary : colors.borderLight,
+  }));
+
+  return <Animated.View style={[s.dot, animStyle]} />;
+}
+
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: {
@@ -203,9 +235,7 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.borderLight,
     },
     dotActive: {
-      width: 24,
-      backgroundColor: colors.primary,
-      borderRadius: 4,
+      // Kept for type compat; animation handles width + color
     },
     body: {
       flex: 1,

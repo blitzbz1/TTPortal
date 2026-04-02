@@ -24,7 +24,7 @@ jest.mock('../../../hooks/useSession', () => ({
 // Mock expo-router Tabs to capture screen options
 const mockTabsScreen = jest.fn((_props: any) => null);
 jest.mock('expo-router', () => {
-  // eslint-disable-next-line react/display-name
+   
   const TabsComponent: any = ({ children }: any) => children;
   // eslint-disable-next-line react/display-name
   TabsComponent.Screen = (props: any) => { mockTabsScreen(props); return null; };

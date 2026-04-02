@@ -1,11 +1,97 @@
-import React, { useEffect, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, Animated, Share } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, Share } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withDelay,
+  withSequence,
+  FadeInUp,
+} from 'react-native-reanimated';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { hapticSuccess } from '../lib/haptics';
+import { Springs, Duration, Easings } from '../lib/motion';
+
+/* ── Tiny particle burst (confetti-lite, no deps) ── */
+const PARTICLE_COUNT = 8;
+const PARTICLE_COLORS = ['#34C759', '#FFD60A', '#FF9F0A', '#30D158', '#64D2FF', '#BF5AF2'];
+
+function CelebrationBurst({ visible }: { visible: boolean }) {
+  const particles = useMemo(
+    () =>
+      Array.from({ length: PARTICLE_COUNT }, (_, i) => {
+        const angle = (i / PARTICLE_COUNT) * 2 * Math.PI;
+        return { angle, color: PARTICLE_COLORS[i % PARTICLE_COLORS.length] };
+      }),
+    [],
+  );
+
+  return (
+    <>
+      {particles.map((p, i) => (
+        <ParticleDot key={i} angle={p.angle} color={p.color} visible={visible} index={i} />
+      ))}
+    </>
+  );
+}
+
+function ParticleDot({ angle, color, visible, index }: { angle: number; color: string; visible: boolean; index: number }) {
+  const scale = useSharedValue(0);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (visible) {
+      const radius = 50 + Math.random() * 20;
+      const targetX = Math.cos(angle) * radius;
+      const targetY = Math.sin(angle) * radius;
+
+      scale.value = 0;
+      translateX.value = 0;
+      translateY.value = 0;
+      opacity.value = 0;
+
+      // Delay particles until after checkmark springs in (~400ms)
+      scale.value = withDelay(400, withSequence(
+        withSpring(1, Springs.celebration),
+        withDelay(300, withTiming(0, { duration: Duration.fast })),
+      ));
+      translateX.value = withDelay(400, withSpring(targetX, Springs.bouncy));
+      translateY.value = withDelay(400, withSpring(targetY, Springs.bouncy));
+      opacity.value = withDelay(400, withSequence(
+        withTiming(1, { duration: Duration.instant }),
+        withDelay(500, withTiming(0, { duration: Duration.base })),
+      ));
+    } else {
+      scale.value = 0;
+      opacity.value = 0;
+    }
+  }, [visible, angle, scale, translateX, translateY, opacity]);
+
+  const style = useAnimatedStyle(() => ({
+    position: 'absolute' as const,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: color,
+    opacity: opacity.value,
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  return <Animated.View style={style} />;
+}
+
+/* ── Main component ── */
 
 interface CheckinSuccessSheetProps {
   visible: boolean;
@@ -24,39 +110,19 @@ export function CheckinSuccessSheet({
   const { s } = useI18n();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const scale = useRef(new Animated.Value(0)).current;
-  const xpOpacity = useRef(new Animated.Value(0)).current;
-  const xpTranslate = useRef(new Animated.Value(20)).current;
+  const checkScale = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
       hapticSuccess();
-      scale.setValue(0);
-      xpOpacity.setValue(0);
-      xpTranslate.setValue(20);
-
-      Animated.sequence([
-        Animated.spring(scale, {
-          toValue: 1,
-          friction: 4,
-          tension: 80,
-          useNativeDriver: true,
-        }),
-        Animated.parallel([
-          Animated.timing(xpOpacity, {
-            toValue: 1,
-            duration: 400,
-            useNativeDriver: true,
-          }),
-          Animated.timing(xpTranslate, {
-            toValue: 0,
-            duration: 400,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]).start();
+      checkScale.value = 0;
+      checkScale.value = withSpring(1, Springs.celebration);
     }
-  }, [visible, scale, xpOpacity, xpTranslate]);
+  }, [visible, checkScale]);
+
+  const checkStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkScale.value }],
+  }));
 
   if (!visible) return null;
 
@@ -68,10 +134,13 @@ export function CheckinSuccessSheet({
             <View style={styles.handle} />
           </View>
 
-          {/* Animated checkmark */}
-          <Animated.View style={[styles.checkCircle, { transform: [{ scale }] }]}>
-            <Lucide name="check" size={36} color={colors.textOnPrimary} />
-          </Animated.View>
+          {/* Animated checkmark with particle burst */}
+          <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+            <CelebrationBurst visible={visible} />
+            <Animated.View style={[styles.checkCircle, checkStyle]}>
+              <Lucide name="check" size={36} color={colors.textOnPrimary} />
+            </Animated.View>
+          </View>
 
           <Text style={styles.title}>{s('checkinSuccess')}</Text>
           <Text style={styles.venue}>{venueName}</Text>
@@ -83,8 +152,11 @@ export function CheckinSuccessSheet({
             </View>
           )}
 
-          {/* XP animation */}
-          <Animated.View style={[styles.xpRow, { opacity: xpOpacity, transform: [{ translateY: xpTranslate }] }]}>
+          {/* XP animation — slides up after checkmark */}
+          <Animated.View
+            entering={FadeInUp.delay(600).duration(400).easing(Easings.decelerate)}
+            style={styles.xpRow}
+          >
             <Text style={styles.xpText}>+10 XP</Text>
           </Animated.View>
 

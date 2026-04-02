@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 
+import { EmptyState } from '../EmptyState';
+
 const mockUseTheme = jest.fn();
 jest.mock('../../hooks/useTheme', () => ({
   useTheme: () => mockUseTheme(),
@@ -12,8 +14,6 @@ jest.mock('../Icon', () => ({
     return <View testID={`icon-${name}`} {...props} />;
   },
 }));
-
-import { EmptyState } from '../EmptyState';
 
 const mockColors = {
   bg: '#fafaf8',

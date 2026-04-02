@@ -78,7 +78,7 @@ export function WriteReviewScreen({ venueId }: Props) {
     if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
     Alert.alert(s('success'), s('reviewPublished'));
     router.back();
-  }, [rating, reviewText, tags, user, venueId, router]);
+  }, [rating, reviewText, tags, user, venueId, router, s]);
 
   return (
     <SafeAreaView style={styles.container}>

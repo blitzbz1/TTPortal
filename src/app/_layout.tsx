@@ -1,3 +1,4 @@
+import 'react-native-reanimated';
 import { useFonts } from 'expo-font';
 import {
   Syne_400Regular,
@@ -12,12 +13,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, LogBox, Platform, StyleSheet, View } from 'react-native';
-import 'react-native-reanimated';
-
-// Suppress LogBox in development to prevent overlay from blocking tab bar during E2E tests
-if (__DEV__) {
-  LogBox.ignoreAllLogs(true);
-}
 import { SessionProvider } from '../contexts/SessionProvider';
 import { NotificationProvider } from '../contexts/NotificationProvider';
 import { I18nProvider } from '../contexts/I18nProvider';
@@ -25,6 +20,11 @@ import { ThemeProvider } from '../contexts/ThemeProvider';
 import { useSession } from '../hooks/useSession';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
+
+// Suppress LogBox in development to prevent overlay from blocking tab bar during E2E tests
+if (__DEV__) {
+  LogBox.ignoreAllLogs(true);
+}
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -88,14 +88,14 @@ function RootNavigator() {
 
   const nav = (
     <>
-      <Stack>
+      <Stack screenOptions={{ animation: 'fade' }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-        <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
-        <Stack.Screen name="reset-password" options={{ headerShown: false }} />
-        <Stack.Screen name="venue/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="(protected)" options={{ headerShown: false }} />
+        <Stack.Screen name="sign-in" options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen name="forgot-password" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="reset-password" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="venue/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="(protected)" options={{ headerShown: false, animation: 'slide_from_right' }} />
       </Stack>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </>

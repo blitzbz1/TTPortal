@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Animated, { BounceIn, FadeInUp } from 'react-native-reanimated';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
@@ -29,15 +30,19 @@ export function EmptyState({
 
   return (
     <View style={styles.container} testID="empty-state">
-      <View style={[styles.iconWrap, iconBg ? { backgroundColor: iconBg } : null]}>
+      <Animated.View entering={BounceIn.duration(600).delay(100)} style={[styles.iconWrap, iconBg ? { backgroundColor: iconBg } : null]}>
         <Lucide name={icon} size={32} color={iconColor || colors.textFaint} />
-      </View>
-      <Text style={styles.title}>{title}</Text>
-      {description ? <Text style={styles.description}>{description}</Text> : null}
+      </Animated.View>
+      <Animated.View entering={FadeInUp.duration(350).delay(350)}>
+        <Text style={styles.title}>{title}</Text>
+        {description ? <Text style={styles.description}>{description}</Text> : null}
+      </Animated.View>
       {ctaLabel && onCtaPress ? (
-        <TouchableOpacity style={styles.cta} onPress={onCtaPress} testID="empty-state-cta">
-          <Text style={styles.ctaText}>{ctaLabel}</Text>
-        </TouchableOpacity>
+        <Animated.View entering={FadeInUp.duration(350).delay(500)}>
+          <TouchableOpacity style={styles.cta} onPress={onCtaPress} testID="empty-state-cta">
+            <Text style={styles.ctaText}>{ctaLabel}</Text>
+          </TouchableOpacity>
+        </Animated.View>
       ) : null}
     </View>
   );
@@ -74,6 +79,7 @@ function createStyles(colors: ThemeColors) {
       color: colors.textMuted,
       textAlign: 'center',
       lineHeight: 18,
+      marginTop: Spacing.xxs,
     },
     cta: {
       backgroundColor: colors.primary,

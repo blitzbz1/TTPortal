@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 
+import { OnboardingScreen } from '../OnboardingScreen';
+
 const mockReplace = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: (...a: unknown[]) => mockReplace(...a) }),
@@ -37,8 +39,6 @@ jest.mock('../../lib/haptics', () => ({
   hapticLight: jest.fn(),
   hapticSelection: jest.fn(),
 }));
-
-import { OnboardingScreen } from '../OnboardingScreen';
 
 beforeEach(() => {
   jest.clearAllMocks();

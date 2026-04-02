@@ -1,4 +1,12 @@
 // Mock expo-sqlite before any imports
+import {
+  checkin,
+  getActiveCheckins,
+  getActiveFriendCheckins,
+  getUserActiveCheckin,
+  getUserAnyActiveCheckin,
+} from '../checkins';
+
 jest.mock('expo-sqlite', () => ({
   openDatabaseSync: () => ({
     execSync: jest.fn(),
@@ -31,14 +39,6 @@ const mockFrom = jest.fn();
 jest.mock('../../lib/supabase', () => ({
   supabase: { from: (...args: any[]) => mockFrom(...args) },
 }));
-
-import {
-  checkin,
-  getActiveCheckins,
-  getActiveFriendCheckins,
-  getUserActiveCheckin,
-  getUserAnyActiveCheckin,
-} from '../checkins';
 
 beforeEach(() => jest.clearAllMocks());
 

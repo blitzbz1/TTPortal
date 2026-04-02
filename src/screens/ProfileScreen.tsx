@@ -24,6 +24,8 @@ const BADGES = [
   { key: 'regular', icon: 'flame', labelKey: 'badgeRegular' },
 ] as const;
 
+
+
 interface ProfileScreenProps {
   hideTabBar?: boolean;
 }
@@ -141,11 +143,6 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
     );
   }
 
-  const statsData = [
-    { value: stats?.total_checkins ?? 0, label: s('checkins') },
-    { value: stats?.unique_venues ?? 0, label: s('venuesVisited') },
-    { value: friendCount, label: s('friends') },
-  ];
 
   return (
     <View style={styles.container}>
@@ -174,7 +171,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
               return (
                 <View key={badge.key} style={styles.badgeItem}>
                   <View style={[styles.badgeCircle, !unlocked && styles.badgeCircleLocked]}>
-                    <View style={!unlocked ? { opacity: 0.4 } : undefined}>
+                    <View style={!unlocked ? { opacity: 0.5 } : undefined}>
                       <Lucide
                         name={badge.icon}
                         size={22}
@@ -319,42 +316,6 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     username: {
       fontFamily: Fonts.body,
       fontSize: FontSize.md,
-      color: colors.textFaint,
-    },
-    statsRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 12,
-      backgroundColor: colors.bgAlt,
-      borderRadius: Radius.md,
-      paddingVertical: 10,
-      paddingHorizontal: 4,
-      ...Shadows.sm,
-    },
-    statItem: {
-      flex: 1,
-      alignItems: 'center',
-      flexDirection: 'column',
-      gap: 2,
-    },
-    statDivider: {
-      position: 'absolute',
-      left: 0,
-      top: 4,
-      bottom: 4,
-      width: 1,
-      backgroundColor: colors.borderLight,
-    },
-    statValue: {
-      fontFamily: Fonts.heading,
-      fontSize: FontSize.xxxl,
-      fontWeight: FontWeight.bold,
-      color: colors.primary,
-    },
-    statLabel: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.sm,
-      fontWeight: FontWeight.medium,
       color: colors.textFaint,
     },
 

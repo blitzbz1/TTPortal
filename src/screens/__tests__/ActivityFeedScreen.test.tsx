@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
+import { ActivityFeedScreen } from '../ActivityFeedScreen';
+
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -71,8 +73,6 @@ const mockGetFriendFeed = jest.fn();
 jest.mock('../../services/feed', () => ({
   getFriendFeed: (...args: any[]) => mockGetFriendFeed(...args),
 }));
-
-import { ActivityFeedScreen } from '../ActivityFeedScreen';
 
 beforeEach(() => {
   jest.clearAllMocks();

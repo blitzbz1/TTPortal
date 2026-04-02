@@ -72,7 +72,7 @@ export function ConditionVotingScreen({ venueId }: Props) {
 
     load();
     return () => { cancelled = true; };
-  }, [venueId]);
+  }, [venueId, s]);
 
   const handlePickPhoto = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -103,7 +103,7 @@ export function ConditionVotingScreen({ venueId }: Props) {
     if (error) { Alert.alert(s('error'), error.message); return; }
     Alert.alert(s('success'), s('voteRecorded'));
     router.back();
-  }, [user, venueId, selected, router, photoUri]);
+  }, [user, venueId, selected, router, photoUri, s]);
 
   return (
     <SafeAreaView style={styles.container}>

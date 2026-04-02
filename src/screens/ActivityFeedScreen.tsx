@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Card } from '../components/Card';
 import { Lucide } from '../components/Icon';
 import { EmptyState } from '../components/EmptyState';
 import { NotificationSkeleton, SkeletonList } from '../components/SkeletonLoader';
@@ -109,7 +109,7 @@ export function ActivityFeedScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />
           }
         >
-          {feed.map((item) => {
+          {feed.map((item, index) => {
             const isCheckin = item.type === 'checkin';
             const iconName = isCheckin ? 'map-pin' : 'star';
             const iconColor = isCheckin ? colors.primaryLight : colors.accent;
@@ -117,8 +117,8 @@ export function ActivityFeedScreen() {
             const actionText = isCheckin ? s('feedCheckinAction') : s('feedReviewAction');
 
             return (
+              <Animated.View key={item.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
               <TouchableOpacity
-                key={item.id}
                 style={styles.feedCard}
                 onPress={() => router.push(`/venue/${item.venueId}` as any)}
                 activeOpacity={0.7}
@@ -139,6 +139,7 @@ export function ActivityFeedScreen() {
                   <Text style={styles.timeText}>{formatTime(item.timestamp)}</Text>
                 </View>
               </TouchableOpacity>
+              </Animated.View>
             );
           })}
         </ScrollView>

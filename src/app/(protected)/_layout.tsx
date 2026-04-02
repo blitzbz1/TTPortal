@@ -6,17 +6,17 @@ export default function ProtectedLayout() {
   if (!authed) return null;
 
   return (
-    <Stack>
-      <Stack.Screen name="add-venue" options={{ headerShown: false }} />
-      <Stack.Screen name="review/[venueId]" options={{ headerShown: false }} />
-      <Stack.Screen name="condition-vote/[venueId]" options={{ headerShown: false }} />
-      <Stack.Screen name="friends" options={{ headerShown: false }} />
-      <Stack.Screen name="play-history" options={{ headerShown: false }} />
-      <Stack.Screen name="admin" options={{ headerShown: false }} />
-      <Stack.Screen name="create-event" options={{ headerShown: false }} />
-      <Stack.Screen name="notifications" options={{ headerShown: false }} />
-      <Stack.Screen name="settings" options={{ headerShown: false }} />
-      <Stack.Screen name="leaderboard" options={{ headerShown: false }} />
+    <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+      <Stack.Screen name="add-venue" />
+      <Stack.Screen name="review/[venueId]" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="condition-vote/[venueId]" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="friends" />
+      <Stack.Screen name="play-history" />
+      <Stack.Screen name="admin" />
+      <Stack.Screen name="create-event" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="notifications" />
+      <Stack.Screen name="settings" />
+      <Stack.Screen name="leaderboard" />
     </Stack>
   );
 }

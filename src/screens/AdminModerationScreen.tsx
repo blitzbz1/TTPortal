@@ -63,7 +63,7 @@ export function AdminModerationScreen() {
       return;
     }
     setPendingVenues((prev) => prev.filter((v) => v.id !== id));
-  }, [user]);
+  }, [user, s]);
 
   const handleReject = useCallback(async (id: number) => {
     const { error } = await rejectVenue(id, user!.id);
@@ -72,7 +72,7 @@ export function AdminModerationScreen() {
       return;
     }
     setPendingVenues((prev) => prev.filter((v) => v.id !== id));
-  }, [user]);
+  }, [user, s]);
 
   const handleKeep = useCallback(async (id: number) => {
     const { error } = await keepReview(id, user!.id);
@@ -81,7 +81,7 @@ export function AdminModerationScreen() {
       return;
     }
     setFlaggedReviews((prev) => prev.filter((r) => r.id !== id));
-  }, [user]);
+  }, [user, s]);
 
   const handleDelete = useCallback(async (id: number) => {
     const { error } = await deleteReview(id, user!.id);
@@ -90,7 +90,7 @@ export function AdminModerationScreen() {
       return;
     }
     setFlaggedReviews((prev) => prev.filter((r) => r.id !== id));
-  }, [user]);
+  }, [user, s]);
 
   if (adminLoading) return <ActivityIndicator />;
   if (!isAdmin) {

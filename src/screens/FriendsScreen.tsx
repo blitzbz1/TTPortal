@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, Modal, Pressable, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -106,7 +107,7 @@ export function FriendsScreen() {
       return;
     }
     fetchData();
-  }, [fetchData, user]);
+  }, [fetchData, user, s]);
 
   const handleDecline = useCallback(async (id: number) => {
     if (!user) return;
@@ -116,7 +117,7 @@ export function FriendsScreen() {
       return;
     }
     setPending((prev) => prev.filter((p) => p.id !== id));
-  }, [user]);
+  }, [user, s]);
 
   const handleInvite = useCallback(() => {
     setInviteEmail('');
@@ -250,31 +251,33 @@ export function FriendsScreen() {
             {pending.length > 0 && (activeTab === 'all' || activeTab === 'pending') && (
               <View style={styles.section}>
                 <Text style={styles.sectionLabel}>{s('receivedInvites')}</Text>
-                {pending.map((inv) => (
-                  <View key={inv.id} style={styles.inviteCard}>
-                    <View style={[styles.inviteAvatar, { backgroundColor: colors.purple }]}>
-                      <Text style={styles.inviteInitials}>
-                        {getInitials(inv.requester?.full_name)}
-                      </Text>
+                {pending.map((inv, index) => (
+                  <Animated.View key={inv.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
+                    <View style={styles.inviteCard}>
+                      <View style={[styles.inviteAvatar, { backgroundColor: colors.purple }]}>
+                        <Text style={styles.inviteInitials}>
+                          {getInitials(inv.requester?.full_name)}
+                        </Text>
+                      </View>
+                      <View style={styles.inviteInfo}>
+                        <Text style={styles.inviteName}>
+                          {inv.requester?.full_name ?? s('user')}
+                        </Text>
+                        <Text style={styles.inviteMutual}>{s('friendRequest')}</Text>
+                      </View>
+                      <View style={styles.inviteActions}>
+                        <TouchableOpacity
+                          style={styles.acceptBtn}
+                          onPress={() => handleAccept(inv.id)}
+                        >
+                          <Text style={styles.acceptText}>{s('accept')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDecline(inv.id)}>
+                          <Lucide name="x" size={20} color={colors.textFaint} />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <View style={styles.inviteInfo}>
-                      <Text style={styles.inviteName}>
-                        {inv.requester?.full_name ?? s('user')}
-                      </Text>
-                      <Text style={styles.inviteMutual}>{s('friendRequest')}</Text>
-                    </View>
-                    <View style={styles.inviteActions}>
-                      <TouchableOpacity
-                        style={styles.acceptBtn}
-                        onPress={() => handleAccept(inv.id)}
-                      >
-                        <Text style={styles.acceptText}>{s('accept')}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleDecline(inv.id)}>
-                        <Lucide name="x" size={20} color={colors.textFaint} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                  </Animated.View>
                 ))}
               </View>
             )}
@@ -303,23 +306,25 @@ export function FriendsScreen() {
                   filteredFriends.map((friendItem, index) => {
                     const profile = friendItem.friend;
                     return (
-                      <Card key={friendItem.id} shadow="sm" borderRadius={14} style={styles.friendRow}>
-                        <View style={styles.friendAvatarWrap}>
-                          <View style={[styles.friendAvatar, { backgroundColor: getColor(index) }]}>
-                            <Text style={styles.friendInitials}>
-                              {getInitials(profile?.full_name)}
+                      <Animated.View key={friendItem.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
+                        <Card shadow="sm" borderRadius={14} style={styles.friendRow}>
+                          <View style={styles.friendAvatarWrap}>
+                            <View style={[styles.friendAvatar, { backgroundColor: getColor(index) }]}>
+                              <Text style={styles.friendInitials}>
+                                {getInitials(profile?.full_name)}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={styles.friendInfo}>
+                            <Text style={styles.friendName}>
+                              {profile?.full_name ?? s('user')}
+                            </Text>
+                            <Text style={styles.friendStatus}>
+                              {profile?.city ?? ''}
                             </Text>
                           </View>
-                        </View>
-                        <View style={styles.friendInfo}>
-                          <Text style={styles.friendName}>
-                            {profile?.full_name ?? s('user')}
-                          </Text>
-                          <Text style={styles.friendStatus}>
-                            {profile?.city ?? ''}
-                          </Text>
-                        </View>
-                      </Card>
+                        </Card>
+                      </Animated.View>
                     );
                   })
                 )}
@@ -347,30 +352,32 @@ export function FriendsScreen() {
                       ? startedAt.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
                       : '';
                     return (
-                      <Card key={friendItem.id} shadow="sm" borderRadius={14} style={styles.friendRow}>
-                        <View style={styles.friendAvatarWrap}>
-                          <View style={[styles.friendAvatar, { backgroundColor: getColor(index) }]}>
-                            <Text style={styles.friendInitials}>
-                              {getInitials(profile?.full_name)}
+                      <Animated.View key={friendItem.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
+                        <Card shadow="sm" borderRadius={14} style={styles.friendRow}>
+                          <View style={styles.friendAvatarWrap}>
+                            <View style={[styles.friendAvatar, { backgroundColor: getColor(index) }]}>
+                              <Text style={styles.friendInitials}>
+                                {getInitials(profile?.full_name)}
+                              </Text>
+                            </View>
+                            <View style={styles.playingDot} />
+                          </View>
+                          <View style={styles.friendInfo}>
+                            <Text style={styles.friendName}>
+                              {profile?.full_name ?? s('user')}
+                            </Text>
+                            <Text style={styles.playingVenue} numberOfLines={1}>
+                              📍 {venueName}{venueCity ? `, ${venueCity}` : ''}
+                            </Text>
+                            <Text style={styles.playingTime}>
+                              {s('checkedInSince')} {timeStr}
                             </Text>
                           </View>
-                          <View style={styles.playingDot} />
-                        </View>
-                        <View style={styles.friendInfo}>
-                          <Text style={styles.friendName}>
-                            {profile?.full_name ?? s('user')}
-                          </Text>
-                          <Text style={styles.playingVenue} numberOfLines={1}>
-                            📍 {venueName}{venueCity ? `, ${venueCity}` : ''}
-                          </Text>
-                          <Text style={styles.playingTime}>
-                            {s('checkedInSince')} {timeStr}
-                          </Text>
-                        </View>
-                        <View style={styles.playingBadge}>
-                          <Text style={styles.playingBadgeText}>🏓</Text>
-                        </View>
-                      </Card>
+                          <View style={styles.playingBadge}>
+                            <Text style={styles.playingBadgeText}>🏓</Text>
+                          </View>
+                        </Card>
+                      </Animated.View>
                     );
                   })
                 )}

@@ -1,3 +1,5 @@
+import { getFriendFeed } from '../feed';
+
 jest.mock('../../lib/supabase', () => {
   const createChain = (resolvedValue: any) => {
     const chain: any = {};
@@ -49,8 +51,6 @@ jest.mock('../../lib/supabase', () => {
     __mocks: { fromMock },
   };
 });
-
-import { getFriendFeed } from '../feed';
 
 beforeEach(() => jest.clearAllMocks());
 

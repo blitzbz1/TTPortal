@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 
+import { VenueActionRow } from '../VenueActionRow';
+
 const mockUseTheme = jest.fn();
 jest.mock('../../hooks/useTheme', () => ({
   useTheme: () => mockUseTheme(),
@@ -21,8 +23,6 @@ jest.mock('../Icon', () => ({
 jest.mock('../../lib/haptics', () => ({
   hapticLight: jest.fn(),
 }));
-
-import { VenueActionRow } from '../VenueActionRow';
 
 const mockColors = {
   bg: '#fafaf8',

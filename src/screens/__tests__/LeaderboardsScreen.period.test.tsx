@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 
+import { LeaderboardsScreen } from '../LeaderboardsScreen';
+
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
 }));
@@ -51,8 +53,6 @@ jest.mock('../../components/EmptyState', () => ({
     return <Text>{title}</Text>;
   },
 }));
-
-import { LeaderboardsScreen } from '../LeaderboardsScreen';
 
 beforeEach(() => {
   jest.clearAllMocks();

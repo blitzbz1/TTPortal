@@ -2,13 +2,13 @@ import React from 'react';
 import { Text } from 'react-native';
 import { render } from '@testing-library/react-native';
 
+import { DraggableSheet } from '../DraggableSheet';
+
 jest.mock('../../hooks/useTheme', () => ({
   useTheme: () => ({
     colors: require('../../theme').lightColors,
   }),
 }));
-
-import { DraggableSheet } from '../DraggableSheet';
 
 describe('DraggableSheet', () => {
   it('renders with testID', () => {

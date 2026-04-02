@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, Pressable, RefreshControl } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -233,7 +234,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
           />
         ) : (
           <View style={styles.eventsList}>
-            {events.map((event) => {
+            {events.map((event, index) => {
               const badge = getBadgeInfo(event);
               const isJoined = event.event_participants?.some(
                 (p: any) => p.user_id === user?.id,
@@ -242,7 +243,8 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
               const venueName = event.venues?.name ?? s('unknownVenue');
 
               return (
-                <Card key={event.id} shadow="sm" borderRadius={14}>
+                <Animated.View key={event.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
+                <Card shadow="sm" borderRadius={14}>
                   <TouchableOpacity style={styles.eventCard} activeOpacity={0.7} onPress={() => openDetail(event)}>
                     {/* Top */}
                     <View style={styles.eventTop}>
@@ -308,6 +310,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                     </View>
                   </TouchableOpacity>
                 </Card>
+                </Animated.View>
               );
             })}
           </View>

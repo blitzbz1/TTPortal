@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getProfile, updateProfile } from '../services/profiles';

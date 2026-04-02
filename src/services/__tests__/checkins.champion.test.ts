@@ -1,3 +1,5 @@
+import { getVenueChampion } from '../checkins';
+
 jest.mock('../../lib/supabase', () => {
   const chain: any = {};
   chain.select = jest.fn().mockReturnValue(chain);
@@ -17,8 +19,6 @@ jest.mock('../../lib/supabase', () => {
     supabase: { from: jest.fn(() => chain) },
   };
 });
-
-import { getVenueChampion } from '../checkins';
 
 describe('getVenueChampion', () => {
   it('returns the user with the most unique check-in days', async () => {

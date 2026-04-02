@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, RefreshControl } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Card } from '../components/Card';
@@ -24,7 +25,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
   const insets = useSafeAreaInsets();
   const [favorites, setFavorites] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [sortMode, setSortMode] = useState<SortMode>('name');
+  const [sortMode] = useState<SortMode>('name');
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useSession();
   const { s } = useI18n();
@@ -47,7 +48,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, s]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -69,11 +70,8 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
       return;
     }
     setFavorites((prev) => prev.filter((f) => f.venue_id !== venueId));
-  }, [user]);
+  }, [user, s]);
 
-  const handleToggleSort = useCallback(() => {
-    setSortMode((prev) => (prev === 'recent' ? 'name' : 'recent'));
-  }, []);
 
   const sortedFavorites = [...favorites].sort((a, b) => {
     if (sortMode === 'name') {
@@ -146,7 +144,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
             iconBg={colors.redPale}
           />
         ) : (
-          sortedFavorites.map((fav) => {
+          sortedFavorites.map((fav, index) => {
             const venue = fav.venues;
             const typeInfo = getVenueTypeInfo(venue);
             const condInfo = getConditionInfo(venue);
@@ -154,7 +152,8 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
             const savedDate = new Date(fav.created_at).toLocaleDateString('ro-RO');
 
             return (
-              <Card key={fav.id} shadow="sm" borderRadius={14} style={styles.favCard}>
+              <Animated.View key={fav.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
+              <Card shadow="sm" borderRadius={14} style={styles.favCard}>
                 <TouchableOpacity
                   style={styles.favCardInner}
                   onPress={() => router.push(`/venue/${fav.venue_id}` as any)}
@@ -186,6 +185,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
                   </TouchableOpacity>
                 </TouchableOpacity>
               </Card>
+              </Animated.View>
             );
           })
         )}

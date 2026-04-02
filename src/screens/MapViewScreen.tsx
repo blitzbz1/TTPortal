@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, Platform, RefreshControl } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Callout } from 'react-native-maps';
 import { useRouter } from 'expo-router';
@@ -490,42 +491,44 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
                 const tablesText = venue.tables_count != null ? `${venue.tables_count} ${s('tables')}` : '';
 
                 return (
-                  <Card key={venue.id} shadow="sm" borderRadius={Radius.md} style={{ marginBottom: Spacing.xs }}>
-                    <TouchableOpacity
-                      style={[styles.venueCard, index === 0 && styles.venueCardHighlight]}
-                      onPress={() => router.push(`/venue/${venue.id}` as any)}
-                      accessibilityLabel={venue.name}
-                    >
-                      <View style={styles.venueLeft}>
-                        <Text style={styles.venueName}>{venue.name}</Text>
-                        <View style={styles.venueMeta}>
-                          <Text style={styles.venueType}>{typeLabel(venue.type)}</Text>
-                          {tablesText ? (
-                            <>
-                              <Text style={styles.venueMetaSep}>{'\u00B7'}</Text>
-                              <Text style={styles.venueTables}>{tablesText}</Text>
-                            </>
-                          ) : null}
-                          <View style={[styles.conditionDot, { backgroundColor: conditionInfo.color }]} />
-                          <Text style={[styles.venueCondition, { color: conditionInfo.color }]}>
-                            {conditionInfo.label}
-                          </Text>
+                  <Animated.View key={venue.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
+                    <Card shadow="sm" borderRadius={Radius.md} style={{ marginBottom: Spacing.xs }}>
+                      <TouchableOpacity
+                        style={[styles.venueCard, index === 0 && styles.venueCardHighlight]}
+                        onPress={() => router.push(`/venue/${venue.id}` as any)}
+                        accessibilityLabel={venue.name}
+                      >
+                        <View style={styles.venueLeft}>
+                          <Text style={styles.venueName}>{venue.name}</Text>
+                          <View style={styles.venueMeta}>
+                            <Text style={styles.venueType}>{typeLabel(venue.type)}</Text>
+                            {tablesText ? (
+                              <>
+                                <Text style={styles.venueMetaSep}>{'\u00B7'}</Text>
+                                <Text style={styles.venueTables}>{tablesText}</Text>
+                              </>
+                            ) : null}
+                            <View style={[styles.conditionDot, { backgroundColor: conditionInfo.color }]} />
+                            <Text style={[styles.venueCondition, { color: conditionInfo.color }]}>
+                              {conditionInfo.label}
+                            </Text>
+                          </View>
                         </View>
-                      </View>
-                      <View style={styles.venueRight}>
-                        {venue.distanceKm != null ? (
-                          <View style={styles.distanceBadge}>
-                            <Text style={styles.distanceText}>{formatDistance(venue.distanceKm)}</Text>
-                          </View>
-                        ) : venue.city ? (
-                          <View style={styles.distanceBadge}>
-                            <Text style={styles.distanceText}>{venue.city}</Text>
-                          </View>
-                        ) : null}
-                        {starsText ? <Text style={styles.venueStars}>{starsText}</Text> : null}
-                      </View>
-                    </TouchableOpacity>
-                  </Card>
+                        <View style={styles.venueRight}>
+                          {venue.distanceKm != null ? (
+                            <View style={styles.distanceBadge}>
+                              <Text style={styles.distanceText}>{formatDistance(venue.distanceKm)}</Text>
+                            </View>
+                          ) : venue.city ? (
+                            <View style={styles.distanceBadge}>
+                              <Text style={styles.distanceText}>{venue.city}</Text>
+                            </View>
+                          ) : null}
+                          {starsText ? <Text style={styles.venueStars}>{starsText}</Text> : null}
+                        </View>
+                      </TouchableOpacity>
+                    </Card>
+                  </Animated.View>
                 );
               })}
             </ScrollView>

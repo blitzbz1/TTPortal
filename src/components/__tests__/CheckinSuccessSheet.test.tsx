@@ -1,6 +1,9 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 
+import { CheckinSuccessSheet } from '../CheckinSuccessSheet';
+import { hapticSuccess } from '../../lib/haptics';
+
 const mockUseTheme = jest.fn();
 jest.mock('../../hooks/useTheme', () => ({
   useTheme: () => mockUseTheme(),
@@ -21,9 +24,6 @@ jest.mock('../Icon', () => ({
 jest.mock('../../lib/haptics', () => ({
   hapticSuccess: jest.fn(),
 }));
-
-import { CheckinSuccessSheet } from '../CheckinSuccessSheet';
-import { hapticSuccess } from '../../lib/haptics';
 
 const mockColors = {
   bg: '#fafaf8',

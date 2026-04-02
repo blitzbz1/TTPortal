@@ -19,10 +19,12 @@ function createStorage() {
       getItem: (key: string) =>
         hasLocalStorage ? localStorage.getItem(key) : (memoryStore.get(key) ?? null),
       setItem: (key: string, value: string) => {
-        hasLocalStorage ? localStorage.setItem(key, value) : memoryStore.set(key, value);
+        if (hasLocalStorage) localStorage.setItem(key, value);
+        else memoryStore.set(key, value);
       },
       removeItem: (key: string) => {
-        hasLocalStorage ? localStorage.removeItem(key) : memoryStore.delete(key);
+        if (hasLocalStorage) localStorage.removeItem(key);
+        else memoryStore.delete(key);
       },
     };
   }

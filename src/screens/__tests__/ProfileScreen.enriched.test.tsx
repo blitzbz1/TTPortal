@@ -1,6 +1,8 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 
+import { ProfileScreen } from '../ProfileScreen';
+
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
   useFocusEffect: jest.fn(),
@@ -66,8 +68,6 @@ jest.mock('../../services/reviews', () => ({
 jest.mock('../../services/friends', () => ({
   getFriends: jest.fn().mockResolvedValue({ data: [{ id: 1 }, { id: 2 }, { id: 3 }], error: null }),
 }));
-
-import { ProfileScreen } from '../ProfileScreen';
 
 beforeEach(() => {
   jest.clearAllMocks();
