@@ -5390,7 +5390,8 @@
                       "fill": "#9ca39a",
                       "content": "Caută prieteni...",
                       "fontFamily": "DM Sans",
-                      "fontSize": 14
+                      "fontSize": 14,
+                      "fontWeight": "normal"
                     }
                   ]
                 }
@@ -5457,7 +5458,8 @@
                       "fill": "#9ca39a",
                       "content": "Online (5)",
                       "fontFamily": "DM Sans",
-                      "fontSize": 14
+                      "fontSize": 14,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -5484,7 +5486,8 @@
                       "fill": "#9ca39a",
                       "content": "În așteptare (3)",
                       "fontFamily": "DM Sans",
-                      "fontSize": 14
+                      "fontSize": 14,
+                      "fontWeight": "normal"
                     }
                   ]
                 }
@@ -5577,7 +5580,8 @@
                           "fill": "#9ca39a",
                           "content": "5 prieteni în comun",
                           "fontFamily": "DM Sans",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -5690,7 +5694,8 @@
                           "fill": "#9ca39a",
                           "content": "2 prieteni în comun",
                           "fontFamily": "DM Sans",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -5919,7 +5924,8 @@
                               "fill": "#22c55e",
                               "content": "Parcul Herăstrău · acum",
                               "fontFamily": "DM Sans",
-                              "fontSize": 12
+                              "fontSize": 12,
+                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -6047,7 +6053,8 @@
                               "fill": "#22c55e",
                               "content": "Parcul Titan · 5 min",
                               "fontFamily": "DM Sans",
-                              "fontSize": 12
+                              "fontSize": 12,
+                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -6144,7 +6151,8 @@
                           "fill": "#9ca39a",
                           "content": "Ultima activitate: ieri",
                           "fontFamily": "DM Sans",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -6239,7 +6247,8 @@
                           "fill": "#9ca39a",
                           "content": "Ultima activitate: acum 3 zile",
                           "fontFamily": "DM Sans",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -6365,7 +6374,8 @@
                               "fill": "#22c55e",
                               "content": "Parcul Cișmigiu · 20 min",
                               "fontFamily": "DM Sans",
-                              "fontSize": 12
+                              "fontSize": 12,
+                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -6464,7 +6474,8 @@
                           "width": "fill_container",
                           "content": "Trimite un link de invitație prin WhatsApp, SMS sau email",
                           "fontFamily": "DM Sans",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -7507,7 +7518,8 @@
                   "content": "Găsește o masă de tenis.\nJoacă cu prietenii.",
                   "textAlign": "center",
                   "fontFamily": "DM Sans",
-                  "fontSize": 16
+                  "fontSize": 16,
+                  "fontWeight": "normal"
                 }
               ]
             },
@@ -7606,7 +7618,8 @@
                       "fill": "#9ca39a",
                       "content": "Nume complet",
                       "fontFamily": "DM Sans",
-                      "fontSize": 14
+                      "fontSize": 14,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -7642,7 +7655,8 @@
                       "fill": "#9ca39a",
                       "content": "Email",
                       "fontFamily": "DM Sans",
-                      "fontSize": 14
+                      "fontSize": 14,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -7680,7 +7694,8 @@
                       "width": "fill_container",
                       "content": "Parolă",
                       "fontFamily": "DM Sans",
-                      "fontSize": 14
+                      "fontSize": 14,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "icon_font",
@@ -7869,7 +7884,8 @@
                   "content": "Prin înregistrare, accepți Termenii și condițiile\nși Politica de confidențialitate",
                   "textAlign": "center",
                   "fontFamily": "DM Sans",
-                  "fontSize": 11
+                  "fontSize": 11,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "frame",
@@ -8020,7 +8036,8 @@
                   "content": "Introdu adresa de email asociată contului tău și îți vom trimite un link de resetare.",
                   "textAlign": "center",
                   "fontFamily": "DM Sans",
-                  "fontSize": 14
+                  "fontSize": 14,
+                  "fontWeight": "normal"
                 }
               ]
             },
@@ -12065,6 +12082,1057 @@
               "fontWeight": "500"
             }
           ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "6VxPg",
+      "x": 1540,
+      "y": 1050,
+      "name": "App Icon — V1 Paddle & Ball",
+      "width": 240,
+      "height": 320,
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "6rh7b",
+          "x": 0,
+          "y": 0,
+          "name": "Icon BG",
+          "width": 240,
+          "height": 240,
+          "fill": {
+            "type": "gradient",
+            "gradientType": "linear",
+            "enabled": true,
+            "rotation": 135,
+            "size": {
+              "height": 1
+            },
+            "colors": [
+              {
+                "color": "#14532d",
+                "position": 0
+              },
+              {
+                "color": "#22c55e",
+                "position": 1
+              }
+            ]
+          },
+          "cornerRadius": 52,
+          "layout": "none",
+          "children": [
+            {
+              "type": "ellipse",
+              "id": "lyS9j",
+              "x": 48,
+              "y": 62,
+              "name": "Paddle Face",
+              "fill": "#c2410c",
+              "width": 100,
+              "height": 110,
+              "stroke": {
+                "align": "outside",
+                "thickness": 4,
+                "fill": "#111810"
+              }
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 8,
+              "id": "sWpN9",
+              "x": 86,
+              "y": 156,
+              "name": "Handle",
+              "fill": "#7c2d12",
+              "width": 24,
+              "height": 56,
+              "stroke": {
+                "align": "outside",
+                "thickness": 3,
+                "fill": "#111810"
+              }
+            },
+            {
+              "type": "ellipse",
+              "id": "1pbtM",
+              "x": 148,
+              "y": 48,
+              "name": "Ball",
+              "fill": "#ffffff",
+              "width": 44,
+              "height": 44,
+              "stroke": {
+                "align": "outside",
+                "thickness": 3,
+                "fill": "#111810"
+              }
+            },
+            {
+              "type": "ellipse",
+              "id": "HKYCf",
+              "x": 148,
+              "y": 48,
+              "name": "Ball Stripe",
+              "fill": "none",
+              "width": 44,
+              "height": 44,
+              "stroke": {
+                "align": "center",
+                "thickness": 2,
+                "fill": "#e2e4de"
+              }
+            },
+            {
+              "type": "line",
+              "id": "1KXJq",
+              "x": 68,
+              "y": 95,
+              "name": "Paddle Line",
+              "width": 60,
+              "height": 0,
+              "stroke": {
+                "thickness": 1.5,
+                "fill": "#ffffff30"
+              }
+            },
+            {
+              "type": "line",
+              "id": "3x3P7",
+              "x": 68,
+              "y": 115,
+              "name": "Paddle Line 2",
+              "width": 60,
+              "height": 0,
+              "stroke": {
+                "thickness": 1.5,
+                "fill": "#ffffff30"
+              }
+            },
+            {
+              "type": "line",
+              "id": "t6nzk",
+              "x": 68,
+              "y": 135,
+              "name": "Paddle Line 3",
+              "width": 60,
+              "height": 0,
+              "stroke": {
+                "thickness": 1.5,
+                "fill": "#ffffff30"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "izOWN",
+          "x": 0,
+          "y": 256,
+          "name": "Label",
+          "fill": "#4a4f47",
+          "content": "V1 — Paddle & Ball",
+          "fontFamily": "DM Sans",
+          "fontSize": 14,
+          "fontWeight": "500"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "QJLDS",
+      "x": 1840,
+      "y": 1050,
+      "name": "App Icon — V2 TT Monogram",
+      "width": 240,
+      "height": 320,
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "eciDz",
+          "x": 0,
+          "y": 0,
+          "name": "Icon BG",
+          "width": 240,
+          "height": 240,
+          "fill": "#111810",
+          "cornerRadius": 52,
+          "layout": "none",
+          "children": [
+            {
+              "type": "text",
+              "id": "UClO5",
+              "x": 42,
+              "y": 52,
+              "name": "TT",
+              "fill": "#ffffff",
+              "content": "TT",
+              "fontFamily": "Syne",
+              "fontSize": 96,
+              "fontWeight": "800",
+              "letterSpacing": -4
+            },
+            {
+              "type": "ellipse",
+              "id": "Bv5Fy",
+              "x": 166,
+              "y": 60,
+              "name": "Ball Accent",
+              "fill": "#22c55e",
+              "width": 28,
+              "height": 28
+            },
+            {
+              "type": "text",
+              "id": "kLxF2",
+              "x": 58,
+              "y": 168,
+              "name": "Portal",
+              "fill": "#9ca39a",
+              "content": "PORTAL",
+              "fontFamily": "DM Sans",
+              "fontSize": 16,
+              "fontWeight": "600",
+              "letterSpacing": 6
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "PNoE3",
+          "x": 0,
+          "y": 256,
+          "name": "Label",
+          "fill": "#4a4f47",
+          "content": "V2 — TT Monogram",
+          "fontFamily": "DM Sans",
+          "fontSize": 14,
+          "fontWeight": "500"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "6NBEz",
+      "x": 2140,
+      "y": 1050,
+      "name": "App Icon — V3 Motion Ball",
+      "width": 240,
+      "height": 320,
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "qwCxk",
+          "x": 0,
+          "y": 0,
+          "name": "Icon BG",
+          "width": 240,
+          "height": 240,
+          "fill": {
+            "type": "gradient",
+            "gradientType": "linear",
+            "enabled": true,
+            "rotation": 180,
+            "size": {
+              "height": 1
+            },
+            "colors": [
+              {
+                "color": "#22c55e",
+                "position": 0
+              },
+              {
+                "color": "#166534",
+                "position": 1
+              }
+            ]
+          },
+          "cornerRadius": 52,
+          "layout": "none",
+          "children": [
+            {
+              "type": "ellipse",
+              "id": "5SyAn",
+              "x": 112,
+              "y": 80,
+              "name": "Main Ball",
+              "fill": "#ffffff",
+              "width": 76,
+              "height": 76,
+              "stroke": {
+                "align": "inside",
+                "thickness": 2,
+                "fill": "#e2e4de"
+              }
+            },
+            {
+              "type": "ellipse",
+              "id": "vpqVl",
+              "x": 74,
+              "y": 90,
+              "name": "Trail 1",
+              "fill": "#ffffff30",
+              "width": 56,
+              "height": 56
+            },
+            {
+              "type": "ellipse",
+              "id": "hvulX",
+              "x": 44,
+              "y": 100,
+              "name": "Trail 2",
+              "fill": "#ffffff18",
+              "width": 40,
+              "height": 40
+            },
+            {
+              "type": "ellipse",
+              "id": "idpoU",
+              "x": 22,
+              "y": 108,
+              "name": "Trail 3",
+              "fill": "#ffffff10",
+              "width": 26,
+              "height": 26
+            },
+            {
+              "type": "line",
+              "id": "bTyMY",
+              "x": 32,
+              "y": 106,
+              "name": "Speed Line 1",
+              "width": 40,
+              "height": 0,
+              "stroke": {
+                "thickness": 3,
+                "cap": "round",
+                "fill": "#ffffffCC"
+              }
+            },
+            {
+              "type": "line",
+              "id": "OBeHP",
+              "x": 24,
+              "y": 118,
+              "name": "Speed Line 2",
+              "width": 52,
+              "height": 0,
+              "stroke": {
+                "thickness": 3.5,
+                "cap": "round",
+                "fill": "#ffffffEE"
+              }
+            },
+            {
+              "type": "line",
+              "id": "u2UFi",
+              "x": 36,
+              "y": 130,
+              "name": "Speed Line 3",
+              "width": 36,
+              "height": 0,
+              "stroke": {
+                "thickness": 3,
+                "cap": "round",
+                "fill": "#ffffffAA"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "AZ5zf",
+          "x": 0,
+          "y": 256,
+          "name": "Label",
+          "fill": "#4a4f47",
+          "content": "V3 — Motion Ball",
+          "fontFamily": "DM Sans",
+          "fontSize": 14,
+          "fontWeight": "500"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "4DQm5",
+      "x": 2440,
+      "y": 1050,
+      "name": "App Icon — V4 Net & Ball",
+      "width": 240,
+      "height": 320,
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "Scvd9",
+          "x": 0,
+          "y": 0,
+          "name": "Icon BG",
+          "clip": true,
+          "width": 240,
+          "height": 240,
+          "fill": "#f0fdf4",
+          "cornerRadius": 52,
+          "stroke": {
+            "align": "inside",
+            "thickness": 2,
+            "fill": "#e2e4de"
+          },
+          "layout": "none",
+          "children": [
+            {
+              "type": "rectangle",
+              "cornerRadius": 2,
+              "id": "Ob1u3",
+              "x": 118,
+              "y": 30,
+              "name": "Net Vertical",
+              "fill": "#166534",
+              "width": 5,
+              "height": 180
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 2,
+              "id": "Fi734",
+              "x": 20,
+              "y": 28,
+              "name": "Net Top",
+              "fill": "#166534",
+              "width": 200,
+              "height": 5
+            },
+            {
+              "type": "rectangle",
+              "id": "8wv5s",
+              "x": 20,
+              "y": 68,
+              "name": "Net H1",
+              "fill": "#22c55e",
+              "width": 200,
+              "height": 2.5
+            },
+            {
+              "type": "rectangle",
+              "id": "0GaDm",
+              "x": 20,
+              "y": 106,
+              "name": "Net H2",
+              "fill": "#22c55e",
+              "width": 200,
+              "height": 2.5
+            },
+            {
+              "type": "rectangle",
+              "id": "r5ebz",
+              "x": 20,
+              "y": 144,
+              "name": "Net H3",
+              "fill": "#22c55e",
+              "width": 200,
+              "height": 2.5
+            },
+            {
+              "type": "rectangle",
+              "id": "zfYD2",
+              "x": 20,
+              "y": 180,
+              "name": "Net H4",
+              "fill": "#22c55e",
+              "width": 200,
+              "height": 2.5
+            },
+            {
+              "type": "ellipse",
+              "id": "Ki6Ef",
+              "x": 140,
+              "y": 52,
+              "name": "Ball",
+              "fill": "#ea580c",
+              "width": 68,
+              "height": 68,
+              "stroke": {
+                "align": "outside",
+                "thickness": 3,
+                "fill": "#c2410c"
+              }
+            },
+            {
+              "type": "ellipse",
+              "id": "46NCz",
+              "x": 154,
+              "y": 58,
+              "name": "Ball Highlight",
+              "fill": "#ffffff50",
+              "width": 18,
+              "height": 18
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "r0fpm",
+          "x": 0,
+          "y": 256,
+          "name": "Label",
+          "fill": "#4a4f47",
+          "content": "V4 — Net & Ball",
+          "fontFamily": "DM Sans",
+          "fontSize": 14,
+          "fontWeight": "500"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "dwqy7",
+      "x": 1540,
+      "y": 1470,
+      "name": "App Icon — V5 Swing Impact",
+      "width": 240,
+      "height": 320,
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "9AanY",
+          "x": 0,
+          "y": 0,
+          "name": "Icon BG",
+          "clip": true,
+          "width": 240,
+          "height": 240,
+          "fill": {
+            "type": "gradient",
+            "gradientType": "linear",
+            "enabled": true,
+            "rotation": 150,
+            "size": {
+              "height": 1
+            },
+            "colors": [
+              {
+                "color": "#14532d",
+                "position": 0
+              },
+              {
+                "color": "#166534",
+                "position": 0.5
+              },
+              {
+                "color": "#22c55e",
+                "position": 1
+              }
+            ]
+          },
+          "cornerRadius": 52,
+          "layout": "none",
+          "children": [
+            {
+              "type": "path",
+              "id": "amyxG",
+              "x": 16,
+              "y": 42,
+              "name": "Swing Arc 1",
+              "geometry": "M10 110q0-100 100-100",
+              "fill": "none",
+              "width": 120,
+              "height": 120,
+              "stroke": {
+                "thickness": 3,
+                "cap": "round",
+                "fill": "#ffffff30"
+              }
+            },
+            {
+              "type": "path",
+              "id": "zwV84",
+              "x": 26,
+              "y": 52,
+              "name": "Swing Arc 2",
+              "geometry": "M8 92q0-84 84-84",
+              "fill": "none",
+              "width": 100,
+              "height": 100,
+              "stroke": {
+                "thickness": 2,
+                "cap": "round",
+                "fill": "#ffffff1A"
+              }
+            },
+            {
+              "type": "path",
+              "id": "EsObF",
+              "x": 62,
+              "y": 130,
+              "name": "Handle",
+              "geometry": "M20 0l-10 0q-6 0-6 6l10 46q2 6 8 6l12 0q6 0 4-6l-8-46q-2-6-10-6z",
+              "fill": "#7c2d12",
+              "width": 56,
+              "height": 60,
+              "stroke": {
+                "align": "outside",
+                "thickness": 2,
+                "fill": "#111810"
+              }
+            },
+            {
+              "type": "ellipse",
+              "id": "vLUHm",
+              "x": 52,
+              "y": 56,
+              "name": "Paddle Face",
+              "rotation": 20,
+              "fill": "#c2410c",
+              "width": 90,
+              "height": 100,
+              "stroke": {
+                "align": "outside",
+                "thickness": 3,
+                "fill": "#111810"
+              }
+            },
+            {
+              "type": "ellipse",
+              "id": "7TNke",
+              "x": 72,
+              "y": 68,
+              "name": "Rubber Sheen",
+              "rotation": 20,
+              "fill": "#ffffff15",
+              "width": 30,
+              "height": 50
+            },
+            {
+              "type": "ellipse",
+              "id": "9JxmM",
+              "x": 148,
+              "y": 50,
+              "name": "Ball",
+              "fill": "#ffffff",
+              "width": 42,
+              "height": 42,
+              "stroke": {
+                "align": "inside",
+                "thickness": 2,
+                "fill": "#e2e4de"
+              }
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 2,
+              "id": "4Rj0M",
+              "x": 142,
+              "y": 38,
+              "name": "Burst 1",
+              "rotation": -29.999999999999996,
+              "fill": "#ffffff",
+              "width": 4,
+              "height": 18
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 2,
+              "id": "6SDQK",
+              "x": 194,
+              "y": 46,
+              "name": "Burst 2",
+              "rotation": 29.999999999999996,
+              "fill": "#ffffff",
+              "width": 4,
+              "height": 16
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 2,
+              "id": "t6TU6",
+              "x": 190,
+              "y": 86,
+              "name": "Burst 3",
+              "rotation": 59.99999999999999,
+              "fill": "#ffffff",
+              "width": 4,
+              "height": 14
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 2,
+              "id": "AzCbg",
+              "x": 148,
+              "y": 96,
+              "name": "Burst 4",
+              "rotation": 119.99999999999999,
+              "fill": "#ffffffCC",
+              "width": 3,
+              "height": 12
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "2gxrG",
+          "x": 0,
+          "y": 256,
+          "name": "Label",
+          "fill": "#4a4f47",
+          "content": "V5 — Swing Impact",
+          "fontFamily": "DM Sans",
+          "fontSize": 14,
+          "fontWeight": "500"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "5SRQv",
+      "x": 1840,
+      "y": 1470,
+      "name": "App Icon — V6 Arc Sweep",
+      "width": 240,
+      "height": 320,
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "go7Dt",
+          "x": 0,
+          "y": 0,
+          "name": "Icon BG",
+          "clip": true,
+          "width": 240,
+          "height": 240,
+          "fill": "#111810",
+          "cornerRadius": 52,
+          "layout": "none",
+          "children": [
+            {
+              "type": "path",
+              "id": "28W2Q",
+              "x": -10,
+              "y": 48,
+              "name": "Motion Arc Outer",
+              "geometry": "M20 150q0-130 130-130",
+              "fill": "none",
+              "width": 160,
+              "height": 160,
+              "stroke": {
+                "thickness": 4,
+                "cap": "round",
+                "fill": "#22c55e50"
+              }
+            },
+            {
+              "type": "path",
+              "id": "0wMQm",
+              "x": 4,
+              "y": 62,
+              "name": "Motion Arc Mid",
+              "geometry": "M16 122q0-106 106-106",
+              "fill": "none",
+              "width": 130,
+              "height": 130,
+              "stroke": {
+                "thickness": 3,
+                "cap": "round",
+                "fill": "#22c55e30"
+              }
+            },
+            {
+              "type": "path",
+              "id": "ki158",
+              "x": 18,
+              "y": 76,
+              "name": "Motion Arc Inner",
+              "geometry": "M12 92q0-80 80-80",
+              "fill": "none",
+              "width": 100,
+              "height": 100,
+              "stroke": {
+                "thickness": 2,
+                "cap": "round",
+                "fill": "#22c55e18"
+              }
+            },
+            {
+              "type": "path",
+              "id": "aGQav",
+              "x": 56,
+              "y": 128,
+              "name": "Handle",
+              "geometry": "M18 0l-10 0q-6 0-6 6l10 42q2 6 8 6l12 0q6 0 4-6l-8-42q-2-6-10-6z",
+              "fill": "#7c2d12",
+              "width": 52,
+              "height": 56,
+              "stroke": {
+                "align": "outside",
+                "thickness": 2,
+                "fill": "#4a2c0a"
+              }
+            },
+            {
+              "type": "ellipse",
+              "id": "JIfiD",
+              "x": 48,
+              "y": 68,
+              "name": "Paddle Face",
+              "rotation": 25,
+              "fill": "#ea580c",
+              "width": 82,
+              "height": 92,
+              "stroke": {
+                "align": "outside",
+                "thickness": 3,
+                "fill": "#c2410c"
+              }
+            },
+            {
+              "type": "ellipse",
+              "id": "zqDTU",
+              "x": 68,
+              "y": 80,
+              "name": "Sheen",
+              "rotation": 25,
+              "fill": "#ffffff12",
+              "width": 24,
+              "height": 44
+            },
+            {
+              "type": "ellipse",
+              "id": "6g1Eo",
+              "x": 158,
+              "y": 44,
+              "name": "Ball",
+              "fill": "#22c55e",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "type": "ellipse",
+              "id": "fgw6O",
+              "x": 166,
+              "y": 50,
+              "name": "Ball Core",
+              "fill": "#ffffff40",
+              "width": 10,
+              "height": 10
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 2,
+              "id": "wGRCb",
+              "x": 152,
+              "y": 36,
+              "name": "Speed 1",
+              "rotation": -29.999999999999996,
+              "fill": "#22c55e80",
+              "width": 3,
+              "height": 14
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 2,
+              "id": "FiWgS",
+              "x": 200,
+              "y": 42,
+              "name": "Speed 2",
+              "rotation": 40,
+              "fill": "#22c55e80",
+              "width": 3,
+              "height": 12
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 2,
+              "id": "5T8Uv",
+              "x": 196,
+              "y": 78,
+              "name": "Speed 3",
+              "rotation": 70,
+              "fill": "#22c55e60",
+              "width": 3,
+              "height": 10
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "irtJf",
+          "x": 0,
+          "y": 256,
+          "name": "Label",
+          "fill": "#4a4f47",
+          "content": "V6 — Arc Sweep",
+          "fontFamily": "DM Sans",
+          "fontSize": 14,
+          "fontWeight": "500"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "DVr8N",
+      "x": 2140,
+      "y": 1470,
+      "name": "App Icon — V7 Brush Stroke",
+      "width": 240,
+      "height": 320,
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "aC1xo",
+          "x": 0,
+          "y": 0,
+          "name": "Icon BG",
+          "clip": true,
+          "width": 240,
+          "height": 240,
+          "fill": "#ffffff",
+          "cornerRadius": 52,
+          "stroke": {
+            "align": "inside",
+            "thickness": 2,
+            "fill": "#e2e4de"
+          },
+          "layout": "none",
+          "children": [
+            {
+              "type": "path",
+              "id": "43BWC",
+              "x": 10,
+              "y": 50,
+              "name": "Swoosh Trail",
+              "geometry": "M10 130q40-50 80-40 40 10 70-50l10-10q-30 80-80 75-40-5-70 35z",
+              "fill": {
+                "type": "gradient",
+                "gradientType": "linear",
+                "enabled": true,
+                "rotation": 0,
+                "size": {
+                  "height": 1
+                },
+                "colors": [
+                  {
+                    "color": "#22c55e40",
+                    "position": 0
+                  },
+                  {
+                    "color": "#22c55e",
+                    "position": 1
+                  }
+                ]
+              },
+              "width": 180,
+              "height": 140
+            },
+            {
+              "type": "path",
+              "id": "cNBla",
+              "x": 50,
+              "y": 126,
+              "name": "Handle",
+              "geometry": "M16 0l-8 0q-6 0-6 6l8 38q2 6 8 6l10 0q6 0 4-6l-8-38q-2-6-8-6z",
+              "fill": "#166534",
+              "width": 48,
+              "height": 52
+            },
+            {
+              "type": "ellipse",
+              "id": "DoXNz",
+              "x": 42,
+              "y": 68,
+              "name": "Paddle Face",
+              "rotation": 20,
+              "fill": "#14532d",
+              "width": 76,
+              "height": 86
+            },
+            {
+              "type": "ellipse",
+              "id": "Qeu7x",
+              "x": 50,
+              "y": 76,
+              "name": "Rubber Inner",
+              "rotation": 20,
+              "fill": "#166534",
+              "width": 60,
+              "height": 70
+            },
+            {
+              "type": "ellipse",
+              "id": "vUVP9",
+              "x": 164,
+              "y": 46,
+              "name": "Ball",
+              "fill": "#ea580c",
+              "width": 36,
+              "height": 36
+            },
+            {
+              "type": "ellipse",
+              "id": "JLfNe",
+              "x": 174,
+              "y": 50,
+              "name": "Ball Highlight",
+              "fill": "#ffffff50",
+              "width": 10,
+              "height": 10
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 2,
+              "id": "8HlQl",
+              "x": 156,
+              "y": 38,
+              "name": "Spark A",
+              "rotation": -25,
+              "fill": "#22c55e",
+              "width": 3,
+              "height": 12
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 2,
+              "id": "5pXmJ",
+              "x": 202,
+              "y": 50,
+              "name": "Spark B",
+              "rotation": 40,
+              "fill": "#22c55e",
+              "width": 3,
+              "height": 10
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 2,
+              "id": "d34DB",
+              "x": 196,
+              "y": 82,
+              "name": "Spark C",
+              "rotation": 75,
+              "fill": "#22c55eAA",
+              "width": 3,
+              "height": 10
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "9Cmhu",
+          "x": 0,
+          "y": 256,
+          "name": "Label",
+          "fill": "#4a4f47",
+          "content": "V7 — Brush Stroke",
+          "fontFamily": "DM Sans",
+          "fontSize": 14,
+          "fontWeight": "500"
         }
       ]
     }

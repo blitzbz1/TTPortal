@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Activi
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
+import { NotificationBellButton } from '../components/NotificationBellButton';
 import { Card } from '../components/Card';
 import { EventCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
@@ -11,7 +12,6 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { useNotifications } from '../hooks/useNotifications';
 import { getEvents, getEventParticipants, joinEvent, leaveEvent, cancelEvent, stopRecurrence, sendEventInvites, sendEventUpdate } from '../services/events';
 import { getFriendIds } from '../services/friends';
 import { FriendPickerModal } from '../components/FriendPickerModal';
@@ -38,7 +38,6 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useSession();
   const { s, lang } = useI18n();
-  const { unreadCount } = useNotifications();
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
@@ -194,14 +193,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={styles.headerTitle}>{s('events')}</Text>
-        <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(protected)/notifications' as any)} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-          <Lucide name="bell" size={18} color={headerFg} />
-          {unreadCount > 0 && (
-            <View style={styles.bellBadge}>
-              <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <NotificationBellButton color={headerFg} />
       </View>
 
       <ScrollView style={styles.scroll} keyboardDismissMode="on-drag" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
@@ -667,28 +659,6 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       fontSize: FontSize.xxl,
       fontWeight: FontWeight.bold,
       color: isDark ? colors.text : colors.textOnPrimary,
-    },
-    bellBtn: {
-      position: 'relative',
-      padding: Spacing.xxs,
-    },
-    bellBadge: {
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      backgroundColor: colors.red,
-      borderRadius: 8,
-      minWidth: 16,
-      height: 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 3,
-    },
-    bellBadgeText: {
-      fontFamily: Fonts.body,
-      fontSize: 9,
-      fontWeight: FontWeight.bold,
-      color: colors.textOnPrimary,
     },
     headerRight: {
       flexDirection: 'row',

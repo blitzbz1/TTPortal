@@ -5,6 +5,7 @@ import MapView, { Marker, Callout } from 'react-native-maps';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { Lucide } from '../components/Icon';
+import { NotificationBellButton } from '../components/NotificationBellButton';
 import { Card } from '../components/Card';
 import { CityPickerModal } from '../components/CityPickerModal';
 import { VenueCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
@@ -19,7 +20,6 @@ import { getCities } from '../services/cities';
 import { getActiveFriendCheckins } from '../services/checkins';
 import { getFriendIds } from '../services/friends';
 import { useSession } from '../hooks/useSession';
-import { useNotifications } from '../hooks/useNotifications';
 import { useI18n } from '../hooks/useI18n';
 import type { Venue, VenueCondition } from '../types/database';
 import { setCacheItem, getCacheItem } from '../lib/offline-cache';
@@ -74,7 +74,6 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const insets = useSafeAreaInsets();
   const { s } = useI18n();
   const { user } = useSession();
-  const { unreadCount } = useNotifications();
   const { colors, isDark } = useTheme();
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const { styles, pinStyles } = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
@@ -298,14 +297,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
           </TouchableOpacity>
         </View>
         {user ? (
-          <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/(protected)/notifications' as any)} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-            <Lucide name="bell" size={18} color={headerFg} />
-            {unreadCount > 0 && (
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <NotificationBellButton color={headerFg} />
         ) : (
           <TouchableOpacity style={styles.loginBtn} onPress={() => router.push('/sign-in')}>
             <Lucide name="log-in" size={14} color={colors.textOnPrimary} />
@@ -618,28 +610,6 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       paddingHorizontal: 10,
       gap: 4,
       ...Shadows.md,
-    },
-    bellBtn: {
-      position: 'relative',
-      padding: 4,
-    },
-    bellBadge: {
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      backgroundColor: colors.red,
-      borderRadius: 8,
-      minWidth: 16,
-      height: 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 3,
-    },
-    bellBadgeText: {
-      fontFamily: Fonts.body,
-      fontSize: 9,
-      fontWeight: FontWeight.bold,
-      color: colors.textOnPrimary,
     },
     mapContainer: {
       flex: 1,
