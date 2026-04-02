@@ -1,13 +1,9 @@
--- ============================================================
--- TTPortal — Full Migration Script for Supabase SQL Editor
--- Old tables are preserved as *_old.
--- ============================================================
-
 -- FILE: 000_pre_migration_rename.sql
 
 -- Migration: 000_pre_migration_rename
--- Renames existing tables to *_old so that subsequent migrations can create
--- fresh tables with the correct schema. Data is preserved in the _old tables.
+-- Renames existing tables and their indexes to *_old so that subsequent
+-- migrations can create fresh tables with the correct schema.
+-- Data is preserved in the _old tables.
 -- This migration is idempotent — it skips tables that don't exist.
 
 DO $$ BEGIN
@@ -37,6 +33,67 @@ DO $$ BEGIN
      AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'friendships_old') THEN
     ALTER TABLE public.friendships RENAME TO friendships_old;
     RAISE NOTICE 'Renamed friendships → friendships_old';
+  END IF;
+END $$;
+
+-- Rename indexes on old tables so new tables can reuse the names
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_venues_city') THEN
+    ALTER INDEX idx_venues_city RENAME TO idx_venues_city_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_venues_type') THEN
+    ALTER INDEX idx_venues_type RENAME TO idx_venues_type_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_venues_approved') THEN
+    ALTER INDEX idx_venues_approved RENAME TO idx_venues_approved_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_venues_name_city') THEN
+    ALTER INDEX idx_venues_name_city RENAME TO idx_venues_name_city_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_reviews_venue') THEN
+    ALTER INDEX idx_reviews_venue RENAME TO idx_reviews_venue_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_friendships_requester') THEN
+    ALTER INDEX idx_friendships_requester RENAME TO idx_friendships_requester_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_friendships_addressee') THEN
+    ALTER INDEX idx_friendships_addressee RENAME TO idx_friendships_addressee_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_favorites_user') THEN
+    ALTER INDEX idx_favorites_user RENAME TO idx_favorites_user_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_checkins_user') THEN
+    ALTER INDEX idx_checkins_user RENAME TO idx_checkins_user_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_checkins_venue') THEN
+    ALTER INDEX idx_checkins_venue RENAME TO idx_checkins_venue_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_checkins_user_ended') THEN
+    ALTER INDEX idx_checkins_user_ended RENAME TO idx_checkins_user_ended_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_checkins_venue_ended') THEN
+    ALTER INDEX idx_checkins_venue_ended RENAME TO idx_checkins_venue_ended_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_events_starts') THEN
+    ALTER INDEX idx_events_starts RENAME TO idx_events_starts_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_events_organizer') THEN
+    ALTER INDEX idx_events_organizer RENAME TO idx_events_organizer_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_event_participants_event') THEN
+    ALTER INDEX idx_event_participants_event RENAME TO idx_event_participants_event_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_event_participants_user') THEN
+    ALTER INDEX idx_event_participants_user RENAME TO idx_event_participants_user_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_condition_votes_venue') THEN
+    ALTER INDEX idx_condition_votes_venue RENAME TO idx_condition_votes_venue_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_friendships_addressee_status') THEN
+    ALTER INDEX idx_friendships_addressee_status RENAME TO idx_friendships_addressee_status_old;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_reviews_user') THEN
+    ALTER INDEX idx_reviews_user RENAME TO idx_reviews_user_old;
   END IF;
 END $$;
 
@@ -366,7 +423,6 @@ DROP POLICY IF EXISTS "Users can leave events" ON public.event_participants;
 CREATE POLICY "Users can leave events" ON public.event_participants FOR DELETE TO authenticated
   USING (auth.uid() = user_id);
 
-
 -- FILE: 005_functions_views.sql
 
 -- Migration: 005_functions_views
@@ -474,236 +530,111 @@ CREATE INDEX IF NOT EXISTS idx_event_participants_user ON public.event_participa
 -- FILE: 006_seed_data.sql
 
 -- Migration: 006_seed_data
--- Seed cities and sample venues for development.
+-- Seed cities and core sample venues for development.
 
 -- Cities
 INSERT INTO public.cities (name, county, lat, lng, zoom, venue_count, active) VALUES
-  ('București', 'București', 44.4268, 26.1025, 12, 54, true),
-  ('Cluj-Napoca', 'Cluj', 46.7712, 23.6236, 13, 28, true),
-  ('Timișoara', 'Timiș', 45.7489, 21.2087, 13, 19, true),
-  ('Iași', 'Iași', 47.1585, 27.6014, 13, 15, true),
-  ('Brașov', 'Brașov', 45.6427, 25.5887, 13, 12, true),
-  ('Constanța', 'Constanța', 44.1598, 28.6348, 13, 10, true),
-  ('Craiova', 'Dolj', 44.3302, 23.7949, 13, 8, true),
-  ('Oradea', 'Bihor', 47.0465, 21.9189, 13, 6, true)
+  ('București', 'București', 44.4268, 26.1025, 12, 0, true),
+  ('Cluj-Napoca', 'Cluj', 46.7712, 23.6236, 13, 0, true),
+  ('Timișoara', 'Timiș', 45.7489, 21.2087, 13, 0, true),
+  ('Iași', 'Iași', 47.1585, 27.6014, 13, 0, true),
+  ('Brașov', 'Brașov', 45.6427, 25.5887, 13, 0, true),
+  ('Constanța', 'Constanța', 44.1598, 28.6348, 13, 0, true),
+  ('Craiova', 'Dolj', 44.3302, 23.7949, 13, 0, true),
+  ('Oradea', 'Bihor', 47.0465, 21.9189, 13, 0, true),
+  ('Galați', 'Galați', 45.4353, 28.0080, 13, 0, true),
+  ('Ploiești', 'Prahova', 44.9362, 26.0138, 13, 0, true),
+  ('Târgu Mureș', 'Mureș', 46.5386, 24.5578, 13, 0, true),
+  ('Bacău', 'Bacău', 46.5670, 26.9146, 13, 0, true),
+  ('Pitești', 'Argeș', 44.8565, 24.8694, 13, 0, true),
+  ('Arad', 'Arad', 46.1866, 21.3123, 13, 0, true),
+  ('Sibiu', 'Sibiu', 45.7983, 24.1256, 13, 0, true)
 ON CONFLICT (name) DO NOTHING;
 
--- Sample venues in București
-INSERT INTO public.venues (name, type, city, county, address, lat, lng, tables_count, condition, free_access, night_lighting, nets, verified, approved) VALUES
-  ('Parcul Național', 'parc_exterior', 'București', 'București', 'Bd. Ferdinand nr. 1', 44.4350, 26.1120, 4, 'buna', true, false, true, true, true),
-  ('Sala Sporturilor Titan', 'sala_indoor', 'București', 'București', 'Bd. Liviu Rebreanu nr. 2', 44.4180, 26.1510, 8, 'profesionala', false, true, true, true, true),
-  ('Parcul IOR', 'parc_exterior', 'București', 'București', 'Bd. Camil Ressu', 44.4145, 26.1370, 2, 'acceptabila', true, false, false, false, true),
-  ('Parcul Herăstrău', 'parc_exterior', 'București', 'București', 'Aleea Privighetorilor', 44.4740, 26.0780, 6, 'buna', true, true, true, true, true),
-  ('Club Sportiv Dinamo', 'sala_indoor', 'București', 'București', 'Șos. Ștefan cel Mare nr. 7-9', 44.4530, 26.1160, 16, 'profesionala', false, true, true, true, true)
+-- Core sample venues in București
+INSERT INTO public.venues (name, type, city, county, address, lat, lng, tables_count, condition, free_access, night_lighting, nets, verified, approved, created_at) VALUES
+  ('Parcul Național', 'parc_exterior', 'București', 'București', 'Bd. Ferdinand nr. 1', 44.4350, 26.1120, 4, 'buna', true, false, true, true, true, '2026-03-28T10:52:58.175738+00:00'),
+  ('Sala Sporturilor Titan', 'sala_indoor', 'București', 'București', 'Bd. Liviu Rebreanu nr. 2', 44.4180, 26.1510, 8, 'profesionala', false, true, true, true, true, '2026-03-28T10:52:58.175738+00:00'),
+  ('Parcul IOR', 'parc_exterior', 'București', 'București', 'Bd. Camil Ressu', 44.4145, 26.1370, 2, 'acceptabila', true, false, false, false, true, '2026-03-28T10:52:58.175738+00:00'),
+  ('Parcul Herăstrău', 'parc_exterior', 'București', 'București', 'Aleea Privighetorilor', 44.4740, 26.0780, 6, 'buna', true, true, true, true, true, '2026-03-28T10:52:58.175738+00:00'),
+  ('Club Sportiv Dinamo', 'sala_indoor', 'București', 'București', 'Șos. Ștefan cel Mare nr. 7-9', 44.4530, 26.1160, 16, 'profesionala', false, true, true, true, true, '2026-03-28T10:52:58.175738+00:00')
 ON CONFLICT (name, city) DO NOTHING;
 
 -- Update city venue count
-UPDATE public.cities SET venue_count = (
+UPDATE public.cities
+SET venue_count = (
   SELECT COUNT(*) FROM public.venues WHERE venues.city = cities.name AND venues.approved = true
 );
 
 -- FILE: 007_cloud_venues_sync.sql
 
 -- Migration: 007_cloud_venues_sync
--- Synced 52 venues from cloud Supabase (deduplicated).
--- Original cloud had 119 total entries.
+-- Synced with the normalized live Supabase venue dataset.
 
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Automatica', 'parc_exterior', 'București', 'Ilfov', 'Sector 2', 'Str. Fabrica de Glucoză, Sector 2, București', 44.4735, 26.1165, 2, 'acceptabila', 'Acces liber', 'Parc de cartier în zona Floreasca / Colentina.', ARRAY['gratuit', 'exterior', 'sport'], true, false, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Bazilescu', 'parc_exterior', 'București', 'Ilfov', 'Sector 1', 'Str. Bazilescu, Sector 1, București', 44.4812, 25.9978, 2, 'acceptabila', 'Acces liber', 'Parc de cartier în zona nord-vest a Bucureștiului.', ARRAY['gratuit', 'exterior'], true, false, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Tei', 'parc_exterior', 'București', 'Ilfov', 'Sector 2', 'Șos. Ștefan cel Mare / Str. Dobrogeanu Gherea, Sector 2', 44.4612, 26.1338, 3, 'acceptabila', 'Acces liber', 'Parc cu lac în Sectorul 2, popular pentru activități sportive.', ARRAY['gratuit', 'exterior', 'lac'], true, false, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Ping Poc', 'sala_indoor', 'București', 'Ilfov', 'Sector 4', 'Șos. Berceni nr. 104, bl. turn, et. 3, Sector 4', 44.3942, 26.1025, 5, 'profesionala', 'Zilnic 09:00–23:00', 'Nou deschis 2024. Separeu privat + spațiu comun. Concursuri săptămânale.', ARRAY['plată', 'indoor', 'separeu', 'rezervare online', 'Donic Waldner'], false, true, NULL, true, '25 lei/oră (comun) / 35 lei/oră (separeu)', 'https://pingpoc.ro', true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('CS Otilia Badescu – Sala Polivalentă', 'sala_indoor', 'București', 'Ilfov', 'Sector 4', 'Calea Piscului nr. 10, incinta Sala Polivalentă, Sector 4', 44.3982, 26.1008, NULL, 'profesionala', 'L-V 17:30–22:00, weekend 09:00–15:00', 'Sala campioanei Otilia Badescu, multiplu medaliată european și mondial.', ARRAY['plată', 'indoor', 'antrenori', 'robot', 'Donic'], false, true, NULL, true, '35 lei/oră (robot: 50 lei/oră)', 'https://www.facebook.com/profile.php?id=61563913030853', true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Ioanid', 'parc_exterior', 'București', 'Ilfov', 'Sector 1', 'Str. Orlando / Bd. Dacia, Sector 1, București', 44.4513, 26.0849, 2, 'acceptabila', 'Acces liber', 'Parc mic, elegant, în zona rezidențială Sector 1.', ARRAY['gratuit', 'exterior'], true, false, false, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Drumul Taberei (Moghioroș)', 'parc_exterior', 'București', 'Ilfov', 'Sector 6', 'Bd. Timișoara / Str. Brașov, Sector 6, București', 44.420917, 26.029722, 6, 'buna', 'Acces liber', 'Parc mare din Sectorul 6, facilități sportive multiple.', ARRAY['gratuit', 'exterior'], true, false, true, true, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Sfânta Cristina', 'parc_exterior', 'București', 'Ilfov', 'Sector 1', 'Strada Siret 95, 012244 București', 44.463694, 26.062222, 1, 'buna', 'Acces liber', NULL, ARRAY['gratuit', 'exterior'], true, false, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Râul Colentina', 'parc_exterior', 'București', 'Ilfov', 'Sector 2', 'Zona râului Colentina, Sector 2, București', 44.454278, 26.1495, 4, 'buna', 'Acces liber', '4 mese cu fileuri', ARRAY['gratuit', 'exterior', 'mal râu'], true, false, true, true, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Regina Maria', 'parc_exterior', 'București', 'Ilfov', 'Sector 1', 'Str. Turda 117, 011322 București', 44.457833, 26.0665, 2, 'acceptabila', 'Acces liber', 'Spațiu verde urban cu loc de joacă, fântâni și bănci, plus teren de baschet și două parcuri pentru câini.', ARRAY['gratuit', 'exterior', 'loc joacă'], true, false, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Florilor', 'parc_exterior', 'București', 'Ilfov', 'Sector 1', '26.1697544.4440280', 44.444028, 26.16975, 3, 'acceptabila', 'Acces liber', 'Pantelimon / Delfinului', ARRAY['gratuit', 'exterior'], true, true, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Ferentari', 'parc_exterior', 'București', 'Ilfov', 'Sector 5', 'Calea Ferentari, Sector 5, București', 44.41127, 26.07502, 2, 'deteriorata', 'Acces liber', 'Parc de cartier Sector 5. Starea dotărilor variabilă.', ARRAY['gratuit', 'exterior', 'deteriorat'], true, false, false, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Ping Pong Academy', 'sala_indoor', 'București', 'Ilfov', 'Sector 5', 'Strada Haţegana 17, 052034 București', 44.407917, 26.093917, 12, 'profesionala', 'Luni–Duminică (verificați pagina)', 'Club complet cu antrenori, echipă Divizia A, concursuri interne.', ARRAY['plată', 'indoor', 'antrenori', 'Divizia A', 'concursuri'], false, true, true, true, '33–43 lei/oră', 'https://www.facebook.com/clubsportivpingpongacademy', true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Liniei', 'parc_exterior', 'București', 'Ilfov', 'Sector 6', 'Str. Lujerului, București', 44.431417, 26.0375, 4, 'buna', 'Acces liber', 'Parc liniar pe fosta linie de tramvai.', ARRAY['gratuit', 'exterior', 'liniar'], true, false, true, true, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Miniparcul Dumitru Teodoru – Viilor', 'parc_exterior', 'București', 'Ilfov', 'Sector 5', 'Calea Viilor / Str. Dumitru Teodoru, Sector 5', 44.41682, 26.08435, 1, 'necunoscuta', 'Acces liber', 'Minispaciu verde de cartier. Dotări minime – necesită verificare.', ARRAY['gratuit', 'exterior', 'mic'], true, false, false, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('PingPro', 'sala_indoor', 'București', 'Ilfov', 'Sector 1', 'Str. Copilului nr. 20A, Domenii, Sector 1, București', 44.46497, 26.0604, NULL, 'profesionala', 'D-J 08:30–22:30, V-S 08:30–23:30', 'Deschis 2025. Rezervare online cu alegere masă. Sistem reluări instant.', ARRAY['plată', 'indoor', 'rezervare online', 'sistem reluări', 'Joola'], false, true, false, true, 'variabil (promoții disponibile)', 'https://www.pingpro.ro', true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Kiseleff', 'parc_exterior', 'București', 'Ilfov', 'Sector 1', 'Șos. Kiseleff, Sector 1, București', 44.455833, 26.084417, 3, 'acceptabila', 'Acces liber', 'Parc central-nord, parte din axa verde a capitalei.', ARRAY['gratuit', 'exterior'], true, true, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Pridvorului', 'parc_exterior', 'București', 'Ilfov', 'Sector 2', 'Strada Pridvorului, Sector 2, București', 44.462, 26.105, 5, 'buna', 'Acces liber', 'Unele mese la umbra copacilor — plăcut vara. Confirmat pe pingpongmap.net.', ARRAY['gratuit', 'exterior', 'umbră', 'vară'], true, false, true, true, NULL, NULL, true, '2026-03-19T09:01:08.396875+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('CS Stirom – Tenis de Masă', 'sala_indoor', 'București', 'Ilfov', 'Sector 3', 'Bulevardul Theodor Pallady nr. 45, Sector 3, București', 44.419, 26.168, 5, 'profesionala', 'Zilnic de la ora 09:00 (verificați)', 'Sală dedicată exclusiv tenisului de masă, incinta fabricii Stirom. Club cu tradiție, antrenori cu experiență, foști campioni naționali. Cursuri inițiere, perfecționare și performanță. Tel: 0723.306.531', ARRAY['plată', 'indoor', 'antrenori', 'Sector 3', 'tradiție'], false, false, NULL, true, NULL, NULL, true, '2026-03-19T09:01:08.396875+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Baza Sportivă Str. Vișagului – S3', 'parc_exterior', 'București', 'Ilfov', 'Sector 3', 'Strada Vișagului, Sector 3, București', 44.428, 26.152, 2, 'buna', 'Acces liber – rezervare gratuită pe sport3.primarie3.ro', 'Bază sportivă multifuncțională Primăria Sector 3. Mese TM, fotbal, baschet. Rezervare online gratuită.', ARRAY['gratuit', 'exterior', 'Sector 3', 'rezervare online', 'multifuncțional'], true, false, true, true, NULL, NULL, true, '2026-03-19T09:01:08.396875+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Baza Sportivă Bd. Unirii Esplanada – S3', 'parc_exterior', 'București', 'Ilfov', 'Sector 3', 'Bulevardul Unirii, Zona Esplanada, Sector 3, București', 44.426, 26.11, 2, 'buna', 'Acces liber – rezervare gratuită pe sport3.primarie3.ro', 'Bază sportivă Primăria Sector 3. Central, lângă Bd. Unirii. Rezervare online gratuită.', ARRAY['gratuit', 'exterior', 'Sector 3', 'rezervare online', 'central'], true, false, true, true, NULL, NULL, true, '2026-03-19T09:01:08.396875+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Baza Sportivă Str. Drumeagului – S3', 'parc_exterior', 'București', 'Ilfov', 'Sector 3', 'Strada Drumeagului, Sector 3, București', 44.415, 26.16, 2, 'buna', 'Acces liber – rezervare gratuită pe sport3.primarie3.ro', 'Bază sportivă multifuncțională Primăria Sector 3. Rezervare online gratuită.', ARRAY['gratuit', 'exterior', 'Sector 3', 'rezervare online'], true, false, true, true, NULL, NULL, true, '2026-03-19T09:01:08.396875+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Tenis Mac Gym', 'sala_indoor', 'București', 'Ilfov', 'Sector 4', 'Calea Văcărești nr. 391, incinta sala Elite Performance, Sun Plaza, Sector 4, București', 44.384, 26.087, 6, 'profesionala', 'L-V 09:00–22:00, S 08:00–22:00, D 08:00–14:00', '6 mese de închiriat + 8 pentru competiții. Echipa CS TTT București Divizia A.', ARRAY['plată', 'indoor', 'antrenori', 'concursuri', 'Andro', 'Divizia A'], false, true, NULL, true, '30 lei/oră (zi) / 35 lei/oră (weekend seara)', 'https://www.tenis-masa.ro', true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Viva Sport Club – Tenis de Masă', 'sala_indoor', 'București', 'Ilfov', 'Sector 4', 'Șos. Oltenitei nr. 103, Sector 4, București', 44.3805, 26.1045, NULL, 'profesionala', 'Verificați site-ul oficial', 'Card de membru obligatoriu (10 lei). ~30 min înregistrare la prima vizită.', ARRAY['plată', 'indoor', 'card membru', 'Piața Sudului'], false, true, NULL, true, '40 lei/oră', 'https://www.vivasportclub.ro', true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Izvor', 'parc_exterior', 'București', 'Ilfov', 'Sector 5', 'Splaiul Independenței, Parcul Izvor, Sector 5, București', 44.432833, 26.088472, 4, 'deteriorata', 'Acces liber', 'Parc central, lângă Palatul Parlamentului.', ARRAY['gratuit', 'exterior', 'central', 'Izvor'], true, false, false, false, NULL, NULL, true, '2026-03-19T09:01:08.396875+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('PingPro Domenii Park', 'sala_indoor', 'București', 'Ilfov', '—', 'Str. Copilului nr. 20A, Sector 1', 44.4647599, 26.061214, NULL, 'profesionala', 'Verificați', 'Adăugat de comunitate.', ARRAY['nou adăugat'], false, true, false, true, 'Dinamic', NULL, true, '2026-03-19T08:52:51.669195+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Ping Pong Miramar', 'sala_indoor', 'București', 'Ilfov', 'Sector 2', 'Bulevardul Chișinău 6, 022152 București', 44.441139, 26.156472, 5, 'profesionala', 'Verificați pagina Facebook', '5 mese omologate ITTF, blat 25mm. Atmosferă relaxată cu muzică și bar.', ARRAY['plată', 'indoor', 'ITTF', 'muzică', 'bar'], false, true, false, true, 'verificați pagina Facebook', 'https://www.facebook.com/PingPongSector2/', true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('TSP Vibe', 'sala_indoor', 'București', 'Ilfov', 'Sector 3', 'Șos. Dudești-Pantelimon nr. 44, incinta Antilopa, Sector 3', 44.4386302876457, 26.1943227239488, 9, 'profesionala', 'Verificați pagina Facebook', '540 mp, PVC. Concursuri luni/marți/miercuri de la 18:30. Robot disponibil.', ARRAY['plată', 'indoor', 'robot', 'concursuri', '540mp'], false, true, true, true, '25 lei/oră (L-V 10–16) / 35 lei/oră (vârf)', 'https://www.facebook.com/groups/3146582045558341/', true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('IDM Club – Tenis de Masă', 'sala_indoor', 'București', 'Ilfov', 'Sector 6', 'Splaiul Independenței nr. 319B, Sector 6, București', 44.443972, 26.048833, 10, 'profesionala', 'L-J 09:00–01:00, V-S 09:00–03:00, D 09:00–01:00', NULL, ARRAY['plată', 'indoor', 'bowling', 'biliard', 'piscină', 'fitness', 'Butterfly'], false, true, true, true, 'verificați site-ul (card 150 lei/an)', 'https://www.idmclub.ro', true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('eWe Ping Pong', 'sala_indoor', 'București', 'Ilfov', 'Ilfov', 'Str. Fortului nr. 81, Domnești, Ilfov (incinta eWe Market)', 44.361, 25.992, 7, 'profesionala', 'Zilnic 09:00–22:00', 'Deschis ianuarie 2024. Recomandat pentru Militari/Ghencea/Rahova. Cafenea inclusă.', ARRAY['plată', 'indoor', 'Ilfov', 'cafenea', 'Joola 25', 'ITTF'], false, true, NULL, true, '35 lei/oră (fix)', 'https://ewepingpong.ro', true, '2026-03-19T08:31:09.257296+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Kiris Hall', 'sala_indoor', 'București', 'Ilfov', 'Sector 2', 'Șos. Pantelimon 1-3, 021591 București', 44.4481742, 26.1333387, 8, 'profesionala', '09:00-00:00', 'Adăugat de comunitate.', ARRAY['nou adăugat'], false, true, false, true, '20 lei pe ora de luni pana vineri, 09:00-14:00, 40 lei ora in weekend si de luni pana vineri dupa ora 14', NULL, true, '2026-03-19T10:43:11.601905+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Cosmos', 'parc_exterior', 'București', 'Ilfov', 'Sector 3', 'Parcul Cosmos, Șos. Pantelimon 367, București', 44.441111, 26.184972, 2, 'buna', '7-22', 'Adăugat de comunitate.', ARRAY['nou adăugat'], true, false, true, false, NULL, NULL, true, '2026-03-20T06:48:15.854584+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Drumul Taberei 2 (Moghioroș)', 'parc_exterior', 'București', 'Ilfov', '6', '44.421667	26.030750', 44.4216990634355, 26.030747294426, 3, 'buna', '7-22', 'Adăugat de comunitate.', ARRAY['nou adăugat'], true, false, false, false, NULL, NULL, true, '2026-03-20T06:58:05.077063+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Cetatea Histria', 'parc_exterior', 'București', 'Ilfov', NULL, 'Strada Cetatea Histria,nr. 16-20, București', 44.4200457, 26.0227148, 2, 'necunoscuta', 'Verificați', 'Adăugat de comunitate.', ARRAY['nou adăugat'], true, false, true, false, NULL, NULL, true, '2026-03-21T07:04:29.585658+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul Timisoara', 'parc_exterior', 'București', 'Ilfov', '6', 'Bulevardul Timișoara 10, 061344 București', 44.4286713, 26.0441141, 4, 'necunoscuta', 'Verificați', 'Adăugat de comunitate.', ARRAY['nou adăugat'], true, false, NULL, false, NULL, NULL, true, '2026-03-21T07:13:41.640781+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Parcul “C5”', 'parc_exterior', 'București', 'Ilfov', NULL, 'Aleea Bistra 1, 061344 București', 44.42624, 26.0488, 1, 'necunoscuta', 'Verificați', 'Adăugat de comunitate.', ARRAY['nou adăugat'], true, false, false, false, NULL, NULL, true, '2026-03-21T07:16:20.691683+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Sală de tenis de masă Set 11', 'sala_indoor', 'Sibiu', 'Sibiu', NULL, 'Strada August Treboniu Laurian, 2-4', 45.8016044, 24.1668087, NULL, 'profesionala', NULL, NULL, ARRAY['osm', 'way/95993443'], false, false, NULL, false, '35 RON', 'https://www.b-52.ro/', true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
--- Removed 4 venues with NULL city/address (Sală tenis de masă, CS Top Team Tulcea, Table tennis Ioanid park, Ping Pong Table)
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Masă tenis de masă', 'parc_exterior', 'Agăș', 'Bacău', NULL, 'Strada Principală, 116', 46.4846352, 26.2203157, NULL, 'necunoscuta', NULL, NULL, ARRAY['osm', 'acoperit', 'way/1308638798'], true, false, NULL, false, NULL, NULL, true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('CS Otilia Bădescu', 'sala_indoor', 'București', 'Ilfov', NULL, 'Calea Piscului, 10', 44.4053795, 26.1109869, NULL, 'profesionala', 'Mo-Fr 17:30-22:00; Sa-Su 09:00-15:00', 'Sala jucătoarei campioane Otilia Bădescu, mese Donic albastre profesionale. Incinta Sălii Polivalente lângă Parcul Tineretului.', ARRAY['osm', 'custom/5'], false, false, NULL, false, '35 RON/oră', NULL, true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('PingPoc', 'sala_indoor', 'București', 'Ilfov', NULL, 'Șoseaua Berceni, 104', 44.3679305, 26.1428287, 5, 'profesionala', 'Mo-Su 09:00-23:00', '5 mese Donic Waldner profesionale (2 în separeu privat), deschis 2024. Față de metrou Dimitrie Leonida. Bloc Turn, Et. 3.', ARRAY['osm', 'custom/8'], false, false, NULL, false, '25-35 RON/oră', 'https://www.facebook.com/pingpoc.ro', true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Kiris Hall – Tenis de Masă', 'sala_indoor', 'București', 'Ilfov', NULL, 'Șos. Pantelimon, 1-3', 44.4487461, 26.1346999, NULL, 'profesionala', 'Mo-Fr 09:00-23:00; Sa-Su 09:00-23:30', 'Academie gimnastică și tenis de masă (Academia Larisa Iordache). Mese profesionale, antrenori certificați. Rezervare online disponibilă.', ARRAY['osm', 'custom/9'], false, false, NULL, false, NULL, 'https://kiris-hall.ro/', true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Rocket Spin', 'sala_indoor', 'Timișoara', 'Timiș', NULL, 'Calea Aradului, 48A', 45.777013, 21.2213122, NULL, 'profesionala', 'Mo-Su 10:00-22:00', 'Cea mai profesională sală din Timișoara. Mese Butterfly Octet 25 (ITTF), 3 camere VIP, robot Butterfly, antrenori. Rezervare prealabilă.', ARRAY['osm', 'custom/10'], false, false, NULL, false, NULL, 'https://www.rocketspintenisdemasa.com/', true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Baza Sportivă Gheorgheni – Tenis de Masă', 'sala_indoor', 'Cluj-Napoca', 'Cluj', NULL, 'Strada Marechal Constantin Prezan', 46.7700626, 23.6360361, 8, 'profesionala', 'Mo-Fr 09:00-22:00; Sa-Su 10:00-22:00', '8 mese tenis de masă gratuite, rezervare prealabilă online necesară, echipament propriu. Complex sportiv public al Primăriei Cluj-Napoca.', ARRAY['osm', 'custom/11'], true, false, NULL, false, NULL, 'https://sportinclujnapoca.ro/', true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Baza Sportivă «La Terenuri» – Tenis de Masă', 'sala_indoor', 'Cluj-Napoca', 'Cluj', NULL, 'Strada Pârâng, FN', 46.7489241, 23.55459, 8, 'profesionala', 'Mo-Fr 09:00-22:00; Sa-Su 10:00-22:00', '8 mese tenis de masă, rezervare online, echipament propriu (palete + mingi). Bază publică, acces gratuit. Cartier Mănăștur.', ARRAY['osm', 'custom/12'], true, false, NULL, false, NULL, 'https://manastur.sportinclujnapoca.ro/', true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('ARENA Brasov – Tenis de Masă', 'sala_indoor', 'Săcele', 'Brașov', NULL, 'Strada Gospodarilor, 2', 45.616955, 25.6675707, 8, 'profesionala', 'Mo-Th 13:00-22:00; Fr 13:00-17:00', '8 mese Joola 2000-S (ITTF), podea Taraflex, iluminat LED profesional, vestiare cu dușuri, parcare privată. Centura ocolitoare Săcele.', ARRAY['osm', 'custom/13'], false, false, NULL, false, NULL, 'https://arena-brasov.ro/', true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('ACS TT Energy Brașov', 'sala_indoor', 'Brașov', 'Brașov', NULL, 'Strada Zizinului, 106', 45.6473296, 25.6417153, NULL, 'profesionala', 'Mo-Fr 15:00-21:00', 'Club de tenis de masă, cursuri inițiere și perfecționare copii, Liceul Energetic Brașov.', ARRAY['osm', 'custom/14'], false, false, NULL, false, NULL, NULL, true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Top Spin – Tenis de Masă Craiova', 'sala_indoor', 'Craiova', 'Dolj', NULL, 'Strada Grigore Gabrielescu, 1A', 44.3334005, 23.7788649, 3, 'profesionala', 'Mo-Su 10:00-21:00', '3 mese Andro Competition profesionale, podea Taraflex sportivă. Antrenamente și inchiriere.', ARRAY['osm', 'custom/15'], false, false, NULL, false, NULL, 'https://topspincraiova.com/', true, '2026-03-21T09:10:23.997809+00:00')
-ON CONFLICT (name, city) DO NOTHING;
-
-INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, created_at)
-VALUES ('Complexul Sportiv Flux Arena – Tenis de Masă', 'sala_indoor', 'Cârcă', 'Dolj', NULL, 'Strada Complexului, 6A', 44.2986365, 23.8999204, NULL, 'profesionala', 'Mo-Su 08:00-03:00', 'Complex sportiv cu mese de tenis de masă, terenuri tenis, fotbal. Rezervare telefonică. Sat Cârcă, lângă Craiova.', ARRAY['osm', 'custom/16'], false, false, NULL, false, NULL, 'https://www.fluxarena.net/', true, '2026-03-21T09:10:23.997809+00:00')
+INSERT INTO public.venues (
+  name, type, city, county, sector, address, lat, lng, tables_count, condition,
+  hours, description, tags, photos, free_access, night_lighting, nets, verified,
+  tariff, website, approved, created_at
+) VALUES
+  ('Parcul Automatica', 'parc_exterior', 'București', 'București', 'Sector 2', 'Str. Fabrica de Glucoză, Sector 2, București', 44.4735, 26.1165, 2, 'acceptabila', 'Acces liber', 'Parc de cartier în zona Floreasca / Colentina.', ARRAY['gratuit', 'exterior', 'sport'], ARRAY[]::text[], true, false, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Bazilescu', 'parc_exterior', 'București', 'București', 'Sector 1', 'Str. Bazilescu, Sector 1, București', 44.4812, 25.9978, 2, 'acceptabila', 'Acces liber', 'Parc de cartier în zona nord-vest a Bucureștiului.', ARRAY['gratuit', 'exterior'], ARRAY[]::text[], true, false, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Tei', 'parc_exterior', 'București', 'București', 'Sector 2', 'Șos. Ștefan cel Mare / Str. Dobrogeanu Gherea, Sector 2', 44.4612, 26.1338, 3, 'acceptabila', 'Acces liber', 'Parc cu lac în Sectorul 2, popular pentru activități sportive.', ARRAY['gratuit', 'exterior', 'lac'], ARRAY[]::text[], true, false, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Ping Poc', 'sala_indoor', 'București', 'București', 'Sector 4', 'Șos. Berceni nr. 104, bl. turn, et. 3, Sector 4', 44.3942, 26.1025, 5, 'profesionala', 'Zilnic 09:00–23:00', 'Nou deschis 2024. Separeu privat + spațiu comun. Concursuri săptămânale.', ARRAY['plată', 'indoor', 'separeu', 'rezervare online', 'Donic Waldner'], ARRAY[]::text[], false, true, true, true, '25 lei/oră (comun) / 35 lei/oră (separeu)', 'https://pingpoc.ro', true, '2026-03-19T08:31:09.257296+00:00'),
+  ('CS Otilia Badescu – Sala Polivalentă', 'sala_indoor', 'București', 'București', 'Sector 4', 'Calea Piscului nr. 10, incinta Sala Polivalentă, Sector 4', 44.3982, 26.1008, NULL, 'profesionala', 'L-V 17:30–22:00, weekend 09:00–15:00', 'Sala campioanei Otilia Badescu, multiplu medaliată european și mondial.', ARRAY['plată', 'indoor', 'antrenori', 'robot', 'Donic'], ARRAY[]::text[], false, true, NULL, true, '35 lei/oră (robot: 50 lei/oră)', 'https://www.facebook.com/profile.php?id=61563913030853', true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Ioanid', 'parc_exterior', 'București', 'București', 'Sector 1', 'Str. Orlando / Bd. Dacia, Sector 1, București', 44.4513, 26.0849, 2, 'acceptabila', 'Acces liber', 'Parc mic, elegant, în zona rezidențială Sector 1.', ARRAY['gratuit', 'exterior'], ARRAY[]::text[], true, false, false, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Drumul Taberei (Moghioroș)', 'parc_exterior', 'București', 'București', 'Sector 6', 'Bd. Timișoara / Str. Brașov, Sector 6, București', 44.420917, 26.029722, 6, 'buna', 'Acces liber', 'Parc mare din Sectorul 6, facilități sportive multiple.', ARRAY['gratuit', 'exterior'], ARRAY[]::text[], true, false, true, true, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Sfânta Cristina', 'parc_exterior', 'București', 'București', 'Sector 1', 'Strada Siret 95, 012244 București', 44.463694, 26.062222, 1, 'buna', 'Acces liber', NULL, ARRAY['gratuit', 'exterior'], ARRAY[]::text[], true, false, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Râul Colentina', 'parc_exterior', 'București', 'București', 'Sector 2', 'Zona râului Colentina, Sector 2, București', 44.454278, 26.1495, 4, 'buna', 'Acces liber', '4 mese cu fileuri', ARRAY['gratuit', 'exterior', 'mal râu'], ARRAY[]::text[], true, false, true, true, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Regina Maria', 'parc_exterior', 'București', 'București', 'Sector 1', 'Str. Turda 117, 011322 București', 44.457833, 26.0665, 2, 'acceptabila', 'Acces liber', 'Spațiu verde urban cu loc de joacă, fântâni și bănci, plus teren de baschet și două parcuri pentru câini.', ARRAY['gratuit', 'exterior', 'loc joacă'], ARRAY[]::text[], true, false, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Florilor', 'parc_exterior', 'București', 'București', 'Sector 1', 'Șos. Pantelimon / Bd. Chișinău, București', 44.444028, 26.16975, 3, 'acceptabila', 'Acces liber', 'Pantelimon / Delfinului', ARRAY['gratuit', 'exterior'], ARRAY[]::text[], true, true, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Ferentari', 'parc_exterior', 'București', 'București', 'Sector 5', 'Calea Ferentari, Sector 5, București', 44.41127, 26.07502, 2, 'deteriorata', 'Acces liber', 'Parc de cartier Sector 5. Starea dotărilor variabilă.', ARRAY['gratuit', 'exterior', 'deteriorat'], ARRAY[]::text[], true, false, false, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Ping Pong Academy', 'sala_indoor', 'București', 'București', 'Sector 5', 'Strada Haţegana 17, 052034 București', 44.407917, 26.093917, 12, 'profesionala', 'Luni–Duminică (verificați pagina)', 'Club complet cu antrenori, echipă Divizia A, concursuri interne.', ARRAY['plată', 'indoor', 'antrenori', 'Divizia A', 'concursuri'], ARRAY[]::text[], false, true, true, true, '33–43 lei/oră', 'https://www.facebook.com/clubsportivpingpongacademy', true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Liniei', 'parc_exterior', 'București', 'București', 'Sector 6', 'Str. Lujerului, București', 44.431417, 26.0375, 4, 'buna', 'Acces liber', 'Parc liniar pe fosta linie de tramvai.', ARRAY['gratuit', 'exterior', 'liniar'], ARRAY[]::text[], true, false, true, true, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Miniparcul Dumitru Teodoru – Viilor', 'parc_exterior', 'București', 'București', 'Sector 5', 'Calea Viilor / Str. Dumitru Teodoru, Sector 5', 44.41682, 26.08435, 1, 'necunoscuta', 'Acces liber', 'Minispaciu verde de cartier. Dotări minime – necesită verificare.', ARRAY['gratuit', 'exterior', 'mic'], ARRAY[]::text[], true, false, false, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('PingPro', 'sala_indoor', 'București', 'București', 'Sector 1', 'Str. Copilului nr. 20A, Domenii, Sector 1, București', 44.46497, 26.0604, NULL, 'profesionala', 'D-J 08:30–22:30, V-S 08:30–23:30', 'Deschis 2025. Rezervare online cu alegere masă. Sistem reluări instant.', ARRAY['plată', 'indoor', 'rezervare online', 'sistem reluări', 'Joola'], ARRAY[]::text[], false, true, false, true, 'variabil (promoții disponibile)', 'https://www.pingpro.ro', true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Kiseleff', 'parc_exterior', 'București', 'București', 'Sector 1', 'Șos. Kiseleff, Sector 1, București', 44.455833, 26.084417, 3, 'acceptabila', 'Acces liber', 'Parc central-nord, parte din axa verde a capitalei.', ARRAY['gratuit', 'exterior'], ARRAY[]::text[], true, true, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Pridvorului', 'parc_exterior', 'București', 'București', 'Sector 2', 'Strada Pridvorului, Sector 2, București', 44.462, 26.105, 5, 'buna', 'Acces liber', 'Unele mese la umbra copacilor - plăcut vara. Confirmat pe pingpongmap.net.', ARRAY['gratuit', 'exterior', 'umbră', 'vară'], ARRAY[]::text[], true, false, true, true, NULL, NULL, true, '2026-03-19T09:01:08.396875+00:00'),
+  ('CS Stirom – Tenis de Masă', 'sala_indoor', 'București', 'București', 'Sector 3', 'Bulevardul Theodor Pallady nr. 45, Sector 3, București', 44.419, 26.168, 5, 'profesionala', 'Zilnic de la ora 09:00 (verificați)', 'Sală dedicată exclusiv tenisului de masă, incinta fabricii Stirom. Club cu tradiție, antrenori cu experiență, foști campioni naționali. Cursuri inițiere, perfecționare și performanță. Tel: 0723.306.531', ARRAY['plată', 'indoor', 'antrenori', 'Sector 3', 'tradiție'], ARRAY[]::text[], false, false, NULL, true, NULL, NULL, true, '2026-03-19T09:01:08.396875+00:00'),
+  ('Tenis Mac Gym', 'sala_indoor', 'București', 'București', 'Sector 4', 'Calea Văcărești nr. 391, incinta sala Elite Performance, Sun Plaza, Sector 4, București', 44.384, 26.087, 6, 'profesionala', 'L-V 09:00–22:00, S 08:00–22:00, D 08:00–14:00', '6 mese de închiriat + 8 pentru competiții. Echipa CS TTT București Divizia A.', ARRAY['plată', 'indoor', 'antrenori', 'concursuri', 'Andro', 'Divizia A'], ARRAY[]::text[], false, true, NULL, true, '30 lei/oră (zi) / 35 lei/oră (weekend seara)', 'https://www.tenis-masa.ro', true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Viva Sport Club – Tenis de Masă', 'sala_indoor', 'București', 'București', 'Sector 4', 'Șos. Oltenitei nr. 103, Sector 4, București', 44.3805, 26.1045, NULL, 'profesionala', 'Verificați site-ul oficial', 'Card de membru obligatoriu (10 lei). ~30 min înregistrare la prima vizită.', ARRAY['plată', 'indoor', 'card membru', 'Piața Sudului'], ARRAY[]::text[], false, true, NULL, true, '40 lei/oră', 'https://www.vivasportclub.ro', true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Izvor', 'parc_exterior', 'București', 'București', 'Sector 5', 'Splaiul Independenței, Parcul Izvor, Sector 5, București', 44.432833, 26.088472, 4, 'deteriorata', 'Acces liber', 'Parc central, lângă Palatul Parlamentului.', ARRAY['gratuit', 'exterior', 'central', 'Izvor'], ARRAY[]::text[], true, false, false, false, NULL, NULL, true, '2026-03-19T09:01:08.396875+00:00'),
+  ('Ping Pong Miramar', 'sala_indoor', 'București', 'București', 'Sector 2', 'Bulevardul Chișinău 6, 022152 București', 44.441139, 26.156472, 5, 'profesionala', 'Verificați pagina Facebook', '5 mese omologate ITTF, blat 25mm. Atmosferă relaxată cu muzică și bar.', ARRAY['plată', 'indoor', 'ITTF', 'muzică', 'bar'], ARRAY[]::text[], false, true, false, true, 'verificați pagina Facebook', 'https://www.facebook.com/PingPongSector2/', true, '2026-03-19T08:31:09.257296+00:00'),
+  ('TSP Vibe', 'sala_indoor', 'București', 'București', 'Sector 3', 'Șos. Dudești-Pantelimon nr. 44, incinta Antilopa, Sector 3', 44.4386302876457, 26.1943227239488, 9, 'profesionala', 'Verificați pagina Facebook', '540 mp, PVC. Concursuri luni/marți/miercuri de la 18:30. Robot disponibil.', ARRAY['plată', 'indoor', 'robot', 'concursuri', '540mp'], ARRAY[]::text[], false, true, true, true, '25 lei/oră (L-V 10–16) / 35 lei/oră (vârf)', 'https://www.facebook.com/groups/3146582045558341/', true, '2026-03-19T08:31:09.257296+00:00'),
+  ('IDM Club – Tenis de Masă', 'sala_indoor', 'București', 'București', 'Sector 6', 'Splaiul Independenței nr. 319B, Sector 6, București', 44.443972, 26.048833, 10, 'profesionala', 'L-J 09:00–01:00, V-S 09:00–03:00, D 09:00–01:00', NULL, ARRAY['plată', 'indoor', 'bowling', 'biliard', 'piscină', 'fitness', 'Butterfly'], ARRAY[]::text[], false, true, true, true, 'verificați site-ul (card 150 lei/an)', 'https://www.idmclub.ro', true, '2026-03-19T08:31:09.257296+00:00'),
+  ('eWe Ping Pong', 'sala_indoor', 'București', 'București', 'Ilfov', 'Str. Fortului nr. 81, Domnești, Ilfov (incinta eWe Market)', 44.361, 25.992, 7, 'profesionala', 'Zilnic 09:00–22:00', 'Deschis ianuarie 2024. Recomandat pentru Militari/Ghencea/Rahova. Cafenea inclusă.', ARRAY['plată', 'indoor', 'Ilfov', 'cafenea', 'Joola 25', 'ITTF'], ARRAY['https://vzewwlaqqgukjkqjyfoq.supabase.co/storage/v1/object/public/venue-photos/venues/35/1775008622081.jpg'], false, true, NULL, true, '35 lei/oră (fix)', 'https://ewepingpong.ro', true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Cosmos', 'parc_exterior', 'București', 'București', 'Sector 3', 'Parcul Cosmos, Șos. Pantelimon 367, București', 44.441111, 26.184972, 2, 'buna', '7-22', 'Adăugat de comunitate.', ARRAY['nou adăugat'], ARRAY[]::text[], true, false, true, false, NULL, NULL, true, '2026-03-20T06:48:15.854584+00:00'),
+  ('Parcul Drumul Taberei 2 (Moghioroș)', 'parc_exterior', 'București', 'București', 'Sector 6', 'Bd. Timișoara / Str. Brașov, Sector 6, București', 44.4216990634355, 26.030747294426, 3, 'buna', '7-22', 'Adăugat de comunitate.', ARRAY['nou adăugat'], ARRAY[]::text[], true, false, false, false, NULL, NULL, true, '2026-03-20T06:58:05.077063+00:00'),
+  ('Parcul Cetatea Histria', 'parc_exterior', 'București', 'București', NULL, 'Strada Cetatea Histria,nr. 16-20, București', 44.4200457, 26.0227148, 2, 'necunoscuta', 'Verificați', 'Adăugat de comunitate.', ARRAY['nou adăugat'], ARRAY[]::text[], true, false, true, false, NULL, NULL, true, '2026-03-21T07:04:29.585658+00:00'),
+  ('Parcul Timișoara', 'parc_exterior', 'București', 'București', 'Sector 6', 'Bulevardul Timișoara 10, 061344 București', 44.4286713, 26.0441141, 4, 'necunoscuta', 'Verificați', 'Adăugat de comunitate.', ARRAY['nou adăugat'], ARRAY[]::text[], true, false, NULL, false, NULL, NULL, true, '2026-03-21T07:13:41.640781+00:00'),
+  ('Parcul “C5”', 'parc_exterior', 'București', 'București', NULL, 'Aleea Bistra 1, 061344 București', 44.42624, 26.0488, 1, 'necunoscuta', 'Verificați', 'Adăugat de comunitate.', ARRAY['nou adăugat'], ARRAY[]::text[], true, false, false, false, NULL, NULL, true, '2026-03-21T07:16:20.691683+00:00'),
+  ('Sală de tenis de masă Set 11', 'sala_indoor', 'Sibiu', 'Sibiu', NULL, 'Strada August Treboniu Laurian, 2-4', 45.8016044, 24.1668087, NULL, 'profesionala', NULL, NULL, ARRAY['osm', 'way/95993443'], ARRAY[]::text[], false, false, NULL, false, '35 RON', 'https://www.b-52.ro/', true, '2026-03-21T09:10:23.997809+00:00'),
+  ('Masă tenis de masă', 'parc_exterior', 'Agăș', 'Bacău', NULL, 'Strada Principală, 116', 46.4846352, 26.2203157, NULL, 'necunoscuta', NULL, NULL, ARRAY['osm', 'acoperit', 'way/1308638798'], ARRAY[]::text[], true, false, NULL, false, NULL, NULL, true, '2026-03-21T09:10:23.997809+00:00'),
+  ('Kiris Hall – Tenis de Masă', 'sala_indoor', 'București', 'București', NULL, 'Șos. Pantelimon, 1-3', 44.4487461, 26.1346999, NULL, 'profesionala', 'Mo-Fr 09:00-23:00; Sa-Su 09:00-23:30', 'Academie gimnastică și tenis de masă (Academia Larisa Iordache). Mese profesionale, antrenori certificați. Rezervare online disponibilă.', ARRAY['osm', 'custom/9'], ARRAY[]::text[], false, false, NULL, false, NULL, 'https://kiris-hall.ro/', true, '2026-03-21T09:10:23.997809+00:00'),
+  ('Rocket Spin', 'sala_indoor', 'Timișoara', 'Timiș', NULL, 'Calea Aradului, 48A', 45.777013, 21.2213122, NULL, 'profesionala', 'Mo-Su 10:00-22:00', 'Cea mai profesională sală din Timișoara. Mese Butterfly Octet 25 (ITTF), 3 camere VIP, robot Butterfly, antrenori. Rezervare prealabilă.', ARRAY['osm', 'custom/10'], ARRAY[]::text[], false, false, NULL, false, NULL, 'https://www.rocketspintenisdemasa.com/', true, '2026-03-21T09:10:23.997809+00:00'),
+  ('ARENA Brasov – Tenis de Masă', 'sala_indoor', 'Săcele', 'Brașov', NULL, 'Strada Gospodarilor, 2', 45.616955, 25.6675707, 8, 'profesionala', 'Mo-Th 13:00-22:00; Fr 13:00-17:00', '8 mese Joola 2000-S (ITTF), podea Taraflex, iluminat LED profesional, vestiare cu dușuri, parcare privată. Centura ocolitoare Săcele.', ARRAY['osm', 'custom/13'], ARRAY[]::text[], false, false, NULL, false, NULL, 'https://arena-brasov.ro/', true, '2026-03-21T09:10:23.997809+00:00'),
+  ('ACS TT Energy Brașov', 'sala_indoor', 'Brașov', 'Brașov', NULL, 'Strada Zizinului, 106', 45.6473296, 25.6417153, NULL, 'profesionala', 'Mo-Fr 15:00-21:00', 'Club de tenis de masă, cursuri inițiere și perfecționare copii, Liceul Energetic Brașov.', ARRAY['osm', 'custom/14'], ARRAY[]::text[], false, false, NULL, false, NULL, NULL, true, '2026-03-21T09:10:23.997809+00:00'),
+  ('Top Spin – Tenis de Masă Craiova', 'sala_indoor', 'Craiova', 'Dolj', NULL, 'Strada Grigore Gabrielescu, 1A', 44.3334005, 23.7788649, 3, 'profesionala', 'Mo-Su 10:00-21:00', '3 mese Andro Competition profesionale, podea Taraflex sportivă. Antrenamente și inchiriere.', ARRAY['osm', 'custom/15'], ARRAY[]::text[], false, false, NULL, false, NULL, 'https://topspincraiova.com/', true, '2026-03-21T09:10:23.997809+00:00'),
+  ('Complexul Sportiv Flux Arena – Tenis de Masă', 'sala_indoor', 'Cârcă', 'Dolj', NULL, 'Strada Complexului, 6A', 44.2986365, 23.8999204, NULL, 'profesionala', 'Mo-Su 08:00-03:00', 'Complex sportiv cu mese de tenis de masă, terenuri tenis, fotbal. Rezervare telefonică. Sat Cârcă, lângă Craiova.', ARRAY['osm', 'custom/16'], ARRAY[]::text[], false, false, NULL, false, NULL, 'https://www.fluxarena.net/', true, '2026-03-21T09:10:23.997809+00:00'),
+  ('Parcul Tineretului', 'parc_exterior', 'București', 'București', 'Sector 4', 'Bd. Tineretului, Sector 4, București', 44.4005, 26.1089, 4, 'buna', 'Acces liber', 'Unul dintre cele mai mari parcuri din Sectorul 4.', ARRAY['gratuit', 'exterior', 'fitness', 'lac', 'patinoar'], ARRAY[]::text[], true, false, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Carol I', 'parc_exterior', 'București', 'București', 'Sector 4', 'Bd. Mărășești, Sector 4, București', 44.4139, 26.0965, 3, 'buna', 'Acces liber', 'Confirmat cu mese disponibile public. Parc istoric renovat.', ARRAY['gratuit', 'exterior', 'istoric'], ARRAY[]::text[], true, false, true, true, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul IOR (Alexandru Ioan Cuza)', 'parc_exterior', 'București', 'București', 'Sector 3', 'Str. Liviu Rebreanu, Sector 3, București', 44.418833, 26.155417, 6, 'buna', 'Acces liber', 'Parc renovat cu mese în mai multe zone. Confirmat de surse oficiale.', ARRAY['gratuit', 'exterior', 'baschet', 'fotbal', 'lac'], ARRAY[]::text[], true, false, true, true, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Național – Aleea Belvedere', 'parc_exterior', 'București', 'București', 'Sector 2', 'aleea pan halipa', 44.434534, 26.146548, 3, 'buna', 'Acces liber', 'Zona Belvedere din Parcul Național – mese pe aleea principală.', ARRAY['gratuit', 'exterior', 'alei'], ARRAY['https://vzewwlaqqgukjkqjyfoq.supabase.co/storage/v1/object/public/venue-photos/venues/73/1774898727478.jpg', 'https://vzewwlaqqgukjkqjyfoq.supabase.co/storage/v1/object/public/venue-photos/venues/73/1774898770078.jpg', 'https://vzewwlaqqgukjkqjyfoq.supabase.co/storage/v1/object/public/venue-photos/venues/73/1774899083311.jpg'], true, false, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul Național – Amfiteatrul Eminescu', 'parc_exterior', 'București', 'București', 'Sector 1', 'Lângă Amfiteatrul Mihai Eminescu, Parcul Național, Sector 1', 44.433556, 26.142917, 2, 'buna', 'Acces liber', 'Mese lângă amfiteatrul Mihai Eminescu din Parcul Național.', ARRAY['gratuit', 'exterior', 'amfiteatru'], ARRAY[]::text[], true, false, true, false, NULL, NULL, true, '2026-03-19T08:31:09.257296+00:00'),
+  ('Parcul IOR 2 (Alexandru Ioan Cuza)', 'parc_exterior', 'București', 'București', 'Sector 3', 'Str. Liviu Rebreanu, Sector 3, București', 44.4178657137137, 26.1544051766396, 3, 'necunoscuta', '7-22', 'Fileuri de metal, mese in stare buna', ARRAY['nou adăugat'], ARRAY[]::text[], true, false, false, false, NULL, NULL, true, '2026-03-20T06:29:28.926468+00:00'),
+  ('Club Transilvania', 'sala_indoor', 'Cluj-Napoca', 'Cluj', NULL, 'Bulevardul 1 Decembrie 1918 nr. 41, Cluj-Napoca', 46.7642, 23.5525, NULL, 'buna', 'Luni-Vineri 08:00-24:00; Sambata-Duminica 09:00-23:00', 'Baza sportiva multisport cu sala indoor care include facilitati pentru tenis de masa.', ARRAY['indoor', 'cluj', 'multisport', 'tenis de masa'], ARRAY[]::text[], false, true, true, true, NULL, 'https://www.clubtransilvania.ro/', true, '2026-04-02T07:11:28.927999+00:00'),
+  ('ADR Tenis de Masă', 'sala_indoor', 'Galați', 'Galați', NULL, 'Bd. George Coșbuc nr. 122-124, Galați', 45.4231, 28.0343, 10, 'profesionala', 'Verificati telefonic programul', 'Sala indoor din Galati cu 10 mese aprobate de federatie, listata in directoare sportive romanesti.', ARRAY['indoor', 'galati', 'club', '10 mese'], ARRAY[]::text[], false, false, true, false, '10 lei / ora', NULL, true, '2026-04-02T07:11:28.927999+00:00'),
+  ('Club King Pong', 'sala_indoor', 'Oradea', 'Bihor', NULL, 'Str. Vasile Alecsandri, Oradea', 47.056, 21.9286, 12, 'profesionala', 'Lu-Jo 17:00-22:00; Vi 17:00-22:00; Du 10:00-14:00', 'Club indoor din Oradea cu 12 mese profesionale, program public afisat pe site-ul clubului.', ARRAY['indoor', 'club', 'oradea', 'joola', 'donic'], ARRAY[]::text[], false, true, true, true, NULL, 'https://www.kingpong.ro/', true, '2026-04-02T07:11:28.927999+00:00'),
+  ('Mr. Pong', 'sala_indoor', 'Iași', 'Iași', NULL, 'Bd. Primăverii nr. 2, Bloc Iasitex, et. 7, Iași', 47.1416, 27.6141, 4, 'profesionala', 'Luni-Vineri 16:30-23:00; Sambata-Duminica 10:00-18:00', 'Sala de tenis de masa pentru agrement si antrenament, cu tarife si program public afisate online.', ARRAY['indoor', 'iasi', 'agrement', 'donic'], ARRAY[]::text[], false, false, true, true, '10 lei / ora / masa', 'https://www.tenisdemasa-iasi.ro/', true, '2026-04-02T07:11:28.927999+00:00'),
+  ('AMA Sport Center', 'sala_indoor', 'Ploiești', 'Prahova', NULL, 'Str. Bobâlna nr. 129, Ploiești', 44.9508, 26.0407, 3, 'buna', 'Luni-Vineri 11:00-23:00; Sambata-Duminica 11:00-23:00', 'Sala indoor din Ploiesti cu 3 mese Sponeta, listata in directoare sportive romanesti.', ARRAY['indoor', 'ploiesti', 'club', 'sponeta'], ARRAY[]::text[], false, false, true, false, '10-13 lei / ora', 'http://facebook.com/ama.sport', true, '2026-04-02T07:11:28.927999+00:00'),
+  ('CS Crișul Oradea - Tenis de Masă', 'sala_indoor', 'Oradea', 'Bihor', NULL, 'Str. Simion Bărnuțiu nr. 15, Oradea', 47.0682, 21.9347, NULL, 'profesionala', 'Verificati programul clubului', 'Sectia de tenis de masa a Clubului Sportiv Crisul Oradea.', ARRAY['indoor', 'club', 'oradea', 'performanta'], ARRAY[]::text[], false, false, true, true, NULL, 'https://www.cscrisul.ro/sectii/tenis-de-masa/', true, '2026-04-02T07:11:28.927999+00:00'),
+  ('Club Eden', 'sala_indoor', 'Constanța', 'Constanța', NULL, 'B-dul Aurel Vlaicu nr. 70, Constanța', 44.1914, 28.613, NULL, 'buna', NULL, 'Club indoor din Constanța, validat prin mai multe listări de turnee și directoare locale.', ARRAY['indoor', 'club', 'constanta', 'turnee'], ARRAY[]::text[], false, false, true, false, NULL, NULL, true, '2026-04-02T07:30:08.036897+00:00'),
+  ('Tenis Club 60', 'sala_indoor', 'Bacău', 'Bacău', NULL, 'Str. Ștefan cel Mare nr. 27, Bacău', 46.5714, 26.9139, NULL, 'buna', NULL, 'Club de tenis de masă din Bacău, confirmat prin discuții comunitare și anunțuri dedicate.', ARRAY['indoor', 'club', 'bacau'], ARRAY[]::text[], false, false, true, false, NULL, NULL, true, '2026-04-02T07:30:08.036897+00:00'),
+  ('Sports Mania', 'sala_indoor', 'Pitești', 'Argeș', NULL, 'Str. Prelungirea Craiovei nr. 13, Pitești', 44.8405, 24.8562, 12, 'profesionala', NULL, 'Sală indoor din Pitești cu mese Donic și istoric de turnee pentru amatori.', ARRAY['indoor', 'pitesti', 'donic', 'turnee'], ARRAY[]::text[], false, false, true, false, NULL, NULL, true, '2026-04-02T07:30:08.036897+00:00')
 ON CONFLICT (name, city) DO NOTHING;
 
 -- Update city venue counts
-UPDATE public.cities SET venue_count = (
+UPDATE public.cities
+SET venue_count = (
   SELECT COUNT(*) FROM public.venues WHERE venues.city = cities.name AND venues.approved = true
 );
 
@@ -775,7 +706,6 @@ CREATE POLICY "Users can delete own notifications" ON public.notifications FOR D
 DROP POLICY IF EXISTS "Service role can insert notifications" ON public.notifications;
 CREATE POLICY "Service role can insert notifications" ON public.notifications FOR INSERT TO service_role
   WITH CHECK (true);
-
 
 -- FILE: 009_notification_triggers.sql
 
@@ -866,17 +796,26 @@ DECLARE
   recipient_id UUID;
 BEGIN
   IF TG_OP = 'INSERT' AND NEW.status = 'pending' THEN
-    SELECT full_name INTO sender_name FROM public.profiles WHERE id = NEW.requester_id;
-    sender_name := COALESCE(sender_name, 'Cineva');
+    -- Only send if there is no existing unread friend_request from this sender
+    IF NOT EXISTS (
+      SELECT 1 FROM public.notifications
+      WHERE recipient_id = NEW.addressee_id
+        AND sender_id = NEW.requester_id
+        AND type = 'friend_request'
+        AND read = false
+    ) THEN
+      SELECT full_name INTO sender_name FROM public.profiles WHERE id = NEW.requester_id;
+      sender_name := COALESCE(sender_name, 'Cineva');
 
-    PERFORM public.create_and_send_notification(
-      NEW.addressee_id,
-      NEW.requester_id,
-      'friend_request',
-      'Cerere de prietenie',
-      sender_name || ' vrea să fie prietenul tău.',
-      jsonb_build_object('screen', '/(protected)/friends', 'friendshipId', NEW.id)
-    );
+      PERFORM public.create_and_send_notification(
+        NEW.addressee_id,
+        NEW.requester_id,
+        'friend_request',
+        'Cerere de prietenie',
+        sender_name || ' vrea să fie prietenul tău.',
+        jsonb_build_object('screen', '/(protected)/friends', 'friendshipId', NEW.id)
+      );
+    END IF;
   END IF;
 
   IF TG_OP = 'UPDATE' AND OLD.status = 'pending' AND NEW.status = 'accepted' THEN
@@ -1077,8 +1016,35 @@ END $$;
 -- FILE: 010_migrate_old_data.sql
 
 -- Migration: 010_migrate_old_data
--- Copies data from renamed *_old tables into the new tables.
--- Uses ON CONFLICT to avoid duplicates. Old tables are preserved.
+-- Creates missing indexes, then copies data from *_old tables into new tables.
+-- Old tables are preserved.
+
+-- ============================================================
+-- 0. FIX INDEXES (old indexes block new ones with same name)
+-- ============================================================
+DO $$
+DECLARE
+  idx RECORD;
+BEGIN
+  FOR idx IN
+    SELECT indexname FROM pg_indexes
+    WHERE schemaname = 'public'
+      AND tablename LIKE '%_old'
+      AND indexname NOT LIKE '%_old'
+  LOOP
+    EXECUTE format('ALTER INDEX %I RENAME TO %I', idx.indexname, idx.indexname || '_old');
+    RAISE NOTICE 'Renamed index % → %_old', idx.indexname, idx.indexname;
+  END LOOP;
+END $$;
+
+-- Recreate indexes on new tables
+CREATE INDEX IF NOT EXISTS idx_venues_city ON public.venues(city);
+CREATE INDEX IF NOT EXISTS idx_venues_type ON public.venues(type);
+CREATE INDEX IF NOT EXISTS idx_venues_approved ON public.venues(approved);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_venues_name_city ON public.venues(name, city);
+CREATE INDEX IF NOT EXISTS idx_reviews_venue ON public.reviews(venue_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_requester ON public.friendships(requester_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON public.friendships(addressee_id);
 
 -- ============================================================
 -- 1. CITIES (cities_old → cities)
@@ -1097,11 +1063,9 @@ END $$;
 
 -- ============================================================
 -- 2. VENUES (venues_old → venues)
--- Map column name differences: verificat → verified
 -- ============================================================
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'venues_old') THEN
-    -- Check if old table has 'verificat' or 'verified'
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'venues_old' AND column_name = 'verificat') THEN
       INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, submitted_by, photos, created_at)
       SELECT name, type, city, county, sector, address, lat, lng,
@@ -1114,6 +1078,7 @@ DO $$ BEGIN
              COALESCE(approved, true),
              submitted_by, photos, created_at
       FROM public.venues_old
+      WHERE city IS NOT NULL AND address IS NOT NULL
       ON CONFLICT (name, city) DO NOTHING;
     ELSE
       INSERT INTO public.venues (name, type, city, county, sector, address, lat, lng, tables_count, condition, hours, description, tags, free_access, night_lighting, nets, verified, tariff, website, approved, submitted_by, photos, created_at)
@@ -1127,6 +1092,7 @@ DO $$ BEGIN
              COALESCE(approved, true),
              submitted_by, photos, created_at
       FROM public.venues_old
+      WHERE city IS NOT NULL AND address IS NOT NULL
       ON CONFLICT (name, city) DO NOTHING;
     END IF;
     RAISE NOTICE 'Migrated venues data';
@@ -1138,7 +1104,6 @@ END $$;
 -- ============================================================
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'reviews_old') THEN
-    -- Map old venue IDs to new venue IDs via name+city match
     INSERT INTO public.reviews (venue_id, user_id, reviewer_name, rating, body, created_at)
     SELECT v_new.id, r_old.user_id, r_old.reviewer_name, r_old.rating, r_old.body, r_old.created_at
     FROM public.reviews_old r_old
@@ -1175,3 +1140,409 @@ REFRESH MATERIALIZED VIEW public.venue_stats;
 REFRESH MATERIALIZED VIEW public.leaderboard_checkins;
 REFRESH MATERIALIZED VIEW public.leaderboard_reviews;
 REFRESH MATERIALIZED VIEW public.leaderboard_venues;
+
+-- FILE: 011_fix_fk_references.sql
+
+-- Migration: 011_fix_fk_references
+-- Fix foreign keys on tables that were NOT renamed in 000 but still reference
+-- the old (now renamed) tables. These FKs need to point to the new tables.
+
+-- Events → venues
+ALTER TABLE public.events DROP CONSTRAINT IF EXISTS events_venue_id_fkey;
+ALTER TABLE public.events ADD CONSTRAINT events_venue_id_fkey
+  FOREIGN KEY (venue_id) REFERENCES public.venues(id) ON DELETE SET NULL;
+
+-- Favorites → venues
+ALTER TABLE public.favorites DROP CONSTRAINT IF EXISTS favorites_venue_id_fkey;
+ALTER TABLE public.favorites ADD CONSTRAINT favorites_venue_id_fkey
+  FOREIGN KEY (venue_id) REFERENCES public.venues(id) ON DELETE CASCADE;
+
+-- Checkins → venues
+ALTER TABLE public.checkins DROP CONSTRAINT IF EXISTS checkins_venue_id_fkey;
+ALTER TABLE public.checkins ADD CONSTRAINT checkins_venue_id_fkey
+  FOREIGN KEY (venue_id) REFERENCES public.venues(id) ON DELETE CASCADE;
+
+-- Condition votes → venues
+ALTER TABLE public.condition_votes DROP CONSTRAINT IF EXISTS condition_votes_venue_id_fkey;
+ALTER TABLE public.condition_votes ADD CONSTRAINT condition_votes_venue_id_fkey
+  FOREIGN KEY (venue_id) REFERENCES public.venues(id) ON DELETE CASCADE;
+
+-- Reviews → venues (new reviews table was created fresh, but just in case)
+ALTER TABLE public.reviews DROP CONSTRAINT IF EXISTS reviews_venue_id_fkey;
+ALTER TABLE public.reviews ADD CONSTRAINT reviews_venue_id_fkey
+  FOREIGN KEY (venue_id) REFERENCES public.venues(id) ON DELETE CASCADE;
+
+-- FILE: 012_event_reminders_and_checkin_toggle.sql
+
+-- Migration: 012_event_reminders_and_checkin_toggle
+-- 1. Scheduled function to send event reminders 24h before start
+-- 2. Profile toggle for checkin notifications
+
+-- ============================================================
+-- 1. EVENT REMINDERS
+-- Creates a function that finds events starting in the next 24h
+-- and sends reminders to participants who haven't been reminded.
+-- Should be called via pg_cron or Supabase Edge Function on a schedule.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.send_event_reminders()
+RETURNS void AS $$
+DECLARE
+  event_record RECORD;
+  participant RECORD;
+  event_title TEXT;
+  time_str TEXT;
+BEGIN
+  FOR event_record IN
+    SELECT e.id, e.title, e.starts_at, v.name AS venue_name
+    FROM public.events e
+    LEFT JOIN public.venues v ON v.id = e.venue_id
+    WHERE e.status IN ('open', 'confirmed')
+      AND e.starts_at > NOW()
+      AND e.starts_at <= NOW() + INTERVAL '24 hours'
+  LOOP
+    event_title := COALESCE(event_record.title, event_record.venue_name, 'Eveniment');
+    time_str := to_char(event_record.starts_at AT TIME ZONE 'Europe/Bucharest', 'HH24:MI');
+
+    FOR participant IN
+      SELECT ep.user_id
+      FROM public.event_participants ep
+      WHERE ep.event_id = event_record.id
+        -- Skip if already reminded for this event
+        AND NOT EXISTS (
+          SELECT 1 FROM public.notifications n
+          WHERE n.recipient_id = ep.user_id
+            AND n.type = 'event_reminder'
+            AND n.data->>'event_id' = event_record.id::text
+        )
+    LOOP
+      BEGIN
+        INSERT INTO public.notifications (recipient_id, sender_id, type, title, body, data)
+        VALUES (
+          participant.user_id,
+          NULL,
+          'event_reminder',
+          'Eveniment mâine',
+          '"' || event_title || '" începe mâine la ' || time_str || '.',
+          jsonb_build_object('screen', '/(tabs)/events', 'event_id', event_record.id)
+        );
+
+        PERFORM public.send_push_notification(
+          participant.user_id,
+          'Eveniment mâine',
+          '"' || event_title || '" începe mâine la ' || time_str || '.',
+          jsonb_build_object('screen', '/(tabs)/events', 'event_id', event_record.id)
+        );
+      EXCEPTION WHEN OTHERS THEN
+        NULL; -- Don't fail the whole batch
+      END;
+    END LOOP;
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Enable pg_cron if available (Supabase hosted has it pre-installed)
+DO $$
+BEGIN
+  CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'pg_cron not available — event reminders must be triggered externally';
+END $$;
+
+-- Schedule: run every hour to catch events starting in the next 24h
+-- (only works on Supabase hosted where pg_cron is available)
+DO $$
+BEGIN
+  PERFORM cron.schedule(
+    'send-event-reminders',
+    '0 * * * *',  -- every hour
+    'SELECT public.send_event_reminders()'
+  );
+  RAISE NOTICE 'Scheduled event reminders cron job';
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Could not schedule cron — pg_cron not available';
+END $$;
+
+-- ============================================================
+-- 2. CHECKIN NOTIFICATION TOGGLE
+-- Add a profile preference to opt out of friend checkin notifications
+-- ============================================================
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notify_friend_checkins BOOLEAN NOT NULL DEFAULT true;
+
+-- Update the checkin trigger to respect this preference
+CREATE OR REPLACE FUNCTION public.trigger_checkin_notification()
+RETURNS TRIGGER AS $$
+DECLARE
+  checkin_user_name TEXT;
+  venue_name TEXT;
+  friend RECORD;
+  friend_prefs BOOLEAN;
+BEGIN
+  SELECT full_name INTO checkin_user_name FROM public.profiles WHERE id = NEW.user_id;
+  checkin_user_name := COALESCE(checkin_user_name, 'Cineva');
+
+  SELECT name INTO venue_name FROM public.venues WHERE id = NEW.venue_id;
+  venue_name := COALESCE(venue_name, 'o locație');
+
+  -- Notify accepted friends who have checkin notifications enabled
+  FOR friend IN
+    SELECT CASE
+      WHEN requester_id = NEW.user_id THEN addressee_id
+      ELSE requester_id
+    END AS friend_id
+    FROM public.friendships
+    WHERE status = 'accepted'
+      AND (requester_id = NEW.user_id OR addressee_id = NEW.user_id)
+  LOOP
+    -- Check friend's notification preference
+    SELECT notify_friend_checkins INTO friend_prefs
+    FROM public.profiles WHERE id = friend.friend_id;
+
+    IF COALESCE(friend_prefs, true) THEN
+      PERFORM public.create_and_send_notification(
+        friend.friend_id,
+        NEW.user_id,
+        'checkin_nearby',
+        'Check-in prieten',
+        checkin_user_name || ' a făcut check-in la "' || venue_name || '".',
+        jsonb_build_object('screen', '/venue/' || NEW.venue_id, 'venueId', NEW.venue_id)
+      );
+    END IF;
+  END LOOP;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- FILE: 014_event_invites.sql
+
+-- Migration: 014_event_invites
+-- Add 'event_invite' notification type and RPC function for sending event invitations.
+
+-- 1. Add 'event_invite' to the notifications type CHECK constraint
+ALTER TABLE public.notifications DROP CONSTRAINT notifications_type_check;
+ALTER TABLE public.notifications ADD CONSTRAINT notifications_type_check
+  CHECK (type IN (
+    'friend_request', 'friend_accepted',
+    'event_reminder', 'event_joined', 'event_cancelled',
+    'event_invite',
+    'checkin_nearby',
+    'review_on_venue'
+  ));
+
+-- 2. RPC function: send event invitations to a list of friends
+CREATE OR REPLACE FUNCTION public.send_event_invites(
+  p_event_id INT,
+  p_friend_ids UUID[]
+) RETURNS void AS $$
+DECLARE
+  caller_id UUID := auth.uid();
+  event_record RECORD;
+  caller_name TEXT;
+  friend_id UUID;
+BEGIN
+  -- Verify caller is the event organizer
+  SELECT id, title, organizer_id
+  INTO event_record
+  FROM public.events
+  WHERE id = p_event_id;
+
+  IF event_record IS NULL OR event_record.organizer_id != caller_id THEN
+    RAISE EXCEPTION 'Not authorized';
+  END IF;
+
+  SELECT full_name INTO caller_name FROM public.profiles WHERE id = caller_id;
+  caller_name := COALESCE(caller_name, 'Cineva');
+
+  FOREACH friend_id IN ARRAY p_friend_ids
+  LOOP
+    -- Only invite accepted friends
+    IF EXISTS (
+      SELECT 1 FROM public.friendships
+      WHERE status = 'accepted'
+        AND ((requester_id = caller_id AND addressee_id = friend_id)
+          OR (requester_id = friend_id AND addressee_id = caller_id))
+    ) THEN
+      -- Skip if already invited (unread notification for same event)
+      IF NOT EXISTS (
+        SELECT 1 FROM public.notifications
+        WHERE recipient_id = friend_id
+          AND type = 'event_invite'
+          AND (data->>'eventId')::int = p_event_id
+          AND read = false
+      ) THEN
+        PERFORM public.create_and_send_notification(
+          friend_id,
+          caller_id,
+          'event_invite',
+          'Invitație la eveniment',
+          caller_name || ' te-a invitat la "' || COALESCE(event_record.title, 'eveniment') || '".',
+          jsonb_build_object('screen', '/(tabs)/events', 'eventId', p_event_id)
+        );
+      END IF;
+    END IF;
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- FILE: 015_event_updates.sql
+
+-- Migration: 015_event_updates
+-- Add 'event_update' notification type and RPC function for organizer announcements.
+
+-- 1. Add 'event_update' to the notifications type CHECK constraint
+ALTER TABLE public.notifications DROP CONSTRAINT notifications_type_check;
+ALTER TABLE public.notifications ADD CONSTRAINT notifications_type_check
+  CHECK (type IN (
+    'friend_request', 'friend_accepted',
+    'event_reminder', 'event_joined', 'event_cancelled',
+    'event_invite', 'event_update',
+    'checkin_nearby',
+    'review_on_venue'
+  ));
+
+-- 2. RPC function: send an update to all event participants
+CREATE OR REPLACE FUNCTION public.send_event_update(
+  p_event_id INT,
+  p_message TEXT
+) RETURNS void AS $$
+DECLARE
+  caller_id UUID := auth.uid();
+  event_record RECORD;
+  caller_name TEXT;
+  participant RECORD;
+BEGIN
+  -- Verify caller is the event organizer
+  SELECT id, title, organizer_id
+  INTO event_record
+  FROM public.events
+  WHERE id = p_event_id;
+
+  IF event_record IS NULL OR event_record.organizer_id != caller_id THEN
+    RAISE EXCEPTION 'Not authorized';
+  END IF;
+
+  SELECT full_name INTO caller_name FROM public.profiles WHERE id = caller_id;
+  caller_name := COALESCE(caller_name, 'Cineva');
+
+  -- Notify every participant (except the organizer)
+  FOR participant IN
+    SELECT user_id FROM public.event_participants WHERE event_id = p_event_id
+  LOOP
+    PERFORM public.create_and_send_notification(
+      participant.user_id,
+      caller_id,
+      'event_update',
+      'Actualizare eveniment',
+      caller_name || ' · "' || COALESCE(event_record.title, 'eveniment') || '": ' || p_message,
+      jsonb_build_object('screen', '/(tabs)/events', 'eventId', p_event_id)
+    );
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- FILE: 016_recurring_events.sql
+
+-- Migration: 016_recurring_events
+-- Add recurrence support to events: columns, cron function for auto-generation.
+
+-- 1. New columns on events
+ALTER TABLE public.events
+  ADD COLUMN IF NOT EXISTS recurrence_rule TEXT
+    CHECK (recurrence_rule IN ('daily', 'weekly', 'monthly')),
+  ADD COLUMN IF NOT EXISTS recurrence_day INT,
+  ADD COLUMN IF NOT EXISTS parent_event_id INT REFERENCES public.events(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_events_recurrence ON public.events(recurrence_rule)
+  WHERE recurrence_rule IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_events_parent ON public.events(parent_event_id)
+  WHERE parent_event_id IS NOT NULL;
+
+-- 2. Cron function: generate next instance for each recurring series
+CREATE OR REPLACE FUNCTION public.generate_recurring_events()
+RETURNS void AS $$
+DECLARE
+  rec RECORD;
+  next_start TIMESTAMPTZ;
+  next_end TIMESTAMPTZ;
+  duration INTERVAL;
+  root_id INT;
+  new_event_id INT;
+BEGIN
+  FOR rec IN
+    WITH latest_per_series AS (
+      SELECT DISTINCT ON (COALESCE(parent_event_id, id))
+        *
+      FROM public.events
+      WHERE recurrence_rule IS NOT NULL
+        AND status NOT IN ('cancelled')
+      ORDER BY COALESCE(parent_event_id, id), starts_at DESC
+    )
+    SELECT * FROM latest_per_series
+    WHERE starts_at < NOW()
+      AND NOT EXISTS (
+        SELECT 1 FROM public.events e2
+        WHERE e2.starts_at > NOW()
+          AND e2.status != 'cancelled'
+          AND (
+            e2.parent_event_id = COALESCE(latest_per_series.parent_event_id, latest_per_series.id)
+            OR (e2.id = COALESCE(latest_per_series.parent_event_id, latest_per_series.id)
+                AND e2.recurrence_rule IS NOT NULL)
+          )
+      )
+  LOOP
+    duration := COALESCE(rec.ends_at - rec.starts_at, INTERVAL '0');
+    root_id := COALESCE(rec.parent_event_id, rec.id);
+
+    -- Advance starts_at until it is in the future
+    next_start := rec.starts_at;
+    LOOP
+      CASE rec.recurrence_rule
+        WHEN 'daily'   THEN next_start := next_start + INTERVAL '1 day';
+        WHEN 'weekly'  THEN next_start := next_start + INTERVAL '7 days';
+        WHEN 'monthly' THEN next_start := next_start + INTERVAL '1 month';
+      END CASE;
+      EXIT WHEN next_start > NOW();
+    END LOOP;
+
+    next_end := CASE
+      WHEN rec.ends_at IS NOT NULL THEN next_start + duration
+      ELSE NULL
+    END;
+
+    INSERT INTO public.events (
+      title, description, venue_id, table_number, organizer_id,
+      starts_at, ends_at, max_participants, status, event_type,
+      recurrence_rule, recurrence_day, parent_event_id
+    ) VALUES (
+      rec.title, rec.description, rec.venue_id, rec.table_number, rec.organizer_id,
+      next_start, next_end, rec.max_participants, 'open', rec.event_type,
+      rec.recurrence_rule, rec.recurrence_day, root_id
+    )
+    RETURNING id INTO new_event_id;
+
+    -- Auto-join the organizer
+    INSERT INTO public.event_participants (event_id, user_id)
+    VALUES (new_event_id, rec.organizer_id);
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 3. Schedule with pg_cron (hourly at :15, offset from reminders at :00)
+DO $$
+BEGIN
+  PERFORM cron.schedule(
+    'generate-recurring-events',
+    '15 * * * *',
+    'SELECT public.generate_recurring_events()'
+  );
+  RAISE NOTICE 'Scheduled recurring events cron job';
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Could not schedule cron -- pg_cron not available';
+END $$;
+
+-- FILE: 017_events_default_unlimited.sql
+
+-- Migration: 017_events_default_unlimited
+-- Change max_participants default from 6 to NULL (unlimited by default).
+
+ALTER TABLE public.events ALTER COLUMN max_participants SET DEFAULT NULL;
