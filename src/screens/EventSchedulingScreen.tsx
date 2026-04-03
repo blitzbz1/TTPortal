@@ -14,8 +14,10 @@ import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme'
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getEvents, getEventParticipants, joinEvent, leaveEvent, cancelEvent, stopRecurrence, sendEventInvites, sendEventUpdate } from '../services/events';
+import { getEventFeedback, getUserEventFeedback } from '../services/eventFeedback';
 import { getFriendIds } from '../services/friends';
 import { FriendPickerModal } from '../components/FriendPickerModal';
+import { WriteEventFeedbackScreen } from './WriteEventFeedbackScreen';
 import { hapticMedium } from '../lib/haptics';
 
 type EventTab = 'upcoming' | 'past' | 'mine';
@@ -31,9 +33,12 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
   const [detailParticipants, setDetailParticipants] = useState<any[]>([]);
+  const [detailFeedback, setDetailFeedback] = useState<any[]>([]);
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
   const [detailLoading, setDetailLoading] = useState(false);
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [feedbackEventId, setFeedbackEventId] = useState<number | null>(null);
+  const [feedbackGivenIds, setFeedbackGivenIds] = useState<Set<number>>(new Set());
   const [updateText, setUpdateText] = useState('');
   const [sendingUpdate, setSendingUpdate] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -55,6 +60,17 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         Alert.alert(s('error'), s('eventsLoadError'));
       } else {
         setEvents(data ?? []);
+        // Check which past events already have user feedback
+        if (activeTab === 'past' && user?.id && data?.length) {
+          const checks = await Promise.all(
+            data.map((ev: any) => getUserEventFeedback(ev.id, user.id)),
+          );
+          const givenIds = new Set<number>();
+          data.forEach((ev: any, i: number) => {
+            if (checks[i].data) givenIds.add(ev.id);
+          });
+          setFeedbackGivenIds(givenIds);
+        }
       }
     } finally {
       setLoading(false);
@@ -83,14 +99,21 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const openDetail = useCallback(async (event: any) => {
     setSelectedEvent(event);
     setDetailLoading(true);
-    const { data } = await getEventParticipants(event.id);
-    setDetailParticipants(data ?? []);
+    setDetailFeedback([]);
+    const [partRes, fbRes] = await Promise.all([
+      getEventParticipants(event.id),
+      isPast(event) && event.status !== 'cancelled' ? getEventFeedback(event.id) : Promise.resolve({ data: [] }),
+    ]);
+    setDetailParticipants(partRes.data ?? []);
+    setDetailFeedback(fbRes.data ?? []);
     setDetailLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const closeDetail = useCallback(() => {
     setSelectedEvent(null);
     setDetailParticipants([]);
+    setDetailFeedback([]);
     setUpdateText('');
   }, []);
 
@@ -307,6 +330,15 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                           </Text>
                         </TouchableOpacity>
                       )}
+                      {isPast(event) && event.status !== 'cancelled' && isJoined && event.organizer_id !== user?.id && !feedbackGivenIds.has(event.id) && (
+                        <TouchableOpacity
+                          style={[styles.joinBtn, styles.notJoinedBtn]}
+                          onPress={(e) => { e?.stopPropagation?.(); setFeedbackEventId(event.id); }}
+                        >
+                          <Lucide name="message-square" size={14} color={colors.primary} />
+                          <Text style={[styles.joinText, styles.notJoinedText]}>{s('giveFeedback')}</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </TouchableOpacity>
                 </Card>
@@ -520,7 +552,37 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                   )}
 
                   {/* Join / Invite buttons */}
+                  {/* Feedback section for past events */}
+                  {isPast(ev) && ev.status !== 'cancelled' && detailFeedback.length > 0 && (
+                    <View style={ms.feedbackSection}>
+                      <Text style={ms.sectionTitle}>{s('feedback')} ({detailFeedback.length})</Text>
+                      <View style={ms.feedbackSummary}>
+                        <Text style={ms.feedbackStat}>
+                          {s('avgRating')}: {(detailFeedback.reduce((sum: number, f: any) => sum + f.rating, 0) / detailFeedback.length).toFixed(1)}{'\u2605'}
+                        </Text>
+                      </View>
+                      {detailFeedback.map((fb: any) => (
+                        <View key={fb.id} style={ms.feedbackCard}>
+                          <View style={ms.feedbackHeader}>
+                            <Text style={ms.feedbackName}>{fb.reviewer_name || s('anon')}</Text>
+                            <Text style={ms.feedbackRating}>{fb.rating}{'\u2605'} · {Number(fb.hours_played)}h</Text>
+                          </View>
+                          {fb.body ? <Text style={ms.feedbackBody}>{fb.body}</Text> : null}
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
                   <View style={ms.actions}>
+                    {isPast(ev) && ev.status !== 'cancelled' && isJoined && ev.organizer_id !== user?.id && !feedbackGivenIds.has(ev.id) && (
+                      <TouchableOpacity
+                        style={[ms.actionBtn, ms.actionJoin]}
+                        onPress={() => { closeDetail(); setFeedbackEventId(ev.id); }}
+                      >
+                        <Lucide name="message-square" size={16} color={colors.textOnPrimary} />
+                        <Text style={[ms.actionText, ms.actionJoinText]}>{s('giveFeedback')}</Text>
+                      </TouchableOpacity>
+                    )}
                     {!isPast(ev) && ev.organizer_id !== user?.id && (
                       <TouchableOpacity
                         style={[ms.actionBtn, isJoined ? ms.actionLeave : ms.actionJoin]}
@@ -637,6 +699,16 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
           onClose={() => setInviteModalVisible(false)}
         />
       )}
+
+      <WriteEventFeedbackScreen
+        visible={feedbackEventId !== null}
+        eventId={feedbackEventId}
+        onDismiss={() => {
+          if (feedbackEventId) setFeedbackGivenIds(prev => new Set(prev).add(feedbackEventId));
+          setFeedbackEventId(null);
+          fetchEvents();
+        }}
+      />
     </View>
   );
 }
@@ -1020,6 +1092,50 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     actionInviteText: {
       color: colors.purple,
+    },
+    feedbackSection: {
+      marginTop: Spacing.md,
+      gap: Spacing.xs,
+    },
+    feedbackSummary: {
+      flexDirection: 'row',
+      gap: Spacing.md,
+      marginBottom: Spacing.xs,
+    },
+    feedbackStat: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.semibold,
+      color: colors.primaryMid,
+    },
+    feedbackCard: {
+      backgroundColor: colors.bg,
+      borderRadius: Radius.sm,
+      padding: Spacing.sm,
+      gap: 4,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    feedbackHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    feedbackName: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.semibold,
+      color: colors.text,
+    },
+    feedbackRating: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      color: colors.accent,
+    },
+    feedbackBody: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      color: colors.textMuted,
     },
     dangerZone: {
       marginTop: 20,

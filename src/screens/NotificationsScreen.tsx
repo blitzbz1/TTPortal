@@ -36,6 +36,8 @@ function getIconMap(colors: ThemeColors): Record<string, { name: string; color: 
     review_on_venue: { name: 'star', color: colors.accent, bg: colors.amberPale },
     event_invite: { name: 'mail', color: colors.purple, bg: colors.purplePale },
     event_update: { name: 'megaphone', color: colors.accent, bg: colors.amberPale },
+    event_feedback_request: { name: 'message-square', color: colors.primaryMid, bg: colors.primaryPale },
+    event_feedback_received: { name: 'star', color: colors.accent, bg: colors.amberPale },
   };
 }
 

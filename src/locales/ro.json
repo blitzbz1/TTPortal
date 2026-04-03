@@ -39,7 +39,7 @@
   "cancel": "Anulează",
   "save": "Salvează →",
   "add": "Adaugă →",
-  "publish": "Publică →",
+  "publish": "Publică",
 
   "authSignup": "Înregistrare",
   "authLogin": "Conectare",
@@ -444,5 +444,24 @@
   "challengeCriticTitle": "Provocarea Critic",
   "challengeCriticDesc": "Scrie 3 recenzii luna asta",
 
-  "shareCard": "Distribuie"
+  "shareCard": "Distribuie",
+
+  "giveFeedback": "Lasă feedback",
+  "eventFeedbackTitle": "Feedback eveniment",
+  "hoursPlayed": "Ore jucate",
+  "hoursPlayedPlaceholder": "ex. 2",
+  "feedbackReview": "Cum a fost? (opțional)",
+  "feedbackSubmitted": "Feedback trimis!",
+  "feedbackAlreadySent": "Ai trimis deja feedback",
+  "feedback": "Feedback",
+  "avgRating": "Rating mediu",
+  "totalHoursPlayed": "Total ore jucate",
+  "feedbackRequired": "Te rugăm să completezi orele jucate și ratingul",
+  "notParticipant": "Doar participanții pot lăsa feedback",
+
+  "noActivity": "Nicio activitate în această zi",
+  "periodWeek": "Săptămâna",
+  "periodMonth": "Luna",
+  "periodYear": "Anul",
+  "periodAll": "Total"
 }

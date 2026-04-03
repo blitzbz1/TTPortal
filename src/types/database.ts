@@ -138,6 +138,19 @@ export interface EventParticipant {
   joined_at: string;
 }
 
+export interface EventFeedback {
+  id: number;
+  event_id: number;
+  user_id: string;
+  reviewer_name: string | null;
+  rating: number;
+  hours_played: number;
+  body: string | null;
+  created_at: string;
+}
+
+export type EventFeedbackInsert = Omit<EventFeedback, 'id' | 'created_at'>;
+
 // ── View types ──
 
 export interface VenueStats {

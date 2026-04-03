@@ -39,7 +39,7 @@
   "cancel": "Cancel",
   "save": "Save →",
   "add": "Add venue →",
-  "publish": "Post →",
+  "publish": "Post",
 
   "authSignup": "Sign up",
   "authLogin": "Log in",
@@ -444,5 +444,24 @@
   "challengeCriticTitle": "Critic Challenge",
   "challengeCriticDesc": "Write 3 reviews this month",
 
-  "shareCard": "Share"
+  "shareCard": "Share",
+
+  "giveFeedback": "Give feedback",
+  "eventFeedbackTitle": "Event feedback",
+  "hoursPlayed": "Hours played",
+  "hoursPlayedPlaceholder": "e.g. 2",
+  "feedbackReview": "How was it? (optional)",
+  "feedbackSubmitted": "Feedback submitted!",
+  "feedbackAlreadySent": "You already submitted feedback",
+  "feedback": "Feedback",
+  "avgRating": "Average rating",
+  "totalHoursPlayed": "Total hours played",
+  "feedbackRequired": "Please fill in hours played and rating",
+  "notParticipant": "Only participants can give feedback",
+
+  "noActivity": "No activity on this day",
+  "periodWeek": "Week",
+  "periodMonth": "Month",
+  "periodYear": "Year",
+  "periodAll": "Total"
 }
