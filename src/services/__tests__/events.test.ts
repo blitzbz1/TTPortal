@@ -127,7 +127,7 @@ describe('getEvents', () => {
 
     const chain = mockFrom.mock.results[0].value;
     expect(chain.lt).toHaveBeenCalledWith('starts_at', expect.any(String));
-    expect(chain.eq).toHaveBeenCalledWith('event_participants.user_id', 'user-1');
+    expect(chain.eq).toHaveBeenCalledWith('ep_filter.user_id', 'user-1');
     expect(chain.order).toHaveBeenCalledWith('starts_at', { ascending: false });
   });
 

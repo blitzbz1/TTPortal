@@ -6,15 +6,20 @@ export async function getEvents(
   userId?: string,
 ) {
   const now = new Date().toISOString();
+  const needsParticipantFilter = filter === 'past' && !!userId;
   let query = supabase
     .from('events')
-    .select('*, venues(name, city, lat, lng), event_participants(user_id)');
+    .select(
+      needsParticipantFilter
+        ? '*, venues(name, city, lat, lng), event_participants(user_id), ep_filter:event_participants!inner(user_id)'
+        : '*, venues(name, city, lat, lng), event_participants(user_id)',
+    );
 
   if (filter === 'upcoming') {
     query = query.gte('starts_at', now).neq('status', 'cancelled');
   } else if (filter === 'past') {
     query = query.lt('starts_at', now);
-    if (userId) query = query.eq('event_participants.user_id', userId);
+    if (userId) query = query.eq('ep_filter.user_id', userId);
   } else if (filter === 'mine' && userId) {
     query = query.eq('organizer_id', userId);
   }

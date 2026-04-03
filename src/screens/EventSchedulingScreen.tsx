@@ -228,6 +228,13 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       .toUpperCase();
   };
 
+  const AVATAR_COLORS = [
+    '#16a34a', '#0d9488', '#2563eb', '#7c3aed', '#c026d3',
+    '#db2777', '#dc2626', '#ea580c', '#d97706', '#4f46e5',
+  ];
+  const getAvatarColor = (id: string) =>
+    AVATAR_COLORS[Math.abs([...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0)) % AVATAR_COLORS.length];
+
   const getDuration = (start: string, end?: string) => {
     if (!end) return null;
     const msVal = new Date(end).getTime() - new Date(start).getTime();
@@ -336,7 +343,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                               key={p.user_id}
                               style={[
                                 styles.stackAvatar,
-                                { marginLeft: i > 0 ? -8 : 0, zIndex: 5 - i },
+                                { marginLeft: i > 0 ? -8 : 0, zIndex: 5 - i, backgroundColor: getAvatarColor(p.user_id) },
                               ]}
                             >
                               <Text style={styles.stackInitials}>
@@ -545,7 +552,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                   <View style={ms.infoBlock}>
                     <View style={ms.infoRow}>
                       <Lucide name="calendar" size={16} color={colors.accentBright} />
-                      <Text style={[ms.infoText, { flex: 0 }]}>
+                      <Text style={ms.infoText} numberOfLines={1}>
                         {formatDate(ev.starts_at)} {'\u00B7'} {formatTime(ev.starts_at)}
                         {ev.ends_at ? ` – ${formatTime(ev.ends_at)}` : ''}
                       </Text>
@@ -559,7 +566,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
 
                     <View style={ms.infoRow}>
                       <Lucide name="map-pin" size={16} color={colors.primaryMid} />
-                      <Text style={[ms.infoText, { flex: 0 }]}>
+                      <Text style={ms.infoText} numberOfLines={1}>
                         {venueName}{venueCity ? `, ${venueCity}` : ''}
                       </Text>
                       {ev.event_type === 'tournament' && (
@@ -682,7 +689,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                           const isMe = p.user_id === user?.id;
                           return (
                             <View key={p.user_id} style={ms.pHItem}>
-                              <View style={[ms.pAvatar, isFriend && ms.pAvatarFriend]}>
+                              <View style={[ms.pAvatar, { backgroundColor: getAvatarColor(p.user_id) }]}>
                                 <Text style={ms.pInitials}>{getInitials(fullName)}</Text>
                                 {isOrganizer && (
                                   <View style={ms.pOrgBadge}>
@@ -1358,6 +1365,7 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     durationChip: {
       flexDirection: 'row',
       alignItems: 'center',
+      flexShrink: 0,
       gap: 4,
       backgroundColor: colors.bgMuted,
       borderRadius: Radius.sm,
