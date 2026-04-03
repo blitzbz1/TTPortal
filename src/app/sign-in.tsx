@@ -33,8 +33,8 @@ export default function SignInScreen() {
   const insets = useSafeAreaInsets();
   const { signUp, signIn, signInWithGoogle, signInWithApple } = useSession();
   const { s, lang, setLang } = useI18n();
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const [activeTab, setActiveTab] = useState<'signup' | 'login'>(
     (initialTab as 'signup' | 'login') || 'login',
@@ -148,7 +148,7 @@ export default function SignInScreen() {
       <View style={[styles.content, { paddingTop: insets.top + 12 }]} testID="sign-in-screen">
         {/* Back button */}
         <Pressable style={styles.backBtn} onPress={() => router.replace('/(tabs)/' as any)}>
-          <Lucide name="arrow-left" size={22} color={colors.textOnPrimary} />
+          <Lucide name="arrow-left" size={22} color={isDark ? colors.text : colors.textOnPrimary} />
         </Pressable>
 
         {/* Top Branding */}
@@ -281,13 +281,13 @@ export default function SignInScreen() {
             style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
           >
             {loading ? (
-              <ActivityIndicator size="small" color={colors.textOnPrimary} testID="loading-spinner" />
+              <ActivityIndicator size="small" color={isDark ? colors.black : colors.textOnPrimary} testID="loading-spinner" />
             ) : (
               <>
                 <Text style={styles.submitText}>
                   {activeTab === 'signup' ? s('authSubmitSignup') : s('authSubmitLogin')}
                 </Text>
-                <Lucide name="arrow-right" size={20} color={colors.textOnPrimary} />
+                <Lucide name="arrow-right" size={20} color={isDark ? colors.black : colors.textOnPrimary} />
               </>
             )}
           </Pressable>
@@ -318,7 +318,7 @@ export default function SignInScreen() {
               disabled={loading}
               testID="apple-button"
             >
-              <Lucide name="apple" size={20} color={colors.textOnPrimary} />
+              <Lucide name="apple" size={20} color={isDark ? colors.text : colors.textOnPrimary} />
               <Text style={styles.appleText}>Apple</Text>
             </Pressable>
           </View>
@@ -362,11 +362,32 @@ export default function SignInScreen() {
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, isDark: boolean) {
+  // In light mode the screen uses dark-green (primary) as bg with white text.
+  // In dark mode we flip: dark bg with green accents.
+  const pageBg = isDark ? colors.bg : colors.primary;
+  const headingColor = isDark ? colors.text : colors.textOnPrimary;
+  const subtitleColor = isDark ? colors.textMuted : colors.primaryDim;
+  const inputBg = isDark ? colors.bgMuted : colors.authInputBg;
+  const inputText = isDark ? colors.text : colors.textOnPrimary;
+  const tabInactiveText = isDark ? colors.textFaint : colors.primaryDim;
+  const tabActiveText = isDark ? colors.primary : colors.primary;
+  const tabActiveBg = isDark ? colors.bgAlt : colors.bgAlt;
+  const forgotColor = isDark ? colors.textMuted : colors.primaryDim;
+  const submitBg = isDark ? colors.primary : colors.primaryLight;
+  const submitText = isDark ? colors.black : colors.textOnPrimary;
+  const dividerColor = isDark ? colors.border : colors.authInputBg;
+  const googleBtnBg = isDark ? colors.bgAlt : colors.bgAlt;
+  const googleBtnText = isDark ? colors.text : colors.primary;
+  const appleBorder = isDark ? colors.border : colors.primaryDim;
+  const appleTextColor = isDark ? colors.text : colors.textOnPrimary;
+  const linkColor = isDark ? colors.primary : colors.textOnPrimary;
+  const langActiveText = isDark ? colors.primary : colors.primary;
+
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.primary,
+      backgroundColor: pageBg,
     },
     backBtn: {
       alignSelf: 'flex-start',
@@ -388,19 +409,19 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.body,
       fontSize: 13,
       fontWeight: '500',
-      color: colors.primaryDim,
+      color: subtitleColor,
       opacity: 0.7,
     },
     logo: {
       fontFamily: Fonts.heading,
       fontSize: 42,
       fontWeight: '800',
-      color: colors.textOnPrimary,
+      color: headingColor,
     },
     tagline: {
       fontFamily: Fonts.body,
       fontSize: 16,
-      color: colors.primaryDim,
+      color: subtitleColor,
       textAlign: 'center',
       width: 260,
     },
@@ -409,7 +430,7 @@ function createStyles(colors: ThemeColors) {
     },
     authTabs: {
       flexDirection: 'row',
-      backgroundColor: colors.authInputBg,
+      backgroundColor: inputBg,
       borderRadius: 12,
     },
     authTab: {
@@ -420,22 +441,22 @@ function createStyles(colors: ThemeColors) {
       borderRadius: 12,
     },
     authTabActive: {
-      backgroundColor: colors.bgAlt,
+      backgroundColor: tabActiveBg,
     },
     authTabText: {
       fontFamily: Fonts.body,
       fontSize: 14,
       fontWeight: '500',
-      color: colors.primaryDim,
+      color: tabInactiveText,
     },
     authTabTextActive: {
-      color: colors.primary,
+      color: tabActiveText,
       fontWeight: '600',
     },
     inputField: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.authInputBg,
+      backgroundColor: inputBg,
       borderRadius: Radius.md,
       height: 48,
       paddingHorizontal: 14,
@@ -445,14 +466,14 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       fontFamily: Fonts.body,
       fontSize: 14,
-      color: colors.textOnPrimary,
+      color: inputText,
       height: 48,
       paddingVertical: 0,
     },
     forgotLink: {
       fontFamily: Fonts.body,
       fontSize: 13,
-      color: colors.primaryDim,
+      color: forgotColor,
       textAlign: 'right',
     },
     errorText: {
@@ -465,7 +486,7 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.primaryLight,
+      backgroundColor: submitBg,
       borderRadius: 12,
       height: 50,
       gap: 8,
@@ -480,7 +501,7 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.body,
       fontSize: 16,
       fontWeight: '700',
-      color: colors.textOnPrimary,
+      color: submitText,
     },
     divider: {
       flexDirection: 'row',
@@ -491,13 +512,13 @@ function createStyles(colors: ThemeColors) {
     dividerLine: {
       flex: 1,
       height: 1,
-      backgroundColor: colors.authInputBg,
+      backgroundColor: dividerColor,
     },
     dividerText: {
       fontFamily: Fonts.body,
       fontSize: 12,
       fontWeight: '500',
-      color: colors.textFaint,
+      color: isDark ? colors.textFaint : colors.textFaint,
     },
     socialRow: {
       flexDirection: 'row',
@@ -508,7 +529,7 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.bgAlt,
+      backgroundColor: googleBtnBg,
       borderRadius: Radius.md,
       height: 46,
       gap: 8,
@@ -517,13 +538,13 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.heading,
       fontSize: 18,
       fontWeight: '800',
-      color: colors.primary,
+      color: googleBtnText,
     },
     googleText: {
       fontFamily: Fonts.body,
       fontSize: 14,
       fontWeight: '600',
-      color: colors.primary,
+      color: googleBtnText,
     },
     appleBtn: {
       flex: 1,
@@ -534,13 +555,13 @@ function createStyles(colors: ThemeColors) {
       height: 46,
       gap: 8,
       borderWidth: 1,
-      borderColor: colors.primaryDim,
+      borderColor: appleBorder,
     },
     appleText: {
       fontFamily: Fonts.body,
       fontSize: 14,
       fontWeight: '600',
-      color: colors.textOnPrimary,
+      color: appleTextColor,
     },
     bottom: {
       alignItems: 'center',
@@ -555,7 +576,7 @@ function createStyles(colors: ThemeColors) {
     },
     termsLink: {
       textDecorationLine: 'underline',
-      color: colors.textOnPrimary,
+      color: linkColor,
     },
     langRow: {
       flexDirection: 'row',
@@ -573,7 +594,7 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.body,
       fontSize: 12,
       fontWeight: '700',
-      color: colors.primary,
+      color: langActiveText,
     },
     langInactive: {
       borderRadius: 14,

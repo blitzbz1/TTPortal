@@ -463,5 +463,21 @@
   "periodWeek": "Week",
   "periodMonth": "Month",
   "periodYear": "Year",
-  "periodAll": "Total"
+  "periodAll": "Total",
+
+  "ampiTag": "AmaTur",
+  "ampiCircuit": "AmaTur Circuit",
+  "ampiUpcoming": "Upcoming",
+  "ampiAll": "All",
+  "ampiNoEvents": "No tournaments found",
+  "ampiEmptyTitle": "No AmaTur tournaments",
+  "ampiEmptyDesc": "Tournament data from the amateur circuit will appear here",
+  "ampiLoadError": "Could not load AmaTur calendar",
+  "ampiOrganizer": "Organizer",
+  "ampiCategories": "Categories",
+  "ampiForumThread": "Forum thread",
+  "ampiTierAPlus": "A+",
+  "ampiTierMemorial": "Memorial",
+  "ampiTierTC": "Champions",
+  "ampiPoweredBy": "Data from amatur.ro"
 }

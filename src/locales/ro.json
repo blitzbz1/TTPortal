@@ -463,5 +463,21 @@
   "periodWeek": "Săptămâna",
   "periodMonth": "Luna",
   "periodYear": "Anul",
-  "periodAll": "Total"
+  "periodAll": "Total",
+
+  "ampiTag": "AmaTur",
+  "ampiCircuit": "Circuitul AmaTur",
+  "ampiUpcoming": "Viitoare",
+  "ampiAll": "Toate",
+  "ampiNoEvents": "Niciun turneu găsit",
+  "ampiEmptyTitle": "Niciun turneu AmaTur",
+  "ampiEmptyDesc": "Turneele din circuitul amator vor apărea aici",
+  "ampiLoadError": "Nu s-a putut încărca calendarul AmaTur",
+  "ampiOrganizer": "Organizator",
+  "ampiCategories": "Categorii",
+  "ampiForumThread": "Discuție forum",
+  "ampiTierAPlus": "A+",
+  "ampiTierMemorial": "Memorial",
+  "ampiTierTC": "Campionilor",
+  "ampiPoweredBy": "Date de pe amatur.ro"
 }

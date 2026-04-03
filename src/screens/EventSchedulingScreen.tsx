@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, Pressable, RefreshControl } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, Pressable, RefreshControl, Linking } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import MapView, { Marker } from 'react-native-maps';
 import { Lucide } from '../components/Icon';
 import { NotificationBellButton } from '../components/NotificationBellButton';
 import { Card } from '../components/Card';
@@ -19,8 +20,9 @@ import { getFriendIds } from '../services/friends';
 import { FriendPickerModal } from '../components/FriendPickerModal';
 import { WriteEventFeedbackScreen } from './WriteEventFeedbackScreen';
 import { hapticMedium } from '../lib/haptics';
+import { getAmaturEvents, type AmaturEvent } from '../services/amatur';
 
-type EventTab = 'upcoming' | 'past' | 'mine';
+type EventTab = 'upcoming' | 'past' | 'mine' | 'amatur';
 
 interface EventSchedulingScreenProps {
   hideTabBar?: boolean;
@@ -42,6 +44,9 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const [updateText, setUpdateText] = useState('');
   const [sendingUpdate, setSendingUpdate] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [amaturEvents, setAmaturEvents] = useState<AmaturEvent[]>([]);
+  const [amaturLoading, setAmaturLoading] = useState(false);
+  const [selectedAmatur, setSelectedAmatur] = useState<AmaturEvent | null>(null);
   const { user } = useSession();
   const { s, lang } = useI18n();
   const router = useRouter();
@@ -50,18 +55,20 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const { styles, ms } = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const fetchEvents = useCallback(async () => {
+    if (activeTab === 'amatur') return;
     setLoading(true);
     try {
+      const tab = activeTab as 'upcoming' | 'past' | 'mine';
       const { data, error } = await getEvents(
-        activeTab,
-        (activeTab === 'mine' || activeTab === 'past') ? user?.id : undefined,
+        tab,
+        (tab === 'mine' || tab === 'past') ? user?.id : undefined,
       );
       if (error) {
         Alert.alert(s('error'), s('eventsLoadError'));
       } else {
         setEvents(data ?? []);
         // Check which past events already have user feedback
-        if (activeTab === 'past' && user?.id && data?.length) {
+        if (tab === 'past' && user?.id && data?.length) {
           const checks = await Promise.all(
             data.map((ev: any) => getUserEventFeedback(ev.id, user.id)),
           );
@@ -78,11 +85,26 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, user?.id]);
 
+  // Fetch AmaTur events
+  const fetchAmatur = useCallback(async () => {
+    setAmaturLoading(true);
+    const { data, error } = await getAmaturEvents();
+    if (error && data.length === 0) {
+      Alert.alert(s('error'), s('ampiLoadError'));
+    }
+    setAmaturEvents(data);
+    setAmaturLoading(false);
+  }, [s]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchEvents();
+    if (activeTab === 'amatur') {
+      await fetchAmatur();
+    } else {
+      await fetchEvents();
+    }
     setRefreshing(false);
-  }, [fetchEvents]);
+  }, [fetchEvents, fetchAmatur, activeTab]);
 
   useEffect(() => {
     fetchEvents();
@@ -95,6 +117,13 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       setFriendIds(new Set(ids));
     });
   }, [user?.id]);
+
+  useEffect(() => {
+    if (activeTab === 'amatur' && amaturEvents.length === 0) {
+      fetchAmatur();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const openDetail = useCallback(async (event: any) => {
     setSelectedEvent(event);
@@ -227,6 +256,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
             { key: 'upcoming' as EventTab, label: `${s('upcoming')} (${activeTab === 'upcoming' ? events.length : ''})`.replace('()', '').trim() },
             { key: 'past' as EventTab, label: s('past') },
             ...(user ? [{ key: 'mine' as EventTab, label: s('mine') }] : []),
+            { key: 'amatur' as EventTab, label: s('ampiTag') },
           ].map((tab) => (
             <TouchableOpacity
               key={tab.key}
@@ -240,112 +270,222 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
           ))}
         </View>
 
-        {/* Event Cards */}
-        {loading ? (
-          <View style={{ padding: 16, gap: 12 }}>
-            <SkeletonList count={3}><EventCardSkeleton /></SkeletonList>
-          </View>
-        ) : events.length === 0 ? (
-          <EmptyState
-            icon="calendar"
-            title={s('emptyEventsTitle')}
-            description={s('emptyEventsDesc')}
-            ctaLabel={user ? s('emptyEventsCta') : undefined}
-            onCtaPress={user ? () => router.push('/(protected)/create-event' as any) : undefined}
-            iconColor={colors.accentBright}
-            iconBg={colors.amberPale}
-          />
-        ) : (
-          <View style={styles.eventsList}>
-            {events.map((event, index) => {
-              const badge = getBadgeInfo(event);
-              const isJoined = event.event_participants?.some(
-                (p: any) => p.user_id === user?.id,
-              );
-              const participants = event.event_participants ?? [];
-              const venueName = event.venues?.name ?? s('unknownVenue');
+        {/* Event Cards — regular tabs */}
+        {activeTab !== 'amatur' && (
+          loading ? (
+            <View style={{ padding: 16, gap: 12 }}>
+              <SkeletonList count={3}><EventCardSkeleton /></SkeletonList>
+            </View>
+          ) : events.length === 0 ? (
+            <EmptyState
+              icon="calendar"
+              title={s('emptyEventsTitle')}
+              description={s('emptyEventsDesc')}
+              ctaLabel={user ? s('emptyEventsCta') : undefined}
+              onCtaPress={user ? () => router.push('/(protected)/create-event' as any) : undefined}
+              iconColor={colors.accentBright}
+              iconBg={colors.amberPale}
+            />
+          ) : (
+            <View style={styles.eventsList}>
+              {events.map((event, index) => {
+                const badge = getBadgeInfo(event);
+                const isJoined = event.event_participants?.some(
+                  (p: any) => p.user_id === user?.id,
+                );
+                const participants = event.event_participants ?? [];
+                const venueName = event.venues?.name ?? s('unknownVenue');
 
-              return (
-                <Animated.View key={event.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
-                <Card shadow="sm" borderRadius={14}>
-                  <TouchableOpacity style={styles.eventCard} activeOpacity={0.7} onPress={() => openDetail(event)}>
-                    {/* Top */}
-                    <View style={styles.eventTop}>
-                      <View style={styles.eventDateWrap}>
-                        <Lucide name="calendar" size={14} color={colors.accentBright} />
-                        <Text style={styles.eventDate}>
-                          {formatDate(event.starts_at)} {'\u00B7'} {formatTime(event.starts_at)}
+                return (
+                  <Animated.View key={event.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
+                  <Card shadow="sm" borderRadius={14}>
+                    <TouchableOpacity style={styles.eventCard} activeOpacity={0.7} onPress={() => openDetail(event)}>
+                      {/* Top */}
+                      <View style={styles.eventTop}>
+                        <View style={styles.eventDateWrap}>
+                          <Lucide name="calendar" size={14} color={colors.accentBright} />
+                          <Text style={styles.eventDate}>
+                            {formatDate(event.starts_at)} {'\u00B7'} {formatTime(event.starts_at)}
+                          </Text>
+                          {event.recurrence_rule && (
+                            <Lucide name="repeat" size={13} color={colors.purple} />
+                          )}
+                        </View>
+                        <View style={[styles.eventBadge, { backgroundColor: badge.bg }]}>
+                          <Text style={[styles.eventBadgeText, { color: badge.color }]}>
+                            {badge.text}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Location */}
+                      <View style={styles.eventMid}>
+                        <Lucide name="map-pin" size={14} color={colors.textFaint} />
+                        <Text style={styles.eventLocation}>
+                          {event.title ? `${venueName} — ${event.title}` : venueName}
                         </Text>
-                        {event.recurrence_rule && (
-                          <Lucide name="repeat" size={13} color={colors.purple} />
+                      </View>
+
+                      {/* Bottom */}
+                      <View style={styles.eventBot}>
+                        <View style={styles.avatarStack}>
+                          {participants.slice(0, 5).map((p: any, i: number) => (
+                            <View
+                              key={p.user_id}
+                              style={[
+                                styles.stackAvatar,
+                                { marginLeft: i > 0 ? -8 : 0, zIndex: 5 - i },
+                              ]}
+                            >
+                              <Text style={styles.stackInitials}>
+                                {getInitials(p.profiles?.full_name)}
+                              </Text>
+                            </View>
+                          ))}
+                          <Text style={styles.attendeesText}>
+                            {participants.length}/{event.max_participants ?? '\u221E'} {s('spots')}
+                          </Text>
+                        </View>
+                        {activeTab !== 'past' && !isPast(event) && event.organizer_id !== user?.id && (
+                          <TouchableOpacity
+                            style={[styles.joinBtn, isJoined ? styles.joinedBtn : styles.notJoinedBtn]}
+                            onPress={(e) => { e.stopPropagation(); hapticMedium(); handleJoin(event); }}
+                          >
+                            <Lucide
+                              name={isJoined ? 'check' : 'user-plus'}
+                              size={14}
+                              color={isJoined ? colors.textOnPrimary : colors.primary}
+                            />
+                            <Text style={[styles.joinText, isJoined ? styles.joinedText : styles.notJoinedText]}>
+                              {isJoined ? s('joined') : s('join')}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                        {isPast(event) && event.status !== 'cancelled' && isJoined && event.organizer_id !== user?.id && !feedbackGivenIds.has(event.id) && (
+                          <TouchableOpacity
+                            style={[styles.joinBtn, styles.notJoinedBtn]}
+                            onPress={(e) => { e?.stopPropagation?.(); setFeedbackEventId(event.id); }}
+                          >
+                            <Lucide name="message-square" size={14} color={colors.primary} />
+                            <Text style={[styles.joinText, styles.notJoinedText]}>{s('giveFeedback')}</Text>
+                          </TouchableOpacity>
                         )}
                       </View>
-                      <View style={[styles.eventBadge, { backgroundColor: badge.bg }]}>
-                        <Text style={[styles.eventBadgeText, { color: badge.color }]}>
-                          {badge.text}
-                        </Text>
-                      </View>
-                    </View>
+                    </TouchableOpacity>
+                  </Card>
+                  </Animated.View>
+                );
+              })}
+            </View>
+          )
+        )}
 
-                    {/* Location */}
-                    <View style={styles.eventMid}>
-                      <Lucide name="map-pin" size={14} color={colors.textFaint} />
-                      <Text style={styles.eventLocation}>
-                        {event.title ? `${venueName} — ${event.title}` : venueName}
-                      </Text>
-                    </View>
-
-                    {/* Bottom */}
-                    <View style={styles.eventBot}>
-                      <View style={styles.avatarStack}>
-                        {participants.slice(0, 5).map((p: any, i: number) => (
-                          <View
-                            key={p.user_id}
-                            style={[
-                              styles.stackAvatar,
-                              { marginLeft: i > 0 ? -8 : 0, zIndex: 5 - i },
-                            ]}
+        {/* AmaTur tab content */}
+        {activeTab === 'amatur' && (
+          amaturLoading ? (
+            <View style={{ padding: 16, gap: 12 }}>
+              <SkeletonList count={3}><EventCardSkeleton /></SkeletonList>
+            </View>
+          ) : (
+            <>
+              {amaturEvents.length === 0 ? (
+                <EmptyState
+                  icon="trophy"
+                  title={s('ampiEmptyTitle')}
+                  description={s('ampiEmptyDesc')}
+                  iconColor={colors.blue}
+                  iconBg={colors.bluePale}
+                />
+              ) : (
+                <View style={styles.eventsList}>
+                  {amaturEvents.map((ev, index) => {
+                    return (
+                      <Animated.View key={ev.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
+                        <Card shadow="sm" borderRadius={14}>
+                          <TouchableOpacity
+                            style={styles.eventCard}
+                            activeOpacity={0.7}
+                            onPress={() => setSelectedAmatur(ev)}
                           >
-                            <Text style={styles.stackInitials}>
-                              {getInitials(p.profiles?.full_name)}
-                            </Text>
-                          </View>
-                        ))}
-                        <Text style={styles.attendeesText}>
-                          {participants.length}/{event.max_participants ?? '\u221E'} {s('spots')}
-                        </Text>
-                      </View>
-                      {activeTab !== 'past' && !isPast(event) && event.organizer_id !== user?.id && (
-                        <TouchableOpacity
-                          style={[styles.joinBtn, isJoined ? styles.joinedBtn : styles.notJoinedBtn]}
-                          onPress={(e) => { e.stopPropagation(); hapticMedium(); handleJoin(event); }}
-                        >
-                          <Lucide
-                            name={isJoined ? 'check' : 'user-plus'}
-                            size={14}
-                            color={isJoined ? colors.textOnPrimary : colors.primary}
-                          />
-                          <Text style={[styles.joinText, isJoined ? styles.joinedText : styles.notJoinedText]}>
-                            {isJoined ? s('joined') : s('join')}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                      {isPast(event) && event.status !== 'cancelled' && isJoined && event.organizer_id !== user?.id && !feedbackGivenIds.has(event.id) && (
-                        <TouchableOpacity
-                          style={[styles.joinBtn, styles.notJoinedBtn]}
-                          onPress={(e) => { e?.stopPropagation?.(); setFeedbackEventId(event.id); }}
-                        >
-                          <Lucide name="message-square" size={14} color={colors.primary} />
-                          <Text style={[styles.joinText, styles.notJoinedText]}>{s('giveFeedback')}</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                </Card>
-                </Animated.View>
-              );
-            })}
-          </View>
+                            {/* Date row */}
+                            <View style={styles.eventTop}>
+                              <View style={styles.eventDateWrap}>
+                                <Lucide name="calendar" size={14} color={colors.accentBright} />
+                                <Text style={styles.eventDate}>
+                                  {ev.startDate.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short' })}
+                                </Text>
+                              </View>
+                              {ev.tables != null && (
+                                <View style={[styles.eventBadge, { backgroundColor: colors.bluePale }]}>
+                                  <Text style={[styles.eventBadgeText, { color: colors.blue }]}>
+                                    {ev.tables} {s('tables')}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+
+                            {/* City */}
+                            <View style={styles.eventMid}>
+                              <Lucide name="map-pin" size={14} color={colors.textFaint} />
+                              <Text style={styles.eventLocation}>{ev.city}</Text>
+                            </View>
+
+                            {/* Event name */}
+                            {ev.name && (
+                              <View style={styles.eventMid}>
+                                <Lucide name="trophy" size={14} color={colors.amber} />
+                                <Text style={styles.eventLocation}>{ev.name}</Text>
+                              </View>
+                            )}
+
+                            {/* Per-category spots */}
+                            {ev.categorySpots.length > 0 && (
+                              <View style={styles.amaturSpotsRow}>
+                                {ev.categorySpots.map((cs) => (
+                                  <View key={cs.category} style={styles.amaturSpotChip}>
+                                    <Text style={styles.amaturSpotLabel}>{cs.category[0]}</Text>
+                                    <Text style={styles.amaturSpotValue}>{cs.spots}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                            )}
+
+                            {/* Day distribution + forum */}
+                            <View style={styles.eventBot}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                                {ev.categories.length > 0 && (
+                                  <View style={styles.amaturCatRow}>
+                                    {ev.categories.map((cat, ci) => (
+                                      <Text key={ci} style={styles.amaturCatText}>{cat}</Text>
+                                    ))}
+                                  </View>
+                                )}
+                              </View>
+                              {ev.forumUrl && (
+                                <TouchableOpacity
+                                  style={[styles.joinBtn, styles.notJoinedBtn]}
+                                  onPress={(e) => {
+                                    e.stopPropagation();
+                                    Linking.openURL(ev.forumUrl!);
+                                  }}
+                                >
+                                  <Lucide name="external-link" size={14} color={colors.primary} />
+                                  <Text style={[styles.joinText, styles.notJoinedText]}>Forum</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        </Card>
+                      </Animated.View>
+                    );
+                  })}
+
+                  {/* Attribution */}
+                  <Text style={styles.amaturAttribution}>{s('ampiPoweredBy')}</Text>
+                </View>
+              )}
+            </>
+          )
         )}
       </ScrollView>
 
@@ -709,6 +849,151 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
           fetchEvents();
         }}
       />
+
+      {/* ===== AmaTur Detail Bottom Sheet ===== */}
+      <Modal
+        visible={selectedAmatur !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedAmatur(null)}
+      >
+        <Pressable style={ms.overlay} onPress={() => setSelectedAmatur(null)}>
+          <Pressable style={[ms.sheet, { paddingBottom: insets.bottom + 16 }]} onPress={() => {}}>
+            {selectedAmatur && (() => {
+              const ev = selectedAmatur;
+
+              return (
+                <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+                  <View style={ms.handleWrap}>
+                    <View style={ms.handle} />
+                  </View>
+
+                  {/* Title */}
+                  <View style={ms.titleRow}>
+                    <Text style={ms.title} numberOfLines={2}>
+                      {ev.name || ev.city}
+                    </Text>
+                    {ev.tables != null && (
+                      <View style={[styles.eventBadge, { backgroundColor: colors.bluePale }]}>
+                        <Text style={[styles.eventBadgeText, { color: colors.blue }]}>
+                          {ev.tables} {s('tables')}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Info */}
+                  <View style={ms.infoBlock}>
+                    <View style={ms.infoRow}>
+                      <Lucide name="calendar" size={16} color={colors.accentBright} />
+                      <Text style={ms.infoText}>
+                        {ev.startDate.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
+                      </Text>
+                    </View>
+
+                    <View style={ms.infoRow}>
+                      <Lucide name="map-pin" size={16} color={colors.primaryMid} />
+                      <Text style={ms.infoText}>{ev.city}</Text>
+                    </View>
+
+                    {ev.address && (
+                      <View style={ms.infoRow}>
+                        <Lucide name="home" size={16} color={colors.textFaint} />
+                        <Text style={ms.infoText}>{ev.address}</Text>
+                      </View>
+                    )}
+
+                    {ev.categories.length > 0 && (
+                      <View style={ms.infoRow}>
+                        <Lucide name="list" size={16} color={colors.blue} />
+                        <Text style={ms.infoText}>
+                          {ev.categories.join('  /  ')}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Per-category spots */}
+                  {ev.categorySpots.length > 0 && (
+                    <View style={styles.amaturSpotsDetail}>
+                      {ev.categorySpots.map((cs) => (
+                        <View key={cs.category} style={styles.amaturSpotDetailRow}>
+                          <Text style={styles.amaturSpotDetailLabel}>{cs.category}</Text>
+                          <Text style={styles.amaturSpotDetailValue}>{cs.spots} {s('spots')}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Map */}
+                  {ev.latitude != null && ev.longitude != null && (
+                    <View style={styles.amaturMapWrap}>
+                      <MapView
+                        style={styles.amaturMap}
+                        initialRegion={{
+                          latitude: ev.latitude,
+                          longitude: ev.longitude,
+                          latitudeDelta: 0.01,
+                          longitudeDelta: 0.01,
+                        }}
+                        scrollEnabled={false}
+                        zoomEnabled={false}
+                        rotateEnabled={false}
+                        pitchEnabled={false}
+                      >
+                        <Marker
+                          coordinate={{ latitude: ev.latitude, longitude: ev.longitude }}
+                          title={ev.city}
+                          description={ev.address ?? undefined}
+                        />
+                      </MapView>
+                    </View>
+                  )}
+
+                  {/* Navigation */}
+                  {ev.latitude != null && ev.longitude != null && (
+                    <View style={styles.amaturNavSection}>
+                      <Text style={styles.amaturNavTitle}>{s('navigation')}</Text>
+                      <View style={styles.amaturNavRow}>
+                        <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://maps.google.com/?q=${ev.latitude},${ev.longitude}`)}>
+                          <Lucide name="navigation" size={14} color={colors.textMuted} />
+                          <Text style={styles.amaturNavBtnText}>Google</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://maps.apple.com/?q=${ev.latitude},${ev.longitude}`)}>
+                          <Lucide name="navigation" size={14} color={colors.textMuted} />
+                          <Text style={styles.amaturNavBtnText}>Apple</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://waze.com/ul?ll=${ev.latitude},${ev.longitude}&navigate=yes`)}>
+                          <Lucide name="navigation" size={14} color={colors.textMuted} />
+                          <Text style={styles.amaturNavBtnText}>Waze</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Actions */}
+                  <View style={ms.actions}>
+                    {ev.forumUrl && (
+                      <TouchableOpacity
+                        style={[ms.actionBtn, ms.actionJoin]}
+                        onPress={() => Linking.openURL(ev.forumUrl!)}
+                      >
+                        <Lucide name="external-link" size={16} color={colors.textOnPrimary} />
+                        <Text style={[ms.actionText, ms.actionJoinText]}>
+                          {s('ampiForumThread')}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={ms.closeBtn} onPress={() => setSelectedAmatur(null)}>
+                      <Text style={ms.closeBtnText}>{s('close')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              );
+            })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -884,6 +1169,111 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     notJoinedText: {
       color: colors.primary,
+    },
+    amaturNavSection: {
+      marginBottom: Spacing.md,
+      gap: 10,
+    },
+    amaturNavTitle: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
+      color: colors.text,
+    },
+    amaturNavRow: {
+      flexDirection: 'row',
+      gap: Spacing.xs,
+    },
+    amaturNavBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.bgMuted,
+      borderRadius: Radius.md,
+      height: 40,
+      gap: 6,
+    },
+    amaturNavBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
+      color: colors.text,
+    },
+    amaturMapWrap: {
+      borderRadius: Radius.md,
+      overflow: 'hidden',
+      marginBottom: Spacing.md,
+      height: 160,
+    },
+    amaturMap: {
+      width: '100%',
+      height: '100%',
+    },
+    amaturSpotsRow: {
+      flexDirection: 'row',
+      gap: 6,
+    },
+    amaturSpotChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.bgMuted,
+      borderRadius: Radius.sm,
+      paddingVertical: 3,
+      paddingHorizontal: 8,
+      gap: 4,
+    },
+    amaturSpotLabel: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.semibold,
+      color: colors.textFaint,
+    },
+    amaturSpotValue: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.bold,
+      color: colors.text,
+    },
+    amaturSpotsDetail: {
+      backgroundColor: colors.bgMuted,
+      borderRadius: Radius.md,
+      padding: Spacing.sm,
+      gap: 6,
+      marginBottom: Spacing.md,
+    },
+    amaturSpotDetailRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    amaturSpotDetailLabel: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
+      color: colors.text,
+    },
+    amaturSpotDetailValue: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      color: colors.textMuted,
+    },
+    amaturCatRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 4,
+    },
+    amaturCatText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      color: colors.textMuted,
+    },
+    amaturAttribution: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      color: colors.textFaint,
+      textAlign: 'center',
+      paddingVertical: Spacing.md,
     },
   });
 
