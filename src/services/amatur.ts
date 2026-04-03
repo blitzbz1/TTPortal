@@ -2,11 +2,15 @@
  * Service to fetch and parse upcoming amateur table tennis tournament data
  * from the AmaTur circuit (amatur.ro/tenisdemasa/turnee?wh=Programate).
  *
- * Uses the w_f.php endpoint that powers the "Programate" (scheduled) tab.
+ * Native: fetches w_f.php directly (no CORS restrictions).
+ * Web: calls the amatur-proxy Supabase Edge Function (caches for 6h server-side).
  */
 
+import { Platform } from 'react-native';
+
 const WF_URL = 'https://www.amatur.ro/tenisdemasa/w_f.php';
-const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+const PROXY_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/amatur-proxy`;
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes (client-side)
 
 export interface AmaturEvent {
   id: string;           // e.g. "3943"
@@ -188,29 +192,43 @@ export function parseTourneeHtml(html: string): AmaturEvent[] {
   return events;
 }
 
+async function fetchHtml(): Promise<string> {
+  if (Platform.OS === 'web') {
+    // Web: use the edge function proxy (server-side 6h cache)
+    const response = await fetch(PROXY_URL, {
+      headers: {
+        apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
+        Authorization: `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? ''}`,
+      },
+    });
+    if (!response.ok) throw new Error(`Proxy HTTP ${response.status}`);
+    return response.text();
+  }
+
+  // Native: fetch amatur.ro directly
+  const body = new URLSearchParams({
+    turnee: '1',
+    limit: '100',
+    start: '0',
+    select: '1 and cls=0 ORDER by cls=0 desc, case when cls>0 then data end desc, case when cls>0 then ID end desc, case when cls=0 then data end asc, case when cls=0 then ID end asc ',
+  });
+
+  const response = await fetch(WF_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.text();
+}
+
 export async function getAmaturEvents(): Promise<{ data: AmaturEvent[]; error: string | null }> {
   if (cache && Date.now() - cache.ts < CACHE_TTL) {
     return { data: cache.data, error: null };
   }
 
   try {
-    const body = new URLSearchParams({
-      turnee: '1',
-      limit: '100',
-      start: '0',
-      select: '1 and cls=0 ORDER by cls=0 desc, case when cls>0 then data end desc, case when cls>0 then ID end desc, case when cls=0 then data end asc, case when cls=0 then ID end asc ',
-    });
-
-    const response = await fetch(WF_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    });
-
-    if (!response.ok) {
-      return { data: cache?.data ?? [], error: `HTTP ${response.status}` };
-    }
-    const html = await response.text();
+    const html = await fetchHtml();
     const events = parseTourneeHtml(html);
     cache = { data: events, ts: Date.now() };
     return { data: events, error: null };
