@@ -8,7 +8,7 @@ export async function getEvents(
   const now = new Date().toISOString();
   let query = supabase
     .from('events')
-    .select('*, venues(name, city), event_participants(user_id)');
+    .select('*, venues(name, city, lat, lng), event_participants(user_id)');
 
   if (filter === 'upcoming') {
     query = query.gte('starts_at', now).neq('status', 'cancelled');

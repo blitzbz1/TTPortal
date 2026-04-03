@@ -43,6 +43,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const [feedbackGivenIds, setFeedbackGivenIds] = useState<Set<number>>(new Set());
   const [updateText, setUpdateText] = useState('');
   const [sendingUpdate, setSendingUpdate] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [amaturEvents, setAmaturEvents] = useState<AmaturEvent[]>([]);
   const [amaturLoading, setAmaturLoading] = useState(false);
@@ -144,6 +145,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     setDetailParticipants([]);
     setDetailFeedback([]);
     setUpdateText('');
+    setDescExpanded(false);
   }, []);
 
   const handleJoin = useCallback(async (event: any) => {
@@ -515,6 +517,8 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
               const badge = getBadgeInfo(ev);
               const venueName = ev.venues?.name ?? s('unknownVenue');
               const venueCity = ev.venues?.city ?? '';
+              const venueLat = ev.venues?.lat as number | null;
+              const venueLng = ev.venues?.lng as number | null;
               const isJoined = ev.event_participants?.some((p: any) => p.user_id === user?.id);
               const duration = getDuration(ev.starts_at, ev.ends_at);
 
@@ -541,26 +545,29 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                   <View style={ms.infoBlock}>
                     <View style={ms.infoRow}>
                       <Lucide name="calendar" size={16} color={colors.accentBright} />
-                      <Text style={ms.infoText}>
+                      <Text style={[ms.infoText, { flex: 0 }]}>
                         {formatDate(ev.starts_at)} {'\u00B7'} {formatTime(ev.starts_at)}
                         {ev.ends_at ? ` – ${formatTime(ev.ends_at)}` : ''}
                       </Text>
+                      {duration != null && (
+                        <View style={ms.durationChip}>
+                          <Lucide name="clock" size={12} color={colors.textFaint} />
+                          <Text style={ms.durationChipText}>{duration}h</Text>
+                        </View>
+                      )}
                     </View>
-
-                    {duration != null && (
-                      <View style={ms.infoRow}>
-                        <Lucide name="clock" size={16} color={colors.textFaint} />
-                        <Text style={ms.infoText}>
-                          {s('duration')}: {duration} {s('hours')}
-                        </Text>
-                      </View>
-                    )}
 
                     <View style={ms.infoRow}>
                       <Lucide name="map-pin" size={16} color={colors.primaryMid} />
-                      <Text style={ms.infoText}>
+                      <Text style={[ms.infoText, { flex: 0 }]}>
                         {venueName}{venueCity ? `, ${venueCity}` : ''}
                       </Text>
+                      {ev.event_type === 'tournament' && (
+                        <View style={ms.durationChip}>
+                          <Lucide name="trophy" size={12} color={colors.amber} />
+                          <Text style={[ms.durationChipText, { color: colors.amber }]}>{s('tournament')}</Text>
+                        </View>
+                      )}
                     </View>
 
                     {ev.table_number != null && (
@@ -569,13 +576,6 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                         <Text style={ms.infoText}>
                           {s('tableNumber')} {ev.table_number}
                         </Text>
-                      </View>
-                    )}
-
-                    {ev.event_type === 'tournament' && (
-                      <View style={ms.infoRow}>
-                        <Lucide name="trophy" size={16} color={colors.amber} />
-                        <Text style={ms.infoText}>{s('tournament')}</Text>
                       </View>
                     )}
 
@@ -594,15 +594,71 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                   {/* Description */}
                   <View style={ms.section}>
                     <Text style={ms.sectionTitle}>{s('description')}</Text>
-                    <Text style={ms.descText}>
+                    <Text
+                      style={ms.descText}
+                      numberOfLines={descExpanded ? undefined : 4}
+                    >
                       {ev.description || s('noDescription')}
                     </Text>
+                    {ev.description && ev.description.length > 120 && !descExpanded && (
+                      <TouchableOpacity onPress={() => setDescExpanded(true)}>
+                        <Text style={ms.showMoreText}>...{lang === 'ro' ? 'mai mult' : 'more'}</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
 
-                  {/* Participants */}
+                  {/* Map & Navigation */}
+                  {venueLat != null && venueLng != null && (
+                    <>
+                      <View style={styles.amaturMapWrap}>
+                        <MapView
+                          style={styles.amaturMap}
+                          initialRegion={{
+                            latitude: venueLat,
+                            longitude: venueLng,
+                            latitudeDelta: 0.01,
+                            longitudeDelta: 0.01,
+                          }}
+                          scrollEnabled={false}
+                          zoomEnabled={false}
+                          rotateEnabled={false}
+                          pitchEnabled={false}
+                        >
+                          <Marker
+                            coordinate={{ latitude: venueLat, longitude: venueLng }}
+                            title={venueName}
+                            description={venueCity || undefined}
+                          />
+                        </MapView>
+                      </View>
+                      <View style={styles.amaturNavSection}>
+                        <View style={styles.amaturNavRow}>
+                          <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://maps.google.com/?q=${venueLat},${venueLng}`)}>
+                            <Lucide name="navigation" size={14} color={colors.textMuted} />
+                            <Text style={styles.amaturNavBtnText}>Google</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://maps.apple.com/?q=${venueLat},${venueLng}`)}>
+                            <Lucide name="navigation" size={14} color={colors.textMuted} />
+                            <Text style={styles.amaturNavBtnText}>Apple</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://waze.com/ul?ll=${venueLat},${venueLng}&navigate=yes`)}>
+                            <Lucide name="navigation" size={14} color={colors.textMuted} />
+                            <Text style={styles.amaturNavBtnText}>Waze</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </>
+                  )}
+
+                  {/* Participants — horizontal avatar strip */}
                   <View style={ms.section}>
                     <View style={ms.sectionHeader}>
-                      <Text style={ms.sectionTitle}>{s('participants')}</Text>
+                      <Text style={ms.sectionTitle}>
+                        {s('participants')}
+                        {friendParticipants.length > 0
+                          ? ` (${friendParticipants.length} ${friendParticipants.length === 1 ? (lang === 'ro' ? 'prieten' : 'friend') : (lang === 'ro' ? 'prieteni' : 'friends')})`
+                          : ''}
+                      </Text>
                       <Text style={ms.countBadge}>
                         {detailParticipants.length}/{ev.max_participants ?? '\u221E'}
                       </Text>
@@ -613,63 +669,57 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                     ) : detailParticipants.length === 0 ? (
                       <Text style={ms.emptyText}>{s('noEvents')}</Text>
                     ) : (
-                      <View style={ms.participantList}>
-                        {detailParticipants.map((p) => {
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={ms.pHScroll} contentContainerStyle={ms.pHScrollContent}>
+                        {detailParticipants.slice(0, 30).map((p) => {
                           const profile = p.profiles;
-                          const name = profile?.full_name ?? '??';
+                          const fullName = profile?.full_name ?? '??';
+                          const nameParts = fullName.split(' ').filter(Boolean);
+                          const shortName = nameParts.length >= 2
+                            ? `${nameParts[0]} ${nameParts[nameParts.length - 1][0]}.`
+                            : nameParts[0] ?? '??';
                           const isFriend = friendIds.has(p.user_id);
                           const isOrganizer = p.user_id === ev.organizer_id;
                           const isMe = p.user_id === user?.id;
                           return (
-                            <View key={p.user_id} style={ms.pRow}>
+                            <View key={p.user_id} style={ms.pHItem}>
                               <View style={[ms.pAvatar, isFriend && ms.pAvatarFriend]}>
-                                <Text style={ms.pInitials}>{getInitials(name)}</Text>
-                              </View>
-                              <View style={ms.pInfo}>
-                                <Text style={ms.pName}>
-                                  {name}
-                                  {isMe ? ` (${s('you')})` : ''}
-                                </Text>
-                                {(isOrganizer || isFriend) && (
-                                  <Text style={ms.pBadge}>
-                                    {isOrganizer ? s('organizer') : ''}
-                                    {isOrganizer && isFriend ? ' · ' : ''}
-                                    {isFriend ? '👋' : ''}
-                                  </Text>
+                                <Text style={ms.pInitials}>{getInitials(fullName)}</Text>
+                                {isOrganizer && (
+                                  <View style={ms.pOrgBadge}>
+                                    <Lucide name="star" size={8} color={colors.amber} />
+                                  </View>
                                 )}
                               </View>
+                              <Text style={ms.pHName} numberOfLines={1}>
+                                {isMe ? s('you') : shortName}
+                              </Text>
                             </View>
                           );
                         })}
-                      </View>
+                        {detailParticipants.length > 30 && (
+                          <View style={ms.pHItem}>
+                            <View style={[ms.pAvatar, { backgroundColor: colors.bgMuted }]}>
+                              <Text style={[ms.pInitials, { color: colors.textMuted }]}>+{detailParticipants.length - 30}</Text>
+                            </View>
+                          </View>
+                        )}
+                      </ScrollView>
                     )}
                   </View>
 
-                  {/* Friends summary */}
-                  {friendParticipants.length > 0 && (
-                    <View style={ms.friendsSummary}>
-                      <Lucide name="users" size={16} color={colors.purpleMid} />
-                      <Text style={ms.friendsSummaryText}>
-                        {friendParticipants.length} {s('friendsParticipating')}
-                      </Text>
-                    </View>
-                  )}
-
                   {/* Organizer: send update to participants */}
                   {ev.organizer_id === user?.id && detailParticipants.length > 0 && (
-                    <View style={ms.updateSection}>
-                      <Text style={ms.sectionTitle}>{s('sendUpdate')}</Text>
+                    <View style={ms.updateInline}>
                       <TextInput
-                        style={ms.updateInput}
+                        style={ms.updateInlineInput}
                         placeholder={s('updatePlaceholder')}
                         placeholderTextColor={colors.textFaint}
                         value={updateText}
                         onChangeText={setUpdateText}
                         multiline
-                        numberOfLines={2}
                       />
                       <TouchableOpacity
-                        style={[ms.updateBtn, (sendingUpdate || !updateText.trim()) && { opacity: 0.4 }]}
+                        style={[ms.updateInlineBtn, (sendingUpdate || !updateText.trim()) && { opacity: 0.3 }]}
                         disabled={sendingUpdate || !updateText.trim()}
                         onPress={async () => {
                           setSendingUpdate(true);
@@ -683,33 +733,11 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                           }
                         }}
                       >
-                        <Lucide name="megaphone" size={16} color={colors.textOnPrimary} />
-                        <Text style={ms.updateBtnText}>
-                          {sendingUpdate ? s('loading') : s('sendUpdate')}
-                        </Text>
+                        {sendingUpdate
+                          ? <ActivityIndicator size="small" color={colors.accent} />
+                          : <Lucide name="megaphone" size={18} color={colors.accent} />
+                        }
                       </TouchableOpacity>
-                    </View>
-                  )}
-
-                  {/* Join / Invite buttons */}
-                  {/* Feedback section for past events */}
-                  {isPast(ev) && ev.status !== 'cancelled' && detailFeedback.length > 0 && (
-                    <View style={ms.feedbackSection}>
-                      <Text style={ms.sectionTitle}>{s('feedback')} ({detailFeedback.length})</Text>
-                      <View style={ms.feedbackSummary}>
-                        <Text style={ms.feedbackStat}>
-                          {s('avgRating')}: {(detailFeedback.reduce((sum: number, f: any) => sum + f.rating, 0) / detailFeedback.length).toFixed(1)}{'\u2605'}
-                        </Text>
-                      </View>
-                      {detailFeedback.map((fb: any) => (
-                        <View key={fb.id} style={ms.feedbackCard}>
-                          <View style={ms.feedbackHeader}>
-                            <Text style={ms.feedbackName}>{fb.reviewer_name || s('anon')}</Text>
-                            <Text style={ms.feedbackRating}>{fb.rating}{'\u2605'} · {Number(fb.hours_played)}h</Text>
-                          </View>
-                          {fb.body ? <Text style={ms.feedbackBody}>{fb.body}</Text> : null}
-                        </View>
-                      ))}
                     </View>
                   )}
 
@@ -953,7 +981,6 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                   {/* Navigation */}
                   {ev.latitude != null && ev.longitude != null && (
                     <View style={styles.amaturNavSection}>
-                      <Text style={styles.amaturNavTitle}>{s('navigation')}</Text>
                       <View style={styles.amaturNavRow}>
                         <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://maps.google.com/?q=${ev.latitude},${ev.longitude}`)}>
                           <Lucide name="navigation" size={14} color={colors.textMuted} />
@@ -1174,12 +1201,6 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       marginBottom: Spacing.md,
       gap: 10,
     },
-    amaturNavTitle: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.lg,
-      fontWeight: FontWeight.semibold,
-      color: colors.text,
-    },
     amaturNavRow: {
       flexDirection: 'row',
       gap: Spacing.xs,
@@ -1190,9 +1211,9 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.bgMuted,
-      borderRadius: Radius.md,
-      height: 40,
-      gap: 6,
+      borderRadius: Radius.sm,
+      height: 32,
+      gap: 5,
     },
     amaturNavBtnText: {
       fontFamily: Fonts.body,
@@ -1334,6 +1355,22 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       color: colors.textMuted,
       flex: 1,
     },
+    durationChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.bgMuted,
+      borderRadius: Radius.sm,
+      paddingVertical: 2,
+      paddingHorizontal: 8,
+      marginLeft: 'auto',
+    },
+    durationChipText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.semibold,
+      color: colors.textFaint,
+    },
     section: {
       marginBottom: Spacing.lg,
     },
@@ -1362,6 +1399,13 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       fontSize: FontSize.lg,
       color: colors.textMuted,
       lineHeight: 20,
+    },
+    showMoreText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
+      color: colors.primary,
+      marginTop: 4,
     },
     emptyText: {
       fontFamily: Fonts.body,
@@ -1395,6 +1439,35 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
+    pHScroll: {
+      marginHorizontal: -4,
+    },
+    pHScrollContent: {
+      gap: Spacing.sm,
+      paddingHorizontal: 4,
+    },
+    pHItem: {
+      alignItems: 'center',
+      width: 52,
+    },
+    pHName: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.xs,
+      color: colors.textMuted,
+      marginTop: 4,
+      textAlign: 'center',
+    },
+    pOrgBadge: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      width: 14,
+      height: 14,
+      borderRadius: 7,
+      backgroundColor: colors.bgAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     pInfo: {
       flex: 1,
     },
@@ -1409,49 +1482,25 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       fontSize: FontSize.sm,
       color: colors.textFaint,
     },
-    friendsSummary: {
+    updateInline: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      backgroundColor: colors.purplePale,
-      borderRadius: Radius.md,
-      padding: Spacing.sm,
-      marginBottom: Spacing.lg,
-    },
-    friendsSummaryText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.md,
-      fontWeight: FontWeight.semibold,
-      color: colors.purpleMid,
-    },
-    updateSection: {
-      marginBottom: Spacing.md,
-      gap: 10,
-    },
-    updateInput: {
+      alignItems: 'flex-end',
       backgroundColor: colors.bgMuted,
       borderRadius: Radius.md,
-      padding: Spacing.sm,
+      marginBottom: Spacing.md,
+      paddingLeft: Spacing.sm,
+      paddingVertical: 4,
+    },
+    updateInlineInput: {
+      flex: 1,
       fontFamily: Fonts.body,
-      fontSize: FontSize.lg,
+      fontSize: FontSize.md,
       color: colors.text,
-      minHeight: 60,
-      textAlignVertical: 'top',
+      maxHeight: 80,
+      paddingVertical: 6,
     },
-    updateBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.accent,
-      borderRadius: Radius.lg,
-      paddingVertical: 12,
-      gap: 8,
-    },
-    updateBtnText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.lg,
-      fontWeight: FontWeight.semibold,
-      color: colors.textOnPrimary,
+    updateInlineBtn: {
+      padding: 10,
     },
     actions: {
       flexDirection: 'row',
@@ -1565,8 +1614,8 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: Radius.lg,
-      paddingVertical: 14,
+      borderRadius: Radius.md,
+      paddingVertical: 8,
       borderWidth: 1,
       borderColor: colors.border,
     },
