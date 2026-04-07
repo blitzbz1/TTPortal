@@ -37,6 +37,7 @@ export interface Venue {
   name: string;
   type: VenueType;
   city: string | null;
+  city_id: number;
   county: string | null;
   sector: string | null;
   address: string | null;

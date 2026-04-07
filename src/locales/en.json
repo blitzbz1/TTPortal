@@ -233,10 +233,13 @@
   "fieldAddress": "ADDRESS *",
   "addressPlaceholder": "Street, no…",
   "pinOnMap": "Pin on map",
+  "dragPinHint": "Drag the pin to adjust the location",
+  "searching": "Searching...",
   "fieldNotes": "NOTES",
   "notesPlaceholder": "Additional details...",
   "nameRequired": "Venue name is required.",
   "addressRequired": "Address is required.",
+  "cityRequired": "Select an address from suggestions to detect the city.",
   "venueSubmitted": "Venue submitted for approval.",
 
   "writeReviewTitle": "Write a review",

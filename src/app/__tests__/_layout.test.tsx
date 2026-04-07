@@ -3,6 +3,11 @@ import { render, within } from '@testing-library/react-native';
 
 // --- Mocks (must be defined before component import) ---
 
+jest.mock('react-native-gesture-handler', () => {
+  const { View } = require('react-native');
+  return { GestureHandlerRootView: View };
+});
+
 const mockUseSession = jest.fn();
 
 jest.mock('../../hooks/useSession', () => ({

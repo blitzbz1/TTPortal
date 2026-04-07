@@ -21,6 +21,7 @@ import { FriendPickerModal } from '../components/FriendPickerModal';
 import { WriteEventFeedbackScreen } from './WriteEventFeedbackScreen';
 import { hapticMedium } from '../lib/haptics';
 import { getAmaturEvents, type AmaturEvent } from '../services/amatur';
+import { EventDetailSheet } from '../components/EventDetailSheet';
 
 type EventTab = 'upcoming' | 'past' | 'mine' | 'amatur';
 
@@ -510,15 +511,14 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         </TouchableOpacity>
       )}
 
-      {/* ===== Event Detail Bottom Sheet ===== */}
-      <Modal
+      {/* ===== Event Detail Expandable Sheet ===== */}
+      <EventDetailSheet
         visible={selectedEvent !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={closeDetail}
+        onClose={closeDetail}
+        colors={colors}
+        ms={ms}
+        insets={insets}
       >
-        <Pressable style={ms.overlay} onPress={closeDetail}>
-          <Pressable style={[ms.sheet, { paddingBottom: insets.bottom + 16 }]} onPress={() => {}}>
             {selectedEvent && (() => {
               const ev = selectedEvent;
               const badge = getBadgeInfo(ev);
@@ -530,11 +530,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
               const duration = getDuration(ev.starts_at, ev.ends_at);
 
               return (
-                <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-                  {/* Handle bar */}
-                  <View style={ms.handleWrap}>
-                    <View style={ms.handle} />
-                  </View>
+                <>
 
                   {/* Title row */}
                   <View style={ms.titleRow}>
@@ -714,6 +710,27 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                     )}
                   </View>
 
+                  {/* Reviews / Feedback */}
+                  {isPast(ev) && ev.status !== 'cancelled' && detailFeedback.length > 0 && (
+                    <View style={ms.section}>
+                      <View style={ms.sectionHeader}>
+                        <Text style={ms.sectionTitle}>{s('feedback')}</Text>
+                        <Text style={ms.countBadge}>
+                          {(detailFeedback.reduce((sum: number, f: any) => sum + f.rating, 0) / detailFeedback.length).toFixed(1)}{'\u2605'} ({detailFeedback.length})
+                        </Text>
+                      </View>
+                      {detailFeedback.map((fb: any) => (
+                        <View key={fb.id} style={ms.feedbackCard}>
+                          <View style={ms.feedbackHeader}>
+                            <Text style={ms.feedbackName}>{fb.reviewer_name || s('anon')}</Text>
+                            <Text style={ms.feedbackRating}>{fb.rating}{'\u2605'} · {Number(fb.hours_played)}h</Text>
+                          </View>
+                          {fb.body ? <Text style={ms.feedbackBody}>{fb.body}</Text> : null}
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
                   {/* Organizer: send update to participants */}
                   {ev.organizer_id === user?.id && detailParticipants.length > 0 && (
                     <View style={ms.updateInline}>
@@ -854,12 +871,10 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                       </TouchableOpacity>
                     </View>
                   )}
-                </ScrollView>
+                </>
               );
             })()}
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </EventDetailSheet>
 
       {user && selectedEvent && (
         <FriendPickerModal

@@ -233,10 +233,13 @@
   "fieldAddress": "ADRESĂ *",
   "addressPlaceholder": "Strada, nr…",
   "pinOnMap": "Pin pe hartă",
+  "dragPinHint": "Trage pin-ul pentru a ajusta locația",
+  "searching": "Se caută...",
   "fieldNotes": "NOTE",
   "notesPlaceholder": "Detalii adiționale...",
   "nameRequired": "Numele locației este obligatoriu.",
   "addressRequired": "Adresa este obligatorie.",
+  "cityRequired": "Selectează o adresă din sugestii pentru a detecta orașul.",
   "venueSubmitted": "Locația a fost trimisă spre aprobare.",
 
   "writeReviewTitle": "Scrie o recenzie",

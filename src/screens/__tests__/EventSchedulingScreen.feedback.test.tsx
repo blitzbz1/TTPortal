@@ -1,6 +1,24 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
+
+jest.mock('react-native-maps', () => {
+  const RN = require('react-native');
+  return { __esModule: true, default: RN.View, Marker: RN.View };
+});
+
+jest.mock('../../components/EventDetailSheet', () => ({
+  EventDetailSheet: ({ visible, children }: any) => {
+    const { View } = require('react-native');
+    if (!visible) return null;
+    return <View testID="event-detail-sheet">{children}</View>;
+  },
+}));
+
+jest.mock('../../services/amatur', () => ({
+  getAmaturEvents: jest.fn().mockResolvedValue({ data: [], error: null }),
+}));
+
 jest.mock('expo-sqlite', () => ({
   openDatabaseSync: () => ({
     execSync: jest.fn(),
@@ -37,6 +55,10 @@ jest.mock('../../hooks/useSession', () => ({
 
 jest.mock('../../hooks/useNotifications', () => ({
   useNotifications: () => ({ unreadCount: 0 }),
+}));
+
+jest.mock('../../services/amatur', () => ({
+  getAmaturEvents: jest.fn().mockResolvedValue({ data: [], error: null }),
 }));
 
 jest.mock('../../components/Icon', () => ({

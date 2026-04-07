@@ -24,7 +24,7 @@ describe('Locale files sync', () => {
   it('contains all required new keys', () => {
     const required = [
       'venuePickerTitle', 'venuePickerSearch', 'venuePickerEmpty',
-      'checkout', 'couldNotGetLocation', 'geocodeSuccess',
+      'checkout', 'couldNotGetLocation', 'geocodeSuccess', 'dragPinHint',
       'confirmLogout', 'noFriendsHere', 'retry',
       'venueLoadError', 'profileLoadError', 'customMinutesPlaceholder',
       'noPhotosYet', 'favAdd', 'favRemove',

@@ -1,4 +1,5 @@
 import 'react-native-reanimated';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts } from 'expo-font';
 import {
   Syne_400Regular,
@@ -41,15 +42,17 @@ SplashScreen.preventAutoHideAsync();
  */
 export default function RootLayout() {
   return (
-    <SessionProvider>
-      <I18nProvider>
-        <ThemeProvider>
-          <NotificationProvider>
-            <RootNavigator />
-          </NotificationProvider>
-        </ThemeProvider>
-      </I18nProvider>
-    </SessionProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SessionProvider>
+        <I18nProvider>
+          <ThemeProvider>
+            <NotificationProvider>
+              <RootNavigator />
+            </NotificationProvider>
+          </ThemeProvider>
+        </I18nProvider>
+      </SessionProvider>
+    </GestureHandlerRootView>
   );
 }
 
