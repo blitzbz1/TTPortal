@@ -31,7 +31,7 @@ jest.mock('../../lib/supabase', () => ({
   supabase: { from: (...args: any[]) => mockFrom(...args) },
 }));
 
-// eslint-disable-next-line import/first
+ 
 import { getProfileStats } from '../profiles';
 
 describe('getProfileStats', () => {

@@ -104,7 +104,7 @@ describe('profiles migration SQL', () => {
 });
 
 describe('Supabase auth config supports session refresh', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   const { supabase } = require('../supabase');
 
   it('supabase client is configured with autoRefreshToken enabled', () => {

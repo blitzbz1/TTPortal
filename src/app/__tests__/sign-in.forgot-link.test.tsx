@@ -42,7 +42,7 @@ jest.mock('../../hooks/useTheme', () => ({
   }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import SignInScreen from '../sign-in';
 
 describe('SignInScreen — forgot password link (T029)', () => {

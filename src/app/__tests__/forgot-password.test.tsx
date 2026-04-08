@@ -37,7 +37,7 @@ jest.mock('../../hooks/useTheme', () => ({
   }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import ForgotPasswordScreen from '../forgot-password';
 
 describe('ForgotPasswordScreen — T027', () => {

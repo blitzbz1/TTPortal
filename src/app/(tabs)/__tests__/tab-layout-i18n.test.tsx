@@ -31,11 +31,11 @@ jest.mock('expo-router', () => {
   return { Tabs: TabsComponent };
 });
 
-// eslint-disable-next-line import/first
+ 
 import React from 'react';
-// eslint-disable-next-line import/first
+ 
 import { render } from '@testing-library/react-native';
-// eslint-disable-next-line import/first
+ 
 import TabLayout from '../_layout';
 
 describe('TabLayout i18n', () => {

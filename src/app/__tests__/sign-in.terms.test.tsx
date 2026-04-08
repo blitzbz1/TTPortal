@@ -46,7 +46,7 @@ jest.mock('../../hooks/useTheme', () => ({
   }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import SignInScreen from '../sign-in';
 
 jest.spyOn(Linking, 'openURL').mockResolvedValue(true);

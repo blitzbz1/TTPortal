@@ -103,7 +103,7 @@ jest.mock('../../../components/Icon', () => {
   };
 });
 
-// eslint-disable-next-line import/first
+ 
 import TabLayout from '../_layout';
 
 describe('TabLayout', () => {

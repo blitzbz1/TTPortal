@@ -57,11 +57,11 @@ jest.mock('../../components/CityPickerModal', () => ({
   CityPickerModal: () => null,
 }));
 
-// eslint-disable-next-line import/first
+ 
 import React from 'react';
-// eslint-disable-next-line import/first
+ 
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
-// eslint-disable-next-line import/first
+ 
 import { MapViewScreen } from '../MapViewScreen';
 
 describe('MapViewScreen — error + retry', () => {

@@ -28,6 +28,30 @@ export async function rejectVenue(id: number, userId: string) {
   return supabase.from('venues').delete().eq('id', id);
 }
 
+export async function searchVenuesAdmin(query: string) {
+  const pattern = `%${query}%`;
+  return supabase
+    .from('venues')
+    .select('id, name, city, address, type, tables_count, lat, lng, description, approved')
+    .or(`name.ilike.${pattern},address.ilike.${pattern}`)
+    .order('name')
+    .limit(30);
+}
+
+export async function updateVenue(
+  id: number,
+  userId: string,
+  updates: { name?: string; address?: string; city?: string; type?: string; tables_count?: number | null; description?: string | null },
+) {
+  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  return supabase.from('venues').update(updates).eq('id', id).select().single();
+}
+
+export async function deleteVenue(id: number, userId: string) {
+  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  return supabase.from('venues').delete().eq('id', id);
+}
+
 export async function getFlaggedReviews() {
   return supabase
     .from('reviews')

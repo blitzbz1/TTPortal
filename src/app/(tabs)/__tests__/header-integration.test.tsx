@@ -114,7 +114,7 @@ jest.mock('../../../hooks/useTheme', () => ({
   }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import TabLayout from '../_layout';
 
 describe('Header Integration — tab layout without header', () => {

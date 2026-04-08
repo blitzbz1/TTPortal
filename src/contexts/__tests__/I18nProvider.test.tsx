@@ -8,15 +8,15 @@ jest.mock('expo-sqlite', () => ({
   openDatabaseSync: () => mockDb,
 }));
 
-// eslint-disable-next-line import/first
+ 
 import React from 'react';
-// eslint-disable-next-line import/first
+ 
 import { Text, Pressable } from 'react-native';
-// eslint-disable-next-line import/first
+ 
 import { render, screen, userEvent } from '@testing-library/react-native';
-// eslint-disable-next-line import/first
+ 
 import { I18nProvider } from '../I18nProvider';
-// eslint-disable-next-line import/first
+ 
 import { useI18n } from '../../hooks/useI18n';
 
 function TestConsumer() {

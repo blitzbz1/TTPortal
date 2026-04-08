@@ -39,7 +39,7 @@ jest.mock('../../hooks/useTheme', () => ({
   }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import { ProfilePopover } from '../ProfilePopover';
 
 describe('ProfilePopover', () => {

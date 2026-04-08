@@ -680,7 +680,6 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                           const shortName = nameParts.length >= 2
                             ? `${nameParts[0]} ${nameParts[nameParts.length - 1][0]}.`
                             : nameParts[0] ?? '??';
-                          const isFriend = friendIds.has(p.user_id);
                           const isOrganizer = p.user_id === ev.organizer_id;
                           const isMe = p.user_id === user?.id;
                           return (

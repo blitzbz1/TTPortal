@@ -23,11 +23,11 @@ jest.mock('../../components/CityPickerModal', () => ({
   CityPickerModal: () => null,
 }));
 
-// eslint-disable-next-line import/first
+ 
 import React from 'react';
-// eslint-disable-next-line import/first
+ 
 import { render, waitFor } from '@testing-library/react-native';
-// eslint-disable-next-line import/first
+ 
 import { LeaderboardsScreen } from '../LeaderboardsScreen';
 
 describe('LeaderboardsScreen — i18n', () => {

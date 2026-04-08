@@ -1,7 +1,7 @@
 // @ts-expect-error -- __DEV__ is set globally by React Native runtime
 globalThis.__DEV__ = true;
 
-// eslint-disable-next-line import/first
+ 
 import { logger } from '../logger';
 
 describe('logger', () => {

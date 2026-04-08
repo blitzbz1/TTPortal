@@ -95,15 +95,15 @@ jest.mock('../../lib/logger', () => ({
   },
 }));
 
-// eslint-disable-next-line import/first
+ 
 import React from 'react';
-// eslint-disable-next-line import/first
+ 
 import { Text, Pressable } from 'react-native';
-// eslint-disable-next-line import/first
+ 
 import { render, screen, act, waitFor, userEvent } from '@testing-library/react-native';
-// eslint-disable-next-line import/first
+ 
 import { SessionProvider } from '../SessionProvider';
-// eslint-disable-next-line import/first
+ 
 import { useSession } from '../../hooks/useSession';
 
 const fakeUser: User = {

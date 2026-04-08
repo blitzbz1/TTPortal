@@ -64,11 +64,11 @@ jest.mock('../../services/profiles', () => ({
   updateProfile: jest.fn().mockResolvedValue({ error: null }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import React from 'react';
-// eslint-disable-next-line import/first
+ 
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
-// eslint-disable-next-line import/first
+ 
 import { ProfileScreen } from '../ProfileScreen';
 
 describe('ProfileScreen — logout confirmation', () => {

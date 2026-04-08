@@ -84,9 +84,9 @@ jest.mock('@expo-google-fonts/dm-sans', () => ({
   DMSans_500Medium: 'dm-sans-500-asset',
 }));
 
-// eslint-disable-next-line import/first
+ 
 import RootLayout from '../_layout';
-// eslint-disable-next-line import/first
+ 
 import * as SplashScreen from 'expo-splash-screen';
 
 describe('RootLayout', () => {

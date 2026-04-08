@@ -195,7 +195,7 @@ export function FriendsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Lucide name="arrow-left" size={24} color={colors.textOnPrimary} />
+          <Lucide name="arrow-left" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('friendsTitle')}</Text>
         <TouchableOpacity style={styles.inviteBtn} onPress={handleInvite}>
@@ -471,16 +471,18 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: colors.primary,
+      backgroundColor: colors.bgAlt,
       height: 52,
       paddingHorizontal: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
       ...Shadows.bar,
     },
     headerTitle: {
       fontFamily: Fonts.heading,
       fontSize: FontSize.xxl,
       fontWeight: FontWeight.bold,
-      color: colors.textOnPrimary,
+      color: colors.text,
     },
     inviteBtn: {
       flexDirection: 'row',

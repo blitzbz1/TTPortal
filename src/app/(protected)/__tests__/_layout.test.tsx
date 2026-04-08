@@ -37,9 +37,9 @@ jest.mock('../../../lib/logger', () => ({
   },
 }));
 
-// eslint-disable-next-line import/first
+ 
 import ProtectedLayout from '../_layout';
-// eslint-disable-next-line import/first
+ 
 import { logger } from '../../../lib/logger';
 
 describe('ProtectedLayout', () => {

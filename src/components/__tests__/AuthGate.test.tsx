@@ -28,7 +28,7 @@ jest.mock('../../lib/logger', () => ({
   },
 }));
 
-// eslint-disable-next-line import/first
+ 
 import { AuthGate } from '../AuthGate';
 
 describe('AuthGate', () => {

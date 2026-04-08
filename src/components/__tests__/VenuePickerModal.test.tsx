@@ -32,11 +32,11 @@ jest.mock('../../services/venues', () => ({
   searchVenues: jest.fn().mockResolvedValue({ data: [] }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import React from 'react';
-// eslint-disable-next-line import/first
+ 
 import { render, waitFor } from '@testing-library/react-native';
-// eslint-disable-next-line import/first
+ 
 import { VenuePickerModal } from '../VenuePickerModal';
 
 describe('VenuePickerModal i18n', () => {

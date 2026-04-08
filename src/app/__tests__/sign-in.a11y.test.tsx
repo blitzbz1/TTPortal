@@ -34,11 +34,11 @@ jest.mock('../../hooks/useTheme', () => ({
   }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import React from 'react';
-// eslint-disable-next-line import/first
+ 
 import { render, fireEvent } from '@testing-library/react-native';
-// eslint-disable-next-line import/first
+ 
 import SignInScreen from '../sign-in';
 
 describe('SignIn accessibility labels', () => {

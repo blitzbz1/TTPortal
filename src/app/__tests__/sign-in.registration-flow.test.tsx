@@ -39,7 +39,7 @@ jest.mock('../../hooks/useTheme', () => ({
   }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import SignInScreen from '../sign-in';
 
 /** Fills the signup form with valid data and presses submit. */

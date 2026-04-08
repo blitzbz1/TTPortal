@@ -45,7 +45,7 @@ jest.mock('../../hooks/useTheme', () => ({
   }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import ResetPasswordScreen from '../reset-password';
 
 describe('ResetPasswordScreen — T040', () => {

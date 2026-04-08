@@ -73,11 +73,11 @@ jest.mock('../hooks/useTheme', () => ({
   }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import SignInScreen from '../app/sign-in';
-// eslint-disable-next-line import/first
+ 
 import ResetPasswordScreen from '../app/reset-password';
-// eslint-disable-next-line import/first
+ 
 import { AuthGate } from '../components/AuthGate';
 
 /** Default session mock for unauthenticated state. */

@@ -90,9 +90,9 @@ jest.mock('../../hooks/useTheme', () => ({
   }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import SignInScreen from '../sign-in';
-// eslint-disable-next-line import/first
+ 
 import { SessionProvider, SessionContext } from '../../contexts/SessionProvider';
 
 const fakeUser: User = {

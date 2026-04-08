@@ -65,11 +65,11 @@ jest.mock('expo-image-manipulator', () => ({
   SaveFormat: { JPEG: 'jpeg' },
 }));
 
-// eslint-disable-next-line import/first
+ 
 import React from 'react';
-// eslint-disable-next-line import/first
+ 
 import { render, waitFor } from '@testing-library/react-native';
-// eslint-disable-next-line import/first
+ 
 import { VenueDetailScreen } from '../VenueDetailScreen';
 
 const VENUE = {

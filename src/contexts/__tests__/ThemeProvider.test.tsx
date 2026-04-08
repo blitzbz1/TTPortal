@@ -8,17 +8,17 @@ jest.mock('expo-sqlite', () => ({
   openDatabaseSync: () => mockDb,
 }));
 
-// eslint-disable-next-line import/first
+ 
 import React from 'react';
-// eslint-disable-next-line import/first
+ 
 import { Text, Pressable } from 'react-native';
-// eslint-disable-next-line import/first
+ 
 import { render, screen, userEvent } from '@testing-library/react-native';
-// eslint-disable-next-line import/first
+ 
 import { ThemeProvider } from '../ThemeProvider';
-// eslint-disable-next-line import/first
+ 
 import { useTheme } from '../../hooks/useTheme';
-// eslint-disable-next-line import/first
+ 
 import { lightColors, darkColors } from '../../theme';
 
 function TestConsumer() {

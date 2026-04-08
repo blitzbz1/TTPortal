@@ -59,11 +59,11 @@ jest.mock('../../../hooks/useTheme', () => ({
   }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import React from 'react';
-// eslint-disable-next-line import/first
+ 
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
-// eslint-disable-next-line import/first
+ 
 import CreateEventRoute from '../create-event';
 
 const venues = [

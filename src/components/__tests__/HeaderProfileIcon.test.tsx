@@ -46,7 +46,7 @@ jest.mock('../../hooks/useTheme', () => ({
   }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import { HeaderProfileIcon } from '../HeaderProfileIcon';
 
 describe('HeaderProfileIcon', () => {

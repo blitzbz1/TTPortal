@@ -6,7 +6,7 @@ jest.mock('expo-sqlite', () => ({
   }),
 }));
 
-// eslint-disable-next-line import/first
+ 
 import { supabase } from '../supabase';
 
 describe('supabase client', () => {
