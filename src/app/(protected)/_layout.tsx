@@ -12,6 +12,7 @@ export default function ProtectedLayout() {
       <Stack.Screen name="condition-vote/[venueId]" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="friends" />
       <Stack.Screen name="play-history" />
+      <Stack.Screen name="equipment" />
       <Stack.Screen name="admin" />
       <Stack.Screen name="create-event" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="notifications" />

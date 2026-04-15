@@ -152,6 +152,40 @@ export interface EventFeedback {
 
 export type EventFeedbackInsert = Omit<EventFeedback, 'id' | 'created_at'>;
 
+export type RubberColor = 'red' | 'black' | 'pink' | 'blue' | 'purple' | 'green';
+export type DominantHand = 'right' | 'left';
+export type PlayingStyle = 'attacker' | 'defender' | 'all_rounder';
+export type Grip = 'shakehand' | 'penhold' | 'other';
+export type EquipmentCategory = 'blade' | 'rubber';
+
+export interface EquipmentManufacturer {
+  id: string;
+  name: string;
+  models: string[];
+}
+
+export interface EquipmentSelection {
+  id: number;
+  user_id: string;
+  blade_manufacturer_id: string;
+  blade_manufacturer: string;
+  blade_model: string;
+  forehand_rubber_manufacturer_id: string;
+  forehand_rubber_manufacturer: string;
+  forehand_rubber_model: string;
+  forehand_rubber_color: RubberColor;
+  backhand_rubber_manufacturer_id: string;
+  backhand_rubber_manufacturer: string;
+  backhand_rubber_model: string;
+  backhand_rubber_color: Extract<RubberColor, 'red' | 'black'>;
+  dominant_hand: DominantHand;
+  playing_style: PlayingStyle;
+  grip: Grip;
+  created_at: string;
+}
+
+export type EquipmentSelectionInsert = Omit<EquipmentSelection, 'id' | 'created_at'>;
+
 // ── View types ──
 
 export interface VenueStats {

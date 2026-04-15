@@ -214,6 +214,13 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
             <Text style={styles.navLabel}>{s('playHistory')}</Text>
             <Lucide name="chevron-right" size={16} color={colors.textFaint} />
           </TouchableOpacity>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/equipment' as any)}>
+            <View style={[styles.navIcon, { backgroundColor: colors.primaryPale }]}>
+              <Lucide name="circle-dot" size={18} color={colors.primaryMid} />
+            </View>
+            <Text style={styles.navLabel}>{s('equipment')}</Text>
+            <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/leaderboard' as any)}>
             <View style={[styles.navIcon, { backgroundColor: colors.amberPale }]}>
               <Lucide name="bar-chart-3" size={18} color={colors.accent} />
