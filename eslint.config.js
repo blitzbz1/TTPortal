@@ -8,6 +8,19 @@ module.exports = defineConfig([
     ignores: ["dist/*"],
   },
   {
+    settings: {
+      "import/resolver": {
+        node: {
+          paths: ["."],
+          extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
+        },
+      },
+    },
+    rules: {
+      "import/no-unresolved": ["error", { ignore: ["^@/"] }],
+    },
+  },
+  {
     files: ["**/__tests__/**", "**/*.test.*", "jest.setup.*"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",

@@ -3,7 +3,7 @@
 const mockS = jest.fn((key: string) => {
   const map: Record<string, string> = {
     tabMap: 'Map', tabEvents: 'Events', tabLeaderboard: 'Leaderboard',
-    tabFavorites: 'Favorites', tabProfile: 'Profile',
+    tabFavorites: 'Favorites', tabChallenge: 'Challenges', tabProfile: 'Profile',
   };
   return map[key] || key;
 });
@@ -48,7 +48,7 @@ describe('TabLayout i18n', () => {
     // s() should have been called with tab label keys
     expect(mockS).toHaveBeenCalledWith('tabMap');
     expect(mockS).toHaveBeenCalledWith('tabEvents');
-    expect(mockS).toHaveBeenCalledWith('tabFavorites');
+    expect(mockS).toHaveBeenCalledWith('tabChallenge');
     expect(mockS).toHaveBeenCalledWith('tabProfile');
   });
 });

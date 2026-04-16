@@ -20,6 +20,44 @@ jest.mock('expo-haptics', () => ({
   NotificationFeedbackType: { Success: 'success', Error: 'error', Warning: 'warning' },
 }));
 
+jest.mock('expo-apple-authentication', () => ({
+  AppleAuthenticationButton: () => null,
+  AppleAuthenticationButtonStyle: { BLACK: 'BLACK', WHITE: 'WHITE', WHITE_OUTLINE: 'WHITE_OUTLINE' },
+  AppleAuthenticationButtonType: { SIGN_IN: 'SIGN_IN', CONTINUE: 'CONTINUE' },
+  AppleAuthenticationScope: { FULL_NAME: 'FULL_NAME', EMAIL: 'EMAIL' },
+  getCredentialStateAsync: jest.fn(),
+  isAvailableAsync: jest.fn(() => Promise.resolve(false)),
+  refreshAsync: jest.fn(),
+  signInAsync: jest.fn(),
+  signOutAsync: jest.fn(),
+}));
+
+jest.mock('expo-router', () => {
+  const React = require('react');
+  return {
+    Link: ({ children }) => children,
+    Redirect: () => null,
+    Stack: ({ children }) => React.createElement(React.Fragment, null, children),
+    Tabs: ({ children }) => React.createElement(React.Fragment, null, children),
+    router: {
+      back: jest.fn(),
+      push: jest.fn(),
+      replace: jest.fn(),
+      setParams: jest.fn(),
+    },
+    useFocusEffect: (effect) => effect(),
+    useLocalSearchParams: () => ({}),
+    usePathname: () => '/',
+    useRouter: () => ({
+      back: jest.fn(),
+      push: jest.fn(),
+      replace: jest.fn(),
+      setParams: jest.fn(),
+    }),
+    useSegments: () => [],
+  };
+});
+
 // Mock react-native-map-clustering
 jest.mock('react-native-map-clustering', () => {
   return {

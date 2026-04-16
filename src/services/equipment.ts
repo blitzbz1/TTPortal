@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import type { EquipmentCategory, EquipmentManufacturer, EquipmentSelectionInsert } from '../types/database';
+import type { EquipmentCategory, EquipmentManufacturer, EquipmentSelection, EquipmentSelectionInsert } from '../types/database';
 
 interface EquipmentManufacturerRow {
   manufacturer_id: string;
@@ -56,6 +56,12 @@ export async function getEquipmentHistory(userId: string, limit = 4) {
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit);
+}
+
+export async function getCurrentEquipmentForUser(userId: string) {
+  return supabase.rpc('current_equipment_for_user', {
+    v_user_id: userId,
+  }) as unknown as Promise<{ data: EquipmentSelection[] | null; error: any }>;
 }
 
 export async function saveEquipmentSelection(data: EquipmentSelectionInsert) {

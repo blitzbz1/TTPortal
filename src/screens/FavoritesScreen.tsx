@@ -124,6 +124,9 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} accessibilityLabel={s('back')}>
+          <Lucide name="arrow-left" size={24} color={headerFg} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('favorites')}</Text>
         <NotificationBellButton color={headerFg} />
       </View>
@@ -212,10 +215,18 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       ...Shadows.bar,
     },
     headerTitle: {
+      flex: 1,
       fontFamily: Fonts.heading,
       fontSize: FontSize.xxl,
       fontWeight: FontWeight.bold,
       color: isDark ? colors.text : colors.textOnPrimary,
+      marginLeft: Spacing.sm,
+    },
+    backButton: {
+      width: 36,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     headerRight: {
       flexDirection: 'row',

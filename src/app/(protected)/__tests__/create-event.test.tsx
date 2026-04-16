@@ -9,6 +9,7 @@ jest.mock('expo-sqlite', () => ({
 const mockBack = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: mockBack }),
+  useLocalSearchParams: () => ({}),
 }));
 
 const mockUser = { id: 'user-123' };

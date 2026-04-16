@@ -14,5 +14,6 @@ export { EventSchedulingScreen } from './EventSchedulingScreen';
 export { LeaderboardsScreen } from './LeaderboardsScreen';
 export { AdminModerationScreen } from './AdminModerationScreen';
 export { FavoritesScreen } from './FavoritesScreen';
+export { ChallengeScreen } from './ChallengeScreen';
 export { OnboardingScreen } from './OnboardingScreen';
 // NotificationsScreen imported directly in its route file to avoid barrel import issues

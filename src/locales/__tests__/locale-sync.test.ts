@@ -34,4 +34,19 @@ describe('Locale files sync', () => {
       expect(roKeys).toContain(key);
     }
   });
+
+  it('has clean Romanian challenge strings without replacement artifacts', () => {
+    const challengeKeyPattern = /^(challenge|badgeTrack|badgeChallenge|eventChallenge|eventAdd|eventAttach|eventNo|eventAward)/;
+    const mojibakePattern = /[\u00c2\u00c3\u00c4\u00c5\u00c8\u00c9\u00f0]|[\u0080-\u009f]/;
+    const violations = roKeys
+      .filter((key) => challengeKeyPattern.test(key))
+      .map((key) => [key, (ro as Record<string, string>)[key]] as const)
+      .filter(([, value]) => value.includes('?') || mojibakePattern.test(value));
+
+    expect(violations).toEqual([]);
+    expect((ro as Record<string, string>).challengeSwitch).toBe('Schimbă');
+    expect((ro as Record<string, string>).eventAddChallenge).toBe('Adaugă provocarea curentă la eveniment');
+    expect((ro as Record<string, string>).challengeInviteToEvent).toBe('Creează eveniment cu provocarea');
+    expect((ro as Record<string, string>).challengeComplete).toBe('Finalizează');
+  });
 });

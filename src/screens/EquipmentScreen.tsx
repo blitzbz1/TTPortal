@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useSession } from '../hooks/useSession';
 import { useTheme } from '../hooks/useTheme';
+import { useI18n } from '../hooks/useI18n';
 import { getEquipmentCatalog, getEquipmentHistory, saveEquipmentSelection } from '../services/equipment';
 import type {
   DominantHand,
@@ -53,42 +54,48 @@ const COLOR_SWATCHES: Record<RubberColor, string> = {
   green: '#16a34a',
 };
 
-const HAND_OPTIONS: { label: string; value: DominantHand }[] = [
-  { label: 'Right Handed', value: 'right' },
-  { label: 'Left Handed', value: 'left' },
+const HAND_OPTIONS: { labelKey: string; value: DominantHand }[] = [
+  { labelKey: 'equipmentHandRight', value: 'right' },
+  { labelKey: 'equipmentHandLeft', value: 'left' },
 ];
 
-const STYLE_OPTIONS: { label: string; value: PlayingStyle }[] = [
-  { label: 'Attacker', value: 'attacker' },
-  { label: 'Defender', value: 'defender' },
-  { label: 'All rounder', value: 'all_rounder' },
+const STYLE_OPTIONS: { labelKey: string; value: PlayingStyle }[] = [
+  { labelKey: 'equipmentStyleAttacker', value: 'attacker' },
+  { labelKey: 'equipmentStyleDefender', value: 'defender' },
+  { labelKey: 'equipmentStyleAllRounder', value: 'all_rounder' },
 ];
 
-const GRIP_OPTIONS: { label: string; value: Grip }[] = [
-  { label: 'Shakehand', value: 'shakehand' },
-  { label: 'Penhold', value: 'penhold' },
-  { label: 'Other', value: 'other' },
+const GRIP_OPTIONS: { labelKey: string; value: Grip }[] = [
+  { labelKey: 'equipmentGripShakehand', value: 'shakehand' },
+  { labelKey: 'equipmentGripPenhold', value: 'penhold' },
+  { labelKey: 'equipmentGripOther', value: 'other' },
 ];
 
 function filterText(value: string, query: string) {
   return value.toLowerCase().includes(query.trim().toLowerCase());
 }
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('ro-RO', {
+function formatDate(value: string, locale: string) {
+  return new Date(value).toLocaleDateString(locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   });
 }
 
-function labelFromValue<T extends string>(options: { label: string; value: T }[], value: T) {
-  return options.find((option) => option.value === value)?.label ?? value;
+function labelFromValue<T extends string>(
+  options: { labelKey: string; value: T }[],
+  value: T,
+  translate: (key: string) => string,
+) {
+  const option = options.find((item) => item.value === value);
+  return option ? translate(option.labelKey) : value;
 }
 
 interface SearchableSelectProps {
   label: string;
   placeholder: string;
+  emptyText: string;
   options: readonly { id: string; name: string }[];
   value: string;
   disabled?: boolean;
@@ -100,10 +107,11 @@ interface ColorSelectProps {
   value: RubberColor;
   options: readonly RubberColor[];
   onSelect: (color: RubberColor) => void;
+  getLabel: (color: RubberColor) => string;
   colors: ThemeColors;
 }
 
-function ColorSelect({ value, options, onSelect, colors }: ColorSelectProps) {
+function ColorSelect({ value, options, onSelect, getLabel, colors }: ColorSelectProps) {
   const anchorRef = useRef<View>(null);
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState({ x: 0, y: 0, width: 0, height: 0 });
@@ -120,7 +128,7 @@ function ColorSelect({ value, options, onSelect, colors }: ColorSelectProps) {
     <>
       <Pressable ref={anchorRef} style={styles.colorSelect} onPress={openDropdown}>
         <View style={[styles.colorSelectDot, { backgroundColor: COLOR_SWATCHES[value] }]} />
-        <Text style={styles.colorSelectText}>{value}</Text>
+        <Text style={styles.colorSelectText}>{getLabel(value)}</Text>
         <Lucide name="chevron-down" size={14} color={colors.textFaint} />
       </Pressable>
 
@@ -151,7 +159,7 @@ function ColorSelect({ value, options, onSelect, colors }: ColorSelectProps) {
             >
               <View style={[styles.colorSelectDot, { backgroundColor: COLOR_SWATCHES[color] }]} />
               <Text style={[styles.colorOptionText, value === color && styles.colorOptionTextActive]}>
-                {color}
+                {getLabel(color)}
               </Text>
             </Pressable>
           ))}
@@ -164,6 +172,7 @@ function ColorSelect({ value, options, onSelect, colors }: ColorSelectProps) {
 function SearchableSelect({
   label,
   placeholder,
+  emptyText,
   options,
   value,
   disabled = false,
@@ -264,7 +273,7 @@ function SearchableSelect({
                 <Text style={styles.optionText}>{option.name}</Text>
               </Pressable>
             )) : (
-              <Text style={styles.emptyOption}>No matches</Text>
+              <Text style={styles.emptyOption}>{emptyText}</Text>
             )}
           </ScrollView>
         </View>
@@ -277,7 +286,10 @@ export function EquipmentScreen() {
   const router = useRouter();
   const { user } = useSession();
   const { colors } = useTheme();
+  const { s, lang } = useI18n();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const dateLocale = lang === 'ro' ? 'ro-RO' : 'en-US';
+  const colorLabel = useCallback((color: RubberColor) => s(`equipmentColor_${color}`), [s]);
 
   const [activeTab, setActiveTab] = useState<TabKey>('edit');
   const [history, setHistory] = useState<EquipmentSelection[]>([]);
@@ -390,7 +402,7 @@ export function EquipmentScreen() {
 
   const handleSave = async () => {
     if (!user || !canSave) {
-      Alert.alert('Equipment', 'Please complete blade, forehand rubber, and backhand rubber.');
+      Alert.alert(s('equipment'), s('equipmentCompleteRequired'));
       return;
     }
 
@@ -415,7 +427,7 @@ export function EquipmentScreen() {
     setSaving(false);
 
     if (error || !data) {
-      Alert.alert('Equipment', 'Could not save equipment. Please try again.');
+      Alert.alert(s('equipment'), s('equipmentSaveError'));
       return;
     }
 
@@ -445,7 +457,7 @@ export function EquipmentScreen() {
         <View style={styles.groupTitleWrap}>
           <Text style={styles.groupTitle}>{title}</Text>
           <Text style={styles.groupSubtitle}>
-            {pick.model ? `${pick.manufacturer} ${pick.model}` : 'Search the global equipment database'}
+            {pick.model ? `${pick.manufacturer} ${pick.model}` : s('equipmentSearchGlobal')}
           </Text>
         </View>
         {colorPicker ? (
@@ -453,21 +465,24 @@ export function EquipmentScreen() {
             value={colorPicker.value}
             options={colorPicker.options}
             onSelect={colorPicker.onSelect}
+            getLabel={colorLabel}
             colors={colors}
           />
         ) : null}
       </View>
       <SearchableSelect
-        label="Manufacturer"
-        placeholder="Search manufacturer"
+        label={s('equipmentManufacturer')}
+        placeholder={s('equipmentSearchManufacturer')}
+        emptyText={s('equipmentNoMatches')}
         options={catalog}
         value={pick.manufacturer}
         onSelect={(option) => selectManufacturer(type, option)}
         colors={colors}
       />
       <SearchableSelect
-        label="Model"
-        placeholder={pick.manufacturer ? 'Search model' : 'Choose manufacturer first'}
+        label={s('equipmentModel')}
+        placeholder={pick.manufacturer ? s('equipmentSearchModel') : s('equipmentChooseManufacturerFirst')}
+        emptyText={s('equipmentNoMatches')}
         options={modelOptions}
         value={pick.model}
         disabled={!pick.manufacturerId}
@@ -479,14 +494,14 @@ export function EquipmentScreen() {
 
   const renderSegmented = <T extends string>(
     label: string,
-    options: { label: string; value: T }[],
+    options: { labelKey: string; value: T }[],
     selected: T,
     onSelect: (value: T) => void,
   ) => (
     <View style={styles.segmentGroup}>
       <View style={styles.inlineHeader}>
         <Lucide
-          name={label === 'Hand' ? 'hand' : label === 'Playing style' ? 'activity' : 'badge'}
+          name={label === s('equipmentHand') ? 'hand' : label === s('equipmentPlayingStyle') ? 'activity' : 'badge'}
           size={16}
           color={colors.textMuted}
         />
@@ -500,7 +515,7 @@ export function EquipmentScreen() {
             onPress={() => onSelect(option.value)}
           >
             <Text style={[styles.segmentText, selected === option.value && styles.segmentTextActive]}>
-              {option.label}
+              {s(option.labelKey)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -512,11 +527,13 @@ export function EquipmentScreen() {
     <View key={item.id} style={[styles.equipmentCard, index === 0 && styles.currentCard]}>
       <View style={styles.cardHeader}>
         <View style={styles.cardTitleBlock}>
-          <Text style={styles.cardEyebrow}>{index === 0 ? 'Latest setup' : `Previous setup · ${formatDate(item.created_at)}`}</Text>
+          <Text style={styles.cardEyebrow}>
+            {index === 0 ? s('equipmentLatestSetup') : s('equipmentPreviousSetup', formatDate(item.created_at, dateLocale))}
+          </Text>
         </View>
         {index === 0 && (
           <View style={styles.latestPill}>
-            <Text style={styles.latestText}>Current</Text>
+            <Text style={styles.latestText}>{s('equipmentCurrent')}</Text>
           </View>
         )}
       </View>
@@ -525,7 +542,7 @@ export function EquipmentScreen() {
           <Lucide name="scan-line" size={18} color={colors.primary} />
         </View>
         <View style={styles.bladeTextWrap}>
-          <Text style={styles.bladeLabel}>Blade</Text>
+          <Text style={styles.bladeLabel}>{s('equipmentBlade')}</Text>
           <Text style={styles.bladeValue}>{item.blade_manufacturer} {item.blade_model}</Text>
         </View>
       </View>
@@ -533,14 +550,14 @@ export function EquipmentScreen() {
         <View style={styles.detailTile}>
           <View style={styles.detailTileHeader}>
             <View style={[styles.tinyColorDot, { backgroundColor: COLOR_SWATCHES[item.forehand_rubber_color] }]} />
-            <Text style={styles.detailLabel}>Forehand</Text>
+            <Text style={styles.detailLabel}>{s('equipmentForehand')}</Text>
           </View>
           <Text style={styles.detailValue}>{item.forehand_rubber_manufacturer} {item.forehand_rubber_model}</Text>
         </View>
         <View style={styles.detailTile}>
           <View style={styles.detailTileHeader}>
             <View style={[styles.tinyColorDot, { backgroundColor: COLOR_SWATCHES[item.backhand_rubber_color] }]} />
-            <Text style={styles.detailLabel}>Backhand</Text>
+            <Text style={styles.detailLabel}>{s('equipmentBackhand')}</Text>
           </View>
           <Text style={styles.detailValue}>{item.backhand_rubber_manufacturer} {item.backhand_rubber_model}</Text>
         </View>
@@ -548,15 +565,15 @@ export function EquipmentScreen() {
       <View style={styles.metaRow}>
         <View style={styles.metaPill}>
           <Lucide name="hand" size={13} color={colors.primaryMid} />
-          <Text style={styles.metaPillText}>{labelFromValue(HAND_OPTIONS, item.dominant_hand)}</Text>
+          <Text style={styles.metaPillText}>{labelFromValue(HAND_OPTIONS, item.dominant_hand, s)}</Text>
         </View>
         <View style={styles.metaPill}>
           <Lucide name="activity" size={13} color={colors.primaryMid} />
-          <Text style={styles.metaPillText}>{labelFromValue(STYLE_OPTIONS, item.playing_style)}</Text>
+          <Text style={styles.metaPillText}>{labelFromValue(STYLE_OPTIONS, item.playing_style, s)}</Text>
         </View>
         <View style={styles.metaPill}>
           <Lucide name="badge" size={13} color={colors.primaryMid} />
-          <Text style={styles.metaPillText}>{labelFromValue(GRIP_OPTIONS, item.grip)}</Text>
+          <Text style={styles.metaPillText}>{labelFromValue(GRIP_OPTIONS, item.grip, s)}</Text>
         </View>
       </View>
     </View>
@@ -576,14 +593,14 @@ export function EquipmentScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Lucide name="arrow-left" size={24} color={colors.textOnPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Equipment</Text>
+        <Text style={styles.headerTitle}>{s('equipment')}</Text>
         <View style={{ width: 24 }} />
       </LinearGradient>
 
       <View style={styles.tabs}>
         {([
-          ['edit', 'Edit Equipment'],
-          ['current', 'Current Equipment'],
+          ['edit', s('equipmentEdit')],
+          ['current', s('equipmentCurrentTab')],
         ] as const).map(([key, label]) => (
           <TouchableOpacity
             key={key}
@@ -602,18 +619,18 @@ export function EquipmentScreen() {
           {catalogError && (
             <View style={styles.inlineError}>
               <Lucide name="alert-triangle" size={18} color={colors.red} />
-              <Text style={styles.inlineErrorText}>Could not load equipment catalogues.</Text>
+              <Text style={styles.inlineErrorText}>{s('equipmentCatalogError')}</Text>
             </View>
           )}
           {activeTab === 'edit' ? (
             <View style={styles.content}>
-              {renderPickGroup('Blade', 'blade', bladeCatalog, blade, bladeModelOptions, 'scan-line', colors.primary)}
-              {renderPickGroup('Forehand Rubber', 'forehand', rubberCatalog, forehand, forehandModelOptions, 'zap', colors.red, {
+              {renderPickGroup(s('equipmentBlade'), 'blade', bladeCatalog, blade, bladeModelOptions, 'scan-line', colors.primary)}
+              {renderPickGroup(s('equipmentForehandRubber'), 'forehand', rubberCatalog, forehand, forehandModelOptions, 'zap', colors.red, {
                 value: forehandColor,
                 options: FOREHAND_COLORS,
                 onSelect: setForehandColor,
               })}
-              {renderPickGroup('Backhand Rubber', 'backhand', rubberCatalog, backhand, backhandModelOptions, 'shield', colors.black, {
+              {renderPickGroup(s('equipmentBackhandRubber'), 'backhand', rubberCatalog, backhand, backhandModelOptions, 'shield', colors.black, {
                 value: backhandColor,
                 options: BACKHAND_COLORS,
                 onSelect: (color) => {
@@ -627,13 +644,13 @@ export function EquipmentScreen() {
                     <Lucide name="user-round" size={18} color={colors.textOnPrimary} />
                   </View>
                   <View style={styles.groupTitleWrap}>
-                    <Text style={styles.groupTitle}>Player Profile</Text>
-                    <Text style={styles.groupSubtitle}>Tune the setup around how you play</Text>
+                    <Text style={styles.groupTitle}>{s('equipmentPlayerProfile')}</Text>
+                    <Text style={styles.groupSubtitle}>{s('equipmentPlayerProfileDesc')}</Text>
                   </View>
                 </View>
-                {renderSegmented('Hand', HAND_OPTIONS, dominantHand, setDominantHand)}
-                {renderSegmented('Playing style', STYLE_OPTIONS, playingStyle, setPlayingStyle)}
-                {renderSegmented('Grip', GRIP_OPTIONS, grip, setGrip)}
+                {renderSegmented(s('equipmentHand'), HAND_OPTIONS, dominantHand, setDominantHand)}
+                {renderSegmented(s('equipmentPlayingStyle'), STYLE_OPTIONS, playingStyle, setPlayingStyle)}
+                {renderSegmented(s('equipmentGrip'), GRIP_OPTIONS, grip, setGrip)}
               </View>
 
               <TouchableOpacity
@@ -644,7 +661,7 @@ export function EquipmentScreen() {
                 {saving ? (
                   <ActivityIndicator size="small" color={colors.textOnPrimary} />
                 ) : (
-                  <Text style={styles.saveButtonText}>Save Equipment</Text>
+                  <Text style={styles.saveButtonText}>{s('equipmentSave')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -653,20 +670,20 @@ export function EquipmentScreen() {
               {latest ? (
                 <>
                   {renderEquipmentCard(latest, 0)}
-                  <Text style={styles.sectionTitle}>Previous Equipment</Text>
+                  <Text style={styles.sectionTitle}>{s('equipmentPrevious')}</Text>
                   {previous.length > 0 ? (
                     previous.map((item, index) => renderEquipmentCard(item, index + 1))
                   ) : (
-                    <Text style={styles.emptyText}>Your last three saved setups will appear here.</Text>
+                    <Text style={styles.emptyText}>{s('equipmentPreviousEmpty')}</Text>
                   )}
                 </>
               ) : (
                 <View style={styles.emptyState}>
                   <Lucide name="circle-dot" size={28} color={colors.textFaint} />
-                  <Text style={styles.emptyTitle}>No equipment saved yet</Text>
-                  <Text style={styles.emptyText}>Build your setup in Edit Equipment, then save it here.</Text>
+                  <Text style={styles.emptyTitle}>{s('equipmentEmptyTitle')}</Text>
+                  <Text style={styles.emptyText}>{s('equipmentEmptyDesc')}</Text>
                   <TouchableOpacity style={styles.secondaryButton} onPress={() => setActiveTab('edit')}>
-                    <Text style={styles.secondaryButtonText}>Select equipment</Text>
+                    <Text style={styles.secondaryButtonText}>{s('equipment')}</Text>
                   </TouchableOpacity>
                 </View>
               )}

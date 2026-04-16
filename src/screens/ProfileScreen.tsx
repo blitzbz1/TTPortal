@@ -9,20 +9,9 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getProfile, getProfileStats } from '../services/profiles';
-import { getUserReviewCount } from '../services/reviews';
-import { getFriends } from '../services/friends';
+import { getProfile } from '../services/profiles';
 import type { Profile } from '../types/database';
 import { ProfileSkeleton } from '../components/SkeletonLoader';
-import { ChallengeBanner } from '../components/ChallengeBanner';
-
-const BADGES = [
-  { key: 'firstServe', icon: 'zap', labelKey: 'badgeFirstServe' },
-  { key: 'explorer', icon: 'compass', labelKey: 'badgeExplorer' },
-  { key: 'reviewer', icon: 'pen-line', labelKey: 'badgeReviewer' },
-  { key: 'social', icon: 'users', labelKey: 'badgeSocial' },
-  { key: 'regular', icon: 'flame', labelKey: 'badgeRegular' },
-] as const;
 
 
 
@@ -40,9 +29,6 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [stats, setStats] = useState<{ total_checkins: number; unique_venues: number; events_joined: number } | null>(null);
-  const [reviewCount, setReviewCount] = useState(0);
-  const [friendCount, setFriendCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [profileError, setProfileError] = useState(false);
@@ -57,15 +43,6 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
       if (profileRes.data) {
         setProfile(profileRes.data as Profile);
       }
-
-      const [statsRes, reviewRes, friendsRes] = await Promise.all([
-        getProfileStats(user.id),
-        getUserReviewCount(user.id),
-        getFriends(user.id),
-      ]);
-      if (statsRes.data) setStats(statsRes.data as { total_checkins: number; unique_venues: number; events_joined: number });
-      setReviewCount(reviewRes.data ?? 0);
-      setFriendCount(friendsRes.data?.length ?? 0);
     } catch {
       setProfileError(true);
     } finally {
@@ -89,19 +66,6 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const username = profile?.username ? `@${profile.username}` : '';
   const city = profile?.city || '';
   const usernameDisplay = [username, city].filter(Boolean).join(' \u00B7 ');
-
-  const unlockedBadges = useMemo(() => {
-    const totalCheckins = stats?.total_checkins ?? 0;
-    const uniqueVenues = stats?.unique_venues ?? 0;
-    return new Set(
-      [
-        totalCheckins >= 1 && 'firstServe',
-        uniqueVenues >= 5 && 'explorer',
-        reviewCount >= 5 && 'reviewer',
-        friendCount >= 5 && 'social',
-      ].filter(Boolean) as string[],
-    );
-  }, [stats, reviewCount, friendCount]);
 
   const handleLogout = useCallback(async () => {
     if (Platform.OS === 'web') {
@@ -162,42 +126,6 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
           {usernameDisplay ? <Text style={styles.username}>{usernameDisplay}</Text> : null}
         </View>
 
-        {/* Badges */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{s('badgesTitle')}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgeRow}>
-            {BADGES.map((badge) => {
-              const unlocked = unlockedBadges.has(badge.key);
-              return (
-                <View key={badge.key} style={styles.badgeItem}>
-                  <View style={[styles.badgeCircle, !unlocked && styles.badgeCircleLocked]}>
-                    <View style={!unlocked ? { opacity: 0.5 } : undefined}>
-                      <Lucide
-                        name={badge.icon}
-                        size={22}
-                        color={unlocked ? colors.primary : colors.textFaint}
-                      />
-                    </View>
-                    {!unlocked && (
-                      <View style={styles.lockOverlay}>
-                        <Lucide name="lock" size={10} color={colors.textOnPrimary} />
-                      </View>
-                    )}
-                  </View>
-                  <Text style={[styles.badgeLabel, !unlocked && styles.badgeLabelLocked]}>
-                    {s(badge.labelKey)}
-                  </Text>
-                </View>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* Monthly Challenge */}
-        <View style={styles.section}>
-          <ChallengeBanner />
-        </View>
-
         {/* Navigation Links */}
         <View style={styles.section}>
           <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/friends' as any)}>
@@ -219,6 +147,13 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
               <Lucide name="circle-dot" size={18} color={colors.primaryMid} />
             </View>
             <Text style={styles.navLabel}>{s('equipment')}</Text>
+            <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/favorites' as any)}>
+            <View style={[styles.navIcon, { backgroundColor: colors.redPale }]}>
+              <Lucide name="heart" size={18} color={colors.red} />
+            </View>
+            <Text style={styles.navLabel}>{s('favorites')}</Text>
             <Lucide name="chevron-right" size={16} color={colors.textFaint} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/leaderboard' as any)}>
@@ -339,51 +274,6 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       color: colors.textMuted,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
-    },
-
-    /* ── Badges ── */
-    badgeRow: {
-      gap: 14,
-      paddingVertical: Spacing.xxs,
-    },
-    badgeItem: {
-      alignItems: 'center',
-      width: 62,
-    },
-    badgeCircle: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.primaryPale,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    badgeCircleLocked: {
-      backgroundColor: colors.bgMuted,
-    },
-    lockOverlay: {
-      position: 'absolute',
-      bottom: -2,
-      right: -2,
-      width: 18,
-      height: 18,
-      borderRadius: 9,
-      backgroundColor: colors.textFaint,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 2,
-      borderColor: colors.bgAlt,
-    },
-    badgeLabel: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.xs,
-      fontWeight: FontWeight.medium,
-      color: colors.text,
-      marginTop: 5,
-      textAlign: 'center',
-    },
-    badgeLabelLocked: {
-      color: colors.textFaint,
     },
 
     /* ── Nav Links ── */

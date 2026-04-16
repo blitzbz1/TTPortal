@@ -11,8 +11,10 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getFriends, getPendingRequests, acceptRequest, declineRequest, searchUsers, sendRequest } from '../services/friends';
 import { getActiveFriendCheckins } from '../services/checkins';
+import { getCurrentEquipmentForUser } from '../services/equipment';
 import { Card } from '../components/Card';
 import { EmptyState } from '../components/EmptyState';
+import type { EquipmentSelection } from '../types/database';
 
 type FriendsTab = 'all' | 'playing' | 'pending';
 
@@ -28,6 +30,10 @@ export function FriendsScreen() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteResult, setInviteResult] = useState<'idle' | 'sent' | 'not_found' | 'already_friends' | 'error'>('idle');
   const [refreshing, setRefreshing] = useState(false);
+  const [equipmentModalVisible, setEquipmentModalVisible] = useState(false);
+  const [equipmentLoading, setEquipmentLoading] = useState(false);
+  const [selectedFriendProfile, setSelectedFriendProfile] = useState<any | null>(null);
+  const [friendEquipment, setFriendEquipment] = useState<EquipmentSelection | null>(null);
   const { user } = useSession();
   const router = useRouter();
   const { s } = useI18n();
@@ -183,6 +189,48 @@ export function FriendsScreen() {
   const AVATAR_COLORS = [colors.primary, colors.primaryMid, colors.purple, colors.purpleMid, colors.accent, colors.blue, colors.textMuted];
   const getColor = (index: number) => AVATAR_COLORS[index % AVATAR_COLORS.length];
 
+  const handLabel = useCallback((value?: string | null) => {
+    if (value === 'right') return s('equipmentHandRight');
+    if (value === 'left') return s('equipmentHandLeft');
+    return '-';
+  }, [s]);
+
+  const styleLabel = useCallback((value?: string | null) => {
+    if (value === 'attacker') return s('equipmentStyleAttacker');
+    if (value === 'defender') return s('equipmentStyleDefender');
+    if (value === 'all_rounder') return s('equipmentStyleAllRounder');
+    return '-';
+  }, [s]);
+
+  const gripLabel = useCallback((value?: string | null) => {
+    if (value === 'shakehand') return s('equipmentGripShakehand');
+    if (value === 'penhold') return s('equipmentGripPenhold');
+    if (value === 'other') return s('equipmentGripOther');
+    return '-';
+  }, [s]);
+
+  const handleOpenFriendEquipment = useCallback(async (profile: any) => {
+    if (!profile?.id) return;
+    setSelectedFriendProfile(profile);
+    setFriendEquipment(null);
+    setEquipmentModalVisible(true);
+    setEquipmentLoading(true);
+    const { data, error } = await getCurrentEquipmentForUser(profile.id);
+    setEquipmentLoading(false);
+    if (error) {
+      Alert.alert(s('error'), s('equipmentFriendLoadError'));
+      return;
+    }
+    setFriendEquipment(data?.[0] ?? null);
+  }, [s]);
+
+  const renderEquipmentLine = (label: string, value: string) => (
+    <View style={styles.equipmentLine}>
+      <Text style={styles.equipmentLineLabel}>{label}</Text>
+      <Text style={styles.equipmentLineValue}>{value}</Text>
+    </View>
+  );
+
   // Filter friends by search query
   const filteredFriends = friends.filter((f) => {
     if (!searchQuery) return true;
@@ -315,14 +363,18 @@ export function FriendsScreen() {
                               </Text>
                             </View>
                           </View>
-                          <View style={styles.friendInfo}>
+                          <TouchableOpacity
+                            style={styles.friendInfo}
+                            onPress={() => handleOpenFriendEquipment(profile)}
+                            activeOpacity={0.78}
+                          >
                             <Text style={styles.friendName}>
                               {profile?.full_name ?? s('user')}
                             </Text>
                             <Text style={styles.friendStatus}>
                               {profile?.city ?? ''}
                             </Text>
-                          </View>
+                          </TouchableOpacity>
                         </Card>
                       </Animated.View>
                     );
@@ -362,7 +414,11 @@ export function FriendsScreen() {
                             </View>
                             <View style={styles.playingDot} />
                           </View>
-                          <View style={styles.friendInfo}>
+                          <TouchableOpacity
+                            style={styles.friendInfo}
+                            onPress={() => handleOpenFriendEquipment(profile)}
+                            activeOpacity={0.78}
+                          >
                             <Text style={styles.friendName}>
                               {profile?.full_name ?? s('user')}
                             </Text>
@@ -372,7 +428,7 @@ export function FriendsScreen() {
                             <Text style={styles.playingTime}>
                               {s('checkedInSince')} {timeStr}
                             </Text>
-                          </View>
+                          </TouchableOpacity>
                           <View style={styles.playingBadge}>
                             <Text style={styles.playingBadgeText}>🏓</Text>
                           </View>
@@ -456,6 +512,42 @@ export function FriendsScreen() {
           </Pressable>
         </Pressable>
         </KeyboardAvoidingView>
+      </Modal>
+      <Modal visible={equipmentModalVisible} transparent animationType="fade" onRequestClose={() => setEquipmentModalVisible(false)}>
+        <Pressable style={im.overlay} onPress={() => setEquipmentModalVisible(false)}>
+          <Pressable style={im.sheet} onPress={() => {}}>
+            <View style={im.handleWrap}><View style={im.handle} /></View>
+            <Text style={im.title}>{s('equipmentFriendTitle', selectedFriendProfile?.full_name ?? s('user'))}</Text>
+            <Text style={im.desc}>{s('equipmentFriendDesc')}</Text>
+            {equipmentLoading ? (
+              <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 24 }} />
+            ) : friendEquipment ? (
+              <View style={styles.equipmentPreview}>
+                {renderEquipmentLine(
+                  s('equipmentBlade'),
+                  `${friendEquipment.blade_manufacturer} ${friendEquipment.blade_model}`,
+                )}
+                {renderEquipmentLine(
+                  s('equipmentForehand'),
+                  `${friendEquipment.forehand_rubber_manufacturer} ${friendEquipment.forehand_rubber_model} · ${s(`equipmentColor_${friendEquipment.forehand_rubber_color}`)}`,
+                )}
+                {renderEquipmentLine(
+                  s('equipmentBackhand'),
+                  `${friendEquipment.backhand_rubber_manufacturer} ${friendEquipment.backhand_rubber_model} · ${s(`equipmentColor_${friendEquipment.backhand_rubber_color}`)}`,
+                )}
+                {renderEquipmentLine(s('equipmentHand'), handLabel(friendEquipment.dominant_hand))}
+                {renderEquipmentLine(s('equipmentPlayingStyle'), styleLabel(friendEquipment.playing_style))}
+                {renderEquipmentLine(s('equipmentGrip'), gripLabel(friendEquipment.grip))}
+              </View>
+            ) : (
+              <View style={styles.equipmentEmpty}>
+                <Lucide name="badge-info" size={22} color={colors.textFaint} />
+                <Text style={styles.equipmentEmptyTitle}>{s('equipmentFriendEmptyTitle')}</Text>
+                <Text style={styles.equipmentEmptyText}>{s('equipmentFriendEmptyDesc')}</Text>
+              </View>
+            )}
+          </Pressable>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );
@@ -754,6 +846,54 @@ function createStyles(colors: ThemeColors) {
       fontSize: FontSize.sm,
       fontWeight: FontWeight.medium,
       color: colors.textFaint,
+    },
+    equipmentPreview: {
+      gap: Spacing.xs,
+      marginTop: Spacing.sm,
+      paddingBottom: Spacing.sm,
+    },
+    equipmentLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: Spacing.sm,
+      borderRadius: Radius.sm,
+      backgroundColor: colors.bgMuted,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 10,
+    },
+    equipmentLineLabel: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.bold,
+      color: colors.textFaint,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    equipmentLineValue: {
+      flex: 1,
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
+      color: colors.text,
+      textAlign: 'right',
+    },
+    equipmentEmpty: {
+      alignItems: 'center',
+      gap: Spacing.xs,
+      paddingVertical: Spacing.lg,
+    },
+    equipmentEmptyTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: FontSize.xl,
+      fontWeight: FontWeight.bold,
+      color: colors.text,
+    },
+    equipmentEmptyText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      color: colors.textMuted,
+      textAlign: 'center',
     },
     shareSection: {
       padding: Spacing.md,

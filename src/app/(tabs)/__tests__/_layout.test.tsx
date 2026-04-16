@@ -120,7 +120,7 @@ describe('TabLayout', () => {
     const expectedTabs = [
       { name: 'index', label: 'Hartă', icon: 'map' },
       { name: 'events', label: 'Evenimente', icon: 'calendar' },
-      { name: 'favorites', label: 'Favorite', icon: 'heart' },
+      { name: 'challenges', label: 'Provocări', icon: 'target' },
       { name: 'profile', label: 'Profil', icon: 'user' },
     ];
 
@@ -142,7 +142,7 @@ describe('TabLayout', () => {
       },
     );
 
-    it('renders tabs in the correct order: Hartă, Evenimente, Clasament, Favorite, Profil', () => {
+    it('renders tabs in the correct order: Hartă, Evenimente, Provocări, Profil', () => {
       const { getAllByTestId } = render(<TabLayout />);
       const labels = getAllByTestId(/^tab-label-/);
       const labelTexts = labels.map(
@@ -151,7 +151,7 @@ describe('TabLayout', () => {
       expect(labelTexts).toEqual([
         'Hartă',
         'Evenimente',
-        'Favorite',
+        'Provocări',
         'Profil',
       ]);
     });

@@ -1,13 +1,20 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, StyleSheet, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSession } from '@/src/hooks/useSession';
 import { useTheme } from '@/src/hooks/useTheme';
+import { useI18n } from '@/src/hooks/useI18n';
 import type { ThemeColors } from '@/src/theme';
 import { Fonts, Radius, Shadows } from '@/src/theme';
 import { createEvent, joinEvent, sendEventInvites } from '@/src/services/events';
+import {
+  addChallengeToEvent,
+  getChallengeById,
+  resolveChallengeTitle,
+  type DbChallenge,
+} from '@/src/features/challenges';
 import { Lucide } from '@/src/components/Icon';
 import { VenuePickerModal } from '@/src/components/VenuePickerModal';
 import { FriendPickerModal } from '@/src/components/FriendPickerModal';
@@ -99,8 +106,10 @@ function Dropdown<T>({ value, options, onSelect, label, colors, s: sStyles }: {
 
 export default function CreateEventRoute() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ challengeId?: string }>();
   const { user } = useSession();
   const { colors, isDark } = useTheme();
+  const { s: t } = useI18n();
   const s = useMemo(() => createStyles(colors), [colors]);
 
   /* form state */
@@ -115,6 +124,8 @@ export default function CreateEventRoute() {
   const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule | null>(null);
   const [endDate, setEndDate] = useState(getDefaultEndDate);
   const [maxParticipantsText, setMaxParticipantsText] = useState('');
+  const [selectedChallenge, setSelectedChallenge] = useState<DbChallenge | null>(null);
+  const [attachChallenge, setAttachChallenge] = useState(false);
 
   /* picker visibility (tap-to-toggle on all platforms) */
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -131,6 +142,26 @@ export default function CreateEventRoute() {
     setShowTimePicker(false);
     setShowEndDatePicker(false);
   }, []);
+
+  const challengeTitle = useCallback((challenge: DbChallenge) => (
+    resolveChallengeTitle(t, challenge)
+  ), [t]);
+
+  useEffect(() => {
+    if (!params.challengeId) return;
+    let alive = true;
+    getChallengeById(params.challengeId).then(({ data }) => {
+      if (!alive || !data) return;
+      const challenge = data as DbChallenge;
+      if (challenge.verification_type === 'other') {
+        setSelectedChallenge(challenge);
+        setAttachChallenge(false);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [params.challengeId]);
 
   /* -- date/time handlers -- */
   const onDateChange = useCallback((e: DateTimePickerEvent, sel?: Date) => {
@@ -181,9 +212,15 @@ export default function CreateEventRoute() {
     setLoading(false);
     if (error) { Alert.alert('Eroare', 'Nu s-a putut crea evenimentul.'); return; }
     await joinEvent(data.id, user.id);
+    if (selectedChallenge && attachChallenge) {
+      const challengeRes = await addChallengeToEvent(data.id, selectedChallenge.id);
+      if (challengeRes.error) {
+        Alert.alert(t('error'), challengeRes.error.message);
+      }
+    }
     setCreatedEventId(data.id);
     setFriendPickerVisible(true);
-  }, [title, description, user, venueId, date, maxParticipantsText, durationHours, eventType, endDate, recurrenceRule]);
+  }, [title, description, user, venueId, date, maxParticipantsText, durationHours, eventType, endDate, recurrenceRule, selectedChallenge, attachChallenge, t]);
 
   const handleInviteConfirm = useCallback(async (selectedIds: string[]) => {
     setFriendPickerVisible(false);
@@ -296,6 +333,43 @@ export default function CreateEventRoute() {
         onSelect={(venue) => { setVenueId(venue?.id ?? null); setVenueName(venue?.name ?? null); setVenuePickerVisible(false); }}
         onClose={() => setVenuePickerVisible(false)}
       />
+
+      {params.challengeId ? (
+        <Section
+          title={t('eventChallengeOnCreate')}
+          icon="award"
+          defaultOpen
+          colors={colors}
+          s={s}
+          onToggle={closePickers}
+          summary={selectedChallenge ? challengeTitle(selectedChallenge) : t('eventChallengeOnCreateDesc')}
+        >
+          {selectedChallenge ? (
+            <>
+              <View style={s.challengePreview}>
+                <View style={s.challengePreviewIcon}>
+                  <Lucide name="award" size={18} color={colors.primary} />
+                </View>
+                <View style={s.challengePreviewCopy}>
+                  <Text style={s.challengeChoiceTitle}>{challengeTitle(selectedChallenge)}</Text>
+                  <Text style={s.challengeChoiceMeta}>{t('challengeVerificationWithValue', t('challengeVerificationOther'))}</Text>
+                </View>
+              </View>
+              <Pressable
+                style={[s.challengeAttachBtn, attachChallenge && s.challengeAttachBtnActive]}
+                onPress={() => setAttachChallenge(true)}
+              >
+                <Lucide name={attachChallenge ? 'check' : 'plus'} size={16} color={attachChallenge ? colors.textOnPrimary : colors.primary} />
+                <Text style={[s.challengeAttachText, attachChallenge && s.challengeAttachTextActive]}>
+                  {attachChallenge ? t('eventChallengeAlreadyAdded') : t('eventAddChallenge')}
+                </Text>
+              </Pressable>
+            </>
+          ) : (
+            <Text style={s.hint}>{t('eventCurrentChallengeLoading')}</Text>
+          )}
+        </Section>
+      ) : null}
 
       {/* -- Options section (collapsible) -- */}
       <Section
@@ -501,6 +575,39 @@ function createStyles(colors: ThemeColors) {
 
     /* hint */
     hint: { fontFamily: Fonts.body, fontSize: 12, color: colors.textFaint, fontStyle: 'italic' },
+
+    /* challenge attachment */
+    challengePreview: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      borderRadius: Radius.md, borderWidth: 1, borderColor: colors.borderLight,
+      backgroundColor: colors.bg, padding: 12,
+    },
+    challengePreviewIcon: {
+      width: 38, height: 38, borderRadius: Radius.sm,
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: colors.primaryPale,
+    },
+    challengePreviewCopy: { flex: 1, gap: 4 },
+    challengeChoiceTitle: {
+      fontFamily: Fonts.heading, fontSize: 15, fontWeight: '800', color: colors.text,
+    },
+    challengeChoiceMeta: {
+      fontFamily: Fonts.body, fontSize: 12, fontWeight: '700', color: colors.textMuted,
+    },
+    challengeAttachBtn: {
+      height: 46, borderRadius: Radius.md, borderWidth: 1, borderColor: colors.primary,
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      backgroundColor: colors.bg,
+    },
+    challengeAttachBtnActive: {
+      backgroundColor: colors.primary,
+    },
+    challengeAttachText: {
+      fontFamily: Fonts.body, fontSize: 14, fontWeight: '800', color: colors.primary,
+    },
+    challengeAttachTextActive: {
+      color: colors.textOnPrimary,
+    },
 
     /* venue picker */
     venuePicker: {
