@@ -1,5 +1,5 @@
 // Mock expo-sqlite before any imports
-import { getEventParticipants, getEvents, sendEventInvites, sendEventUpdate, stopRecurrence } from '../events';
+import { getEventById, getEventParticipants, getEvents, sendEventInvites, sendEventUpdate, stopRecurrence } from '../events';
 
 jest.mock('expo-sqlite', () => ({
   openDatabaseSync: () => ({
@@ -24,6 +24,7 @@ function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
     update: jest.fn(() => chain),
     delete: jest.fn(() => chain),
     single: jest.fn(() => Promise.resolve(result)),
+    maybeSingle: jest.fn(() => Promise.resolve(result)),
     then: (resolve: any) => Promise.resolve(result).then(resolve),
   };
   return chain;
@@ -188,6 +189,51 @@ describe('sendEventUpdate', () => {
     const { error } = await sendEventUpdate(99, 'test', 'org-1');
 
     expect(error).toEqual(rpcError);
+  });
+});
+
+describe('getEventById', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('selects events with venue join and filters by id', async () => {
+    const event = {
+      id: 42,
+      title: 'Pickup match',
+      starts_at: '2026-04-01T18:00:00Z',
+      venues: { name: 'Arena X', city: 'Bucharest', lat: 44.4, lng: 26.1 },
+      event_participants: [],
+    };
+    const chain = createQueryChain(event);
+    mockFrom.mockReturnValue(chain);
+
+    const { data } = await getEventById(42);
+
+    expect(mockFrom).toHaveBeenCalledWith('events');
+    expect(chain.select).toHaveBeenCalledWith(
+      '*, venues(name, city, lat, lng), event_participants(user_id)',
+    );
+    expect(chain.eq).toHaveBeenCalledWith('id', 42);
+    expect(chain.maybeSingle).toHaveBeenCalled();
+    expect(data).toEqual(event);
+  });
+
+  it('returns null data when event does not exist', async () => {
+    const chain = createQueryChain(null);
+    mockFrom.mockReturnValue(chain);
+
+    const { data, error } = await getEventById(999);
+
+    expect(data).toBeNull();
+    expect(error).toBeNull();
+  });
+
+  it('propagates errors from supabase', async () => {
+    const chain = createQueryChain(null, { message: 'forbidden' });
+    mockFrom.mockReturnValue(chain);
+
+    const { error } = await getEventById(1);
+
+    expect(error).toEqual({ message: 'forbidden' });
   });
 });
 

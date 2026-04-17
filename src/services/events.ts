@@ -51,6 +51,14 @@ export async function getEvents(
   return result;
 }
 
+export async function getEventById(eventId: number) {
+  return supabase
+    .from('events')
+    .select('*, venues(name, city, lat, lng), event_participants(user_id)')
+    .eq('id', eventId)
+    .maybeSingle();
+}
+
 export async function getEventParticipants(eventId: number) {
   const { data: participants, error } = await supabase
     .from('event_participants')

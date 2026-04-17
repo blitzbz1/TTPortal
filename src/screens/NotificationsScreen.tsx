@@ -162,7 +162,12 @@ export function NotificationsScreen() {
     const data = notification.data;
     if (data?.screen) {
       const safeRoute = sanitizeRoute(data.screen);
-      router.push(safeRoute as any);
+      // Forward eventId as a query param so the destination screen can deep-link
+      // into the specific event (e.g. opening the event detail sheet).
+      const withParams = data.eventId != null && !safeRoute.includes('?')
+        ? `${safeRoute}?eventId=${data.eventId}`
+        : safeRoute;
+      router.push(withParams as any);
     }
   }, [router, refreshUnreadCount, user]);
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, Pressable, RefreshControl, Linking } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import MapView, { Marker } from 'react-native-maps';
 import { Lucide } from '../components/Icon';
 import { NotificationBellButton } from '../components/NotificationBellButton';
@@ -15,7 +15,7 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getEvents, getEventParticipants, joinEvent, leaveEvent, cancelEvent, stopRecurrence, sendEventInvites, sendEventUpdate } from '../services/events';
+import { getEvents, getEventById, getEventParticipants, joinEvent, leaveEvent, cancelEvent, stopRecurrence, sendEventInvites, sendEventUpdate } from '../services/events';
 import { getEventFeedback, getUserEventFeedback } from '../services/eventFeedback';
 import { getFriendIds } from '../services/friends';
 import { FriendPickerModal } from '../components/FriendPickerModal';
@@ -99,6 +99,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const { user } = useSession();
   const { s, lang } = useI18n();
   const router = useRouter();
+  const { eventId: eventIdParam } = useLocalSearchParams<{ eventId?: string }>();
   const { colors, isDark } = useTheme();
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const { styles, ms } = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
@@ -264,6 +265,24 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       category: submission.category,
     });
   }, [awardEventChallenge, s, selectedEvent]);
+
+  // Open event detail when navigated with ?eventId=... (e.g. from a notification)
+  const handledEventIdRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (!eventIdParam || handledEventIdRef.current === eventIdParam) return;
+    const parsed = Number(eventIdParam);
+    if (!Number.isFinite(parsed)) return;
+    handledEventIdRef.current = eventIdParam;
+    (async () => {
+      const { data } = await getEventById(parsed);
+      if (data) {
+        if (new Date((data as any).starts_at).getTime() < Date.now()) {
+          setActiveTab('past');
+        }
+        await openDetail(data as EventListItem);
+      }
+    })();
+  }, [eventIdParam, openDetail]);
 
   const handleJoin = useCallback(async (event: EventListItem) => {
     if (!user) {

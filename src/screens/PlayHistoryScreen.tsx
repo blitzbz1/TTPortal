@@ -194,8 +194,19 @@ export function PlayHistoryScreen() {
     return allCheckins.filter((c) => new Date(c.started_at) >= start);
   }, [allCheckins, getPeriodStart]);
 
-  const computeTotalTime = () => {
+  const formatHours = (total: number) => {
+    if (total < 1 && total > 0) return `${Math.round(total * 60)}min`;
+    return `${total.toFixed(1)}h`;
+  };
+
+  const computeEventHours = () => {
     const start = getPeriodStart();
+    return eventFeedback
+      .filter((f) => new Date(f.created_at) >= start)
+      .reduce((sum, f) => sum + f.hours_played, 0);
+  };
+
+  const computeTotalTime = () => {
     let totalMs = 0;
     for (const entry of filteredCheckins) {
       if (entry.ended_at) {
@@ -203,12 +214,8 @@ export function PlayHistoryScreen() {
       }
     }
     const checkinHours = totalMs / 3600000;
-    const fbHours = eventFeedback
-      .filter((f) => new Date(f.created_at) >= start)
-      .reduce((sum, f) => sum + f.hours_played, 0);
-    const total = checkinHours + fbHours;
-    if (total < 1 && total > 0) return `${Math.round(total * 60)}min`;
-    return `${total.toFixed(1)}h`;
+    const total = checkinHours + computeEventHours();
+    return formatHours(total);
   };
 
   const grouped = groupByDay(displayHistory);
@@ -304,6 +311,7 @@ export function PlayHistoryScreen() {
     { value: String(filteredCheckins.length), label: s('checkins'), bg: colors.primaryPale, color: colors.primary },
     { value: String(filteredVenueCount), label: s('locations'), bg: colors.purplePale, color: colors.purple },
     { value: computeTotalTime(), label: s('timePlayed'), bg: colors.amberPale, color: colors.accent },
+    { value: formatHours(computeEventHours()), label: s('hoursInEvents'), bg: colors.bluePale, color: colors.blue },
   ];
 
   return (
@@ -590,19 +598,20 @@ function createStyles(colors: ThemeColors) {
     },
     statsRow: {
       flexDirection: 'row',
-      gap: 8,
+      gap: 6,
     },
     statPill: {
       flex: 1,
       alignItems: 'center',
       borderRadius: 12,
-      padding: Spacing.sm,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: 4,
       gap: Spacing.xxs,
       ...Shadows.sm,
     },
     statValue: {
       fontFamily: Fonts.heading,
-      fontSize: FontSize.display,
+      fontSize: FontSize.xxl,
       fontWeight: FontWeight.extrabold,
     },
     statLabel: {

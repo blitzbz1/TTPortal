@@ -28,8 +28,10 @@ jest.mock('expo-sqlite', () => ({
 }));
 
 const mockPush = jest.fn();
+const mockSearchParams: { eventId?: string } = {};
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, back: jest.fn() }),
+  useLocalSearchParams: () => mockSearchParams,
   useFocusEffect: (cb: () => void) => {
     const { useEffect } = require('react');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -111,9 +113,11 @@ const mockGetEvents = jest.fn();
 const mockGetEventParticipants = jest.fn();
 const mockGetEventFeedback = jest.fn();
 const mockGetUserEventFeedback = jest.fn();
+const mockGetEventById = jest.fn();
 
 jest.mock('../../services/events', () => ({
   getEvents: (...args: any[]) => mockGetEvents(...args),
+  getEventById: (...args: any[]) => mockGetEventById(...args),
   getEventParticipants: (...args: any[]) => mockGetEventParticipants(...args),
   joinEvent: jest.fn().mockResolvedValue({ error: null }),
   leaveEvent: jest.fn().mockResolvedValue({ error: null }),
@@ -178,6 +182,7 @@ const organizerEvent = {
 describe('EventSchedulingScreen — feedback integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    delete mockSearchParams.eventId;
     mockS.mockImplementation((key: string) => key);
     mockUseSession.mockReturnValue({
       user: { id: 'u-1', user_metadata: { full_name: 'Test' } },
@@ -186,6 +191,7 @@ describe('EventSchedulingScreen — feedback integration', () => {
     mockGetEventParticipants.mockResolvedValue({ data: [] });
     mockGetEventFeedback.mockResolvedValue({ data: [] });
     mockGetUserEventFeedback.mockResolvedValue({ data: null });
+    mockGetEventById.mockResolvedValue({ data: null, error: null });
   });
 
   it('shows feedback button on past events where user is participant', async () => {
@@ -280,5 +286,78 @@ describe('EventSchedulingScreen — feedback integration', () => {
     await waitFor(() => {
       expect(queryByTestId('feedback-modal')).toBeNull();
     });
+  });
+});
+
+describe('EventSchedulingScreen — deep link via eventId param', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete mockSearchParams.eventId;
+    mockS.mockImplementation((key: string) => key);
+    mockUseSession.mockReturnValue({
+      user: { id: 'u-1', user_metadata: { full_name: 'Test' } },
+      session: { user: { id: 'u-1' } },
+    });
+    mockGetEvents.mockResolvedValue({ data: [], error: null });
+    mockGetEventParticipants.mockResolvedValue({ data: [] });
+    mockGetEventFeedback.mockResolvedValue({ data: [] });
+    mockGetUserEventFeedback.mockResolvedValue({ data: null });
+  });
+
+  it('fetches and opens the event when eventId param is set', async () => {
+    mockSearchParams.eventId = '42';
+    const event = {
+      id: 42,
+      title: 'Past Tournament',
+      starts_at: '2025-01-01T10:00:00Z',
+      ends_at: '2025-01-01T14:00:00Z',
+      status: 'completed',
+      organizer_id: 'org-1',
+      venue_id: 5,
+      event_type: 'tournament',
+      max_participants: 10,
+      venues: { name: 'Arena X' },
+      event_participants: [],
+    };
+    mockGetEventById.mockResolvedValue({ data: event, error: null });
+
+    const { getByTestId } = render(<EventSchedulingScreen />);
+
+    await waitFor(() => {
+      expect(mockGetEventById).toHaveBeenCalledWith(42);
+      expect(getByTestId('event-detail-sheet')).toBeTruthy();
+    });
+  });
+
+  it('does not fetch when eventId param is missing', async () => {
+    render(<EventSchedulingScreen />);
+
+    await waitFor(() => {
+      expect(mockGetEvents).toHaveBeenCalled();
+    });
+    expect(mockGetEventById).not.toHaveBeenCalled();
+  });
+
+  it('ignores non-numeric eventId param', async () => {
+    mockSearchParams.eventId = 'not-a-number';
+
+    render(<EventSchedulingScreen />);
+
+    await waitFor(() => {
+      expect(mockGetEvents).toHaveBeenCalled();
+    });
+    expect(mockGetEventById).not.toHaveBeenCalled();
+  });
+
+  it('does not open when getEventById returns no data', async () => {
+    mockSearchParams.eventId = '99';
+    mockGetEventById.mockResolvedValue({ data: null, error: null });
+
+    const { queryByTestId } = render(<EventSchedulingScreen />);
+
+    await waitFor(() => {
+      expect(mockGetEventById).toHaveBeenCalledWith(99);
+    });
+    expect(queryByTestId('event-detail-sheet')).toBeNull();
   });
 });

@@ -6,6 +6,7 @@ export { AddVenueScreen } from './AddVenueScreen';
 export { WriteReviewScreen } from './WriteReviewScreen';
 export { ProfileScreen } from './ProfileScreen';
 export { EquipmentScreen } from './EquipmentScreen';
+export { PlayerProfileScreen } from './PlayerProfileScreen';
 export { FriendsScreen } from './FriendsScreen';
 export { PlayHistoryScreen } from './PlayHistoryScreen';
 export { ForgotPasswordScreen } from './ForgotPasswordScreen';

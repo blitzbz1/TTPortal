@@ -22,7 +22,7 @@ export async function updateProfile(
 }
 
 export async function getProfileStats(userId: string) {
-  const [checkins, events] = await Promise.all([
+  const [checkins, events, feedback] = await Promise.all([
     supabase
       .from('leaderboard_checkins')
       .select('total_checkins, unique_venues')
@@ -32,14 +32,24 @@ export async function getProfileStats(userId: string) {
       .from('event_participants')
       .select('event_id', { count: 'exact', head: true })
       .eq('user_id', userId),
+    supabase
+      .from('event_feedback')
+      .select('hours_played')
+      .eq('user_id', userId),
   ]);
+
+  const totalHoursPlayed = (feedback.data ?? []).reduce(
+    (sum: number, f: { hours_played: number | null }) => sum + (Number(f.hours_played) || 0),
+    0,
+  );
 
   return {
     data: {
       total_checkins: checkins.data?.total_checkins ?? 0,
       unique_venues: checkins.data?.unique_venues ?? 0,
       events_joined: events.count ?? 0,
+      total_hours_played: totalHoursPlayed,
     },
-    error: checkins.error || events.error,
+    error: checkins.error || events.error || feedback.error,
   };
 }

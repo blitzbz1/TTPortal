@@ -921,5 +921,12 @@
   "badgeChallenge_EXP018": "Win 2 points in deuce situations during one match",
   "badgeChallenge_EXP019": "Let the crowd decide your tactics",
   "badgeChallenge_EXP020": "Play doubles with a stranger",
-  "badgeChallenge_EXP021": "Beat two different opponents in the same session"
+  "badgeChallenge_EXP021": "Beat two different opponents in the same session",
+
+  "playerProfile": "Player profile",
+  "eventsJoined": "Events",
+  "hoursInEvents": "Hours in events",
+  "noUpcomingEvents": "You have no upcoming events as organizer",
+  "pickEventToInvite": "Pick an event",
+  "inviteSent": "Invite sent!"
 }

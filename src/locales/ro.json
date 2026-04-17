@@ -921,5 +921,12 @@
   "challengeBadgeUnlockedDesc": "Progresul a fost înregistrat, iar insigna este gata de distribuit.",
   "challengeShareBadge": "Distribuie",
   "challengeKeepPlaying": "Continuă jocul",
-  "challengeBadgeShareMessage": "Am câștigat {0} {1} pe TTPortal."
+  "challengeBadgeShareMessage": "Am câștigat {0} {1} pe TTPortal.",
+
+  "playerProfile": "Profil jucător",
+  "eventsJoined": "Evenimente",
+  "hoursInEvents": "Ore în evenimente",
+  "noUpcomingEvents": "Nu ai evenimente viitoare ca organizator",
+  "pickEventToInvite": "Alege un eveniment",
+  "inviteSent": "Invitație trimisă!"
 }

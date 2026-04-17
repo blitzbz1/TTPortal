@@ -160,6 +160,52 @@ describe('PlayHistoryScreen', () => {
     });
   });
 
+  it('renders hours-in-events stat summed from event_feedback within the active period', async () => {
+    mockUseSession.mockReturnValue({
+      user: { id: 'u-1', user_metadata: { full_name: 'Test User' } },
+    });
+    mockGetPlayHistory.mockResolvedValue({ data: [] });
+    mockSupabaseFrom.mockImplementation((table: string) => {
+      if (table === 'event_feedback') {
+        return createQueryChain([
+          { event_id: 1, hours_played: '1.5', created_at: todayStr, events: { venue_id: 5 } },
+          { event_id: 2, hours_played: '0.75', created_at: yesterdayStr, events: { venue_id: 5 } },
+          { event_id: 3, hours_played: '10', created_at: lastMonthStr, events: { venue_id: 5 } },
+        ]);
+      }
+      return createQueryChain();
+    });
+
+    const { getByText, getAllByText } = render(<PlayHistoryScreen />);
+
+    await waitFor(() => {
+      expect(getByText('hoursInEvents')).toBeTruthy();
+      // 1.5 + 0.75 = 2.25 -> "2.3h". Also appears in the total "timePlayed" pill
+      // since checkin hours are 0 in this scenario.
+      expect(getAllByText('2.3h').length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it('formats sub-hour event totals as minutes', async () => {
+    mockUseSession.mockReturnValue({
+      user: { id: 'u-1', user_metadata: { full_name: 'Test User' } },
+    });
+    mockGetPlayHistory.mockResolvedValue({ data: [] });
+    mockSupabaseFrom.mockImplementation((table: string) => {
+      if (table === 'event_feedback') {
+        return createQueryChain([
+          { event_id: 1, hours_played: '0.5', created_at: todayStr, events: { venue_id: 5 } },
+        ]);
+      }
+      return createQueryChain();
+    });
+
+    const { getAllByText } = render(<PlayHistoryScreen />);
+    await waitFor(() => {
+      expect(getAllByText('30min').length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
   it('renders the calendar with weekday headers', async () => {
     setupMocks();
     const { getAllByText } = render(<PlayHistoryScreen />);
