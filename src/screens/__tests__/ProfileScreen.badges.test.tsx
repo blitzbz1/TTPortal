@@ -105,8 +105,7 @@ describe('ProfileScreen — badges and online dot removed', () => {
     const { findByTestId, getByText } = render(<ProfileScreen hideTabBar />);
     const pill = await findByTestId('profile-challenges-pill');
 
-    expect(getByText('7')).toBeTruthy();
-    expect(getByText('Challenges')).toBeTruthy();
+    expect(getByText('7 Challenges')).toBeTruthy();
 
     fireEvent.press(pill);
 
@@ -116,9 +115,9 @@ describe('ProfileScreen — badges and online dot removed', () => {
     });
   });
 
-  it('does not render the old equipment navigation row below identity', async () => {
-    const { queryByText, findByText } = render(<ProfileScreen hideTabBar />);
-    expect(await findByText('Equipment setup')).toBeTruthy();
-    expect(queryByText('Select equipment')).toBeNull();
+  it('renders an Equipment nav row instead of the inline equipment card', async () => {
+    const { findByText, queryByText } = render(<ProfileScreen hideTabBar />);
+    expect(await findByText('Equipment')).toBeTruthy();
+    expect(queryByText('Equipment setup')).toBeNull();
   });
 });
