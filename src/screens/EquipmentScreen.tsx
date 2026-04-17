@@ -92,6 +92,18 @@ function labelFromValue<T extends string>(
   return option ? translate(option.labelKey) : value;
 }
 
+function playingStyleIcon(value: PlayingStyle) {
+  if (value === 'attacker') return 'swords';
+  if (value === 'defender') return 'shield';
+  return null;
+}
+
+function gripIcon(value: Grip) {
+  if (value === 'shakehand') return 'handshake';
+  if (value === 'penhold') return 'pen';
+  return 'circle-dot';
+}
+
 interface SearchableSelectProps {
   label: string;
   placeholder: string;
@@ -568,11 +580,15 @@ export function EquipmentScreen() {
           <Text style={styles.metaPillText}>{labelFromValue(HAND_OPTIONS, item.dominant_hand, s)}</Text>
         </View>
         <View style={styles.metaPill}>
-          <Lucide name="activity" size={13} color={colors.primaryMid} />
+          {playingStyleIcon(item.playing_style) ? (
+            <Lucide name={playingStyleIcon(item.playing_style) as string} size={13} color={colors.primaryMid} />
+          ) : (
+            <Text style={styles.metaPillIconText}>A+</Text>
+          )}
           <Text style={styles.metaPillText}>{labelFromValue(STYLE_OPTIONS, item.playing_style, s)}</Text>
         </View>
         <View style={styles.metaPill}>
-          <Lucide name="badge" size={13} color={colors.primaryMid} />
+          <Lucide name={gripIcon(item.grip)} size={13} color={colors.primaryMid} />
           <Text style={styles.metaPillText}>{labelFromValue(GRIP_OPTIONS, item.grip, s)}</Text>
         </View>
       </View>
@@ -1246,6 +1262,13 @@ function createStyles(colors: ThemeColors) {
       fontSize: FontSize.base,
       fontWeight: FontWeight.semibold,
       color: colors.textMuted,
+    },
+    metaPillIconText: {
+      fontFamily: Fonts.heading,
+      fontSize: 11,
+      fontWeight: FontWeight.bold,
+      color: colors.primaryMid,
+      lineHeight: 13,
     },
     sectionTitle: {
       fontFamily: Fonts.body,

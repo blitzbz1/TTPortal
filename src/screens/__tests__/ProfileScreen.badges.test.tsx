@@ -1,8 +1,9 @@
 // --- Mocks (must be defined before component import) ---
 
 const mockBack = jest.fn();
+const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: mockBack }),
+  useRouter: () => ({ push: mockPush, replace: jest.fn(), back: mockBack }),
 }));
 jest.mock('../../hooks/useSession', () => ({
   useSession: () => ({
@@ -61,10 +62,24 @@ jest.mock('../../services/profiles', () => ({
   updateProfile: jest.fn().mockResolvedValue({ error: null }),
 }));
 
+jest.mock('../../services/equipment', () => ({
+  getCurrentEquipmentForUser: jest.fn().mockResolvedValue({ data: [] }),
+}));
+
+jest.mock('../../features/challenges', () => ({
+  useBadgeProgress: () => ({
+    badgeAwards: [],
+    progressRows: [
+      { category: 'craft_player', approved_count: 4, completed_count: 4 },
+      { category: 'spin_artist', approved_count: 3, completed_count: 3 },
+    ],
+  }),
+}));
+
  
 import React from 'react';
  
-import { render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
  
 import { ProfileScreen } from '../ProfileScreen';
 
@@ -84,5 +99,26 @@ describe('ProfileScreen — badges and online dot removed', () => {
     await waitFor(() => {
       expect(getByText('TU')).toBeTruthy();
     });
+  });
+
+  it('opens the Challenges badges tab from the clickable challenge counter', async () => {
+    const { findByTestId, getByText } = render(<ProfileScreen hideTabBar />);
+    const pill = await findByTestId('profile-challenges-pill');
+
+    expect(getByText('7')).toBeTruthy();
+    expect(getByText('Challenges')).toBeTruthy();
+
+    fireEvent.press(pill);
+
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(tabs)/challenges',
+      params: { tab: 'badges' },
+    });
+  });
+
+  it('does not render the old equipment navigation row below identity', async () => {
+    const { queryByText, findByText } = render(<ProfileScreen hideTabBar />);
+    expect(await findByText('Equipment setup')).toBeTruthy();
+    expect(queryByText('Select equipment')).toBeNull();
   });
 });

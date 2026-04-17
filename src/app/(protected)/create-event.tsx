@@ -16,6 +16,7 @@ import {
   resolveChallengeTitle,
   type ChallengeCategory,
   type DbChallenge,
+  setCurrentSelectedChallenge,
   useChallengeChoices,
   useCurrentSelectedChallenge,
 } from '@/src/features/challenges';
@@ -255,11 +256,13 @@ export default function CreateEventRoute() {
       const challengeRes = await addChallengeToEvent(data.id, effectiveSelectedChallenge.id);
       if (challengeRes.error) {
         Alert.alert(t('error'), challengeRes.error.message);
+      } else if (currentEventChallenge?.id === effectiveSelectedChallenge.id) {
+        setCurrentSelectedChallenge(null);
       }
     }
     setCreatedEventId(data.id);
     setFriendPickerVisible(true);
-  }, [title, description, user, venueId, date, maxParticipantsText, durationHours, eventType, endDate, recurrenceRule, effectiveSelectedChallenge, attachChallenge, t]);
+  }, [title, description, user, venueId, date, maxParticipantsText, durationHours, eventType, endDate, recurrenceRule, effectiveSelectedChallenge, attachChallenge, currentEventChallenge?.id, t]);
 
   const handleInviteConfirm = useCallback(async (selectedIds: string[]) => {
     setFriendPickerVisible(false);

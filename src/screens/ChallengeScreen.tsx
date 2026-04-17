@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Easing, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { NotificationBellButton } from '../components/NotificationBellButton';
 import { Lucide } from '../components/Icon';
+import { ErrorState } from '../components/ErrorState';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
 import { useSession } from '../hooks/useSession';
@@ -28,13 +29,18 @@ import {
   type ChallengeCategory,
   type DbChallenge,
 } from '../features/challenges';
+import { getMonthlyMasterySummary, getTrackProgressSummaries } from '../features/challenges/progression';
 import type { BadgeTrack } from '../lib/badgeChallenges';
+import { ProductEvents, trackProductEvent } from '../lib/analytics';
 
 type TopTab = 'challenges' | 'badges';
+type ChallengeCooldownReason = 'forfeit' | 'soloComplete';
 
 interface ChallengeScreenProps {
   hideTabBar?: boolean;
 }
+
+const CHALLENGE_COOLDOWN_MS = 60000;
 
 const TRACK_ROWS = [
   BADGE_TRACKS.slice(0, 4),
@@ -134,15 +140,75 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const { s, lang } = useI18n();
   const { user } = useSession();
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const [topTab, setTopTab] = useState<TopTab>('challenges');
   const [activeBadgeId, setActiveBadgeId] = useState(BADGE_TRACKS[0].id);
   const [selectedChallenge, setSelectedChallenge] = useState<DbChallenge | null>(null);
+  const [lockedChallengeId, setLockedChallengeId] = useState<string | null>(null);
+  const [challengeCooldown, setChallengeCooldown] = useState<{ challengeId: string; endsAt: number; reason: ChallengeCooldownReason } | null>(null);
+  const [cooldownRemainingSeconds, setCooldownRemainingSeconds] = useState(0);
   const [actionChallengeId, setActionChallengeId] = useState<string | null>(null);
   const [completedSessionChallengeIds, setCompletedSessionChallengeIds] = useState<Set<string>>(new Set());
   const [earnedBadgeModal, setEarnedBadgeModal] = useState<{ badge: BadgeTrack; tier: BadgeTier } | null>(null);
+  const ballBounce = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (params.tab === 'badges') {
+      setTopTab('badges');
+    } else if (params.tab === 'challenges') {
+      setTopTab('challenges');
+    }
+  }, [params.tab]);
+
+  useEffect(() => {
+    if (!challengeCooldown) return;
+
+    const updateRemaining = () => {
+      const remaining = Math.max(0, Math.ceil((challengeCooldown.endsAt - Date.now()) / 1000));
+      setCooldownRemainingSeconds(remaining);
+      if (remaining <= 0) {
+        setChallengeCooldown(null);
+        setSelectedChallenge(null);
+        setLockedChallengeId(null);
+        setCurrentSelectedChallenge(null);
+      }
+    };
+
+    updateRemaining();
+    const timer = setInterval(updateRemaining, 1000);
+    return () => clearInterval(timer);
+  }, [challengeCooldown]);
+
+  useEffect(() => {
+    if (!challengeCooldown) {
+      ballBounce.stopAnimation();
+      ballBounce.setValue(0);
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(ballBounce, {
+          toValue: 1,
+          duration: 1400,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(ballBounce, {
+          toValue: 0,
+          duration: 1400,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    ballBounce.setValue(0);
+    animation.start();
+    return () => animation.stop();
+  }, [ballBounce, challengeCooldown]);
 
   const activeBadge = BADGE_TRACKS.find((badge) => badge.id === activeBadgeId) ?? BADGE_TRACKS[0];
   const activeCategory = activeBadge.category as ChallengeCategory;
@@ -153,12 +219,23 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     pendingChallengeIds,
     progressByCategory,
     refresh: refreshProgress,
+    progressRows,
+    error: progressError,
   } = useBadgeProgress(user?.id);
   const {
     choices: challengeChoices,
+    error: choicesError,
     isLoading,
     refresh: refreshChoices,
   } = useChallengeChoices(activeCategory, { visibleCount: 20 });
+  const trackSummaries = useMemo(
+    () => getTrackProgressSummaries(progressRows, badgeAwards),
+    [badgeAwards, progressRows],
+  );
+  const monthlyMastery = useMemo(
+    () => getMonthlyMasterySummary(trackSummaries),
+    [trackSummaries],
+  );
   const visibleChallengeChoices = useMemo(
     () => getVisibleChallengeChoices(
       challengeChoices,
@@ -226,21 +303,83 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     });
     return latestKey;
   }, [earnedAtByBadgeTier]);
+  const selectedChallengeLocked = !!selectedChallenge && lockedChallengeId === selectedChallenge.id;
+  const selectedChallengeCoolingDown = !!selectedChallenge && challengeCooldown?.challengeId === selectedChallenge.id;
+  const cooldownTimerLabel = `${Math.floor(cooldownRemainingSeconds / 60)}:${String(cooldownRemainingSeconds % 60).padStart(2, '0')}`;
+  const cooldownProgressWidth = `${Math.max(0, Math.min(100, (cooldownRemainingSeconds / (CHALLENGE_COOLDOWN_MS / 1000)) * 100))}%` as `${number}%`;
+  const ballTranslateX = ballBounce.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [-104, 104, -104],
+  });
+  const ballTranslateY = ballBounce.interpolate({
+    inputRange: [0, 0.25, 0.5, 0.75, 1],
+    outputRange: [0, -34, 0, -34, 0],
+  });
+  const ballScaleX = ballBounce.interpolate({
+    inputRange: [0, 0.25, 0.5, 0.75, 1],
+    outputRange: [1, 1, 1, 1, 1],
+  });
+  const ballScaleY = ballBounce.interpolate({
+    inputRange: [0, 0.25, 0.5, 0.75, 1],
+    outputRange: [1, 1, 1, 1, 1],
+  });
+  const ballShadowTranslateX = ballBounce.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [-90, 90, -90],
+  });
+  const ballShadowOpacity = ballBounce.interpolate({
+    inputRange: [0, 0.25, 0.5, 0.75, 1],
+    outputRange: [0.38, 0.14, 0.38, 0.14, 0.38],
+  });
 
   const handleSelectBadge = (badgeId: string) => {
     setActiveBadgeId(badgeId);
     setSelectedChallenge(null);
+    setLockedChallengeId(null);
+    setChallengeCooldown(null);
     setCurrentSelectedChallenge(null);
   };
 
   const handleSelectChallenge = (challenge: DbChallenge) => {
     setSelectedChallenge(challenge);
-    setCurrentSelectedChallenge(challenge);
+    setLockedChallengeId(null);
+    setChallengeCooldown(null);
+    if (requiresOtherPlayer(challenge)) {
+      setCurrentSelectedChallenge(null);
+    } else {
+      setCurrentSelectedChallenge(challenge);
+    }
+    trackProductEvent(ProductEvents.challengeSelected, {
+      challengeId: challenge.id,
+      category: challenge.category,
+      verificationType: challenge.verification_type,
+    });
   };
 
   const handleSwitchChallenge = () => {
     setSelectedChallenge(null);
+    setLockedChallengeId(null);
+    setChallengeCooldown(null);
     setCurrentSelectedChallenge(null);
+  };
+
+  const handleLockInChallenge = () => {
+    if (!selectedChallenge) return;
+    setLockedChallengeId(selectedChallenge.id);
+    setChallengeCooldown(null);
+    setCurrentSelectedChallenge(selectedChallenge);
+  };
+
+  const handleForfeitChallenge = () => {
+    if (!selectedChallenge) return;
+    setLockedChallengeId(null);
+    setCurrentSelectedChallenge(null);
+    setChallengeCooldown({
+      challengeId: selectedChallenge.id,
+      endsAt: Date.now() + CHALLENGE_COOLDOWN_MS,
+      reason: 'forfeit',
+    });
+    setCooldownRemainingSeconds(CHALLENGE_COOLDOWN_MS / 1000);
   };
 
   const handleComplete = async () => {
@@ -259,10 +398,20 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
       }
 
       setCompletedSessionChallengeIds((prev) => new Set(prev).add(completedId));
-      setSelectedChallenge(null);
+      setChallengeCooldown({
+        challengeId: completedId,
+        endsAt: Date.now() + CHALLENGE_COOLDOWN_MS,
+        reason: 'soloComplete',
+      });
+      setCooldownRemainingSeconds(CHALLENGE_COOLDOWN_MS / 1000);
       setCurrentSelectedChallenge(null);
       await refreshProgress();
       await refreshChoices();
+      trackProductEvent(ProductEvents.challengeCompleted, {
+        challengeId: completedId,
+        category: activeCategory,
+        earnedTier,
+      });
       if (earnedTier && isNewBadgeAward) {
         setEarnedBadgeModal({ badge: activeBadge, tier: earnedTier });
       }
@@ -284,6 +433,13 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
 
   const handleInviteVerification = async () => {
     if (!selectedChallenge || !user) return;
+    setLockedChallengeId(selectedChallenge.id);
+    setChallengeCooldown(null);
+    setCurrentSelectedChallenge(selectedChallenge);
+    trackProductEvent(ProductEvents.challengeInviteStarted, {
+      challengeId: selectedChallenge.id,
+      category: activeBadge.category,
+    });
     router.push({
       pathname: '/(protected)/create-event',
       params: {
@@ -344,11 +500,98 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     </View>
   );
 
+  const renderMonthlyMastery = () => (
+    <View style={styles.masteryPanel}>
+      <View style={styles.masteryTop}>
+        <View>
+          <Text style={styles.eyebrow}>{s('challengeSeasonTitle')}</Text>
+          <Text style={styles.masteryTitle}>{s('challengeSeasonSubtitle')}</Text>
+        </View>
+        <View style={styles.masteryScore}>
+          <Text style={styles.masteryScoreValue}>{monthlyMastery.completed}</Text>
+          <Text style={styles.masteryScoreLabel}>{s('challengeSeasonCompletions')}</Text>
+        </View>
+      </View>
+      <View style={styles.masteryStats}>
+        <View style={styles.masteryStat}>
+          <Text style={styles.masteryStatValue}>{monthlyMastery.earnedThisMonth}</Text>
+          <Text style={styles.masteryStatLabel}>{s('challengeSeasonBadges')}</Text>
+        </View>
+        <View style={styles.masteryStat}>
+          <Text style={styles.masteryStatValue}>{monthlyMastery.tracksWithProgress}</Text>
+          <Text style={styles.masteryStatLabel}>{s('challengeSeasonTracks')}</Text>
+        </View>
+        <View style={styles.masteryStat}>
+          <Text style={styles.masteryStatValue}>{monthlyMastery.strongest.completedCount}/15</Text>
+          <Text style={styles.masteryStatLabel}>{s(`badgeTrack_${monthlyMastery.strongest.badge.id}_short`)}</Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderCooldownPanel = () => (
+    <View style={styles.cooldownPanel} testID="challenge-cooldown-panel">
+      <View style={styles.cooldownTableWrap}>
+        <View style={styles.cooldownTable}>
+          <View style={[styles.cooldownTableNet, { backgroundColor: activeBadge.color }]} />
+        </View>
+        <Animated.View
+          style={[
+            styles.cooldownBall,
+            {
+              transform: [
+                { translateX: ballTranslateX },
+                { translateY: ballTranslateY },
+                { scaleX: ballScaleX },
+                { scaleY: ballScaleY },
+              ],
+            },
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.cooldownBallShadow,
+            {
+              transform: [{ translateX: ballShadowTranslateX }],
+              opacity: ballShadowOpacity,
+            },
+          ]}
+        />
+      </View>
+      <View style={styles.cooldownInfoRow}>
+        <View style={styles.cooldownCopy}>
+          <View style={styles.cooldownTitleRow}>
+            <Text style={styles.cooldownTitle}>{s('challengeCooldownTitle')}</Text>
+          </View>
+          <Text style={styles.cooldownText}>
+            {challengeCooldown?.reason === 'soloComplete'
+              ? s('challengeSoloCooldownDesc')
+              : s('challengeForfeitCooldownDesc')}
+          </Text>
+        </View>
+        <View style={[styles.cooldownTimerPill, { borderColor: activeBadge.color }]}>
+          <Text style={[styles.cooldownTimer, { color: activeBadge.color }]}>{cooldownTimerLabel}</Text>
+          <View style={styles.cooldownTimerTrack}>
+            <View style={[styles.cooldownTimerFill, { width: cooldownProgressWidth, backgroundColor: activeBadge.color }]} />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
   const renderChallengesTab = () => (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
       <View style={[styles.sectionHeader, styles.centeredHeader]}>
         <Text style={styles.sectionTitle}>{s('challengeChooseTrack')}</Text>
       </View>
+      {progressError ? (
+        <ErrorState
+          title={s('challengeProgressError')}
+          description={s('challengeProgressErrorDesc')}
+          ctaLabel={s('retry')}
+          onRetry={refreshProgress}
+        />
+      ) : null}
       {renderTrackPicker()}
 
       <View style={[styles.heroCard, { borderColor: activeBadge.color }]}>
@@ -388,12 +631,34 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
               )}
             </View>
           </View>
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.secondaryButton} onPress={handleSwitchChallenge} activeOpacity={0.86}>
-              <Lucide name="refresh-cw" size={16} color={colors.text} />
-              <Text style={styles.secondaryButtonText}>{s('challengeSwitch')}</Text>
-            </TouchableOpacity>
-            {requiresOtherPlayer(selectedChallenge) ? (
+          {selectedChallengeCoolingDown ? (
+            renderCooldownPanel()
+          ) : requiresOtherPlayer(selectedChallenge) ? (
+            <View style={styles.actions}>
+              {selectedChallengeLocked ? (
+                <TouchableOpacity style={styles.secondaryButton} onPress={handleForfeitChallenge} activeOpacity={0.86}>
+                  <Lucide name="flag-off" size={16} color={colors.text} />
+                  <Text style={styles.secondaryButtonText}>{s('challengeForfeit')}</Text>
+                </TouchableOpacity>
+              ) : (
+                <>
+                  <TouchableOpacity style={styles.compactButton} onPress={handleSwitchChallenge} activeOpacity={0.86}>
+                    <Lucide name="refresh-cw" size={15} color={colors.text} />
+                    <Text style={styles.compactButtonText}>{s('challengeSwitch')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.compactButton, styles.lockButton, pendingChallengeIds.has(selectedChallenge.id) && styles.disabledButton]}
+                    onPress={handleLockInChallenge}
+                    disabled={pendingChallengeIds.has(selectedChallenge.id)}
+                    activeOpacity={0.86}
+                  >
+                    <Lucide name="lock-keyhole" size={15} color={activeBadge.color} />
+                    <Text style={[styles.compactButtonText, { color: activeBadge.color }]}>
+                      {pendingChallengeIds.has(selectedChallenge.id) ? s('challengeAwaitingApproval') : s('challengeLockIn')}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
               <TouchableOpacity
                 style={[styles.primaryButton, { backgroundColor: activeBadge.color }, actionChallengeId && styles.disabledButton]}
                 onPress={handleInviteVerification}
@@ -406,10 +671,16 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
                     ? s('challengeAwaitingApproval')
                     : actionChallengeId === selectedChallenge.id
                       ? s('loading')
-                      : s('challengeInviteToEvent')}
+                      : s('challengeCreateEvent')}
                 </Text>
               </TouchableOpacity>
-            ) : (
+            </View>
+          ) : (
+            <View style={styles.actions}>
+              <TouchableOpacity style={styles.secondaryButton} onPress={handleSwitchChallenge} activeOpacity={0.86}>
+                <Lucide name="refresh-cw" size={16} color={colors.text} />
+                <Text style={styles.secondaryButtonText}>{s('challengeSwitch')}</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.primaryButton, { backgroundColor: activeBadge.color }, actionChallengeId && styles.disabledButton]}
                 onPress={handleComplete}
@@ -421,18 +692,26 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
                   {actionChallengeId === selectedChallenge.id ? s('loading') : s('challengeComplete')}
                 </Text>
               </TouchableOpacity>
-            )}
-          </View>
+            </View>
+          )}
         </View>
       ) : (
         <View style={styles.challengeGrid}>
-          {isLoading ? (
+          {choicesError ? (
+            <ErrorState
+              title={s('challengeChoicesError')}
+              description={s('challengeChoicesErrorDesc')}
+              ctaLabel={s('retry')}
+              onRetry={refreshChoices}
+            />
+          ) : isLoading ? (
             <View style={styles.emptyPanel}>
               <Text style={styles.emptyTitle}>{s('loading')}</Text>
             </View>
           ) : visibleChallengeChoices.length > 0 ? visibleChallengeChoices.map((challenge) => (
             <TouchableOpacity
               key={challenge.id}
+              testID={`challenge-card-${challenge.id}`}
               style={styles.challengeCard}
               onPress={() => handleSelectChallenge(challenge)}
             >
@@ -484,7 +763,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
           <Text style={styles.sectionTitle}>{s('challengeBadgeProgression')}</Text>
           <Text style={styles.sectionCopy}>{s('challengeBadgeProgressionDesc')}</Text>
         </View>
-        {renderTrackPicker()}
+        {renderMonthlyMastery()}
 
         <View style={[styles.badgeFeature, { borderColor: activeBadge.color }]}>
           <View style={styles.badgeFeatureTop}>
@@ -834,6 +1113,66 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       fontSize: FontSize.md,
       color: colors.textMuted,
     },
+    masteryPanel: {
+      gap: Spacing.sm,
+      borderRadius: Radius.md,
+      backgroundColor: isDark ? colors.bgAlt : colors.text,
+      padding: Spacing.md,
+      borderWidth: 1,
+      borderColor: isDark ? colors.primaryDim : colors.text,
+      ...Shadows.md,
+    },
+    masteryTop: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: Spacing.sm,
+    },
+    masteryTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
+      color: isDark ? colors.text : colors.bgAlt,
+      marginTop: 2,
+    },
+    masteryScore: {
+      alignItems: 'flex-end',
+    },
+    masteryScoreValue: {
+      fontFamily: Fonts.heading,
+      fontSize: FontSize.display,
+      fontWeight: FontWeight.bold,
+      color: colors.primaryLight,
+    },
+    masteryScoreLabel: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.bold,
+      color: isDark ? colors.textMuted : colors.bgMuted,
+    },
+    masteryStats: {
+      flexDirection: 'row',
+      gap: Spacing.xs,
+    },
+    masteryStat: {
+      flex: 1,
+      borderRadius: Radius.sm,
+      backgroundColor: isDark ? colors.bgMuted : '#ffffff18',
+      padding: Spacing.sm,
+      gap: 2,
+    },
+    masteryStatValue: {
+      fontFamily: Fonts.heading,
+      fontSize: FontSize.xl,
+      fontWeight: FontWeight.bold,
+      color: isDark ? colors.text : colors.bgAlt,
+    },
+    masteryStatLabel: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.bold,
+      color: isDark ? colors.textMuted : colors.bgMuted,
+    },
     approvalPanel: {
       gap: Spacing.sm,
       borderRadius: Radius.md,
@@ -1062,6 +1401,33 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       textAlign: 'center',
       lineHeight: 18,
     },
+    compactButton: {
+      flex: 0.84,
+      minHeight: 52,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      borderRadius: Radius.sm,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      paddingHorizontal: 9,
+      paddingVertical: 12,
+      backgroundColor: colors.bgAlt,
+      ...Shadows.sm,
+    },
+    lockButton: {
+      backgroundColor: colors.bgMuted,
+    },
+    compactButtonText: {
+      flexShrink: 1,
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.bold,
+      color: colors.text,
+      textAlign: 'center',
+      lineHeight: 16,
+    },
     primaryButton: {
       flex: 1.48,
       minHeight: 52,
@@ -1085,6 +1451,123 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     disabledButton: {
       opacity: 0.68,
+    },
+    cooldownPanel: {
+      minHeight: 184,
+      gap: Spacing.md,
+      borderRadius: Radius.md,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      backgroundColor: colors.bgAlt,
+      padding: Spacing.md,
+      marginTop: Spacing.xs,
+      ...Shadows.sm,
+    },
+    cooldownTableWrap: {
+      alignSelf: 'center',
+      width: 230,
+      height: 92,
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+    },
+    cooldownTable: {
+      width: 178,
+      height: 64,
+      borderRadius: Radius.sm,
+      backgroundColor: colors.bgMuted,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+      transform: [{ perspective: 220 }, { rotateX: '54deg' }],
+      ...Shadows.sm,
+    },
+    cooldownTableNet: {
+      position: 'absolute',
+      top: 4,
+      bottom: 4,
+      width: 2,
+      borderRadius: 1,
+      opacity: 0.84,
+    },
+    cooldownBall: {
+      position: 'absolute',
+      left: 106,
+      top: 18,
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      borderWidth: 1,
+      borderColor: isDark ? '#FFFFFF' : colors.borderLight,
+      backgroundColor: '#FFFFFF',
+      ...Shadows.sm,
+    },
+    cooldownBallShadow: {
+      position: 'absolute',
+      left: 103,
+      bottom: 15,
+      width: 24,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: isDark ? '#00000055' : '#00000022',
+    },
+    cooldownInfoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+    },
+    cooldownCopy: {
+      flex: 1,
+      minWidth: 0,
+      gap: 6,
+    },
+    cooldownTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 6,
+    },
+    cooldownTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: FontSize.xl,
+      fontWeight: FontWeight.bold,
+      color: colors.text,
+      lineHeight: 22,
+    },
+    cooldownText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
+      color: colors.text,
+      lineHeight: 19,
+    },
+    cooldownTimerPill: {
+      minWidth: 66,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: Radius.sm,
+      borderWidth: 1,
+      backgroundColor: colors.bgMuted,
+      paddingVertical: 8,
+      paddingHorizontal: 9,
+      gap: 6,
+    },
+    cooldownTimer: {
+      fontFamily: Fonts.heading,
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.bold,
+      lineHeight: 28,
+    },
+    cooldownTimerTrack: {
+      width: 44,
+      height: 4,
+      borderRadius: 2,
+      overflow: 'hidden',
+      backgroundColor: isDark ? colors.bg : colors.borderLight,
+    },
+    cooldownTimerFill: {
+      height: 4,
+      borderRadius: 2,
     },
     badgeFeature: {
       overflow: 'hidden',

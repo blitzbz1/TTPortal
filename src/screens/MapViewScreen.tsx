@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, Platform, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, Platform, RefreshControl, FlatList } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Callout } from 'react-native-maps';
@@ -11,6 +11,7 @@ import { Card } from '../components/Card';
 import { CityPickerModal } from '../components/CityPickerModal';
 import { VenueCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { DraggableSheet } from '../components/DraggableSheet';
 import { hapticSelection } from '../lib/haptics';
 import { useTheme } from '../hooks/useTheme';
@@ -24,6 +25,7 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import type { Venue, VenueCondition } from '../types/database';
 import { setCacheItem, getCacheItem } from '../lib/offline-cache';
+import { ProductEvents, trackProductEvent } from '../lib/analytics';
 
 type VenueWithStats = Venue & {
   venue_stats: {
@@ -202,6 +204,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const handleNearMe = useCallback(async () => {
     if (nearMeEnabled) {
       setNearMeEnabled(false);
+      trackProductEvent(ProductEvents.mapNearMeToggled, { enabled: false });
       return;
     }
 
@@ -219,6 +222,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
       };
       setUserLocation(nextLocation);
       setNearMeEnabled(true);
+      trackProductEvent(ProductEvents.mapNearMeToggled, { enabled: true });
       mapRef.current?.animateToRegion({
         latitude: nextLocation.latitude,
         longitude: nextLocation.longitude,
@@ -231,6 +235,11 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
       setLocating(false);
     }
   }, [nearMeEnabled, s]);
+
+  const openVenue = useCallback((venueId: number, source: 'map' | 'list') => {
+    trackProductEvent(ProductEvents.mapVenueOpened, { venueId, source });
+    router.push(`/venue/${venueId}` as any);
+  }, [router]);
 
   const venuesWithDistance = useMemo<VenueWithDistance[]>(() => {
     return venues.map((venue) => {
@@ -320,32 +329,29 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
             longitudeDelta: 0.08,
           }}
         >
-          {venuesWithDistance.map((venue) => {
+          {filteredVenues.map((venue) => {
             if (!venue.lat || !venue.lng) return null;
             const condInfo = conditionLabel(venue.condition);
             const isIndoor = venue.type === 'sala_indoor';
             const hasFriend = friendCheckinVenueIds.has(venue.id);
-            const isVisible = filteredVenues.includes(venue);
             return (
               <Marker
                 key={venue.id}
                 coordinate={{ latitude: venue.lat, longitude: venue.lng }}
                 tracksViewChanges={false}
-                opacity={isVisible ? 1 : 0}
-                tappable={isVisible}
               >
                 <View style={pinStyles.outer}>
                   <View style={[pinStyles.wrap, { backgroundColor: condInfo.color }]}>
-                    <Text style={pinStyles.icon}>{isIndoor ? '🏢' : '🏓'}</Text>
+                    <Lucide name={isIndoor ? 'building-2' : 'activity'} size={14} color={colors.textOnPrimary} />
                   </View>
                   {hasFriend && (
                     <View style={pinStyles.friendBadge}>
-                      <Text style={pinStyles.friendBadgeIcon}>👋</Text>
+                      <Lucide name="users" size={8} color={colors.textOnPrimary} />
                     </View>
                   )}
                   <View style={pinStyles.arrow} />
                 </View>
-                <Callout tooltip onPress={() => router.push(`/venue/${venue.id}` as any)}>
+                <Callout tooltip onPress={() => openVenue(venue.id, 'map')}>
                   <View style={pinStyles.callout}>
                     <Text style={pinStyles.calloutTitle} numberOfLines={1}>{venue.name}</Text>
                     <Text style={pinStyles.calloutSub}>
@@ -361,14 +367,14 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
 
         <Card shadow="md" borderRadius={Radius.md} style={styles.legend}>
           {[
-            { color: colors.primaryLight, icon: '🏓', label: s('conditionGood') },
-            { color: colors.amber, icon: '🏓', label: s('conditionAcceptable') },
-            { color: colors.red, icon: '🏓', label: s('conditionDegraded') },
-            { color: colors.conditionPro, icon: '🏢', label: s('conditionIndoor') },
+            { color: colors.primaryLight, icon: 'activity', label: s('conditionGood') },
+            { color: colors.amber, icon: 'activity', label: s('conditionAcceptable') },
+            { color: colors.red, icon: 'activity', label: s('conditionDegraded') },
+            { color: colors.conditionPro, icon: 'building-2', label: s('conditionIndoor') },
           ].map((item) => (
             <View key={item.label} style={styles.legendRow}>
               <View style={[styles.legendMarker, { backgroundColor: item.color }]}>
-                <Text style={styles.legendIcon}>{item.icon}</Text>
+                <Lucide name={item.icon} size={10} color={colors.textOnPrimary} />
               </View>
               <Text style={styles.legendText}>{item.label}</Text>
             </View>
@@ -469,13 +475,12 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
               <SkeletonList count={4}><VenueCardSkeleton /></SkeletonList>
             </View>
           ) : fetchError ? (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.xxl, gap: Spacing.sm }}>
-              <Lucide name="alert-triangle" size={28} color={colors.textFaint} />
-              <Text style={{ fontFamily: Fonts.body, fontSize: FontSize.lg, color: colors.textFaint }}>{s('venueLoadError')}</Text>
-              <TouchableOpacity onPress={fetchVenues} style={{ backgroundColor: colors.primaryPale, borderRadius: Radius.md, paddingVertical: Spacing.xs, paddingHorizontal: Spacing.md }}>
-                <Text style={{ fontFamily: Fonts.body, fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: colors.primaryMid }}>{s('retry')}</Text>
-              </TouchableOpacity>
-            </View>
+            <ErrorState
+              title={s('venueLoadError')}
+              description={s('venueLoadErrorDesc')}
+              ctaLabel={s('retry')}
+              onRetry={fetchVenues}
+            />
           ) : filteredVenues.length === 0 ? (
             <EmptyState
               icon="search"
@@ -483,8 +488,16 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
               description={s('emptyVenuesDesc')}
             />
           ) : (
-            <ScrollView style={styles.venueList} testID="venue-list" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
-              {filteredVenues.map((venue, index) => {
+            <FlatList
+              style={styles.venueList}
+              testID="venue-list"
+              data={filteredVenues}
+              keyExtractor={(venue) => String(venue.id)}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
+              initialNumToRender={8}
+              maxToRenderPerBatch={8}
+              windowSize={7}
+              renderItem={({ item: venue, index }) => {
                 const conditionInfo = conditionLabel(venue.condition);
                 const avgRating = venue.venue_stats?.avg_rating;
                 const starsText = avgRating != null ? `\u2605 ${avgRating.toFixed(1)}` : '';
@@ -495,7 +508,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
                     <Card shadow="sm" borderRadius={Radius.md} style={{ marginBottom: Spacing.xs }}>
                       <TouchableOpacity
                         style={[styles.venueCard, index === 0 && styles.venueCardHighlight]}
-                        onPress={() => router.push(`/venue/${venue.id}` as any)}
+                        onPress={() => openVenue(venue.id, 'list')}
                         accessibilityLabel={venue.name}
                       >
                         <View style={styles.venueLeft}>
@@ -530,8 +543,8 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
                     </Card>
                   </Animated.View>
                 );
-              })}
-            </ScrollView>
+              }}
+            />
           )}
         </DraggableSheet>
       </View>

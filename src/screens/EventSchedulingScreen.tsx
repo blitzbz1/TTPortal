@@ -9,6 +9,7 @@ import { NotificationBellButton } from '../components/NotificationBellButton';
 import { Card } from '../components/Card';
 import { EventCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
@@ -23,9 +24,11 @@ import { hapticMedium } from '../lib/haptics';
 import { getAmaturEvents, type AmaturEvent } from '../services/amatur';
 import { EventDetailSheet } from '../components/EventDetailSheet';
 import { BADGE_TRACKS } from '../lib/badgeChallenges';
+import { ProductEvents, trackProductEvent } from '../lib/analytics';
 import {
   requiresOtherPlayer,
   resolveChallengeTitle,
+  setCurrentSelectedChallenge,
   type ChallengeCategory,
   type DbChallenge,
   type EventChallengeSubmission,
@@ -35,6 +38,30 @@ import {
 } from '../features/challenges';
 
 type EventTab = 'upcoming' | 'past' | 'mine' | 'amatur';
+
+type EventListItem = {
+  id: number;
+  title?: string | null;
+  description?: string | null;
+  starts_at: string;
+  ends_at?: string | null;
+  status: string;
+  event_type?: string | null;
+  organizer_id?: string | null;
+  max_participants?: number | null;
+  recurrence_rule?: string | null;
+  table_number?: number | null;
+  venues?: {
+    name?: string | null;
+    city?: string | null;
+    lat?: number | null;
+    lng?: number | null;
+  } | null;
+  event_participants?: {
+    user_id: string;
+    profiles?: { full_name?: string | null } | null;
+  }[];
+};
 
 const TRACK_ROWS = [
   BADGE_TRACKS.slice(0, 4),
@@ -48,8 +75,9 @@ interface EventSchedulingScreenProps {
 export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScreenProps) {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<EventTab>('upcoming');
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<EventListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [eventsError, setEventsError] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
   const [detailParticipants, setDetailParticipants] = useState<any[]>([]);
   const [detailFeedback, setDetailFeedback] = useState<any[]>([]);
@@ -94,6 +122,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const fetchEvents = useCallback(async () => {
     if (activeTab === 'amatur') return;
     setLoading(true);
+    setEventsError(false);
     try {
       const tab = activeTab as 'upcoming' | 'past' | 'mine';
       const { data, error } = await getEvents(
@@ -101,9 +130,9 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         (tab === 'mine' || tab === 'past') ? user?.id : undefined,
       );
       if (error) {
-        Alert.alert(s('error'), s('eventsLoadError'));
+        setEventsError(true);
       } else {
-        setEvents(data ?? []);
+        setEvents((data ?? []) as unknown as EventListItem[]);
         // Check which past events already have user feedback
         if (tab === 'past' && user?.id && data?.length) {
           const checks = await Promise.all(
@@ -116,10 +145,11 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
           setFeedbackGivenIds(givenIds);
         }
       }
+    } catch {
+      setEventsError(true);
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, user?.id]);
 
   // Fetch AmaTur events
@@ -162,7 +192,12 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  const openDetail = useCallback(async (event: any) => {
+  const openDetail = useCallback(async (event: EventListItem) => {
+    trackProductEvent(ProductEvents.eventOpened, {
+      eventId: event.id,
+      tab: activeTab,
+      eventType: event.event_type,
+    });
     setSelectedEvent(event);
     setDetailLoading(true);
     setDetailFeedback([]);
@@ -174,7 +209,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     setDetailFeedback(fbRes.data ?? []);
     setDetailLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [activeTab, user?.id]);
 
   const closeDetail = useCallback(() => {
     setSelectedEvent(null);
@@ -203,8 +238,16 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       Alert.alert(s('error'), error.message);
       return;
     }
+    trackProductEvent(ProductEvents.eventChallengeAttached, {
+      eventId: selectedEvent.id,
+      challengeId: challenge.id,
+      category: challenge.category,
+    });
+    if (currentEventChallenge?.id === challenge.id) {
+      setCurrentSelectedChallenge(null);
+    }
     setShowAddChallenge(false);
-  }, [addEventChallenge, s, selectedEvent, user]);
+  }, [addEventChallenge, currentEventChallenge?.id, s, selectedEvent, user]);
 
   const handleAwardEventChallenge = useCallback(async (submission: EventChallengeSubmission) => {
     if (!selectedEvent) return;
@@ -215,9 +258,14 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       Alert.alert(s('error'), error.message);
       return;
     }
+    trackProductEvent(ProductEvents.eventChallengeAwarded, {
+      eventId: selectedEvent.id,
+      submissionId: submission.submission_id,
+      category: submission.category,
+    });
   }, [awardEventChallenge, s, selectedEvent]);
 
-  const handleJoin = useCallback(async (event: any) => {
+  const handleJoin = useCallback(async (event: EventListItem) => {
     if (!user) {
       router.push('/sign-in');
       return;
@@ -238,6 +286,10 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         return;
       }
     }
+    trackProductEvent(ProductEvents.eventJoined, {
+      eventId: event.id,
+      action: isJoined ? 'leave' : 'join',
+    });
     fetchEvents();
     if (selectedEvent?.id === event.id) {
       const { data } = await getEventParticipants(event.id);
@@ -348,12 +400,38 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
           ))}
         </View>
 
+        {activeTab !== 'amatur' && currentEventChallenge && (
+          <TouchableOpacity
+            style={styles.readyChallengeBanner}
+            activeOpacity={0.86}
+            onPress={() => setActiveTab('upcoming')}
+          >
+            <View style={styles.readyChallengeIcon}>
+              <Lucide name="target" size={17} color={colors.textOnPrimary} />
+            </View>
+            <View style={styles.readyChallengeCopy}>
+              <Text style={styles.readyChallengeTitle}>{s('eventReadyChallengeTitle')}</Text>
+              <Text style={styles.readyChallengeText} numberOfLines={2}>
+                {challengeTitle(currentEventChallenge)}
+              </Text>
+            </View>
+            <Text style={styles.readyChallengeCta}>{s('eventReadyChallengeCta')}</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Event Cards — regular tabs */}
         {activeTab !== 'amatur' && (
           loading ? (
             <View style={{ padding: 16, gap: 12 }}>
               <SkeletonList count={3}><EventCardSkeleton /></SkeletonList>
             </View>
+          ) : eventsError ? (
+            <ErrorState
+              title={s('eventsLoadError')}
+              description={s('eventsLoadErrorDesc')}
+              ctaLabel={s('retry')}
+              onRetry={fetchEvents}
+            />
           ) : events.length === 0 ? (
             <EmptyState
               icon="calendar"
@@ -1374,6 +1452,50 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       padding: Spacing.md,
       paddingTop: Spacing.sm,
       gap: Spacing.sm,
+    },
+    readyChallengeBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      marginHorizontal: Spacing.md,
+      marginTop: Spacing.sm,
+      borderRadius: Radius.md,
+      backgroundColor: colors.text,
+      padding: Spacing.sm,
+      ...Shadows.md,
+    },
+    readyChallengeIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: Radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.accentBright,
+    },
+    readyChallengeCopy: {
+      flex: 1,
+      gap: 2,
+    },
+    readyChallengeTitle: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.bold,
+      color: colors.bgMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    readyChallengeText: {
+      fontFamily: Fonts.heading,
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.bold,
+      color: colors.bgAlt,
+      lineHeight: 18,
+    },
+    readyChallengeCta: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.bold,
+      color: colors.primaryLight,
     },
     eventCard: {
       padding: Spacing.md,
