@@ -203,9 +203,15 @@ export function useBadgeProgress(userId?: string | null) {
     [pendingSubmissions],
   );
 
+  const approvedChallengeIds = useMemo(
+    () => new Set(approvedCompletions.map((completion) => completion.challenge_id)),
+    [approvedCompletions],
+  );
+
   return {
     error,
     approvedCompletions,
+    approvedChallengeIds,
     badgeAwards,
     isLoading,
     pendingChallengeIds,

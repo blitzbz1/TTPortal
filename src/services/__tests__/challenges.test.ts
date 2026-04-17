@@ -3,6 +3,7 @@ import {
   awardEventChallengeSubmission,
   completeSelfChallenge,
   getChallengeChoices,
+  getUserApprovedChallengeCompletions,
   getUserBadgeAwards,
   getUserBadgeProgress,
 } from '../challenges';
@@ -12,6 +13,7 @@ function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
   const chain: any = {
     select: jest.fn(() => chain),
     eq: jest.fn(() => chain),
+    in: jest.fn(() => chain),
     order: jest.fn(() => chain),
     then: (resolve: any) => Promise.resolve(result).then(resolve),
   };
@@ -98,5 +100,20 @@ describe('challenge table wrappers', () => {
     expect(chain.select).toHaveBeenCalledWith('*');
     expect(chain.eq).toHaveBeenCalledWith('user_id', 'user-1');
     expect(chain.order).toHaveBeenCalledWith('awarded_at', { ascending: true });
+  });
+
+  it('loads approved completions with event ids so event awards can update progress and batch filtering', async () => {
+    const chain = createQueryChain([{ challenge_id: 'challenge-1', event_id: 77 }]);
+    mockFrom.mockReturnValue(chain);
+
+    await getUserApprovedChallengeCompletions('user-1');
+
+    expect(mockFrom).toHaveBeenCalledWith('challenge_submissions');
+    expect(chain.select).toHaveBeenCalledWith(
+      'id, challenge_id, event_id, status, submitted_at, reviewed_at, challenges(category)',
+    );
+    expect(chain.eq).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(chain.in).toHaveBeenCalledWith('status', ['approved', 'auto_approved']);
+    expect(chain.order).toHaveBeenCalledWith('submitted_at', { ascending: true });
   });
 });

@@ -12,9 +12,14 @@ import { createEvent, joinEvent, sendEventInvites } from '@/src/services/events'
 import {
   addChallengeToEvent,
   getChallengeById,
+  requiresOtherPlayer,
   resolveChallengeTitle,
+  type ChallengeCategory,
   type DbChallenge,
+  useChallengeChoices,
+  useCurrentSelectedChallenge,
 } from '@/src/features/challenges';
+import { BADGE_TRACKS } from '@/src/lib/badgeChallenges';
 import { Lucide } from '@/src/components/Icon';
 import { VenuePickerModal } from '@/src/components/VenuePickerModal';
 import { FriendPickerModal } from '@/src/components/FriendPickerModal';
@@ -49,14 +54,29 @@ const RECURRENCE_OPTIONS: { label: string; value: RecurrenceRule | null }[] = [
   { label: 'Lunar', value: 'monthly' },
 ];
 
+const TRACK_ROWS = [
+  BADGE_TRACKS.slice(0, 4),
+  BADGE_TRACKS.slice(4, 8),
+];
+
 /* -- Collapsible section -- */
-function Section({ title, icon, summary, children, defaultOpen = false, colors, s: sStyles, onToggle }: {
-  title: string; icon: string; summary?: string; children: React.ReactNode; defaultOpen?: boolean; colors: ThemeColors; s: ReturnType<typeof createStyles>; onToggle?: () => void;
+function Section({ title, icon, summary, children, defaultOpen = false, colors, s: sStyles, onToggle, onOpenChange }: {
+  title: string; icon: string; summary?: string; children: React.ReactNode; defaultOpen?: boolean; colors: ThemeColors; s: ReturnType<typeof createStyles>; onToggle?: () => void; onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <View style={sStyles.section}>
-      <Pressable style={sStyles.sectionHeader} onPress={() => { onToggle?.(); setOpen((v) => !v); }}>
+      <Pressable
+        style={sStyles.sectionHeader}
+        onPress={() => {
+          onToggle?.();
+          setOpen((value) => {
+            const nextOpen = !value;
+            onOpenChange?.(nextOpen);
+            return nextOpen;
+          });
+        }}
+      >
         <View style={sStyles.sectionHeaderLeft}>
           <Lucide name={icon} size={16} color={colors.textMuted} />
           <View>
@@ -111,6 +131,7 @@ export default function CreateEventRoute() {
   const { colors, isDark } = useTheme();
   const { s: t } = useI18n();
   const s = useMemo(() => createStyles(colors), [colors]);
+  const currentSelectedChallenge = useCurrentSelectedChallenge();
 
   /* form state */
   const [title, setTitle] = useState('');
@@ -126,6 +147,8 @@ export default function CreateEventRoute() {
   const [maxParticipantsText, setMaxParticipantsText] = useState('');
   const [selectedChallenge, setSelectedChallenge] = useState<DbChallenge | null>(null);
   const [attachChallenge, setAttachChallenge] = useState(false);
+  const [eventChallengeTrackId, setEventChallengeTrackId] = useState(BADGE_TRACKS[0].id);
+  const [challengeFieldOpen, setChallengeFieldOpen] = useState(false);
 
   /* picker visibility (tap-to-toggle on all platforms) */
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -146,6 +169,22 @@ export default function CreateEventRoute() {
   const challengeTitle = useCallback((challenge: DbChallenge) => (
     resolveChallengeTitle(t, challenge)
   ), [t]);
+  const eventChallengeTrack = BADGE_TRACKS.find((badge) => badge.id === eventChallengeTrackId) ?? BADGE_TRACKS[0];
+  const currentEventChallenge = currentSelectedChallenge && requiresOtherPlayer(currentSelectedChallenge)
+    ? currentSelectedChallenge
+    : null;
+  const effectiveSelectedChallenge = selectedChallenge ?? currentEventChallenge;
+  const {
+    choices: eventChallengeChoices,
+    isLoading: challengeChoicesLoading,
+  } = useChallengeChoices(eventChallengeTrack.category as ChallengeCategory, {
+    enabled: challengeFieldOpen && !effectiveSelectedChallenge,
+    onlyOtherPlayer: true,
+    visibleCount: 4,
+  });
+  const challengeSectionSummary = attachChallenge && effectiveSelectedChallenge
+    ? challengeTitle(effectiveSelectedChallenge)
+    : t('eventChallengeOnCreateDesc');
 
   useEffect(() => {
     if (!params.challengeId) return;
@@ -155,7 +194,7 @@ export default function CreateEventRoute() {
       const challenge = data as DbChallenge;
       if (challenge.verification_type === 'other') {
         setSelectedChallenge(challenge);
-        setAttachChallenge(false);
+        setAttachChallenge(true);
       }
     });
     return () => {
@@ -212,15 +251,15 @@ export default function CreateEventRoute() {
     setLoading(false);
     if (error) { Alert.alert('Eroare', 'Nu s-a putut crea evenimentul.'); return; }
     await joinEvent(data.id, user.id);
-    if (selectedChallenge && attachChallenge) {
-      const challengeRes = await addChallengeToEvent(data.id, selectedChallenge.id);
+    if (effectiveSelectedChallenge && attachChallenge) {
+      const challengeRes = await addChallengeToEvent(data.id, effectiveSelectedChallenge.id);
       if (challengeRes.error) {
         Alert.alert(t('error'), challengeRes.error.message);
       }
     }
     setCreatedEventId(data.id);
     setFriendPickerVisible(true);
-  }, [title, description, user, venueId, date, maxParticipantsText, durationHours, eventType, endDate, recurrenceRule, selectedChallenge, attachChallenge, t]);
+  }, [title, description, user, venueId, date, maxParticipantsText, durationHours, eventType, endDate, recurrenceRule, effectiveSelectedChallenge, attachChallenge, t]);
 
   const handleInviteConfirm = useCallback(async (selectedIds: string[]) => {
     setFriendPickerVisible(false);
@@ -334,42 +373,118 @@ export default function CreateEventRoute() {
         onClose={() => setVenuePickerVisible(false)}
       />
 
-      {params.challengeId ? (
-        <Section
-          title={t('eventChallengeOnCreate')}
-          icon="award"
-          defaultOpen
-          colors={colors}
-          s={s}
-          onToggle={closePickers}
-          summary={selectedChallenge ? challengeTitle(selectedChallenge) : t('eventChallengeOnCreateDesc')}
-        >
-          {selectedChallenge ? (
-            <>
-              <View style={s.challengePreview}>
-                <View style={s.challengePreviewIcon}>
-                  <Lucide name="award" size={18} color={colors.primary} />
-                </View>
-                <View style={s.challengePreviewCopy}>
-                  <Text style={s.challengeChoiceTitle}>{challengeTitle(selectedChallenge)}</Text>
-                  <Text style={s.challengeChoiceMeta}>{t('challengeVerificationWithValue', t('challengeVerificationOther'))}</Text>
-                </View>
+      <Section
+        title={t('eventChallengeOnCreate')}
+        icon="award"
+        defaultOpen={false}
+        colors={colors}
+        s={s}
+        onToggle={closePickers}
+        onOpenChange={setChallengeFieldOpen}
+        summary={challengeSectionSummary}
+      >
+        {params.challengeId && !effectiveSelectedChallenge ? (
+          <Text style={s.hint}>{t('eventCurrentChallengeLoading')}</Text>
+        ) : effectiveSelectedChallenge ? (
+          <>
+            <View style={s.challengeModeIntro}>
+              <View style={s.challengeModeIcon}>
+                <Lucide name="target" size={15} color={colors.primary} />
               </View>
-              <Pressable
-                style={[s.challengeAttachBtn, attachChallenge && s.challengeAttachBtnActive]}
-                onPress={() => setAttachChallenge(true)}
-              >
-                <Lucide name={attachChallenge ? 'check' : 'plus'} size={16} color={attachChallenge ? colors.textOnPrimary : colors.primary} />
-                <Text style={[s.challengeAttachText, attachChallenge && s.challengeAttachTextActive]}>
-                  {attachChallenge ? t('eventChallengeAlreadyAdded') : t('eventAddChallenge')}
-                </Text>
-              </Pressable>
-            </>
-          ) : (
-            <Text style={s.hint}>{t('eventCurrentChallengeLoading')}</Text>
-          )}
-        </Section>
-      ) : null}
+              <View style={s.challengeModeCopy}>
+                <Text style={s.challengeModeTitle}>{t('eventCurrentChallengeFromTab')}</Text>
+                <Text style={s.challengeModeText}>{t('eventCurrentChallengeFromTabDesc')}</Text>
+              </View>
+            </View>
+            <View style={[s.challengePreview, attachChallenge && s.challengePreviewActive]}>
+              <View style={s.challengePreviewIcon}>
+                <Lucide name="award" size={18} color={colors.primary} />
+              </View>
+              <View style={s.challengePreviewCopy}>
+                <Text style={s.challengeChoiceTitle}>{challengeTitle(effectiveSelectedChallenge)}</Text>
+                <Text style={s.challengeChoiceMeta}>{t('challengeVerificationWithValue', t('challengeVerificationOther'))}</Text>
+              </View>
+            </View>
+            <Pressable
+              style={[s.challengeAttachBtn, attachChallenge && s.challengeAttachBtnActive]}
+              onPress={() => setAttachChallenge((value) => !value)}
+            >
+              <Lucide name={attachChallenge ? 'check' : 'plus'} size={16} color={attachChallenge ? colors.textOnPrimary : colors.primary} />
+              <Text style={[s.challengeAttachText, attachChallenge && s.challengeAttachTextActive]}>
+                {attachChallenge ? t('eventChallengeAlreadyAdded') : t('eventAddChallenge')}
+              </Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <View style={s.challengeModeIntro}>
+              <View style={s.challengeModeIcon}>
+                <Lucide name="sparkles" size={15} color={colors.primary} />
+              </View>
+              <View style={s.challengeModeCopy}>
+                <Text style={s.challengeModeTitle}>{t('eventChooseChallengeTrack')}</Text>
+                <Text style={s.challengeModeText}>{t('eventChooseChallengeTrackDesc')}</Text>
+              </View>
+            </View>
+            <View style={s.challengeTrackGrid}>
+              {TRACK_ROWS.map((row, rowIndex) => (
+                <View key={rowIndex} style={s.challengeTrackRow}>
+                  {row.map((track) => {
+                    const active = track.id === eventChallengeTrack.id;
+                    return (
+                      <Pressable
+                        key={track.id}
+                        style={[
+                          s.challengeTrackChip,
+                          { borderColor: active ? track.color : track.paleColor, backgroundColor: active ? track.paleColor : colors.bg },
+                        ]}
+                        onPress={() => {
+                          setEventChallengeTrackId(track.id);
+                          setSelectedChallenge(null);
+                          setAttachChallenge(false);
+                        }}
+                      >
+                        <View style={[s.challengeTrackIcon, { backgroundColor: track.paleColor }]}>
+                          <Lucide name={track.icon} size={13} color={track.color} />
+                        </View>
+                        <Text style={[s.challengeTrackText, { color: active ? track.color : colors.text }]} adjustsFontSizeToFit minimumFontScale={0.82}>
+                          {t(`badgeTrack_${track.id}_short`)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+            {challengeChoicesLoading ? (
+              <Text style={s.hint}>{t('loading')}</Text>
+            ) : eventChallengeChoices.length > 0 ? (
+              <View style={s.challengeChoiceList}>
+                {eventChallengeChoices.map((challenge) => (
+                  <Pressable
+                    key={challenge.id}
+                    style={s.challengeChoiceCard}
+                    onPress={() => {
+                      setSelectedChallenge(challenge);
+                      setAttachChallenge(true);
+                    }}
+                  >
+                    <View style={s.challengeChoiceTop}>
+                      <Text style={s.challengeChoiceTitle}>{challengeTitle(challenge)}</Text>
+                      <View style={s.challengeChoiceBadge}>
+                        <Text style={s.challengeChoiceBadgeText}>{t('challengeVerificationOther')}</Text>
+                      </View>
+                    </View>
+                    <Text style={s.challengeChoiceCta}>{t('eventAttachChallenge')}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <Text style={s.hint}>{t('eventNoOtherChallenges')}</Text>
+            )}
+          </>
+        )}
+      </Section>
 
       {/* -- Options section (collapsible) -- */}
       <Section
@@ -582,6 +697,39 @@ function createStyles(colors: ThemeColors) {
       borderRadius: Radius.md, borderWidth: 1, borderColor: colors.borderLight,
       backgroundColor: colors.bg, padding: 12,
     },
+    challengePreviewActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.bgMuted,
+    },
+    challengeModeIntro: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      borderRadius: Radius.md,
+      backgroundColor: colors.bgMuted,
+      padding: 12,
+    },
+    challengeModeIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: Radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.bgAlt,
+    },
+    challengeModeCopy: { flex: 1, gap: 2 },
+    challengeModeTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: 15,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    challengeModeText: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      color: colors.textMuted,
+      lineHeight: 17,
+    },
     challengePreviewIcon: {
       width: 38, height: 38, borderRadius: Radius.sm,
       alignItems: 'center', justifyContent: 'center',
@@ -589,10 +737,84 @@ function createStyles(colors: ThemeColors) {
     },
     challengePreviewCopy: { flex: 1, gap: 4 },
     challengeChoiceTitle: {
+      flex: 1,
       fontFamily: Fonts.heading, fontSize: 15, fontWeight: '800', color: colors.text,
+      lineHeight: 20,
     },
     challengeChoiceMeta: {
       fontFamily: Fonts.body, fontSize: 12, fontWeight: '700', color: colors.textMuted,
+    },
+    challengeChoiceList: {
+      gap: 8,
+    },
+    challengeChoiceCard: {
+      borderRadius: Radius.md,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      backgroundColor: colors.bg,
+      padding: 12,
+      gap: 7,
+    },
+    challengeChoiceTop: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    challengeChoiceBadge: {
+      borderRadius: Radius.sm,
+      backgroundColor: colors.bgMuted,
+      paddingHorizontal: 7,
+      paddingVertical: 4,
+    },
+    challengeChoiceBadgeText: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      fontWeight: '800',
+      color: colors.textMuted,
+    },
+    challengeChoiceCta: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '800',
+      color: colors.primary,
+    },
+    challengeTrackGrid: {
+      gap: 8,
+    },
+    challengeTrackRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    challengeTrackChip: {
+      flex: 1,
+      minHeight: 58,
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      borderRadius: Radius.sm,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      backgroundColor: colors.bg,
+      paddingHorizontal: 4,
+      paddingVertical: 8,
+      ...Shadows.sm,
+    },
+    challengeTrackIcon: {
+      width: 24,
+      height: 24,
+      borderRadius: Radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    challengeTrackText: {
+      fontFamily: Fonts.body,
+      fontSize: 11,
+      fontWeight: '800',
+      color: colors.textMuted,
+      textAlign: 'center',
+      width: '100%',
     },
     challengeAttachBtn: {
       height: 46, borderRadius: Radius.md, borderWidth: 1, borderColor: colors.primary,

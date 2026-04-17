@@ -24,15 +24,22 @@ import { getAmaturEvents, type AmaturEvent } from '../services/amatur';
 import { EventDetailSheet } from '../components/EventDetailSheet';
 import { BADGE_TRACKS } from '../lib/badgeChallenges';
 import {
+  requiresOtherPlayer,
   resolveChallengeTitle,
   type ChallengeCategory,
   type DbChallenge,
   type EventChallengeSubmission,
+  useCurrentSelectedChallenge,
   useChallengeChoices,
   useEventChallenges,
 } from '../features/challenges';
 
 type EventTab = 'upcoming' | 'past' | 'mine' | 'amatur';
+
+const TRACK_ROWS = [
+  BADGE_TRACKS.slice(0, 4),
+  BADGE_TRACKS.slice(4, 8),
+];
 
 interface EventSchedulingScreenProps {
   hideTabBar?: boolean;
@@ -67,11 +74,15 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const { colors, isDark } = useTheme();
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const { styles, ms } = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const currentSelectedChallenge = useCurrentSelectedChallenge();
   const eventChallengeTrack = BADGE_TRACKS.find((badge) => badge.id === eventChallengeTrackId) ?? BADGE_TRACKS[0];
+  const currentEventChallenge = currentSelectedChallenge && requiresOtherPlayer(currentSelectedChallenge)
+    ? currentSelectedChallenge
+    : null;
   const {
     choices: eventChallengeChoices,
   } = useChallengeChoices(eventChallengeTrack.category as ChallengeCategory, {
-    enabled: showAddChallenge && !!selectedEvent,
+    enabled: showAddChallenge && !!selectedEvent && !currentEventChallenge,
     onlyOtherPlayer: true,
   });
   const {
@@ -796,42 +807,108 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
 
                       {showAddChallenge && (
                         <View style={styles.eventChallengePicker}>
-                          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.eventChallengeTracks}>
-                            {BADGE_TRACKS.map((track) => {
-                              const active = track.id === eventChallengeTrack.id;
-                              return (
-                                <TouchableOpacity
-                                  key={track.id}
-                                  style={[styles.eventChallengeTrack, active && { borderColor: track.color, backgroundColor: track.paleColor }]}
-                                  onPress={() => setEventChallengeTrackId(track.id)}
-                                >
-                                  <Lucide name={track.icon} size={14} color={active ? track.color : colors.textMuted} />
-                                  <Text style={[styles.eventChallengeTrackText, active && { color: track.color }]}>
-                                    {s(`badgeTrack_${track.id}_short`)}
-                                  </Text>
-                                </TouchableOpacity>
-                              );
-                            })}
-                          </ScrollView>
+                          {currentEventChallenge ? (
+                            <View style={styles.eventChallengeCurrentWrap}>
+                              <View style={styles.eventChallengePickerIntro}>
+                                <View style={styles.eventChallengeIntroIcon}>
+                                  <Lucide name="target" size={15} color={colors.primary} />
+                                </View>
+                                <View style={styles.eventChallengeIntroCopy}>
+                                  <Text style={styles.eventChallengeIntroTitle}>{s('eventCurrentChallengeFromTab')}</Text>
+                                  <Text style={styles.eventChallengeIntroText}>{s('eventCurrentChallengeFromTabDesc')}</Text>
+                                </View>
+                              </View>
+                              <TouchableOpacity
+                                style={[
+                                  styles.eventChallengeChoice,
+                                  styles.eventChallengeChoiceFeatured,
+                                  challengeActionId === currentEventChallenge.id && styles.disabledChallenge,
+                                ]}
+                                disabled={!!challengeActionId}
+                                onPress={() => handleAddChallengeToEvent(currentEventChallenge)}
+                              >
+                                <View style={styles.eventChallengeChoiceTop}>
+                                  <Text style={styles.eventChallengeChoiceTitle}>{challengeTitle(currentEventChallenge)}</Text>
+                                  <View style={styles.eventChallengeChoiceBadge}>
+                                    <Text style={styles.eventChallengeChoiceBadgeText}>
+                                      {s('challengeVerificationOther')}
+                                    </Text>
+                                  </View>
+                                </View>
+                                <Text style={styles.eventChallengeChoiceCta}>
+                                  {challengeActionId === currentEventChallenge.id ? s('loading') : s('eventAttachChallenge')}
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            <>
+                              <View style={styles.eventChallengePickerIntro}>
+                                <View style={styles.eventChallengeIntroIcon}>
+                                  <Lucide name="sparkles" size={15} color={colors.primary} />
+                                </View>
+                                <View style={styles.eventChallengeIntroCopy}>
+                                  <Text style={styles.eventChallengeIntroTitle}>{s('eventChooseChallengeTrack')}</Text>
+                                  <Text style={styles.eventChallengeIntroText}>{s('eventChooseChallengeTrackDesc')}</Text>
+                                </View>
+                              </View>
+                              <View style={styles.eventChallengeTrackGrid}>
+                                {TRACK_ROWS.map((row, rowIndex) => (
+                                  <View key={rowIndex} style={styles.eventChallengeTrackRow}>
+                                    {row.map((track) => {
+                                      const active = track.id === eventChallengeTrack.id;
+                                      return (
+                                        <TouchableOpacity
+                                          key={track.id}
+                                          style={[
+                                            styles.eventChallengeTrack,
+                                            { borderColor: active ? track.color : track.paleColor, backgroundColor: active ? track.paleColor : colors.bg },
+                                          ]}
+                                          onPress={() => setEventChallengeTrackId(track.id)}
+                                        >
+                                          <View style={[styles.eventChallengeTrackIcon, { backgroundColor: track.paleColor }]}>
+                                            <Lucide name={track.icon} size={13} color={track.color} />
+                                          </View>
+                                          <Text
+                                            style={[styles.eventChallengeTrackText, { color: active ? track.color : colors.text }]}
+                                            adjustsFontSizeToFit
+                                            minimumFontScale={0.82}
+                                          >
+                                            {s(`badgeTrack_${track.id}_short`)}
+                                          </Text>
+                                        </TouchableOpacity>
+                                      );
+                                    })}
+                                  </View>
+                                ))}
+                              </View>
 
-                          {eventChallengeChoices.length > 0 ? (
-                            <View style={styles.eventChallengeChoiceList}>
-                              {eventChallengeChoices.map((challenge) => (
+                              {eventChallengeChoices.length > 0 ? (
+                                <View style={styles.eventChallengeChoiceList}>
+                                  {eventChallengeChoices.map((challenge) => (
                                 <TouchableOpacity
                                   key={challenge.id}
                                   style={[styles.eventChallengeChoice, challengeActionId === challenge.id && styles.disabledChallenge]}
                                   disabled={!!challengeActionId}
                                   onPress={() => handleAddChallengeToEvent(challenge)}
                                 >
-                                  <Text style={styles.eventChallengeChoiceTitle}>{challengeTitle(challenge)}</Text>
+                                  <View style={styles.eventChallengeChoiceTop}>
+                                    <Text style={styles.eventChallengeChoiceTitle}>{challengeTitle(challenge)}</Text>
+                                    <View style={styles.eventChallengeChoiceBadge}>
+                                      <Text style={styles.eventChallengeChoiceBadgeText}>
+                                        {s('challengeVerificationOther')}
+                                      </Text>
+                                    </View>
+                                  </View>
                                   <Text style={styles.eventChallengeChoiceCta}>
                                     {challengeActionId === challenge.id ? s('loading') : s('eventAttachChallenge')}
                                   </Text>
                                 </TouchableOpacity>
-                              ))}
-                            </View>
-                          ) : (
-                            <Text style={ms.emptyText}>{s('eventNoOtherChallenges')}</Text>
+                                  ))}
+                                </View>
+                              ) : (
+                                <Text style={ms.emptyText}>{s('eventNoOtherChallenges')}</Text>
+                              )}
+                            </>
                           )}
                         </View>
                       )}
@@ -1521,49 +1598,128 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       color: colors.primary,
     },
     eventChallengePicker: {
-      gap: Spacing.sm,
+      gap: Spacing.md,
       borderRadius: Radius.md,
-      backgroundColor: colors.bgMuted,
+      backgroundColor: colors.bgAlt,
       padding: Spacing.sm,
       marginBottom: Spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      ...Shadows.sm,
     },
-    eventChallengeTracks: {
-      gap: Spacing.xs,
-      paddingRight: Spacing.sm,
-    },
-    eventChallengeTrack: {
+    eventChallengePickerIntro: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: Spacing.sm,
+      borderRadius: Radius.sm,
+      backgroundColor: colors.bgMuted,
+      padding: Spacing.sm,
+    },
+    eventChallengeIntroIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: Radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.bgAlt,
+    },
+    eventChallengeIntroCopy: {
+      flex: 1,
+      gap: 2,
+    },
+    eventChallengeIntroTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.bold,
+      color: colors.text,
+    },
+    eventChallengeIntroText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      color: colors.textMuted,
+      lineHeight: 18,
+    },
+    eventChallengeCurrentWrap: {
+      gap: Spacing.sm,
+    },
+    eventChallengeTrackGrid: {
+      gap: Spacing.xs,
+    },
+    eventChallengeTrackRow: {
+      flexDirection: 'row',
+      gap: Spacing.xs,
+    },
+    eventChallengeTrack: {
+      flex: 1,
+      minHeight: 58,
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
       gap: 5,
       borderRadius: Radius.sm,
       borderWidth: 1,
       borderColor: colors.borderLight,
-      backgroundColor: colors.bgAlt,
-      paddingHorizontal: 9,
-      paddingVertical: 7,
+      backgroundColor: colors.bg,
+      paddingHorizontal: 5,
+      paddingVertical: 8,
+      ...Shadows.sm,
+    },
+    eventChallengeTrackIcon: {
+      width: 24,
+      height: 24,
+      borderRadius: Radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     eventChallengeTrackText: {
       fontFamily: Fonts.body,
-      fontSize: FontSize.sm,
-      fontWeight: FontWeight.semibold,
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.bold,
       color: colors.textMuted,
+      textAlign: 'center',
+      width: '100%',
     },
     eventChallengeChoiceList: {
       gap: Spacing.xs,
     },
     eventChallengeChoice: {
+      overflow: 'hidden',
       borderRadius: Radius.sm,
-      backgroundColor: colors.bgAlt,
+      backgroundColor: colors.bg,
       borderWidth: 1,
       borderColor: colors.borderLight,
-      padding: Spacing.sm,
-      gap: 5,
+      padding: Spacing.md,
+      gap: Spacing.xs,
+    },
+    eventChallengeChoiceFeatured: {
+      borderColor: colors.primary,
+      backgroundColor: colors.bg,
+    },
+    eventChallengeChoiceTop: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: Spacing.sm,
     },
     eventChallengeChoiceTitle: {
+      flex: 1,
       fontFamily: Fonts.heading,
       fontSize: FontSize.lg,
       fontWeight: FontWeight.bold,
       color: colors.text,
+      lineHeight: 21,
+    },
+    eventChallengeChoiceBadge: {
+      borderRadius: Radius.sm,
+      backgroundColor: colors.bgMuted,
+      paddingHorizontal: 7,
+      paddingVertical: 4,
+    },
+    eventChallengeChoiceBadgeText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.bold,
+      color: colors.textMuted,
     },
     eventChallengeChoiceCta: {
       fontFamily: Fonts.body,

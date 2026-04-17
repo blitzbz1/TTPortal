@@ -19,8 +19,10 @@ import {
 } from '../lib/badgeChallenges';
 import {
   completeSelfChallenge,
+  getVisibleChallengeChoices,
   resolveChallengeTitle,
   requiresOtherPlayer,
+  setCurrentSelectedChallenge,
   useBadgeProgress,
   useChallengeChoices,
   type ChallengeCategory,
@@ -146,6 +148,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const activeCategory = activeBadge.category as ChallengeCategory;
   const {
     approvedCompletions,
+    approvedChallengeIds,
     badgeAwards,
     pendingChallengeIds,
     progressByCategory,
@@ -157,11 +160,12 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     refresh: refreshChoices,
   } = useChallengeChoices(activeCategory, { visibleCount: 20 });
   const visibleChallengeChoices = useMemo(
-    () => challengeChoices
-      .filter((challenge) => !pendingChallengeIds.has(challenge.id))
-      .filter((challenge) => !completedSessionChallengeIds.has(challenge.id))
-      .slice(0, 4),
-    [challengeChoices, completedSessionChallengeIds, pendingChallengeIds]
+    () => getVisibleChallengeChoices(
+      challengeChoices,
+      new Set([...pendingChallengeIds, ...approvedChallengeIds]),
+      completedSessionChallengeIds,
+    ),
+    [approvedChallengeIds, challengeChoices, completedSessionChallengeIds, pendingChallengeIds]
   );
   const completedCount = progressByCategory.get(activeCategory)?.completed_count ?? 0;
   const currentAwardTier = getCurrentAwardTier(completedCount);
@@ -226,6 +230,17 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const handleSelectBadge = (badgeId: string) => {
     setActiveBadgeId(badgeId);
     setSelectedChallenge(null);
+    setCurrentSelectedChallenge(null);
+  };
+
+  const handleSelectChallenge = (challenge: DbChallenge) => {
+    setSelectedChallenge(challenge);
+    setCurrentSelectedChallenge(challenge);
+  };
+
+  const handleSwitchChallenge = () => {
+    setSelectedChallenge(null);
+    setCurrentSelectedChallenge(null);
   };
 
   const handleComplete = async () => {
@@ -245,6 +260,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
 
       setCompletedSessionChallengeIds((prev) => new Set(prev).add(completedId));
       setSelectedChallenge(null);
+      setCurrentSelectedChallenge(null);
       await refreshProgress();
       await refreshChoices();
       if (earnedTier && isNewBadgeAward) {
@@ -373,7 +389,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
             </View>
           </View>
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => setSelectedChallenge(null)} activeOpacity={0.86}>
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleSwitchChallenge} activeOpacity={0.86}>
               <Lucide name="refresh-cw" size={16} color={colors.text} />
               <Text style={styles.secondaryButtonText}>{s('challengeSwitch')}</Text>
             </TouchableOpacity>
@@ -418,7 +434,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
             <TouchableOpacity
               key={challenge.id}
               style={styles.challengeCard}
-              onPress={() => setSelectedChallenge(challenge)}
+              onPress={() => handleSelectChallenge(challenge)}
             >
               <View style={[styles.challengeGlow, { backgroundColor: activeBadge.paleColor }]} />
               <View style={styles.challengeCardTop}>

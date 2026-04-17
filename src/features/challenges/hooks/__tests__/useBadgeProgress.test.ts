@@ -23,6 +23,7 @@ function makeCompletion(
   return {
     id: `completion-${category}-${completedAt}`,
     challenge_id: `challenge-${category}`,
+    event_id: null,
     status: 'approved',
     submitted_at: completedAt,
     reviewed_at: null,
@@ -70,6 +71,35 @@ describe('buildMonthlyProgressRows', () => {
       category: 'explorer',
       completed_count: 5,
       badge_level: 'bronze',
+    });
+  });
+
+  it('updates monthly tier progress when an event challenge is confirmed by another player', () => {
+    const rows = buildMonthlyProgressRows(
+      'player-1',
+      [makeStoredProgress('first_attack_burst', 4)],
+      [
+        ...Array.from({ length: 4 }, (_, index) => (
+          makeCompletion('first_attack_burst', `2026-04-${String(index + 3).padStart(2, '0')}T18:00:00.000Z`)
+        )),
+        {
+          ...makeCompletion('first_attack_burst', '2026-04-16T18:15:00.000Z'),
+          id: 'event-confirmed-submission',
+          challenge_id: 'event-challenge-1',
+          event_id: 77,
+          reviewed_at: '2026-04-16T18:20:00.000Z',
+        },
+      ],
+      new Date('2026-04-17T10:00:00.000Z'),
+    );
+
+    const progress = rows.find((row) => row.category === 'first_attack_burst');
+
+    expect(progress).toMatchObject({
+      completed_count: 5,
+      approved_count: 5,
+      badge_level: 'bronze',
+      last_completed_at: '2026-04-16T18:20:00.000Z',
     });
   });
 });

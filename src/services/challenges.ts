@@ -94,6 +94,7 @@ export interface EventChallengeSubmission {
 export interface ApprovedChallengeCompletion {
   id: string;
   challenge_id: string;
+  event_id: number | null;
   status: Extract<SubmissionStatus, 'approved' | 'auto_approved'>;
   submitted_at: string;
   reviewed_at: string | null;
@@ -173,7 +174,7 @@ export async function getUserPendingChallengeSubmissions(userId: string) {
 export async function getUserApprovedChallengeCompletions(userId: string) {
   return supabase
     .from('challenge_submissions')
-    .select('id, challenge_id, status, submitted_at, reviewed_at, challenges(category)')
+    .select('id, challenge_id, event_id, status, submitted_at, reviewed_at, challenges(category)')
     .eq('user_id', userId)
     .in('status', ['approved', 'auto_approved'])
     .order('submitted_at', { ascending: true });
