@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, Modal, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, Modal, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
@@ -96,6 +96,10 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onDismiss}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <Pressable style={styles.overlay} onPress={onDismiss}>
         <Pressable style={[styles.sheet, { paddingBottom: insets.bottom }]} onPress={() => {}}>
           <View style={styles.handleWrap}>
@@ -202,6 +206,7 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
           )}
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

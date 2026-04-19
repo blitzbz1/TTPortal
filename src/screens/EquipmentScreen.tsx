@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Keyboard,
   Modal,
   Pressable,
   ScrollView,
@@ -194,10 +195,25 @@ function SearchableSelect({
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [kbHeight, setKbHeight] = useState(0);
 
   useEffect(() => {
     setQuery(value);
   }, [value]);
+
+  // Track keyboard height so the dropdown positioning can avoid being covered
+  // when the inner TextInput's autoFocus pops the keyboard.
+  useEffect(() => {
+    if (!open) return;
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) =>
+      setKbHeight(e.endCoordinates.height),
+    );
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [open]);
 
   const suggestions = useMemo(() => {
     if (disabled) return [];
@@ -223,9 +239,16 @@ function SearchableSelect({
   };
 
   const windowHeight = Dimensions.get('window').height;
+  // Reserve the keyboard area. Use measured height when available; otherwise a
+  // conservative estimate so the dropdown doesn't flash under the keyboard
+  // before the keyboardDidShow event fires (TextInput below uses autoFocus).
+  const kbReserve = kbHeight > 0 ? kbHeight : 320;
+  const usableBottom = windowHeight - kbReserve;
   const belowTop = anchor.y + anchor.height + 6;
-  const roomBelow = windowHeight - belowTop - Spacing.md;
+  const roomBelow = usableBottom - belowTop - Spacing.md;
   const dropdownMaxHeight = Math.max(150, Math.min(260, roomBelow));
+  // When there isn't room under the anchor (field is near or behind the keyboard),
+  // flip the dropdown above the anchor so it stays visible.
   const dropdownTop = roomBelow >= 150 ? belowTop : Math.max(Spacing.md, anchor.y - 266);
 
   return (

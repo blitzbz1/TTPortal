@@ -63,6 +63,9 @@ export function EventDetailSheet({ visible, onClose, colors, ms, insets, childre
       backgroundStyle={{ backgroundColor: colors.bgAlt }}
       topInset={insets.top}
       maxDynamicContentSize={SCREEN_H * 0.6}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
       style={styles.sheet}
     >
       <BottomSheetScrollView

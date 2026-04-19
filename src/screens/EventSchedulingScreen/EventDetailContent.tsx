@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import MapView, { Marker } from 'react-native-maps';
 import { Lucide } from '../../components/Icon';
 import { useTheme } from '../../hooks/useTheme';
@@ -515,7 +516,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
 
       {ev.organizer_id === user?.id && detailParticipants.length > 0 && (
         <View style={ms.updateInline}>
-          <TextInput
+          <BottomSheetTextInput
             style={ms.updateInlineInput}
             placeholder={s('updatePlaceholder')}
             placeholderTextColor={colors.textFaint}
