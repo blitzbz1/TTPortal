@@ -317,15 +317,19 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
       textAlign: 'center',
       paddingVertical: Spacing.md,
     },
+    challengeSectionHeader: {
+      marginBottom: 10,
+      gap: 8,
+    },
     challengeSectionHint: {
       fontFamily: Fonts.body,
       fontSize: FontSize.sm,
       color: colors.textMuted,
-      maxWidth: 230,
     },
     challengeAddBtn: {
       flexDirection: 'row',
       alignItems: 'center',
+      alignSelf: 'flex-start',
       gap: 5,
       borderRadius: Radius.sm,
       borderWidth: 1,

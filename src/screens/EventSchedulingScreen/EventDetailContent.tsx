@@ -293,11 +293,9 @@ export function EventDetailContent(props: EventDetailContentProps) {
 
       {user && isJoined && ev.status !== 'cancelled' && (
         <View style={ms.section}>
-          <View style={ms.sectionHeader}>
-            <View>
-              <Text style={ms.sectionTitle}>{s('eventChallenges')}</Text>
-              <Text style={styles.challengeSectionHint}>{s('eventChallengesDesc')}</Text>
-            </View>
+          <View style={styles.challengeSectionHeader}>
+            <Text style={ms.sectionTitle}>{s('eventChallenges')}</Text>
+            <Text style={styles.challengeSectionHint}>{s('eventChallengesDesc')}</Text>
             <TouchableOpacity
               style={[styles.challengeAddBtn, userEventChallenge && styles.disabledChallenge]}
               disabled={!!userEventChallenge}
