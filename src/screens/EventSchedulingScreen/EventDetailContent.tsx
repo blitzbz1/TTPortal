@@ -294,23 +294,30 @@ export function EventDetailContent(props: EventDetailContentProps) {
       {user && isJoined && ev.status !== 'cancelled' && (
         <View style={ms.section}>
           <View style={styles.challengeSectionHeader}>
-            <Text style={ms.sectionTitle}>{s('eventChallenges')}</Text>
-            <Text style={styles.challengeSectionHint}>{s('eventChallengesDesc')}</Text>
+            <View style={styles.challengeHeaderLeft}>
+              <Text style={[ms.sectionTitle, styles.challengeHeaderTitle]}>{s('eventChallenges')}</Text>
+              {detailChallenges.length > 0 && (
+                <View style={styles.challengeCountPill}>
+                  <Text style={styles.challengeCountPillText}>{detailChallenges.length}</Text>
+                </View>
+              )}
+            </View>
             <TouchableOpacity
-              style={[styles.challengeAddBtn, userEventChallenge && styles.disabledChallenge]}
+              style={[styles.challengeAddIconBtn, userEventChallenge && styles.disabledChallenge]}
               disabled={!!userEventChallenge}
               onPress={() => setShowAddChallenge((value) => !value)}
+              accessibilityLabel={userEventChallenge
+                ? s('eventChallengeAlreadyAdded')
+                : showAddChallenge
+                  ? s('cancel')
+                  : s('eventAddChallenge')}
             >
-              <Lucide name={showAddChallenge ? 'x' : 'plus'} size={14} color={colors.primary} />
-              <Text style={styles.challengeAddText}>
-                {userEventChallenge
-                  ? s('eventChallengeAlreadyAdded')
-                  : showAddChallenge
-                    ? s('cancel')
-                    : s('eventAddChallenge')}
-              </Text>
+              <Lucide name={showAddChallenge ? 'x' : 'plus'} size={18} color={colors.primary} />
             </TouchableOpacity>
           </View>
+          {detailChallenges.length === 0 && (
+            <Text style={styles.challengeSectionHint}>{s('eventChallengesDesc')}</Text>
+          )}
 
           {showAddChallenge && (
             <View style={styles.eventChallengePicker}>
@@ -467,8 +474,21 @@ export function EventDetailContent(props: EventDetailContentProps) {
                 );
               })}
             </View>
-          ) : (
-            <Text style={ms.emptyText}>{s('eventNoChallenges')}</Text>
+          ) : !showAddChallenge && (
+            <TouchableOpacity
+              style={[styles.challengeEmptyState, userEventChallenge && styles.disabledChallenge]}
+              disabled={!!userEventChallenge}
+              onPress={() => setShowAddChallenge(true)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.challengeEmptyIcon}>
+                <Lucide name="award" size={20} color={colors.primary} />
+              </View>
+              <Text style={styles.challengeEmptyTitle}>{s('eventNoChallenges')}</Text>
+              {!userEventChallenge && (
+                <Text style={styles.challengeEmptyCta}>{s('eventAddChallenge')}</Text>
+              )}
+            </TouchableOpacity>
           )}
         </View>
       )}
