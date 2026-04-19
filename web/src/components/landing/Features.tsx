@@ -1,13 +1,14 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { asset } from "@/lib/asset";
 
 const featureImages: Record<number, { src: string }> = {
-  1: { src: "/screenshots/harta.png" },
-  2: { src: "/screenshots/locatie.png" },
-  3: { src: "/screenshots/evenimente.png" },
-  4: { src: "/screenshots/provocari.png" },
-  6: { src: "/screenshots/echipament.png" },
-  7: { src: "/screenshots/amatur.png" },
+  1: { src: asset("/screenshots/harta.png") },
+  2: { src: asset("/screenshots/locatie.png") },
+  3: { src: asset("/screenshots/evenimente.png") },
+  4: { src: asset("/screenshots/provocari.png") },
+  6: { src: asset("/screenshots/echipament.png") },
+  7: { src: asset("/screenshots/amatur.png") },
 };
 
 // Feature 5 (reviews) has no dedicated screenshot yet, so we skip it in the loop.

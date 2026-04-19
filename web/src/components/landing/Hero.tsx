@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import GetStartedModal from "@/components/GetStartedModal";
+import { asset } from "@/lib/asset";
 
 function BallGlyph({ className = "" }: { className?: string }) {
   return (
@@ -118,7 +119,7 @@ export default function Hero() {
             <div className="absolute left-1/2 top-[14px] z-10 h-[22px] w-[110px] -translate-x-1/2 rounded-full bg-ink-900" />
             <div className="relative h-full w-full overflow-hidden rounded-[34px] bg-ink-900">
               <Image
-                src="/screenshots/harta.png"
+                src={asset("/screenshots/harta.png")}
                 alt={t("appPreview")}
                 fill
                 sizes="320px"
