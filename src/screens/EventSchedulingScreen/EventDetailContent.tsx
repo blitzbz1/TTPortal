@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import MapView, { Marker } from 'react-native-maps';
+import { useRouter } from 'expo-router';
 import { Lucide } from '../../components/Icon';
 import { useTheme } from '../../hooks/useTheme';
 import { useI18n } from '../../hooks/useI18n';
@@ -93,6 +94,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
   } = props;
   const { s, lang } = useI18n();
   const { colors, isDark } = useTheme();
+  const router = useRouter();
   const { styles, ms } = React.useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const isPast = (e: any) =>
@@ -266,7 +268,17 @@ export function EventDetailContent(props: EventDetailContentProps) {
               const isOrganizer = p.user_id === ev.organizer_id;
               const isMe = p.user_id === user?.id;
               return (
-                <View key={p.user_id} style={ms.pHItem}>
+                <TouchableOpacity
+                  key={p.user_id}
+                  style={ms.pHItem}
+                  activeOpacity={0.78}
+                  onPress={() => {
+                    closeDetail();
+                    router.push(`/(protected)/player/${p.user_id}` as any);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={fullName}
+                >
                   <View style={[ms.pAvatar, { backgroundColor: getAvatarColor(p.user_id) }]}>
                     <Text style={ms.pInitials}>{getInitials(fullName)}</Text>
                     {isOrganizer && (
@@ -278,7 +290,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
                   <Text style={ms.pHName} numberOfLines={1}>
                     {isMe ? s('you') : shortName}
                   </Text>
-                </View>
+                </TouchableOpacity>
               );
             })}
             {detailParticipants.length > 30 && (
