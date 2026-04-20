@@ -12,6 +12,7 @@ export { PlayHistoryScreen } from './PlayHistoryScreen';
 export { ForgotPasswordScreen } from './ForgotPasswordScreen';
 export { ConditionVotingScreen } from './ConditionVotingScreen';
 export { EventSchedulingScreen } from './EventSchedulingScreen';
+export { VenueEventsScreen } from './VenueEventsScreen';
 export { LeaderboardsScreen } from './LeaderboardsScreen';
 export { AdminModerationScreen } from './AdminModerationScreen';
 export { FavoritesScreen } from './FavoritesScreen';

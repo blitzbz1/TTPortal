@@ -51,6 +51,42 @@ export async function getEvents(
   return result;
 }
 
+export async function getUpcomingEventsByVenue(venueId: number) {
+  const now = new Date().toISOString();
+  const result = await supabase
+    .from('events')
+    .select('*, venues(name, city, lat, lng), event_participants(user_id)')
+    .eq('venue_id', venueId)
+    .gte('starts_at', now)
+    .neq('status', 'cancelled')
+    .order('starts_at', { ascending: true })
+    .limit(50);
+
+  if (result.error || !result.data?.length) return result;
+
+  const allUserIds = new Set<string>();
+  for (const event of result.data) {
+    for (const p of (event as any).event_participants ?? []) {
+      allUserIds.add(p.user_id);
+    }
+  }
+  if (allUserIds.size > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', Array.from(allUserIds));
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+    for (const event of result.data) {
+      (event as any).event_participants = ((event as any).event_participants ?? []).map((p: any) => ({
+        ...p,
+        profiles: profileMap.get(p.user_id) ?? null,
+      }));
+    }
+  }
+
+  return result;
+}
+
 export async function getEventById(eventId: number) {
   return supabase
     .from('events')

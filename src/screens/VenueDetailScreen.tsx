@@ -14,6 +14,7 @@ import { getProfile } from '../services/profiles';
 import * as ImagePicker from 'expo-image-picker';
 import { getReviewsForVenue } from '../services/reviews';
 import { checkin, checkout, getUserActiveCheckin, getUserAnyActiveCheckin, getActiveFriendCheckins, getVenueChampion } from '../services/checkins';
+import { getUpcomingEventsByVenue } from '../services/events';
 import { getFriendIds } from '../services/friends';
 import { isFavorite, addFavorite, removeFavorite } from '../services/favorites';
 import type { Venue, Review, VenueStats } from '../types/database';
@@ -68,6 +69,7 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [successSheetVisible, setSuccessSheetVisible] = useState(false);
   const [lastCheckinEndTime, setLastCheckinEndTime] = useState<string | undefined>();
   const [champion, setChampion] = useState<{ userId: string; fullName: string; dayCount: number } | null>(null);
+  const [upcomingEventCount, setUpcomingEventCount] = useState(0);
 
   const heartScale = useRef(new Animated.Value(1)).current;
 
@@ -134,6 +136,12 @@ export function VenueDetailScreen({ venueId }: Props) {
       try {
         const { data: champ } = await getVenueChampion(Number(venueId));
         if (!cancelled) setChampion(champ);
+      } catch {}
+
+      // Load upcoming-events count for this venue
+      try {
+        const { data: evs } = await getUpcomingEventsByVenue(Number(venueId));
+        if (!cancelled) setUpcomingEventCount(evs?.length ?? 0);
       } catch {}
 
       setLoading(false);
@@ -586,6 +594,26 @@ export function VenueDetailScreen({ venueId }: Props) {
               )}
             </TouchableOpacity>
           )}
+        </View>
+
+        {/* Venue Links */}
+        <View style={styles.navSection}>
+          <TouchableOpacity
+            style={[styles.navRow, styles.navRowLast]}
+            onPress={() => router.push(`/(protected)/venue-events/${venueId}` as any)}
+            testID="venue-events-nav"
+          >
+            <View style={[styles.navIcon, { backgroundColor: colors.amberPale }]}>
+              <Lucide name="calendar" size={18} color={colors.accent} />
+            </View>
+            <Text style={styles.navLabel}>{s('eventsAtVenue')}</Text>
+            {upcomingEventCount > 0 && (
+              <View style={styles.navCountPill}>
+                <Text style={styles.navCountText}>{upcomingEventCount}</Text>
+              </View>
+            )}
+            <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+          </TouchableOpacity>
         </View>
 
         {/* Directions */}
