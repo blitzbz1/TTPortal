@@ -224,6 +224,8 @@
   "noEventsAtVenueDesc": "Nu există evenimente viitoare la această locație.",
   "logHoursTitle": "Înregistrează orele jucate",
   "logHours": "Înregistrează orele",
+  "closeEvent": "Închide evenimentul",
+  "closeEventConfirm": "Ești sigur că vrei să închizi acest eveniment acum?",
   "confirmed": "Confirmat",
   "tournament": "Turneu",
   "open": "Deschis",

@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../../components/Icon';
 import { useTheme } from '../../hooks/useTheme';
 import { useI18n } from '../../hooks/useI18n';
-import { cancelEvent, stopRecurrence, sendEventUpdate } from '../../services/events';
+import { cancelEvent, closeEvent, stopRecurrence, sendEventUpdate } from '../../services/events';
 import { BADGE_TRACKS } from '../../lib/badgeChallenges';
 import type { DbChallenge, EventChallengeSubmission } from '../../features/challenges';
 import { createStyles } from '../EventSchedulingScreen.styles';
@@ -616,6 +616,35 @@ export function EventDetailContent(props: EventDetailContentProps) {
             <Text style={[ms.actionText, ms.actionInviteText]}>
               {s('inviteToEvent')}
             </Text>
+          </TouchableOpacity>
+        )}
+        {!isPast(ev) && ev.organizer_id === user?.id && (
+          <TouchableOpacity
+            style={[ms.actionBtn, ms.actionJoin]}
+            onPress={() => {
+              Alert.alert(
+                s('closeEvent'),
+                s('closeEventConfirm'),
+                [
+                  { text: s('cancel'), style: 'cancel' },
+                  {
+                    text: s('closeEvent'),
+                    onPress: async () => {
+                      const { error } = await closeEvent(ev.id, user!.id);
+                      if (error) {
+                        Alert.alert(s('error'), error.message);
+                      } else {
+                        closeDetail();
+                        fetchEvents();
+                      }
+                    },
+                  },
+                ],
+              );
+            }}
+          >
+            <Lucide name="check-circle" size={16} color={colors.textOnPrimary} />
+            <Text style={[ms.actionText, ms.actionJoinText]}>{s('closeEvent')}</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity style={ms.closeBtn} onPress={closeDetail}>

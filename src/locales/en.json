@@ -229,6 +229,8 @@
   "noEventsAtVenueDesc": "There are no upcoming events at this venue.",
   "logHoursTitle": "Log hours played",
   "logHours": "Log hours",
+  "closeEvent": "Close event",
+  "closeEventConfirm": "Are you sure you want to close this event now?",
   "confirmed": "Confirmed",
   "tournament": "Tournament",
   "open": "Open",

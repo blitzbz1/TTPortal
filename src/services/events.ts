@@ -16,7 +16,7 @@ export async function getEvents(
     );
 
   if (filter === 'upcoming') {
-    query = query.gte('starts_at', now).neq('status', 'cancelled');
+    query = query.gte('starts_at', now).not('status', 'in', '(cancelled,completed)');
   } else if (filter === 'past') {
     query = query.lt('starts_at', now);
     if (userId) query = query.eq('ep_filter.user_id', userId);
@@ -58,7 +58,7 @@ export async function getUpcomingEventsByVenue(venueId: number) {
     .select('*, venues(name, city, lat, lng), event_participants(user_id, hours_played)')
     .eq('venue_id', venueId)
     .gte('starts_at', now)
-    .neq('status', 'cancelled')
+    .not('status', 'in', '(cancelled,completed)')
     .order('starts_at', { ascending: true })
     .limit(50);
 
@@ -154,6 +154,16 @@ export async function stopRecurrence(eventId: number, organizerId: string) {
   return supabase
     .from('events')
     .update({ recurrence_rule: null, recurrence_day: null })
+    .eq('id', eventId)
+    .eq('organizer_id', organizerId)
+    .select()
+    .single();
+}
+
+export async function closeEvent(eventId: number, organizerId: string) {
+  return supabase
+    .from('events')
+    .update({ status: 'completed', ends_at: new Date().toISOString() })
     .eq('id', eventId)
     .eq('organizer_id', organizerId)
     .select()
