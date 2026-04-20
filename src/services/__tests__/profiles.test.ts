@@ -7,22 +7,14 @@ jest.mock('expo-sqlite', () => ({
 }));
 
 function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
-  const result = { data: resolvedData, error: resolvedError, count: null as number | null };
+  const result = { data: resolvedData, error: resolvedError };
   const chain: any = {
-    select: jest.fn((_sel?: string, opts?: { count?: string; head?: boolean }) => {
-      if (opts?.count === 'exact') {
-        // For count queries, the count comes from the response
-        return chain;
-      }
-      return chain;
-    }),
+    select: jest.fn(() => chain),
     eq: jest.fn(() => chain),
     maybeSingle: jest.fn(() => Promise.resolve(result)),
     single: jest.fn(() => Promise.resolve(result)),
     then: (resolve: any) => Promise.resolve(result).then(resolve),
   };
-  // Allow setting count externally
-  chain._setCount = (c: number) => { result.count = c; };
   return chain;
 }
 
@@ -31,7 +23,7 @@ jest.mock('../../lib/supabase', () => ({
   supabase: { from: (...args: any[]) => mockFrom(...args) },
 }));
 
- 
+
 import { getProfileStats } from '../profiles';
 
 describe('getProfileStats', () => {
@@ -39,13 +31,9 @@ describe('getProfileStats', () => {
 
   it('returns checkins and events count', async () => {
     const checkinsChain = createQueryChain({ total_checkins: 15, unique_venues: 8 });
-    const eventsChain = createQueryChain(null);
-    // Simulate count response
-    const eventsResult = { data: null, error: null, count: 5 };
-    eventsChain.eq = jest.fn(() => ({
-      ...eventsChain,
-      then: (resolve: any) => Promise.resolve(eventsResult).then(resolve),
-    }));
+    const eventsChain = createQueryChain([
+      { hours_played: 0 }, { hours_played: 0 }, { hours_played: 0 }, { hours_played: 0 }, { hours_played: 0 },
+    ]);
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'leaderboard_checkins') return checkinsChain;
@@ -66,11 +54,7 @@ describe('getProfileStats', () => {
 
   it('queries correct tables with user ID', async () => {
     const checkinsChain = createQueryChain(null);
-    const eventsChain = createQueryChain(null);
-    eventsChain.eq = jest.fn(() => ({
-      ...eventsChain,
-      then: (resolve: any) => Promise.resolve({ data: null, error: null, count: 0 }).then(resolve),
-    }));
+    const eventsChain = createQueryChain([]);
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'leaderboard_checkins') return checkinsChain;
@@ -86,13 +70,9 @@ describe('getProfileStats', () => {
     expect(eventsChain.eq).toHaveBeenCalledWith('user_id', 'user-42');
   });
 
-  it('defaults to zero when no checkin data exists', async () => {
+  it('defaults to zero when no checkin or event data exists', async () => {
     const checkinsChain = createQueryChain(null);
-    const eventsChain = createQueryChain(null);
-    eventsChain.eq = jest.fn(() => ({
-      ...eventsChain,
-      then: (resolve: any) => Promise.resolve({ data: null, error: null, count: null }).then(resolve),
-    }));
+    const eventsChain = createQueryChain([]);
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'leaderboard_checkins') return checkinsChain;
@@ -112,11 +92,7 @@ describe('getProfileStats', () => {
 
   it('reports error when checkins query fails', async () => {
     const checkinsChain = createQueryChain(null, { message: 'db error' });
-    const eventsChain = createQueryChain(null);
-    eventsChain.eq = jest.fn(() => ({
-      ...eventsChain,
-      then: (resolve: any) => Promise.resolve({ data: null, error: null, count: 0 }).then(resolve),
-    }));
+    const eventsChain = createQueryChain([]);
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'leaderboard_checkins') return checkinsChain;
@@ -129,30 +105,23 @@ describe('getProfileStats', () => {
     expect(error).toEqual({ message: 'db error' });
   });
 
-  it('sums hours_played from event_feedback', async () => {
+  it('sums hours_played from event_participants', async () => {
     const checkinsChain = createQueryChain({ total_checkins: 3, unique_venues: 2 });
-    const eventsChain = createQueryChain(null);
-    eventsChain.eq = jest.fn(() => ({
-      ...eventsChain,
-      then: (resolve: any) => Promise.resolve({ data: null, error: null, count: 4 }).then(resolve),
-    }));
-    const feedbackChain = createQueryChain([
+    const eventsChain = createQueryChain([
       { hours_played: 1.5 },
       { hours_played: 2 },
       { hours_played: 0.5 },
+      { hours_played: 0 },
     ]);
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'leaderboard_checkins') return checkinsChain;
       if (table === 'event_participants') return eventsChain;
-      if (table === 'event_feedback') return feedbackChain;
       return createQueryChain();
     });
 
     const { data } = await getProfileStats('user-1');
 
-    expect(mockFrom).toHaveBeenCalledWith('event_feedback');
-    expect(feedbackChain.eq).toHaveBeenCalledWith('user_id', 'user-1');
     expect(data).toEqual({
       total_checkins: 3,
       unique_venues: 2,
@@ -163,12 +132,7 @@ describe('getProfileStats', () => {
 
   it('coerces non-numeric / null hours_played to zero', async () => {
     const checkinsChain = createQueryChain(null);
-    const eventsChain = createQueryChain(null);
-    eventsChain.eq = jest.fn(() => ({
-      ...eventsChain,
-      then: (resolve: any) => Promise.resolve({ data: null, error: null, count: 0 }).then(resolve),
-    }));
-    const feedbackChain = createQueryChain([
+    const eventsChain = createQueryChain([
       { hours_played: null },
       { hours_played: 'oops' },
       { hours_played: 2 },
@@ -177,7 +141,6 @@ describe('getProfileStats', () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'leaderboard_checkins') return checkinsChain;
       if (table === 'event_participants') return eventsChain;
-      if (table === 'event_feedback') return feedbackChain;
       return createQueryChain();
     });
 
@@ -188,11 +151,7 @@ describe('getProfileStats', () => {
 
   it('reports error when events query fails', async () => {
     const checkinsChain = createQueryChain({ total_checkins: 5, unique_venues: 3 });
-    const eventsChain = createQueryChain(null);
-    eventsChain.eq = jest.fn(() => ({
-      ...eventsChain,
-      then: (resolve: any) => Promise.resolve({ data: null, error: { message: 'events error' }, count: null }).then(resolve),
-    }));
+    const eventsChain = createQueryChain(null, { message: 'events error' });
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'leaderboard_checkins') return checkinsChain;

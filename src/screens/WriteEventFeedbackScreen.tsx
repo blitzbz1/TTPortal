@@ -12,8 +12,6 @@ import { createEventFeedback, getUserEventFeedback } from '../services/eventFeed
 import { safeErrorMessage } from '../lib/auth-utils';
 import { hapticLight, hapticSuccess } from '../lib/haptics';
 
-const HOUR_PRESETS = [1, 1.5, 2, 3];
-
 interface Props {
   visible: boolean;
   eventId: number | null;
@@ -28,7 +26,6 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [rating, setRating] = useState(4);
-  const [hoursPlayed, setHoursPlayed] = useState('');
   const [reviewText, setReviewText] = useState('');
   const [eventTitle, setEventTitle] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,9 +35,7 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
     if (!visible || !eventId) return;
     let cancelled = false;
 
-    // Reset form on open
     setRating(4);
-    setHoursPlayed('');
     setReviewText('');
     setAlreadySubmitted(false);
     setEventTitle('');
@@ -64,8 +59,7 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
   }, [visible, eventId, user]);
 
   const handleSubmit = useCallback(async () => {
-    const hours = parseFloat(hoursPlayed);
-    if (rating < 1 || isNaN(hours) || hours <= 0) {
+    if (rating < 1) {
       Alert.alert(s('error'), s('feedbackRequired'));
       return;
     }
@@ -77,7 +71,6 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
       user_id: user.id,
       reviewer_name: user?.user_metadata?.full_name || null,
       rating,
-      hours_played: hours,
       body: reviewText.trim() || null,
     });
     setLoading(false);
@@ -90,7 +83,7 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
     hapticSuccess();
     Alert.alert(s('success'), s('feedbackSubmitted'));
     onDismiss();
-  }, [rating, hoursPlayed, reviewText, user, eventId, onDismiss, s]);
+  }, [rating, reviewText, user, eventId, onDismiss, s]);
 
   if (!visible) return null;
 
@@ -106,7 +99,6 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
             <View style={styles.handleBar} />
           </View>
 
-          {/* Header */}
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>{s('eventFeedbackTitle')}</Text>
             <TouchableOpacity style={styles.closeBtn} onPress={onDismiss}>
@@ -114,7 +106,6 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
             </TouchableOpacity>
           </View>
 
-          {/* Event Name */}
           <View style={styles.eventName}>
             <Lucide name="calendar" size={14} color={colors.textFaint} />
             <Text style={styles.eventNameText} numberOfLines={1}>{eventTitle || s('loading')}</Text>
@@ -128,7 +119,6 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
           ) : (
             <>
               <ScrollView style={styles.formScroll} keyboardShouldPersistTaps="handled">
-                {/* Rating */}
                 <View style={styles.field}>
                   <Text style={styles.fieldLabel}>{s('fieldRating')}</Text>
                   <View style={styles.starsRow}>
@@ -146,34 +136,6 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
                   </View>
                 </View>
 
-                {/* Hours Played */}
-                <View style={styles.field}>
-                  <Text style={styles.fieldLabel}>{s('hoursPlayed')}</Text>
-                  <TextInput
-                    style={styles.hoursInput}
-                    placeholder={s('hoursPlayedPlaceholder')}
-                    placeholderTextColor={colors.textFaint}
-                    value={hoursPlayed}
-                    onChangeText={setHoursPlayed}
-                    keyboardType="decimal-pad"
-                    maxLength={4}
-                  />
-                  <View style={styles.presetsRow}>
-                    {HOUR_PRESETS.map((h) => (
-                      <TouchableOpacity
-                        key={h}
-                        style={[styles.presetChip, hoursPlayed === String(h) && styles.presetChipActive]}
-                        onPress={() => { hapticLight(); setHoursPlayed(String(h)); }}
-                      >
-                        <Text style={[styles.presetText, hoursPlayed === String(h) && styles.presetTextActive]}>
-                          {h}h
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Review Text */}
                 <View style={styles.field}>
                   <Text style={styles.fieldLabel}>{s('feedbackReview')}</Text>
                   <TextInput
@@ -189,7 +151,6 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
                 </View>
               </ScrollView>
 
-              {/* Actions pinned at bottom */}
               <View style={styles.actions}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={onDismiss}>
                   <Text style={styles.cancelText}>{s('cancel')}</Text>
@@ -249,18 +210,6 @@ function createStyles(colors: ThemeColors) {
     starText: { fontSize: FontSize.xl },
     starTextActive: { color: colors.textOnPrimary },
     starTextInactive: { color: colors.textFaint },
-    hoursInput: {
-      backgroundColor: colors.bg, borderRadius: 8, height: 42, paddingHorizontal: 12,
-      borderWidth: 1, borderColor: colors.border, fontFamily: Fonts.body, fontSize: FontSize.md, color: colors.text,
-    },
-    presetsRow: { flexDirection: 'row', gap: Spacing.xs, marginTop: 4 },
-    presetChip: {
-      paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: 16,
-      backgroundColor: colors.bgMuted, borderWidth: 1, borderColor: 'transparent',
-    },
-    presetChipActive: { backgroundColor: colors.primaryPale, borderColor: colors.primaryDim },
-    presetText: { fontFamily: Fonts.body, fontSize: FontSize.md, color: colors.textMuted },
-    presetTextActive: { color: colors.primaryMid, fontWeight: FontWeight.semibold },
     textarea: { backgroundColor: colors.bg, borderRadius: 8, height: 80, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: colors.border },
     textareaInput: { fontFamily: Fonts.body, fontSize: FontSize.md, color: colors.text, textAlignVertical: 'top' },
     actions: { flexDirection: 'row', gap: Spacing.sm, paddingTop: Spacing.sm, paddingBottom: Spacing.xs, paddingHorizontal: Spacing.lg },

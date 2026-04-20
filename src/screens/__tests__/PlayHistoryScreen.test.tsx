@@ -105,12 +105,8 @@ const mockCheckins = [
 ];
 
 const mockEventParticipations = [
-  { event_id: 10, events: { venue_id: 5, starts_at: todayStr, title: 'Tournament', venues: { name: 'Arena X' } } },
-  { event_id: 11, events: { venue_id: 6, starts_at: lastMonthStr, title: 'Casual', venues: { name: 'Park Y' } } },
-];
-
-const mockFeedback = [
-  { event_id: 10, hours_played: '2.5', created_at: todayStr, events: { venue_id: 5 } },
+  { event_id: 10, hours_played: '2.5', events: { venue_id: 5, starts_at: todayStr, title: 'Tournament', venues: { name: 'Arena X' } } },
+  { event_id: 11, hours_played: 0, events: { venue_id: 6, starts_at: lastMonthStr, title: 'Casual', venues: { name: 'Park Y' } } },
 ];
 
 function setupMocks() {
@@ -121,7 +117,6 @@ function setupMocks() {
   mockGetPlayHistory.mockResolvedValue({ data: mockCheckins.map((c, i) => ({ ...c, id: i + 1 })) });
 
   mockSupabaseFrom.mockImplementation((table: string) => {
-    if (table === 'event_feedback') return createQueryChain(mockFeedback);
     if (table === 'checkins') return createQueryChain(mockCheckins);
     if (table === 'event_participants') return createQueryChain(mockEventParticipations);
     return createQueryChain();
@@ -160,17 +155,17 @@ describe('PlayHistoryScreen', () => {
     });
   });
 
-  it('renders hours-in-events stat summed from event_feedback within the active period', async () => {
+  it('renders hours-in-events stat summed from event_participants within the active period', async () => {
     mockUseSession.mockReturnValue({
       user: { id: 'u-1', user_metadata: { full_name: 'Test User' } },
     });
     mockGetPlayHistory.mockResolvedValue({ data: [] });
     mockSupabaseFrom.mockImplementation((table: string) => {
-      if (table === 'event_feedback') {
+      if (table === 'event_participants') {
         return createQueryChain([
-          { event_id: 1, hours_played: '1.5', created_at: todayStr, events: { venue_id: 5 } },
-          { event_id: 2, hours_played: '0.75', created_at: yesterdayStr, events: { venue_id: 5 } },
-          { event_id: 3, hours_played: '10', created_at: lastMonthStr, events: { venue_id: 5 } },
+          { event_id: 1, hours_played: '1.5', events: { venue_id: 5, starts_at: todayStr } },
+          { event_id: 2, hours_played: '0.75', events: { venue_id: 5, starts_at: yesterdayStr } },
+          { event_id: 3, hours_played: '10', events: { venue_id: 5, starts_at: lastMonthStr } },
         ]);
       }
       return createQueryChain();
@@ -192,9 +187,9 @@ describe('PlayHistoryScreen', () => {
     });
     mockGetPlayHistory.mockResolvedValue({ data: [] });
     mockSupabaseFrom.mockImplementation((table: string) => {
-      if (table === 'event_feedback') {
+      if (table === 'event_participants') {
         return createQueryChain([
-          { event_id: 1, hours_played: '0.5', created_at: todayStr, events: { venue_id: 5 } },
+          { event_id: 1, hours_played: '0.5', events: { venue_id: 5, starts_at: todayStr } },
         ]);
       }
       return createQueryChain();
@@ -304,13 +299,12 @@ describe('PlayHistoryScreen', () => {
 
   // ── Data fetching ──
 
-  it('fetches play history, feedback, checkins, and event participations', async () => {
+  it('fetches play history, checkins, and event participations', async () => {
     setupMocks();
     render(<PlayHistoryScreen />);
 
     await waitFor(() => {
       expect(mockGetPlayHistory).toHaveBeenCalledWith('u-1', 20, 0);
-      expect(mockSupabaseFrom).toHaveBeenCalledWith('event_feedback');
       expect(mockSupabaseFrom).toHaveBeenCalledWith('checkins');
       expect(mockSupabaseFrom).toHaveBeenCalledWith('event_participants');
     });

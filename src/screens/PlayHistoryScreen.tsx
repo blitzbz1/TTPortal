@@ -52,7 +52,7 @@ export function PlayHistoryScreen() {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [period, setPeriod] = useState<'week' | 'month' | 'year' | 'all'>('week');
-  const [eventFeedback, setEventFeedback] = useState<{ hours_played: number; created_at: string; venue_id: number | null }[]>([]);
+  const [eventHours, setEventHours] = useState<{ hours_played: number; starts_at: string; venue_id: number | null }[]>([]);
   const [calMonthOffset, setCalMonthOffset] = useState(0);
   const [selectedDay, setSelectedDay] = useState<string | null>(new Date().toDateString());
   const [allCheckins, setAllCheckins] = useState<{ venue_id: number; venue_name: string; started_at: string; ended_at: string | null }[]>([]);
@@ -67,24 +67,27 @@ export function PlayHistoryScreen() {
     if (!user) return;
     setLoading(true);
     try {
-      const [historyRes, fbRes, allCheckinsRes, eventParticipationsRes] = await Promise.all([
+      const [historyRes, allCheckinsRes, eventParticipationsRes] = await Promise.all([
         getPlayHistory(user.id, PAGE_SIZE, 0),
-        supabase.from('event_feedback').select('hours_played, created_at, event_id, events(venue_id)').eq('user_id', user.id),
         supabase.from('checkins').select('venue_id, started_at, ended_at, venues(name)').eq('user_id', user.id),
-        supabase.from('event_participants').select('event_id, events(venue_id, starts_at, title, venues(name))').eq('user_id', user.id),
+        supabase.from('event_participants').select('event_id, hours_played, events(venue_id, starts_at, title, venues(name))').eq('user_id', user.id),
       ]);
-      setEventFeedback((fbRes.data ?? []).map((f: any) => ({ hours_played: Number(f.hours_played), created_at: f.created_at, venue_id: f.events?.venue_id ?? null })));
       setAllCheckins((allCheckinsRes.data ?? []).map((c: any) => ({ venue_id: c.venue_id, venue_name: c.venues?.name ?? '', started_at: c.started_at, ended_at: c.ended_at })));
 
-      // Build event venues with feedback hours merged
-      const fbMap = new Map<number, number>();
-      for (const f of fbRes.data ?? []) fbMap.set(f.event_id, Number(f.hours_played));
-      setEventVenues((eventParticipationsRes.data ?? []).map((ep: any) => ({
+      const participants = eventParticipationsRes.data ?? [];
+      setEventHours(participants
+        .map((ep: any) => ({
+          hours_played: Number(ep.hours_played ?? 0),
+          starts_at: ep.events?.starts_at,
+          venue_id: ep.events?.venue_id ?? null,
+        }))
+        .filter((r: any) => r.starts_at && r.hours_played > 0));
+      setEventVenues(participants.map((ep: any) => ({
         venue_id: ep.events?.venue_id,
         venue_name: ep.events?.venues?.name ?? ep.events?.title ?? '',
         event_title: ep.events?.title ?? '',
         starts_at: ep.events?.starts_at,
-        hours_played: fbMap.get(ep.event_id) ?? null,
+        hours_played: Number(ep.hours_played ?? 0) > 0 ? Number(ep.hours_played) : null,
       })).filter((v: any) => v.venue_id));
       if (historyRes.data) {
         setHistory(historyRes.data);
@@ -200,8 +203,8 @@ export function PlayHistoryScreen() {
 
   const computeEventHours = () => {
     const start = getPeriodStart();
-    return eventFeedback
-      .filter((f) => new Date(f.created_at) >= start)
+    return eventHours
+      .filter((f) => new Date(f.starts_at) >= start)
       .reduce((sum, f) => sum + f.hours_played, 0);
   };
 

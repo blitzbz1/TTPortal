@@ -210,7 +210,7 @@ describe('getEventById', () => {
 
     expect(mockFrom).toHaveBeenCalledWith('events');
     expect(chain.select).toHaveBeenCalledWith(
-      '*, venues(name, city, lat, lng), event_participants(user_id)',
+      '*, venues(name, city, lat, lng), event_participants(user_id, hours_played)',
     );
     expect(chain.eq).toHaveBeenCalledWith('id', 42);
     expect(chain.maybeSingle).toHaveBeenCalled();

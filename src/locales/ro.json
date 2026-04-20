@@ -222,6 +222,8 @@
   "eventsAtVenue": "Evenimente",
   "noEventsAtVenueTitle": "Niciun eveniment programat",
   "noEventsAtVenueDesc": "Nu există evenimente viitoare la această locație.",
+  "logHoursTitle": "Înregistrează orele jucate",
+  "logHours": "Înregistrează orele",
   "confirmed": "Confirmat",
   "tournament": "Turneu",
   "open": "Deschis",

@@ -34,7 +34,7 @@ describe('eventFeedback service', () => {
 
   describe('createEventFeedback', () => {
     it('inserts feedback and returns single result', async () => {
-      const mockResult = { id: 1, event_id: 5, user_id: 'u-1', rating: 5, hours_played: 2.5, body: 'Great!' };
+      const mockResult = { id: 1, event_id: 5, user_id: 'u-1', rating: 5, body: 'Great!' };
       const chain = createQueryChain(mockResult);
       mockFrom.mockReturnValue(chain);
 
@@ -43,7 +43,6 @@ describe('eventFeedback service', () => {
         user_id: 'u-1',
         reviewer_name: 'John',
         rating: 5,
-        hours_played: 2.5,
         body: 'Great!',
       };
 
@@ -66,7 +65,6 @@ describe('eventFeedback service', () => {
         user_id: 'u-1',
         reviewer_name: 'John',
         rating: 4,
-        hours_played: 1,
         body: null,
       });
 
@@ -83,7 +81,6 @@ describe('eventFeedback service', () => {
         user_id: 'u-2',
         reviewer_name: null,
         rating: 3,
-        hours_played: 1.5,
         body: null,
       });
 
@@ -98,8 +95,8 @@ describe('eventFeedback service', () => {
   describe('getEventFeedback', () => {
     it('fetches all feedback for an event ordered by created_at desc', async () => {
       const mockFeedback = [
-        { id: 2, event_id: 5, rating: 5, hours_played: 3 },
-        { id: 1, event_id: 5, rating: 4, hours_played: 2 },
+        { id: 2, event_id: 5, rating: 5 },
+        { id: 1, event_id: 5, rating: 4 },
       ];
       const chain = createQueryChain(mockFeedback);
       mockFrom.mockReturnValue(chain);
@@ -108,7 +105,7 @@ describe('eventFeedback service', () => {
 
       expect(mockFrom).toHaveBeenCalledWith('event_feedback');
       expect(chain.select).toHaveBeenCalledWith(
-        'id, event_id, user_id, reviewer_name, rating, hours_played, body, created_at',
+        'id, event_id, user_id, reviewer_name, rating, body, created_at',
       );
       expect(chain.eq).toHaveBeenCalledWith('event_id', 5);
       expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: false });

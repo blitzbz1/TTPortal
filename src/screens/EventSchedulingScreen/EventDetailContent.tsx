@@ -75,6 +75,7 @@ export interface EventDetailContentProps {
   challengeTitle: (challenge: any) => string;
   closeDetail: () => void;
   setFeedbackEventId: (id: number) => void;
+  setLogHoursEvent: (v: { id: number; title: string; initialHours: number } | null) => void;
   setInviteModalVisible: (v: boolean) => void;
   fetchEvents: () => void;
 }
@@ -90,7 +91,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
     updateText, setUpdateText, sendingUpdate, setSendingUpdate,
     formatDate, formatTime, isEffectivelyOver,
     onAddChallenge, onAwardChallenge, onJoin, challengeTitle,
-    closeDetail, setFeedbackEventId, setInviteModalVisible, fetchEvents,
+    closeDetail, setFeedbackEventId, setLogHoursEvent, setInviteModalVisible, fetchEvents,
   } = props;
   const { s, lang } = useI18n();
   const { colors, isDark } = useTheme();
@@ -518,7 +519,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
             <View key={fb.id} style={ms.feedbackCard}>
               <View style={ms.feedbackHeader}>
                 <Text style={ms.feedbackName}>{fb.reviewer_name || s('anon')}</Text>
-                <Text style={ms.feedbackRating}>{fb.rating}{'\u2605'} · {Number(fb.hours_played)}h</Text>
+                <Text style={ms.feedbackRating}>{fb.rating}{'\u2605'}</Text>
               </View>
               {fb.body ? <Text style={ms.feedbackBody}>{fb.body}</Text> : null}
             </View>
@@ -560,15 +561,37 @@ export function EventDetailContent(props: EventDetailContentProps) {
       )}
 
       <View style={ms.actions}>
-        {isPast(ev) && ev.status !== 'cancelled' && isJoined && ev.organizer_id !== user?.id && !feedbackGivenIds.has(ev.id) && (
-          <TouchableOpacity
-            style={[ms.actionBtn, ms.actionJoin]}
-            onPress={() => { closeDetail(); setFeedbackEventId(ev.id); }}
-          >
-            <Lucide name="message-square" size={16} color={colors.textOnPrimary} />
-            <Text style={[ms.actionText, ms.actionJoinText]}>{s('giveFeedback')}</Text>
-          </TouchableOpacity>
-        )}
+        {(() => {
+          if (!isPast(ev) || ev.status === 'cancelled') return null;
+          const myRow = (ev.event_participants ?? []).find((p: any) => p.user_id === user?.id);
+          const canInteract = !!myRow || ev.organizer_id === user?.id;
+          if (!canInteract) return null;
+          const loggedHours = Number(myRow?.hours_played ?? 0);
+          const hasLoggedHours = loggedHours > 0;
+          const hasGivenFeedback = feedbackGivenIds.has(ev.id);
+          return (
+            <>
+              {!hasLoggedHours && (
+                <TouchableOpacity
+                  style={[ms.actionBtn, ms.actionJoin]}
+                  onPress={() => { closeDetail(); setLogHoursEvent({ id: ev.id, title: ev.title ?? '', initialHours: loggedHours }); }}
+                >
+                  <Lucide name="clock" size={16} color={colors.textOnPrimary} />
+                  <Text style={[ms.actionText, ms.actionJoinText]}>{s('logHours')}</Text>
+                </TouchableOpacity>
+              )}
+              {ev.organizer_id !== user?.id && !hasGivenFeedback && (
+                <TouchableOpacity
+                  style={[ms.actionBtn, ms.actionJoin]}
+                  onPress={() => { closeDetail(); setFeedbackEventId(ev.id); }}
+                >
+                  <Lucide name="message-square" size={16} color={colors.textOnPrimary} />
+                  <Text style={[ms.actionText, ms.actionJoinText]}>{s('giveFeedback')}</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          );
+        })()}
         {!isPast(ev) && ev.organizer_id !== user?.id && (
           <TouchableOpacity
             style={[ms.actionBtn, isJoined ? ms.actionLeave : ms.actionJoin]}

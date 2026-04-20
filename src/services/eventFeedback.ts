@@ -8,7 +8,7 @@ export async function createEventFeedback(data: EventFeedbackInsert) {
 export async function getEventFeedback(eventId: number) {
   return supabase
     .from('event_feedback')
-    .select('id, event_id, user_id, reviewer_name, rating, hours_played, body, created_at')
+    .select('id, event_id, user_id, reviewer_name, rating, body, created_at')
     .eq('event_id', eventId)
     .order('created_at', { ascending: false });
 }

@@ -87,28 +87,14 @@ describe('WriteEventFeedbackScreen', () => {
     jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   });
 
-  // ── Rendering ──
-
-  it('renders the feedback form with title, stars, hours input, and text area', async () => {
+  it('renders the feedback form with title, stars, and text area', async () => {
     setupMocks();
-    const { getByText, getByPlaceholderText } = renderModal();
+    const { getByText } = renderModal();
 
     expect(getByText('eventFeedbackTitle')).toBeTruthy();
     await waitFor(() => expect(getByText('Test Event')).toBeTruthy());
     expect(getByText('fieldRating')).toBeTruthy();
-    expect(getByText('hoursPlayed')).toBeTruthy();
-    expect(getByPlaceholderText('hoursPlayedPlaceholder')).toBeTruthy();
     expect(getByText('feedbackReview')).toBeTruthy();
-  });
-
-  it('renders hour preset chips', () => {
-    setupMocks();
-    const { getByText } = renderModal();
-
-    expect(getByText('1h')).toBeTruthy();
-    expect(getByText('1.5h')).toBeTruthy();
-    expect(getByText('2h')).toBeTruthy();
-    expect(getByText('3h')).toBeTruthy();
   });
 
   it('renders 5 star rating buttons', () => {
@@ -127,8 +113,6 @@ describe('WriteEventFeedbackScreen', () => {
     expect(toJSON()).toBeNull();
   });
 
-  // ── Already submitted ──
-
   it('shows already-submitted message when feedback exists', async () => {
     setupMocks({ alreadySubmitted: true });
     const { findByText } = renderModal();
@@ -137,37 +121,10 @@ describe('WriteEventFeedbackScreen', () => {
     expect(msg).toBeTruthy();
   });
 
-  // ── Hour preset selection ──
-
-  it('sets hours when a preset chip is tapped', () => {
+  it('submits rating + review', async () => {
     setupMocks();
     const { getByText, getByPlaceholderText } = renderModal();
 
-    fireEvent.press(getByText('2h'));
-
-    const input = getByPlaceholderText('hoursPlayedPlaceholder');
-    expect(input.props.value).toBe('2');
-  });
-
-  // ── Validation ──
-
-  it('shows error alert when submitting without hours', () => {
-    setupMocks();
-    const { getByText } = renderModal();
-
-    fireEvent.press(getByText('publish'));
-
-    expect(Alert.alert).toHaveBeenCalledWith('error', 'feedbackRequired');
-    expect(mockCreateFeedback).not.toHaveBeenCalled();
-  });
-
-  // ── Successful submission ──
-
-  it('submits feedback with correct data', async () => {
-    setupMocks();
-    const { getByText, getByPlaceholderText } = renderModal();
-
-    fireEvent.press(getByText('2h'));
     fireEvent.changeText(getByPlaceholderText('...'), 'Was fun!');
     fireEvent.press(getByText('publish'));
 
@@ -177,7 +134,6 @@ describe('WriteEventFeedbackScreen', () => {
         user_id: 'u-1',
         reviewer_name: 'Test User',
         rating: 4,
-        hours_played: 2,
         body: 'Was fun!',
       });
     });
@@ -190,17 +146,14 @@ describe('WriteEventFeedbackScreen', () => {
     setupMocks();
     const { getByText } = renderModal();
 
-    fireEvent.press(getByText('1.5h'));
     fireEvent.press(getByText('publish'));
 
     await waitFor(() => {
       expect(mockCreateFeedback).toHaveBeenCalledWith(
-        expect.objectContaining({ body: null, hours_played: 1.5 }),
+        expect.objectContaining({ body: null }),
       );
     });
   });
-
-  // ── Error handling ──
 
   it('shows error alert when submission fails', async () => {
     setupMocks();
@@ -211,7 +164,6 @@ describe('WriteEventFeedbackScreen', () => {
 
     const { getByText } = renderModal();
 
-    fireEvent.press(getByText('2h'));
     fireEvent.press(getByText('publish'));
 
     await waitFor(() => {
@@ -219,8 +171,6 @@ describe('WriteEventFeedbackScreen', () => {
     });
     expect(mockDismiss).not.toHaveBeenCalled();
   });
-
-  // ── Dismiss ──
 
   it('calls onDismiss when close button is pressed', () => {
     setupMocks();

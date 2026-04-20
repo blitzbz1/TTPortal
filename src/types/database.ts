@@ -137,6 +137,7 @@ export interface EventParticipant {
   event_id: number;
   user_id: string;
   joined_at: string;
+  hours_played: number;
 }
 
 export interface EventFeedback {
@@ -145,7 +146,6 @@ export interface EventFeedback {
   user_id: string;
   reviewer_name: string | null;
   rating: number;
-  hours_played: number;
   body: string | null;
   created_at: string;
 }

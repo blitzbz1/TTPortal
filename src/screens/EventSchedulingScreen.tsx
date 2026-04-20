@@ -23,6 +23,7 @@ import { WriteEventFeedbackScreen } from './WriteEventFeedbackScreen';
 import { hapticMedium } from '../lib/haptics';
 import { getAmaturEvents, type AmaturEvent } from '../services/amatur';
 import { EventDetailSheet } from '../components/EventDetailSheet';
+import { LogHoursModal } from '../components/LogHoursModal';
 import { BADGE_TRACKS } from '../lib/badgeChallenges';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
 import {
@@ -59,6 +60,7 @@ type EventListItem = {
   } | null;
   event_participants?: {
     user_id: string;
+    hours_played?: number | null;
     profiles?: { full_name?: string | null } | null;
   }[];
 };
@@ -84,6 +86,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [feedbackEventId, setFeedbackEventId] = useState<number | null>(null);
   const [feedbackGivenIds, setFeedbackGivenIds] = useState<Set<number>>(new Set());
+  const [logHoursEvent, setLogHoursEvent] = useState<{ id: number; title: string; initialHours: number } | null>(null);
   const [updateText, setUpdateText] = useState('');
   const [sendingUpdate, setSendingUpdate] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
@@ -519,15 +522,37 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                             </Text>
                           </TouchableOpacity>
                         )}
-                        {isPast(event) && event.status !== 'cancelled' && isJoined && event.organizer_id !== user?.id && !feedbackGivenIds.has(event.id) && (
-                          <TouchableOpacity
-                            style={[styles.joinBtn, styles.notJoinedBtn]}
-                            onPress={(e) => { e?.stopPropagation?.(); setFeedbackEventId(event.id); }}
-                          >
-                            <Lucide name="message-square" size={14} color={colors.primary} />
-                            <Text style={[styles.joinText, styles.notJoinedText]}>{s('giveFeedback')}</Text>
-                          </TouchableOpacity>
-                        )}
+                        {(() => {
+                          if (!isPast(event) || event.status === 'cancelled') return null;
+                          const myRow = (event.event_participants ?? []).find((p: any) => p.user_id === user?.id);
+                          const canInteract = !!myRow || event.organizer_id === user?.id;
+                          if (!canInteract) return null;
+                          const loggedHours = Number(myRow?.hours_played ?? 0);
+                          const hasLoggedHours = loggedHours > 0;
+                          const hasGivenFeedback = feedbackGivenIds.has(event.id);
+                          return (
+                            <View style={{ flexDirection: 'row', gap: 6 }}>
+                              {!hasLoggedHours && (
+                                <TouchableOpacity
+                                  style={[styles.joinBtn, styles.notJoinedBtn]}
+                                  onPress={(e) => { e?.stopPropagation?.(); setLogHoursEvent({ id: event.id, title: event.title ?? '', initialHours: loggedHours }); }}
+                                >
+                                  <Lucide name="clock" size={14} color={colors.primary} />
+                                  <Text style={[styles.joinText, styles.notJoinedText]}>{s('logHours')}</Text>
+                                </TouchableOpacity>
+                              )}
+                              {event.organizer_id !== user?.id && !hasGivenFeedback && (
+                                <TouchableOpacity
+                                  style={[styles.joinBtn, styles.notJoinedBtn]}
+                                  onPress={(e) => { e?.stopPropagation?.(); setFeedbackEventId(event.id); }}
+                                >
+                                  <Lucide name="message-square" size={14} color={colors.primary} />
+                                  <Text style={[styles.joinText, styles.notJoinedText]}>{s('giveFeedback')}</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          );
+                        })()}
                       </View>
                     </TouchableOpacity>
                   </Card>
@@ -699,6 +724,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                 challengeTitle={challengeTitle}
                 closeDetail={closeDetail}
                 setFeedbackEventId={setFeedbackEventId}
+                setLogHoursEvent={setLogHoursEvent}
                 setInviteModalVisible={setInviteModalVisible}
                 fetchEvents={fetchEvents}
               />
@@ -725,6 +751,17 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         onDismiss={() => {
           if (feedbackEventId) setFeedbackGivenIds(prev => new Set(prev).add(feedbackEventId));
           setFeedbackEventId(null);
+          fetchEvents();
+        }}
+      />
+
+      <LogHoursModal
+        visible={logHoursEvent !== null}
+        eventId={logHoursEvent?.id ?? null}
+        eventTitle={logHoursEvent?.title}
+        initialHours={logHoursEvent?.initialHours}
+        onDismiss={() => {
+          setLogHoursEvent(null);
           fetchEvents();
         }}
       />

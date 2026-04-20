@@ -11,8 +11,8 @@ export async function getEvents(
     .from('events')
     .select(
       needsParticipantFilter
-        ? '*, venues(name, city, lat, lng), event_participants(user_id), ep_filter:event_participants!inner(user_id)'
-        : '*, venues(name, city, lat, lng), event_participants(user_id)',
+        ? '*, venues(name, city, lat, lng), event_participants(user_id, hours_played), ep_filter:event_participants!inner(user_id)'
+        : '*, venues(name, city, lat, lng), event_participants(user_id, hours_played)',
     );
 
   if (filter === 'upcoming') {
@@ -55,7 +55,7 @@ export async function getUpcomingEventsByVenue(venueId: number) {
   const now = new Date().toISOString();
   const result = await supabase
     .from('events')
-    .select('*, venues(name, city, lat, lng), event_participants(user_id)')
+    .select('*, venues(name, city, lat, lng), event_participants(user_id, hours_played)')
     .eq('venue_id', venueId)
     .gte('starts_at', now)
     .neq('status', 'cancelled')
@@ -90,7 +90,7 @@ export async function getUpcomingEventsByVenue(venueId: number) {
 export async function getEventById(eventId: number) {
   return supabase
     .from('events')
-    .select('*, venues(name, city, lat, lng), event_participants(user_id)')
+    .select('*, venues(name, city, lat, lng), event_participants(user_id, hours_played)')
     .eq('id', eventId)
     .maybeSingle();
 }
@@ -127,6 +127,17 @@ export async function joinEvent(eventId: number, userId: string) {
   return supabase
     .from('event_participants')
     .insert({ event_id: eventId, user_id: userId })
+    .select()
+    .single();
+}
+
+export async function logEventHours(eventId: number, userId: string, hours: number) {
+  return supabase
+    .from('event_participants')
+    .upsert(
+      { event_id: eventId, user_id: userId, hours_played: hours },
+      { onConflict: 'event_id,user_id' },
+    )
     .select()
     .single();
 }

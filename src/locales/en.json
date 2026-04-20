@@ -227,6 +227,8 @@
   "eventsAtVenue": "Events",
   "noEventsAtVenueTitle": "No events scheduled",
   "noEventsAtVenueDesc": "There are no upcoming events at this venue.",
+  "logHoursTitle": "Log hours played",
+  "logHours": "Log hours",
   "confirmed": "Confirmed",
   "tournament": "Tournament",
   "open": "Open",
