@@ -932,5 +932,31 @@
   "hoursInEvents": "Ore în evenimente",
   "noUpcomingEvents": "Nu ai evenimente viitoare ca organizator",
   "pickEventToInvite": "Alege un eveniment",
-  "inviteSent": "Invitație trimisă!"
+  "inviteSent": "Invitație trimisă!",
+
+  "feedbackHeaderButton": "Trimite feedback",
+  "feedbackTitle": "Trimite feedback",
+  "feedbackDescription": "Spune-ne despre o problemă, propune o funcționalitate sau împărtășește orice altceva.",
+  "feedbackCategoryBug": "Problemă",
+  "feedbackCategoryFeature": "Funcție",
+  "feedbackCategoryGeneral": "General",
+  "feedbackFeatureTitlePh": "Titlu scurt pentru idee",
+  "feedbackMessagePh": "Ce nu a mers, ce ți-ar plăcea sau cum ne putem îmbunătăți…",
+  "feedbackSubmit": "Trimite",
+  "feedbackSending": "Se trimite…",
+  "feedbackSuccessTitle": "Mulțumim pentru feedback!",
+  "feedbackSuccessBody": "Citim fiecare mesaj.",
+  "feedbackDone": "Gata",
+  "feedbackErrorMessageRequired": "Te rugăm să scrii un mesaj scurt.",
+  "feedbackErrorFeatureTitleRequired": "Te rugăm să adaugi un titlu scurt ideii.",
+  "feedbackErrorGeneric": "Nu am putut trimite feedback-ul. Încearcă din nou.",
+
+  "tabFeedback": "Feedback",
+  "userFeedbackSection": "Feedback utilizatori",
+  "noUserFeedback": "Încă nu există feedback",
+  "confirmDeleteFeedback": "Ștergi această intrare de feedback?",
+  "feedbackReply": "Răspunde",
+  "feedbackReplyTitle": "Răspuns la feedback",
+  "feedbackReplyPlaceholder": "Scrie un răspuns către utilizator…",
+  "feedbackReplyError": "Nu am putut trimite răspunsul. Încearcă din nou."
 }

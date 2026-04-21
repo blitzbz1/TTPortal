@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NotificationBellButton } from '../components/NotificationBellButton';
+import { FeedbackHeaderButton } from '../components/FeedbackHeaderButton';
 import { useTheme } from '../hooks/useTheme';
 import { createStyles } from './ProfileScreen.styles';
 import { useSession } from '../hooks/useSession';
@@ -126,7 +127,10 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={styles.headerTitle}>{s('myProfile')}</Text>
-        <NotificationBellButton color={headerFg} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <FeedbackHeaderButton color={headerFg} />
+          <NotificationBellButton color={headerFg} />
+        </View>
       </View>
 
       <ScrollView

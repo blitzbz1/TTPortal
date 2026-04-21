@@ -18,6 +18,7 @@ function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
     gte: jest.fn(() => chain),
     lt: jest.fn(() => chain),
     neq: jest.fn(() => chain),
+    not: jest.fn(() => chain),
     order: jest.fn(() => chain),
     limit: jest.fn(() => chain),
     insert: jest.fn(() => chain),
@@ -110,14 +111,14 @@ describe('getEventParticipants', () => {
 describe('getEvents', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('filters upcoming events by starts_at >= now and excludes cancelled', async () => {
+  it('filters upcoming events by starts_at >= now and excludes cancelled/completed', async () => {
     mockFrom.mockReturnValue(createQueryChain([]));
 
     await getEvents('upcoming');
 
     const chain = mockFrom.mock.results[0].value;
     expect(chain.gte).toHaveBeenCalledWith('starts_at', expect.any(String));
-    expect(chain.neq).toHaveBeenCalledWith('status', 'cancelled');
+    expect(chain.not).toHaveBeenCalledWith('status', 'in', '(cancelled,completed)');
     expect(chain.order).toHaveBeenCalledWith('starts_at', { ascending: true });
   });
 

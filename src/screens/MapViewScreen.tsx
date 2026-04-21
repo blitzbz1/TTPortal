@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { Lucide } from '../components/Icon';
 import { NotificationBellButton } from '../components/NotificationBellButton';
+import { FeedbackHeaderButton } from '../components/FeedbackHeaderButton';
 import { Card } from '../components/Card';
 import { CityPickerModal } from '../components/CityPickerModal';
 import { VenueCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
@@ -307,7 +308,10 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
           </TouchableOpacity>
         </View>
         {user ? (
-          <NotificationBellButton color={headerFg} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <FeedbackHeaderButton color={headerFg} />
+            <NotificationBellButton color={headerFg} />
+          </View>
         ) : (
           <TouchableOpacity style={styles.loginBtn} onPress={() => router.push('/sign-in')}>
             <Lucide name="log-in" size={14} color={colors.textOnPrimary} />

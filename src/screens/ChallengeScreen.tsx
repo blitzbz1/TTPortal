@@ -3,6 +3,7 @@ import { Alert, Animated, Easing, ScrollView, Share, Text, TouchableOpacity, Vie
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { NotificationBellButton } from '../components/NotificationBellButton';
+import { FeedbackHeaderButton } from '../components/FeedbackHeaderButton';
 import { Lucide } from '../components/Icon';
 import { ErrorState } from '../components/ErrorState';
 import { useTheme } from '../hooks/useTheme';
@@ -686,7 +687,10 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={styles.headerTitle}>{s('tabChallenge')}</Text>
-        <NotificationBellButton color={headerFg} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <FeedbackHeaderButton color={headerFg} />
+          <NotificationBellButton color={headerFg} />
+        </View>
       </View>
 
       <View style={styles.topTabs}>

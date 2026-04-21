@@ -6,6 +6,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Card } from '../components/Card';
 import { Lucide } from '../components/Icon';
 import { NotificationBellButton } from '../components/NotificationBellButton';
+import { FeedbackHeaderButton } from '../components/FeedbackHeaderButton';
 import { FavoriteCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
 import { useTheme } from '../hooks/useTheme';
@@ -128,7 +129,10 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
           <Lucide name="arrow-left" size={24} color={headerFg} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('favorites')}</Text>
-        <NotificationBellButton color={headerFg} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <FeedbackHeaderButton color={headerFg} />
+          <NotificationBellButton color={headerFg} />
+        </View>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
+import { FeedbackReplyModal } from '../components/FeedbackReplyModal';
 import { useTheme } from '../hooks/useTheme';
 import { Fonts } from '../theme';
 import { createStyles } from './AdminModerationScreen.styles';
@@ -18,6 +19,8 @@ import {
   getFlaggedReviews,
   keepReview,
   deleteReview,
+  getUserFeedback,
+  deleteUserFeedback,
 } from '../services/admin';
 import { getProfile } from '../services/profiles';
 
@@ -29,9 +32,13 @@ export function AdminModerationScreen() {
   const venueDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [flaggedReviews, setFlaggedReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [userFeedback, setUserFeedback] = useState<any[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackLoaded, setFeedbackLoaded] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminLoading, setAdminLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'reviews' | 'venues'>('reviews');
+  const [activeTab, setActiveTab] = useState<'reviews' | 'venues' | 'feedback'>('reviews');
+  const [replyTarget, setReplyTarget] = useState<any | null>(null);
   // Edit modal state
   const [editVenue, setEditVenue] = useState<any | null>(null);
   const [editName, setEditName] = useState('');
@@ -173,6 +180,38 @@ export function AdminModerationScreen() {
     setFlaggedReviews((prev) => prev.filter((r) => r.id !== id));
   }, [user, s]);
 
+  const fetchFeedback = useCallback(async () => {
+    setFeedbackLoading(true);
+    try {
+      const { data } = await getUserFeedback();
+      if (data) setUserFeedback(data);
+      setFeedbackLoaded(true);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'feedback' && !feedbackLoaded) {
+      fetchFeedback();
+    }
+  }, [activeTab, feedbackLoaded, fetchFeedback]);
+
+  const handleDeleteFeedback = useCallback((id: string) => {
+    Alert.alert(s('confirmDeleteFeedback'), '', [
+      { text: s('cancel'), style: 'cancel' },
+      {
+        text: s('deleteBtn'),
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await deleteUserFeedback(id, user!.id);
+          if (error) { Alert.alert(s('error'), s('deleteError')); return; }
+          setUserFeedback((prev) => prev.filter((f) => f.id !== id));
+        },
+      },
+    ]);
+  }, [user, s]);
+
   if (adminLoading) return <ActivityIndicator />;
   if (!isAdmin) {
     router.back();
@@ -216,6 +255,18 @@ export function AdminModerationScreen() {
           onPress={() => setActiveTab('venues')}
         >
           <Text style={[styles.tabText, activeTab === 'venues' && styles.tabTextActive]}>{s('tabVenues')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'feedback' && styles.tabActive]}
+          onPress={() => setActiveTab('feedback')}
+          testID="admin-tab-feedback"
+        >
+          <Text style={[styles.tabText, activeTab === 'feedback' && styles.tabTextActive]}>{s('tabFeedback')}</Text>
+          {userFeedback.length > 0 && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>{userFeedback.length}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -319,7 +370,7 @@ export function AdminModerationScreen() {
             )}
           </View>
         </ScrollView>
-      ) : (
+      ) : activeTab === 'venues' ? (
         <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
           {/* Search */}
           <View style={styles.venueSearchWrap}>
@@ -376,7 +427,67 @@ export function AdminModerationScreen() {
             )}
           </View>
         </ScrollView>
+      ) : (
+        <ScrollView style={styles.scroll}>
+          <View style={styles.secLabel}>
+            <Text style={styles.secLabelText}>{s('userFeedbackSection')}</Text>
+          </View>
+          {feedbackLoading ? (
+            <ActivityIndicator size="small" color={colors.primary} style={{ paddingVertical: 24 }} />
+          ) : userFeedback.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+              <Lucide name="clipboard-pen-line" size={32} color={colors.border} />
+              <Text style={{ fontFamily: Fonts.body, fontSize: 13, color: colors.textFaint, marginTop: 8 }}>
+                {s('noUserFeedback')}
+              </Text>
+            </View>
+          ) : (
+            userFeedback.map((item) => {
+              const authorName = item.profiles?.full_name || item.profiles?.email || s('anon');
+              const iconName = item.category === 'bug' ? 'bug' : 'message-square';
+              const categoryLabel = item.category === 'bug' ? s('feedbackCategoryBug') : s('feedbackCategoryGeneral');
+              return (
+                <View key={item.id} style={styles.flagCard} testID={`feedback-row-${item.id}`}>
+                  <View style={styles.flagTop}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                      <Lucide name={iconName} size={14} color={colors.textMuted} />
+                      <Text style={styles.flagAuthor} numberOfLines={1}>{authorName}</Text>
+                    </View>
+                    <View style={styles.flagBadge}>
+                      <Text style={styles.flagBadgeText}>{categoryLabel}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.flagText}>{item.message}</Text>
+                  <Text style={styles.flagMeta}>
+                    {item.page}
+                    {' · '}
+                    {new Date(item.created_at).toLocaleString()}
+                  </Text>
+                  <View style={styles.modActions}>
+                    <TouchableOpacity
+                      style={styles.keepBtn}
+                      onPress={() => setReplyTarget(item)}
+                      testID={`feedback-reply-${item.id}`}
+                    >
+                      <Lucide name="message-circle" size={14} color={colors.primary} />
+                      <Text style={styles.keepBtnText}>{s('feedbackReply')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.deleteBtn}
+                      onPress={() => handleDeleteFeedback(item.id)}
+                      testID={`feedback-delete-${item.id}`}
+                    >
+                      <Lucide name="trash-2" size={14} color={colors.red} />
+                      <Text style={styles.deleteBtnText}>{s('deleteBtn')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
       )}
+      <FeedbackReplyModal feedback={replyTarget} onClose={() => setReplyTarget(null)} />
       {/* Edit Venue Modal */}
       <Modal visible={editVenue !== null} transparent animationType="slide" onRequestClose={() => setEditVenue(null)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

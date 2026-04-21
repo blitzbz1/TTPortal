@@ -932,5 +932,31 @@
   "hoursInEvents": "Hours in events",
   "noUpcomingEvents": "You have no upcoming events as organizer",
   "pickEventToInvite": "Pick an event",
-  "inviteSent": "Invite sent!"
+  "inviteSent": "Invite sent!",
+
+  "feedbackHeaderButton": "Send feedback",
+  "feedbackTitle": "Send feedback",
+  "feedbackDescription": "Tell us about a bug, request a feature, or share anything else on your mind.",
+  "feedbackCategoryBug": "Bug",
+  "feedbackCategoryFeature": "Feature",
+  "feedbackCategoryGeneral": "General",
+  "feedbackFeatureTitlePh": "Short title for your idea",
+  "feedbackMessagePh": "What went wrong, what you'd like, or how we can improve…",
+  "feedbackSubmit": "Send",
+  "feedbackSending": "Sending…",
+  "feedbackSuccessTitle": "Thanks for the feedback!",
+  "feedbackSuccessBody": "We read every message.",
+  "feedbackDone": "Done",
+  "feedbackErrorMessageRequired": "Please write a short message.",
+  "feedbackErrorFeatureTitleRequired": "Please give your idea a short title.",
+  "feedbackErrorGeneric": "Couldn't send your feedback. Please try again.",
+
+  "tabFeedback": "Feedback",
+  "userFeedbackSection": "User feedback",
+  "noUserFeedback": "No feedback yet",
+  "confirmDeleteFeedback": "Delete this feedback entry?",
+  "feedbackReply": "Reply",
+  "feedbackReplyTitle": "Reply to feedback",
+  "feedbackReplyPlaceholder": "Write a reply to the user…",
+  "feedbackReplyError": "Couldn't send the reply. Please try again."
 }

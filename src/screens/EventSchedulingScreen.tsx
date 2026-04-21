@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { NotificationBellButton } from '../components/NotificationBellButton';
+import { FeedbackHeaderButton } from '../components/FeedbackHeaderButton';
 import { Card } from '../components/Card';
 import { EventCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
@@ -381,7 +382,10 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={styles.headerTitle}>{s('events')}</Text>
-        <NotificationBellButton color={headerFg} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <FeedbackHeaderButton color={headerFg} />
+          <NotificationBellButton color={headerFg} />
+        </View>
       </View>
 
       <ScrollView style={styles.scroll} keyboardDismissMode="on-drag" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>

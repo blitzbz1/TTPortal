@@ -9,3 +9,4 @@ export * from './conditions';
 export * from './profiles';
 export * from './admin';
 export * from './cities';
+export * from './userFeedback';

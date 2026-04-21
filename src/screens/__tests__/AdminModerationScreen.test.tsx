@@ -46,6 +46,8 @@ const mockApproveVenue = jest.fn();
 const mockRejectVenue = jest.fn();
 const mockKeepReview = jest.fn();
 const mockDeleteReview = jest.fn();
+const mockGetUserFeedback = jest.fn();
+const mockDeleteUserFeedback = jest.fn();
 
 jest.mock('../../services/admin', () => ({
   getPendingVenues: (...args: any[]) => mockGetPendingVenues(...args),
@@ -57,6 +59,10 @@ jest.mock('../../services/admin', () => ({
   rejectVenue: (...args: any[]) => mockRejectVenue(...args),
   keepReview: (...args: any[]) => mockKeepReview(...args),
   deleteReview: (...args: any[]) => mockDeleteReview(...args),
+  getUserFeedback: (...args: any[]) => mockGetUserFeedback(...args),
+  deleteUserFeedback: (...args: any[]) => mockDeleteUserFeedback(...args),
+  getFeedbackReplies: jest.fn().mockResolvedValue({ data: [] }),
+  replyToFeedback: jest.fn().mockResolvedValue({ data: null, error: null }),
 }));
 
 beforeEach(() => {
@@ -66,6 +72,8 @@ beforeEach(() => {
   mockGetPendingVenues.mockResolvedValue({ data: [] });
   mockGetFlaggedReviews.mockResolvedValue({ data: [] });
   mockSearchVenuesAdmin.mockResolvedValue({ data: [] });
+  mockGetUserFeedback.mockResolvedValue({ data: [] });
+  mockDeleteUserFeedback.mockResolvedValue({ data: null, error: null });
 });
 
 afterEach(() => {
@@ -79,6 +87,7 @@ describe('AdminModerationScreen — tabs', () => {
 
     expect(getByText('tabReviews')).toBeTruthy();
     expect(getByText('tabVenues')).toBeTruthy();
+    expect(getByText('tabFeedback')).toBeTruthy();
   });
 
   it('shows reviews tab content by default', async () => {
@@ -194,5 +203,95 @@ describe('AdminModerationScreen — pending venues', () => {
 
     expect(mockApproveVenue).toHaveBeenCalledWith(10, 'admin-1');
     expect(queryByText('Pending Venue')).toBeNull();
+  });
+});
+
+describe('AdminModerationScreen — feedback tab', () => {
+  it('does not fetch feedback until the Feedback tab is opened', async () => {
+    const { getByText } = render(<AdminModerationScreen />);
+    await act(async () => {});
+    expect(mockGetUserFeedback).not.toHaveBeenCalled();
+
+    await act(async () => { fireEvent.press(getByText('tabFeedback')); });
+
+    expect(mockGetUserFeedback).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders feedback rows with author, message and category label', async () => {
+    mockGetUserFeedback.mockResolvedValue({
+      data: [
+        {
+          id: 'f-1',
+          user_id: 'u-1',
+          page: '/profile',
+          category: 'bug',
+          message: 'The map does not center on me',
+          created_at: '2026-04-20T10:00:00Z',
+          profiles: { full_name: 'Ion Popescu', email: 'ion@x.com' },
+        },
+      ],
+    });
+
+    const { getByText, getByTestId } = render(<AdminModerationScreen />);
+    await act(async () => {});
+    await act(async () => { fireEvent.press(getByText('tabFeedback')); });
+
+    expect(getByTestId('feedback-row-f-1')).toBeTruthy();
+    expect(getByText('Ion Popescu')).toBeTruthy();
+    expect(getByText('The map does not center on me')).toBeTruthy();
+    expect(getByText('feedbackCategoryBug')).toBeTruthy();
+  });
+
+  it('shows empty state when there is no feedback', async () => {
+    const { getByText } = render(<AdminModerationScreen />);
+    await act(async () => {});
+    await act(async () => { fireEvent.press(getByText('tabFeedback')); });
+
+    expect(getByText('noUserFeedback')).toBeTruthy();
+  });
+
+  it('opens the reply modal when the Reply button is pressed', async () => {
+    mockGetUserFeedback.mockResolvedValue({
+      data: [
+        {
+          id: 'f-3',
+          user_id: 'u-3',
+          page: '/x',
+          category: 'general',
+          message: 'suggestion',
+          created_at: '2026-04-20T10:00:00Z',
+          profiles: { full_name: 'User', email: 'u@x.com' },
+        },
+      ],
+    });
+
+    const { getByText, getByTestId } = render(<AdminModerationScreen />);
+    await act(async () => {});
+    await act(async () => { fireEvent.press(getByText('tabFeedback')); });
+    await act(async () => { fireEvent.press(getByTestId('feedback-reply-f-3')); });
+
+    expect(getByText('feedbackReplyTitle')).toBeTruthy();
+  });
+
+  it('falls back to email when full_name is missing', async () => {
+    mockGetUserFeedback.mockResolvedValue({
+      data: [
+        {
+          id: 'f-2',
+          user_id: 'u-2',
+          page: '/events',
+          category: 'general',
+          message: 'hi',
+          created_at: '2026-04-20T10:00:00Z',
+          profiles: { full_name: null, email: 'anon@x.com' },
+        },
+      ],
+    });
+
+    const { getByText } = render(<AdminModerationScreen />);
+    await act(async () => {});
+    await act(async () => { fireEvent.press(getByText('tabFeedback')); });
+
+    expect(getByText('anon@x.com')).toBeTruthy();
   });
 });

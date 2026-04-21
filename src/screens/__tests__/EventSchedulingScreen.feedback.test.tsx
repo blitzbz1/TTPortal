@@ -109,6 +109,18 @@ jest.mock('react-native-reanimated', () => {
   };
 });
 
+jest.mock('@gorhom/bottom-sheet', () => {
+  const { View, TextInput } = require('react-native');
+  return {
+    __esModule: true,
+    default: View,
+    BottomSheetView: View,
+    BottomSheetScrollView: View,
+    BottomSheetBackdrop: () => null,
+    BottomSheetTextInput: TextInput,
+  };
+});
+
 const mockGetEvents = jest.fn();
 const mockGetEventParticipants = jest.fn();
 const mockGetEventFeedback = jest.fn();

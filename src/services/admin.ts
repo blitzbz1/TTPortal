@@ -74,3 +74,35 @@ export async function deleteReview(id: number, userId: string) {
   if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
   return supabase.from('reviews').delete().eq('id', id);
 }
+
+export async function getUserFeedback(limit = 100) {
+  return supabase
+    .from('user_feedback')
+    .select('id, user_id, page, category, message, created_at, profiles!user_id(full_name, email)')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+}
+
+export async function deleteUserFeedback(id: string, userId: string) {
+  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  return supabase.from('user_feedback').delete().eq('id', id);
+}
+
+export async function getFeedbackReplies(feedbackId: string) {
+  return supabase
+    .from('feedback_replies')
+    .select('id, feedback_id, admin_id, reply_text, created_at, profiles!admin_id(full_name)')
+    .eq('feedback_id', feedbackId)
+    .order('created_at', { ascending: true });
+}
+
+export async function replyToFeedback(feedbackId: string, adminId: string, replyText: string) {
+  if (!await verifyAdmin(adminId)) return { data: null, error: { message: 'Unauthorized' } };
+  const trimmed = replyText.trim();
+  if (!trimmed) return { data: null, error: { message: 'Reply text is required' } };
+  return supabase
+    .from('feedback_replies')
+    .insert({ feedback_id: feedbackId, admin_id: adminId, reply_text: trimmed })
+    .select()
+    .single();
+}
