@@ -90,6 +90,44 @@ describe('updateVenue', () => {
     expect(venuesChain.eq).toHaveBeenCalledWith('id', 1);
     expect(data).toEqual(updated);
   });
+
+  it('forwards city_id when the city changes', async () => {
+    const profilesChain = createQueryChain({ is_admin: true });
+    const venuesChain = createQueryChain({ id: 1 });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') return profilesChain;
+      if (table === 'venues') return venuesChain;
+      return createQueryChain();
+    });
+
+    await updateVenue(1, 'admin-1', { city: 'Cluj', city_id: 42 });
+
+    expect(venuesChain.update).toHaveBeenCalledWith({ city: 'Cluj', city_id: 42 });
+  });
+
+  it('forwards lat/lng when included in the update', async () => {
+    const profilesChain = createQueryChain({ is_admin: true });
+    const venuesChain = createQueryChain({ id: 1 });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') return profilesChain;
+      if (table === 'venues') return venuesChain;
+      return createQueryChain();
+    });
+
+    await updateVenue(1, 'admin-1', {
+      address: 'Strada X 12',
+      city: 'Cluj',
+      lat: 46.77,
+      lng: 23.6,
+    });
+
+    expect(venuesChain.update).toHaveBeenCalledWith({
+      address: 'Strada X 12',
+      city: 'Cluj',
+      lat: 46.77,
+      lng: 23.6,
+    });
+  });
 });
 
 describe('deleteVenue', () => {

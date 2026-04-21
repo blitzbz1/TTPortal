@@ -42,12 +42,33 @@ export async function getActiveCheckins(venueId: number) {
 export async function getActiveFriendCheckins(friendIds: string[]) {
   if (!friendIds.length) return { data: [], error: null };
   const now = new Date().toISOString();
-  return supabase
+  const result = await supabase
     .from('checkins')
-    .select('user_id, venue_id, started_at, venues(name, city)')
+    .select('id, user_id, venue_id, started_at, ended_at, venues(name, city)')
     .in('user_id', friendIds)
     .or(activeFilter(now))
     .order('started_at', { ascending: false });
+
+  if (result.error || !result.data?.length) return result;
+
+  // Resolve friend profile names separately (checkins.user_id FKs auth.users, not profiles).
+  const userIds = Array.from(new Set(result.data.map((c: { user_id: string }) => c.user_id)));
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .in('id', userIds);
+
+  const nameById = new Map<string, string | null>(
+    (profiles ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name]),
+  );
+
+  return {
+    ...result,
+    data: result.data.map((c: { user_id: string }) => ({
+      ...c,
+      profiles: { full_name: nameById.get(c.user_id) ?? null },
+    })),
+  };
 }
 
 export async function getUserActiveCheckin(userId: string, venueId: number) {

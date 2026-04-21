@@ -553,7 +553,14 @@ export function VenueDetailScreen({ venueId }: Props) {
               ? Math.max(1, Math.round((Date.now() - new Date(fc.started_at).getTime()) / 60_000))
               : null;
             return (
-              <View key={fc.id || fc.user_id} style={styles.checkinRow}>
+              <TouchableOpacity
+                key={fc.id || fc.user_id}
+                style={styles.checkinRow}
+                onPress={() => router.push(`/(protected)/player/${fc.user_id}` as any)}
+                accessibilityRole="button"
+                accessibilityLabel={name}
+                testID={`friends-here-${fc.user_id}`}
+              >
                 <View style={styles.checkinAvatar}>
                   <Text style={styles.checkinInitials}>{initial}</Text>
                 </View>
@@ -561,7 +568,7 @@ export function VenueDetailScreen({ venueId }: Props) {
                   <Text style={styles.checkinName}>{name}</Text>
                   {ago != null && <Text style={styles.checkinTime}>{`${ago}m`}</Text>}
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
           {activeCheckin ? (

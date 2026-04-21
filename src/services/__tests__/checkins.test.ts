@@ -131,44 +131,70 @@ describe('getActiveFriendCheckins', () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it('queries checkins with or filter for active state', async () => {
+  it('queries checkins with or filter for active state and resolves profile names', async () => {
     const checkins = [
-      { user_id: 'f-1', venue_id: 44, started_at: '2026-03-27T15:00:00Z', venues: { name: 'Kiris Hall', city: 'București' } },
+      { id: 1, user_id: 'f-1', venue_id: 44, started_at: '2026-03-27T15:00:00Z', ended_at: null, venues: { name: 'Kiris Hall', city: 'București' } },
     ];
-    mockFrom.mockReturnValue(createQueryChain(checkins));
+    const profiles = [{ id: 'f-1', full_name: 'Ion Popescu' }];
+    const checkinsChain = createQueryChain(checkins);
+    const profilesChain = createQueryChain(profiles);
+    mockFrom.mockImplementation((table: string) => (table === 'profiles' ? profilesChain : checkinsChain));
 
     const { data } = await getActiveFriendCheckins(['f-1', 'f-2']);
 
     expect(mockFrom).toHaveBeenCalledWith('checkins');
-    const chain = mockFrom.mock.results[0].value;
-    expect(chain.select).toHaveBeenCalledWith('user_id, venue_id, started_at, venues(name, city)');
-    expect(chain.in).toHaveBeenCalledWith('user_id', ['f-1', 'f-2']);
-    expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('ended_at.gt.'));
+    expect(checkinsChain.select).toHaveBeenCalledWith('id, user_id, venue_id, started_at, ended_at, venues(name, city)');
+    expect(checkinsChain.in).toHaveBeenCalledWith('user_id', ['f-1', 'f-2']);
+    expect(checkinsChain.or).toHaveBeenCalledWith(expect.stringContaining('ended_at.gt.'));
+    expect(mockFrom).toHaveBeenCalledWith('profiles');
+    expect(profilesChain.select).toHaveBeenCalledWith('id, full_name');
+    expect(profilesChain.in).toHaveBeenCalledWith('id', ['f-1']);
     expect(data).toHaveLength(1);
     expect((data![0] as any).venues.name).toBe('Kiris Hall');
+    expect((data![0] as any).profiles.full_name).toBe('Ion Popescu');
   });
 
-  it('returns multiple checkins from different friends at different venues', async () => {
+  it('returns multiple checkins with profile names merged by user_id', async () => {
     const checkins = [
-      { user_id: 'f-1', venue_id: 44, started_at: '2026-03-27T15:00:00Z', venues: { name: 'Kiris Hall', city: 'București' } },
-      { user_id: 'f-2', venue_id: 1, started_at: '2026-03-27T14:30:00Z', venues: { name: 'Parcul Național', city: 'București' } },
+      { id: 1, user_id: 'f-1', venue_id: 44, started_at: '2026-03-27T15:00:00Z', ended_at: null, venues: { name: 'Kiris Hall', city: 'București' } },
+      { id: 2, user_id: 'f-2', venue_id: 1, started_at: '2026-03-27T14:30:00Z', ended_at: null, venues: { name: 'Parcul Național', city: 'București' } },
     ];
-    mockFrom.mockReturnValue(createQueryChain(checkins));
+    const profiles = [
+      { id: 'f-1', full_name: 'Ion' },
+      { id: 'f-2', full_name: 'Maria' },
+    ];
+    const checkinsChain = createQueryChain(checkins);
+    const profilesChain = createQueryChain(profiles);
+    mockFrom.mockImplementation((table: string) => (table === 'profiles' ? profilesChain : checkinsChain));
 
     const { data } = await getActiveFriendCheckins(['f-1', 'f-2']);
 
     expect(data).toHaveLength(2);
-    const venueNames = (data as any[]).map((c) => c.venues.name);
-    expect(venueNames).toContain('Kiris Hall');
-    expect(venueNames).toContain('Parcul Național');
+    const byId = (data as any[]).reduce<Record<string, any>>((m, c) => { m[c.user_id] = c; return m; }, {});
+    expect(byId['f-1'].profiles.full_name).toBe('Ion');
+    expect(byId['f-2'].profiles.full_name).toBe('Maria');
   });
 
-  it('returns empty when no friends have active checkins', async () => {
+  it('falls back to null full_name when no profile row is found', async () => {
+    const checkins = [
+      { id: 1, user_id: 'f-ghost', venue_id: 44, started_at: '2026-03-27T15:00:00Z', ended_at: null, venues: { name: 'X', city: 'București' } },
+    ];
+    const checkinsChain = createQueryChain(checkins);
+    const profilesChain = createQueryChain([]);
+    mockFrom.mockImplementation((table: string) => (table === 'profiles' ? profilesChain : checkinsChain));
+
+    const { data } = await getActiveFriendCheckins(['f-ghost']);
+    expect((data![0] as any).profiles.full_name).toBeNull();
+  });
+
+  it('returns empty when no friends have active checkins (no profiles query)', async () => {
     mockFrom.mockReturnValue(createQueryChain([]));
 
     const { data } = await getActiveFriendCheckins(['f-1']);
 
     expect(data).toEqual([]);
+    expect(mockFrom).toHaveBeenCalledTimes(1);
+    expect(mockFrom).toHaveBeenCalledWith('checkins');
   });
 });
 

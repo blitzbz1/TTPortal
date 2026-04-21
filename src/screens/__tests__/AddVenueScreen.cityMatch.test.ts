@@ -1,4 +1,4 @@
-import { normalize, extractNominatimCity, matchCity } from '../AddVenueScreen';
+import { normalize, extractNominatimCity, matchCity, buildNominatimAddress } from '../AddVenueScreen';
 
 describe('AddVenueScreen — city matching', () => {
   describe('normalize', () => {
@@ -91,6 +91,97 @@ describe('AddVenueScreen — city matching', () => {
 
     it('returns null for empty known cities list', () => {
       expect(matchCity('București', [])).toBeNull();
+    });
+
+    it('maps English exonym "Bucharest" to Romanian "București"', () => {
+      expect(matchCity('Bucharest', knownCities)).toBe('București');
+    });
+
+    it('is case-insensitive for the alias lookup', () => {
+      expect(matchCity('BUCHAREST', knownCities)).toBe('București');
+    });
+
+    it('maps English exonym "Jassy" to Romanian "Iași"', () => {
+      expect(matchCity('Jassy', knownCities)).toBe('Iași');
+    });
+
+    it('returns null when the alias target is not in knownCities', () => {
+      // Cluj-Napoca removed from the fixture so "Klausenburg" has no target
+      const withoutCluj = knownCities.filter((c) => c !== 'Cluj-Napoca');
+      expect(matchCity('Klausenburg', withoutCluj)).toBeNull();
+    });
+
+    it('direct match wins over alias lookup', () => {
+      // A city whose normalized name equals the key of an alias shouldn't
+      // be redirected when already present directly.
+      expect(matchCity('București', knownCities)).toBe('București');
+    });
+  });
+
+  describe('buildNominatimAddress', () => {
+    it('includes the house number when Nominatim returned one', () => {
+      expect(
+        buildNominatimAddress({
+          house_number: '12',
+          road: 'Strada Alexandru Ioan Cuza',
+          neighbourhood: 'Centrul Istoric',
+          city: 'Craiova',
+        }),
+      ).toBe('Strada Alexandru Ioan Cuza 12, Centrul Istoric, Craiova');
+    });
+
+    it('omits the number when Nominatim has no house_number', () => {
+      expect(
+        buildNominatimAddress({
+          road: 'Strada Alexandru Ioan Cuza',
+          neighbourhood: 'Centrul Istoric',
+          city: 'Craiova',
+        }),
+      ).toBe('Strada Alexandru Ioan Cuza, Centrul Istoric, Craiova');
+    });
+
+    it('falls back to suburb when neighbourhood is missing', () => {
+      expect(
+        buildNominatimAddress({
+          house_number: '5',
+          road: 'Bulevardul Unirii',
+          suburb: 'Sector 3',
+          city: 'București',
+        }),
+      ).toBe('Bulevardul Unirii 5, Sector 3, București');
+    });
+
+    it('falls back to town / village / municipality when city is missing', () => {
+      expect(
+        buildNominatimAddress({
+          house_number: '10',
+          road: 'Main St',
+          town: 'Pipera',
+        }),
+      ).toBe('Main St 10, Pipera');
+    });
+
+    it('accepts pedestrian / footway in place of road', () => {
+      expect(
+        buildNominatimAddress({
+          house_number: '7',
+          pedestrian: 'Pasajul Victoria',
+          city: 'București',
+        }),
+      ).toBe('Pasajul Victoria 7, București');
+    });
+
+    it('falls back to the first three parts of display_name when road is missing', () => {
+      expect(
+        buildNominatimAddress(
+          undefined,
+          'Parcul Herăstrău, Sector 1, București, Municipiul București, România',
+        ),
+      ).toBe('Parcul Herăstrău, Sector 1, București');
+    });
+
+    it('returns empty string when nothing is available', () => {
+      expect(buildNominatimAddress(undefined)).toBe('');
     });
   });
 });

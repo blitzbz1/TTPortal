@@ -958,5 +958,9 @@
   "feedbackReply": "Reply",
   "feedbackReplyTitle": "Reply to feedback",
   "feedbackReplyPlaceholder": "Write a reply to the user…",
-  "feedbackReplyError": "Couldn't send the reply. Please try again."
+  "feedbackReplyError": "Couldn't send the reply. Please try again.",
+
+  "pinOnMap": "Pin on map",
+  "dragPinHint": "Drag the pin to adjust the exact location.",
+  "updatingAddress": "Updating address…"
 }

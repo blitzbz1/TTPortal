@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { FeedbackReplyModal } from '../components/FeedbackReplyModal';
+import { AddressPickerField } from '../components/AddressPickerField';
+import { getCities, upsertCity } from '../services/cities';
 import { useTheme } from '../hooks/useTheme';
 import { Fonts } from '../theme';
 import { createStyles } from './AdminModerationScreen.styles';
@@ -44,10 +46,13 @@ export function AdminModerationScreen() {
   const [editName, setEditName] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [editCity, setEditCity] = useState('');
+  const [editLat, setEditLat] = useState<number | null>(null);
+  const [editLng, setEditLng] = useState<number | null>(null);
   const [editType, setEditType] = useState('');
   const [editTables, setEditTables] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+  const [knownCities, setKnownCities] = useState<string[]>([]);
   const router = useRouter();
   const { user } = useSession();
   const { s } = useI18n();
@@ -61,6 +66,12 @@ export function AdminModerationScreen() {
       setAdminLoading(false);
     });
   }, [user]);
+
+  useEffect(() => {
+    getCities().then(({ data }) => {
+      if (data) setKnownCities(data.map((c: { name: string }) => c.name));
+    });
+  }, []);
 
   const fetchReviewsData = useCallback(async () => {
     setReviewsLoading(true);
@@ -137,21 +148,46 @@ export function AdminModerationScreen() {
     setEditName(venue.name ?? '');
     setEditAddress(venue.address ?? '');
     setEditCity(venue.city ?? '');
+    setEditLat(typeof venue.lat === 'number' ? venue.lat : null);
+    setEditLng(typeof venue.lng === 'number' ? venue.lng : null);
     setEditType(venue.type ?? 'parc_exterior');
     setEditTables(venue.tables_count != null ? String(venue.tables_count) : '');
     setEditDescription(venue.description ?? '');
   }, []);
 
+  const handleEditAddressPatch = useCallback((patch: { address?: string; city?: string; lat?: number | null; lng?: number | null }) => {
+    if (patch.address !== undefined) setEditAddress(patch.address);
+    if (patch.city !== undefined) setEditCity(patch.city);
+    if (patch.lat !== undefined) setEditLat(patch.lat);
+    if (patch.lng !== undefined) setEditLng(patch.lng);
+  }, []);
+
   const handleSaveEdit = useCallback(async () => {
     if (!editVenue || !editName.trim()) return;
     setEditSaving(true);
+
+    const trimmedCity = editCity.trim();
+    let cityIdUpdate: number | undefined;
+    if (trimmedCity && trimmedCity !== (editVenue.city ?? '').trim()) {
+      const { id: upsertedId, error: cityError } = await upsertCity(trimmedCity);
+      if (cityError || !upsertedId) {
+        setEditSaving(false);
+        Alert.alert(s('error'), s('genericError'));
+        return;
+      }
+      cityIdUpdate = upsertedId;
+    }
+
     const { data, error } = await updateVenue(editVenue.id, user!.id, {
       name: editName.trim(),
       address: editAddress.trim(),
-      city: editCity.trim(),
+      city: trimmedCity,
+      ...(cityIdUpdate !== undefined ? { city_id: cityIdUpdate } : {}),
       type: editType,
       tables_count: editTables ? Number(editTables) : null,
       description: editDescription.trim() || null,
+      lat: editLat,
+      lng: editLng,
     });
     setEditSaving(false);
     if (error) { Alert.alert(s('error'), s('genericError')); return; }
@@ -160,7 +196,7 @@ export function AdminModerationScreen() {
     // Update in pending list too
     setPendingVenues((prev) => prev.map((v) => v.id === editVenue.id ? { ...v, ...data } : v));
     setEditVenue(null);
-  }, [editVenue, editName, editAddress, editCity, editType, editTables, editDescription, user, s]);
+  }, [editVenue, editName, editAddress, editCity, editLat, editLng, editType, editTables, editDescription, user, s]);
 
   const handleKeep = useCallback(async (id: number) => {
     const { error } = await keepReview(id, user!.id);
@@ -526,16 +562,28 @@ export function AdminModerationScreen() {
                   </View>
                 </View>
 
-                {/* Address */}
-                <View style={styles.modalField}>
+                {/* Address (with typeahead, geocode, map) */}
+                <View style={[styles.modalField, { zIndex: 10 }]}>
                   <Text style={styles.modalLabel}>{s('fieldAddress')}</Text>
-                  <TextInput style={styles.modalInput} value={editAddress} onChangeText={setEditAddress} maxLength={200} />
+                  <AddressPickerField
+                    address={editAddress}
+                    city={editCity}
+                    lat={editLat}
+                    lng={editLng}
+                    knownCities={knownCities}
+                    onChange={handleEditAddressPatch}
+                  />
                 </View>
 
-                {/* City */}
+                {/* City — read-only display; filled from AddressPickerField */}
                 <View style={styles.modalField}>
                   <Text style={styles.modalLabel}>{s('fieldCity')}</Text>
-                  <TextInput style={styles.modalInput} value={editCity} onChangeText={setEditCity} maxLength={100} />
+                  <TextInput
+                    style={styles.modalInput}
+                    value={editCity}
+                    onChangeText={setEditCity}
+                    maxLength={100}
+                  />
                 </View>
 
                 {/* Tables */}

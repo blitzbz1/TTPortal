@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
+import { AddressPickerField } from '../components/AddressPickerField';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
@@ -19,15 +19,80 @@ export function normalize(s: string): string {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
 
+/** Shape of the `address` object returned by Nominatim /search and /reverse. */
+export interface NominatimAddressDetails {
+  house_number?: string;
+  road?: string;
+  pedestrian?: string;
+  footway?: string;
+  neighbourhood?: string;
+  suburb?: string;
+  city?: string;
+  town?: string;
+  village?: string;
+  municipality?: string;
+}
+
 /** Extract city name from Nominatim address details. */
-export function extractNominatimCity(address?: { city?: string; town?: string; village?: string; municipality?: string }): string | null {
+export function extractNominatimCity(address?: NominatimAddressDetails): string | null {
   return address?.city || address?.town || address?.village || address?.municipality || null;
 }
 
-/** Match a city name against a list of known cities (case & diacritic insensitive). Returns the canonical DB name or null. */
+/**
+ * English exonym → Romanian canonical name for cities that Nominatim commonly
+ * returns under their international form. Keys are normalized (lowercased,
+ * diacritic-stripped) so lookups are case-insensitive.
+ */
+export const CITY_ALIASES_RO: Readonly<Record<string, string>> = {
+  bucharest: 'București',
+  jassy: 'Iași',
+  kronstadt: 'Brașov',
+  temeschwar: 'Timișoara',
+  hermannstadt: 'Sibiu',
+  klausenburg: 'Cluj-Napoca',
+};
+
+/**
+ * Match a city name against a list of known cities (case & diacritic
+ * insensitive). If the name is a known English exonym (e.g., "Bucharest"),
+ * matches it to the Romanian canonical ("București") first.
+ * Returns the canonical DB name or null.
+ */
 export function matchCity(nominatimCity: string, knownCities: string[]): string | null {
   const norm = normalize(nominatimCity);
-  return knownCities.find((c) => normalize(c) === norm) ?? null;
+  const direct = knownCities.find((c) => normalize(c) === norm);
+  if (direct) return direct;
+  const canonical = CITY_ALIASES_RO[norm];
+  if (canonical) {
+    const aliased = knownCities.find((c) => normalize(c) === normalize(canonical));
+    if (aliased) return aliased;
+  }
+  return null;
+}
+
+/**
+ * Build a human-readable street address from Nominatim's structured `address`
+ * object, preserving the house number whenever Nominatim returned one.
+ * Falls back to the first three comma-separated segments of `displayName`
+ * only if the structured object lacks a road.
+ */
+export function buildNominatimAddress(
+  address: NominatimAddressDetails | undefined,
+  displayName?: string,
+): string {
+  const road = address?.road || address?.pedestrian || address?.footway;
+  if (road) {
+    const streetLine = address?.house_number ? `${road} ${address.house_number}` : road;
+    const area = address?.neighbourhood || address?.suburb;
+    const city = address?.city || address?.town || address?.village || address?.municipality;
+    const parts = [streetLine, area, city].filter((p): p is string => typeof p === 'string' && p.length > 0);
+    return parts.join(', ');
+  }
+  if (displayName) {
+    const parts = displayName.split(', ');
+    return parts.slice(0, Math.min(3, parts.length)).join(', ');
+  }
+  return '';
 }
 
 export function AddVenueScreen() {
@@ -46,86 +111,19 @@ export function AddVenueScreen() {
   const [loading, setLoading] = useState(false);
   const [geoLat, setGeoLat] = useState<number | null>(null);
   const [geoLng, setGeoLng] = useState<number | null>(null);
-  const [geocoding, setGeocoding] = useState(false);
-  const mapRef = useRef<MapView>(null);
-
-  // Typeahead state
-  interface NominatimAddress { city?: string; town?: string; village?: string; municipality?: string }
-  interface NominatimSuggestion { display_name: string; lat: string; lon: string; address?: NominatimAddress }
-  const [suggestions, setSuggestions] = useState<NominatimSuggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastQueryRef = useRef('');
   const [knownCities, setKnownCities] = useState<string[]>([]);
 
   useEffect(() => {
     getCities().then(({ data }) => {
       if (data) setKnownCities(data.map((c: { name: string }) => c.name));
     });
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, []);
 
-  const handleAddressChange = useCallback((text: string) => {
-    setAddress(text);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    if (text.trim().length < 3) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      setSearching(false);
-      return;
-    }
-
-    setSearching(true);
-    debounceRef.current = setTimeout(async () => {
-      const trimmed = text.trim();
-      if (trimmed === lastQueryRef.current) { setSearching(false); return; }
-      lastQueryRef.current = trimmed;
-
-      try {
-        const query = encodeURIComponent(trimmed);
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
-        const res = await fetch(
-          'https://nominatim.openstreetmap.org/search?format=json&limit=5&dedupe=1&addressdetails=1&countrycodes=ro&q=' + query,
-          { headers: { 'User-Agent': 'TTPortal/1.0' }, signal: controller.signal },
-        );
-        clearTimeout(timeout);
-        if (!res.ok) { setSearching(false); return; }
-        const data: NominatimSuggestion[] = await res.json();
-        setSuggestions(data);
-        setShowSuggestions(data.length > 0);
-      } catch { /* timeout / abort — ignore */ }
-      setSearching(false);
-    }, 800);
-  }, []);
-
-  const handleSuggestionSelect = useCallback((item: NominatimSuggestion) => {
-    const lat = parseFloat(item.lat);
-    const lng = parseFloat(item.lon);
-    // Extract short address (first part before the country-level detail)
-    const parts = item.display_name.split(', ');
-    const short = parts.slice(0, Math.min(3, parts.length)).join(', ');
-    setAddress(short);
-    setGeoLat(lat);
-    setGeoLng(lng);
-    setSuggestions([]);
-    setShowSuggestions(false);
-    lastQueryRef.current = short;
-    mapRef.current?.animateToRegion({ latitude: lat, longitude: lng, latitudeDelta: 0.005, longitudeDelta: 0.005 }, 500);
-
-    // Extract city from Nominatim address details and match against known cities
-    const nominatimCity = extractNominatimCity(item.address);
-    if (nominatimCity && knownCities.length > 0) {
-      const match = matchCity(nominatimCity, knownCities);
-      if (match) setCity(match);
-    }
-  }, [knownCities]);
-
-  const handleMarkerDrag = useCallback((e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
-    setGeoLat(e.nativeEvent.coordinate.latitude);
-    setGeoLng(e.nativeEvent.coordinate.longitude);
+  const handleAddressPatch = useCallback((patch: { address?: string; city?: string; lat?: number | null; lng?: number | null }) => {
+    if (patch.address !== undefined) setAddress(patch.address);
+    if (patch.city !== undefined) setCity(patch.city);
+    if (patch.lat !== undefined) setGeoLat(patch.lat);
+    if (patch.lng !== undefined) setGeoLng(patch.lng);
   }, []);
 
   const handleSubmit = useCallback(async () => {
@@ -174,40 +172,6 @@ export function AddVenueScreen() {
     Alert.alert(s('success'), s('venueSubmitted'));
     router.back();
   }, [name, address, type, city, tablesCount, notes, user, router, geoLat, geoLng, s]);
-
-  const handleGeocode = useCallback(async () => {
-    if (!address.trim()) {
-      Alert.alert(s('error'), s('addressRequired'));
-      return;
-    }
-    setGeocoding(true);
-    try {
-      const query = encodeURIComponent(address.trim());
-      const res = await fetch(
-        'https://nominatim.openstreetmap.org/search?format=json&countrycodes=ro&addressdetails=1&q=' + query,
-        { headers: { 'User-Agent': 'TTPortal/1.0' } },
-      );
-      const results = await res.json();
-      if (results && results.length > 0) {
-        const lat = parseFloat(results[0].lat);
-        const lng = parseFloat(results[0].lon);
-        setGeoLat(lat);
-        setGeoLng(lng);
-        mapRef.current?.animateToRegion({ latitude: lat, longitude: lng, latitudeDelta: 0.005, longitudeDelta: 0.005 }, 500);
-        const nominatimCity = extractNominatimCity(results[0].address);
-        if (nominatimCity && knownCities.length > 0) {
-          const match = matchCity(nominatimCity, knownCities);
-          if (match) setCity(match);
-        }
-      } else {
-        Alert.alert(s('error'), s('geocodeNotFound') || 'Address not found');
-      }
-    } catch {
-      Alert.alert(s('error'), s('geocodeNotFound') || 'Geocoding failed');
-    } finally {
-      setGeocoding(false);
-    }
-  }, [address, knownCities, s]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -264,81 +228,17 @@ export function AddVenueScreen() {
             />
           </View>
 
-          {/* Address Field */}
+          {/* Address field (with typeahead, geocode button, map) */}
           <View style={[styles.field, { zIndex: 10 }]}>
             <Text style={styles.fieldLabel}>{s('fieldAddress')}</Text>
-            <View style={styles.addressRow}>
-              <TextInput
-                style={[styles.input, styles.inputText, { flex: 1 }]}
-                placeholder={s('addressPlaceholder')}
-                placeholderTextColor={colors.textFaint}
-                value={address}
-                onChangeText={handleAddressChange}
-                maxLength={200}
-              />
-              <TouchableOpacity
-                style={[styles.geocodeBtn, geoLat !== null && { backgroundColor: colors.primaryLight }]}
-                onPress={handleGeocode}
-                disabled={geocoding}
-              >
-                {geocoding ? (
-                  <ActivityIndicator size="small" color={colors.textOnPrimary} />
-                ) : (
-                  <>
-                    <Lucide name="map-pin" size={14} color={colors.textOnPrimary} />
-                    <Text style={styles.geocodeBtnText}>
-                      {geoLat !== null ? '\u2713' : s('pinOnMap')}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-            {/* Typeahead dropdown */}
-            {(showSuggestions || searching) && (
-              <View style={styles.suggestionsWrap}>
-                {searching && suggestions.length === 0 ? (
-                  <View style={styles.suggestionLoading}>
-                    <ActivityIndicator size="small" color={colors.primaryMid} />
-                    <Text style={styles.suggestionLoadingText}>{s('searching') || 'Searching...'}</Text>
-                  </View>
-                ) : (
-                  suggestions.map((item, idx) => (
-                    <Pressable
-                      key={`${item.lat}-${item.lon}`}
-                      style={({ pressed }) => [styles.suggestionItem, pressed && styles.suggestionItemPressed, idx < suggestions.length - 1 && styles.suggestionBorder]}
-                      onPress={() => handleSuggestionSelect(item)}
-                    >
-                      <View style={{ marginTop: 2 }}><Lucide name="map-pin" size={14} color={colors.primaryMid} /></View>
-                      <Text style={styles.suggestionText} numberOfLines={2}>{item.display_name}</Text>
-                    </Pressable>
-                  ))
-                )}
-              </View>
-            )}
-          </View>
-
-          {/* Map Preview */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>{s('pinOnMap')}</Text>
-            <View style={styles.mapWrap}>
-              <MapView
-                ref={mapRef}
-                style={styles.map}
-                initialRegion={{
-                  latitude: geoLat ?? 44.43,
-                  longitude: geoLng ?? 26.10,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-              >
-                <Marker
-                  coordinate={{ latitude: geoLat ?? 44.43, longitude: geoLng ?? 26.10 }}
-                  draggable
-                  onDragEnd={handleMarkerDrag}
-                />
-              </MapView>
-            </View>
-            <Text style={styles.mapHint}>{s('dragPinHint')}</Text>
+            <AddressPickerField
+              address={address}
+              city={city}
+              lat={geoLat}
+              lng={geoLng}
+              knownCities={knownCities}
+              onChange={handleAddressPatch}
+            />
           </View>
 
           {/* Notes Field */}
@@ -456,86 +356,6 @@ function createStyles(colors: ThemeColors) {
     typeBtnTextActive: {
       color: colors.primaryMid,
       fontWeight: FontWeight.semibold,
-    },
-    addressRow: {
-      flexDirection: 'row',
-      gap: Spacing.xs,
-      ...Shadows.sm,
-      borderRadius: Radius.md,
-    },
-    geocodeBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.primaryLight,
-      borderRadius: Radius.md,
-      height: 46,
-      paddingHorizontal: 14,
-      gap: 6,
-      ...Shadows.md,
-    },
-    geocodeBtnText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.base,
-      fontWeight: FontWeight.semibold,
-      color: colors.textOnPrimary,
-    },
-    suggestionsWrap: {
-      backgroundColor: colors.bgAlt,
-      borderRadius: Radius.md,
-      borderWidth: 1,
-      borderColor: colors.border,
-      maxHeight: 200,
-      overflow: 'hidden',
-      ...Shadows.md,
-    },
-    suggestionItem: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-    },
-    suggestionItemPressed: {
-      backgroundColor: colors.bgMuted,
-    },
-    suggestionBorder: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.border,
-    },
-    suggestionText: {
-      flex: 1,
-      fontFamily: Fonts.body,
-      fontSize: FontSize.sm,
-      color: colors.textMuted,
-    },
-    suggestionLoading: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-    },
-    suggestionLoadingText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.sm,
-      color: colors.textFaint,
-    },
-    mapWrap: {
-      borderRadius: Radius.md,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: colors.border,
-      ...Shadows.sm,
-    },
-    map: {
-      width: '100%',
-      height: 180,
-    },
-    mapHint: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.xs,
-      color: colors.textFaint,
-      marginTop: 4,
     },
     textarea: {
       backgroundColor: colors.bgAlt,

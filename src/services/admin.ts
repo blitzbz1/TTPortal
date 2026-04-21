@@ -41,7 +41,17 @@ export async function searchVenuesAdmin(query: string) {
 export async function updateVenue(
   id: number,
   userId: string,
-  updates: { name?: string; address?: string; city?: string; type?: string; tables_count?: number | null; description?: string | null },
+  updates: {
+    name?: string;
+    address?: string;
+    city?: string;
+    city_id?: number;
+    type?: string;
+    tables_count?: number | null;
+    description?: string | null;
+    lat?: number | null;
+    lng?: number | null;
+  },
 ) {
   if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
   return supabase.from('venues').update(updates).eq('id', id).select().single();

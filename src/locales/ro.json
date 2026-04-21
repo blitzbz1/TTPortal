@@ -958,5 +958,9 @@
   "feedbackReply": "Răspunde",
   "feedbackReplyTitle": "Răspuns la feedback",
   "feedbackReplyPlaceholder": "Scrie un răspuns către utilizator…",
-  "feedbackReplyError": "Nu am putut trimite răspunsul. Încearcă din nou."
+  "feedbackReplyError": "Nu am putut trimite răspunsul. Încearcă din nou.",
+
+  "pinOnMap": "Marchează pe hartă",
+  "dragPinHint": "Trage pinul pentru a ajusta locația exactă.",
+  "updatingAddress": "Se actualizează adresa…"
 }
