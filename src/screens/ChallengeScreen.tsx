@@ -418,7 +418,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const renderMonthlyMastery = () => (
     <View style={styles.masteryPanel}>
       <View style={styles.masteryTop}>
-        <View>
+        <View style={styles.masteryTitleCol}>
           <Text style={styles.eyebrow}>{s('challengeSeasonTitle')}</Text>
           <Text style={styles.masteryTitle}>{s('challengeSeasonSubtitle')}</Text>
         </View>

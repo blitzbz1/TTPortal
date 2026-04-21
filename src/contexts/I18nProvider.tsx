@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { openDatabaseSync } from 'expo-sqlite';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import roStrings from '../locales/ro.json';
 import enStrings from '../locales/en.json';
 
@@ -35,21 +35,13 @@ const locales: Record<Lang, Record<string, string>> = {
 };
 
 /**
- * Read the stored language preference from expo-sqlite.
- * Uses the same storage table as the legacy localStorage key `ttportal-lang`.
+ * Read the stored language preference from AsyncStorage.
  */
-function loadLang(): Lang {
+async function loadLang(): Promise<Lang> {
   try {
-    const db = openDatabaseSync('supabase-storage.db');
-    db.execSync(
-      'CREATE TABLE IF NOT EXISTS storage (key TEXT PRIMARY KEY, value TEXT);'
-    );
-    const row = db.getFirstSync<{ value: string }>(
-      'SELECT value FROM storage WHERE key = ?;',
-      [STORAGE_KEY]
-    );
-    if (row?.value && VALID_LANGS.has(row.value)) {
-      return row.value as Lang;
+    const value = await AsyncStorage.getItem(STORAGE_KEY);
+    if (value && VALID_LANGS.has(value)) {
+      return value as Lang;
     }
   } catch {
     // Storage unavailable — fall through to default
@@ -58,18 +50,12 @@ function loadLang(): Lang {
 }
 
 /**
- * Persist language choice to expo-sqlite storage.
+ * Persist language choice to AsyncStorage.
  */
 function saveLang(lang: Lang): void {
-  try {
-    const db = openDatabaseSync('supabase-storage.db');
-    db.runSync(
-      'INSERT OR REPLACE INTO storage (key, value) VALUES (?, ?);',
-      [STORAGE_KEY, lang]
-    );
-  } catch {
+  AsyncStorage.setItem(STORAGE_KEY, lang).catch(() => {
     // Storage write failed — language is still set in memory
-  }
+  });
 }
 
 /** Props for I18nProvider. */
@@ -80,8 +66,7 @@ interface I18nProviderProps {
 }
 
 /**
- * Provider that loads language from expo-sqlite storage (migrating from
- * the legacy localStorage key `ttportal-lang`), and exposes `lang`,
+ * Provider that loads language from AsyncStorage, and exposes `lang`,
  * `setLang(lang)`, and `s(key, ...args)` string resolver with English fallback.
  */
 export function I18nProvider({ children, initialLang }: I18nProviderProps) {
@@ -89,7 +74,13 @@ export function I18nProvider({ children, initialLang }: I18nProviderProps) {
 
   useEffect(() => {
     if (initialLang === undefined) {
-      setLangState(loadLang());
+      let cancelled = false;
+      loadLang().then((next) => {
+        if (!cancelled) setLangState(next);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
   }, [initialLang]);
 

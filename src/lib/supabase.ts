@@ -1,18 +1,22 @@
 import 'react-native-url-polyfill/auto';
 import { Platform } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 /**
  * Storage adapter factory.
- * - Native (iOS/Android): uses expo-sqlite for persistent storage.
- * - Web: uses localStorage (no SharedArrayBuffer requirement).
+ * - Native (iOS/Android): AsyncStorage (the canonical Supabase-on-React-Native
+ *   choice). We previously used expo-sqlite here, but on Expo SDK 54's new
+ *   architecture Android the sqlite handle is permanently broken when opened
+ *   during module load — every prepareSync NPE'd, so sessions never persisted
+ *   and every auth-gated query returned as unauthenticated.
+ * - Web: localStorage with an in-memory fallback for SSR.
  */
 function createStorage() {
   if (Platform.OS === 'web') {
-    // localStorage is unavailable during SSR; use in-memory fallback
     const memoryStore = new Map<string, string>();
     const hasLocalStorage = typeof localStorage !== 'undefined';
     return {
@@ -28,32 +32,7 @@ function createStorage() {
       },
     };
   }
-
-  // Native: use expo-sqlite
-  const { openDatabaseSync } = require('expo-sqlite');
-  const db = openDatabaseSync('supabase-storage.db');
-  db.execSync(
-    'CREATE TABLE IF NOT EXISTS storage (key TEXT PRIMARY KEY, value TEXT);'
-  );
-
-  return {
-    getItem(key: string): string | null {
-      const row = db.getFirstSync(
-        'SELECT value FROM storage WHERE key = ?;',
-        [key]
-      );
-      return row?.value ?? null;
-    },
-    setItem(key: string, value: string): void {
-      db.runSync(
-        'INSERT OR REPLACE INTO storage (key, value) VALUES (?, ?);',
-        [key, value]
-      );
-    },
-    removeItem(key: string): void {
-      db.runSync('DELETE FROM storage WHERE key = ?;', [key]);
-    },
-  };
+  return AsyncStorage;
 }
 
 const storage = createStorage();

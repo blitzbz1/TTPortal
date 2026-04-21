@@ -1,11 +1,18 @@
-const mockDb = {
-  execSync: jest.fn(),
-  getFirstSync: jest.fn((): { value: string } | null => null),
-  runSync: jest.fn(),
-};
+const mockGetItem = jest.fn<Promise<string | null>, [string]>(() =>
+  Promise.resolve(null),
+);
+const mockSetItem = jest.fn<Promise<void>, [string, string]>(() =>
+  Promise.resolve(),
+);
+const mockRemoveItem = jest.fn<Promise<void>, [string]>(() => Promise.resolve());
 
-jest.mock('expo-sqlite', () => ({
-  openDatabaseSync: () => mockDb,
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: (...args: [string]) => mockGetItem(...args),
+    setItem: (...args: [string, string]) => mockSetItem(...args),
+    removeItem: (...args: [string]) => mockRemoveItem(...args),
+  },
 }));
 
  
@@ -39,6 +46,7 @@ function TestConsumer() {
 describe('I18nProvider', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetItem.mockImplementation(() => Promise.resolve(null));
   });
 
   it('returns Romanian string for authLogin when lang is ro', () => {
@@ -107,7 +115,7 @@ describe('I18nProvider', () => {
     expect(screen.getByTestId('authLogin')).toHaveTextContent('Conectare');
   });
 
-  it('persists language to SQLite when setLang is called', async () => {
+  it('persists language to AsyncStorage when setLang is called', async () => {
     const user = userEvent.setup();
 
     render(
@@ -118,14 +126,11 @@ describe('I18nProvider', () => {
 
     await user.press(screen.getByTestId('switchToEn'));
 
-    expect(mockDb.runSync).toHaveBeenCalledWith(
-      'INSERT OR REPLACE INTO storage (key, value) VALUES (?, ?);',
-      ['ttportal-lang', 'en']
-    );
+    expect(mockSetItem).toHaveBeenCalledWith('ttportal-lang', 'en');
   });
 
-  it('loads language from SQLite when no initialLang is provided', () => {
-    mockDb.getFirstSync.mockReturnValueOnce({ value: 'en' });
+  it('loads language from AsyncStorage when no initialLang is provided', async () => {
+    mockGetItem.mockImplementationOnce(() => Promise.resolve('en'));
 
     render(
       <I18nProvider>
@@ -133,18 +138,13 @@ describe('I18nProvider', () => {
       </I18nProvider>
     );
 
-    expect(mockDb.execSync).toHaveBeenCalledWith(
-      'CREATE TABLE IF NOT EXISTS storage (key TEXT PRIMARY KEY, value TEXT);'
-    );
-    expect(mockDb.getFirstSync).toHaveBeenCalledWith(
-      'SELECT value FROM storage WHERE key = ?;',
-      ['ttportal-lang']
-    );
+    expect(mockGetItem).toHaveBeenCalledWith('ttportal-lang');
+    await screen.findByText('en');
     expect(screen.getByTestId('lang')).toHaveTextContent('en');
   });
 
-  it('falls back to ro when stored value is invalid', () => {
-    mockDb.getFirstSync.mockReturnValueOnce({ value: 'fr' });
+  it('falls back to ro when stored value is invalid', async () => {
+    mockGetItem.mockImplementationOnce(() => Promise.resolve('fr'));
 
     render(
       <I18nProvider>
@@ -152,6 +152,7 @@ describe('I18nProvider', () => {
       </I18nProvider>
     );
 
+    await new Promise((r) => setTimeout(r, 0));
     expect(screen.getByTestId('lang')).toHaveTextContent('ro');
   });
 

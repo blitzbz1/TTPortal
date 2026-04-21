@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { useColorScheme } from 'react-native';
-import { openDatabaseSync } from 'expo-sqlite';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { lightColors, darkColors, updateShadowsForTheme } from '../theme';
 import type { ThemeColors } from '../theme';
 
@@ -27,18 +27,11 @@ const STORAGE_KEY = 'ttportal-theme';
 const DEFAULT_MODE: ThemeMode = 'system';
 const VALID_MODES: ReadonlySet<string> = new Set(['light', 'dark', 'system']);
 
-function loadMode(): ThemeMode {
+async function loadMode(): Promise<ThemeMode> {
   try {
-    const db = openDatabaseSync('supabase-storage.db');
-    db.execSync(
-      'CREATE TABLE IF NOT EXISTS storage (key TEXT PRIMARY KEY, value TEXT);'
-    );
-    const row = db.getFirstSync<{ value: string }>(
-      'SELECT value FROM storage WHERE key = ?;',
-      [STORAGE_KEY]
-    );
-    if (row?.value && VALID_MODES.has(row.value)) {
-      return row.value as ThemeMode;
+    const value = await AsyncStorage.getItem(STORAGE_KEY);
+    if (value && VALID_MODES.has(value)) {
+      return value as ThemeMode;
     }
   } catch {
     // Storage unavailable — fall through to default
@@ -47,15 +40,10 @@ function loadMode(): ThemeMode {
 }
 
 function saveMode(mode: ThemeMode): void {
-  try {
-    const db = openDatabaseSync('supabase-storage.db');
-    db.runSync(
-      'INSERT OR REPLACE INTO storage (key, value) VALUES (?, ?);',
-      [STORAGE_KEY, mode]
-    );
-  } catch {
+  // Fire-and-forget; the in-memory state is already updated by the caller.
+  AsyncStorage.setItem(STORAGE_KEY, mode).catch(() => {
     // Storage write failed — mode is still set in memory
-  }
+  });
 }
 
 interface ThemeProviderProps {
@@ -69,7 +57,13 @@ export function ThemeProvider({ children, initialMode }: ThemeProviderProps) {
 
   useEffect(() => {
     if (initialMode === undefined) {
-      setModeState(loadMode());
+      let cancelled = false;
+      loadMode().then((next) => {
+        if (!cancelled) setModeState(next);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
   }, [initialMode]);
 

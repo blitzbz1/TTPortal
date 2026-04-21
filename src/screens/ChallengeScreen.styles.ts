@@ -211,10 +211,10 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
     masteryPanel: {
       gap: Spacing.sm,
       borderRadius: Radius.md,
-      backgroundColor: isDark ? colors.bgAlt : colors.text,
+      backgroundColor: colors.bgAlt,
       padding: Spacing.md,
       borderWidth: 1,
-      borderColor: isDark ? colors.primaryDim : colors.text,
+      borderColor: colors.borderLight,
       ...Shadows.md,
     },
     masteryTop: {
@@ -223,15 +223,22 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
       justifyContent: 'space-between',
       gap: Spacing.sm,
     },
+    // Left column must take the remaining width so a long title wraps
+    // naturally instead of squeezing the score block against the right edge.
+    masteryTitleCol: {
+      flex: 1,
+      flexShrink: 1,
+    },
     masteryTitle: {
       fontFamily: Fonts.heading,
       fontSize: FontSize.xxl,
       fontWeight: FontWeight.bold,
-      color: isDark ? colors.text : colors.bgAlt,
+      color: colors.text,
       marginTop: 2,
     },
     masteryScore: {
       alignItems: 'flex-end',
+      flexShrink: 0,
     },
     masteryScoreValue: {
       fontFamily: Fonts.heading,
@@ -243,7 +250,7 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
       fontFamily: Fonts.body,
       fontSize: FontSize.xs,
       fontWeight: FontWeight.bold,
-      color: isDark ? colors.textMuted : colors.bgMuted,
+      color: colors.textMuted,
     },
     masteryStats: {
       flexDirection: 'row',
@@ -252,7 +259,7 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
     masteryStat: {
       flex: 1,
       borderRadius: Radius.sm,
-      backgroundColor: isDark ? colors.bgMuted : '#ffffff18',
+      backgroundColor: colors.bgMuted,
       padding: Spacing.sm,
       gap: 2,
     },
@@ -260,13 +267,13 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
       fontFamily: Fonts.heading,
       fontSize: FontSize.xl,
       fontWeight: FontWeight.bold,
-      color: isDark ? colors.text : colors.bgAlt,
+      color: colors.text,
     },
     masteryStatLabel: {
       fontFamily: Fonts.body,
       fontSize: FontSize.xs,
       fontWeight: FontWeight.bold,
-      color: isDark ? colors.textMuted : colors.bgMuted,
+      color: colors.textMuted,
     },
     approvalPanel: {
       gap: Spacing.sm,
