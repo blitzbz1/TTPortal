@@ -85,8 +85,9 @@ export default function GetStartedModal({
           </a>
 
           <a
-            href="/downloads/ttportal.apk"
-            download
+            href="https://github.com/blitzbz1/TTPortal/releases/download/v0.0.1-alpha/app-release.apk"
+            target="_blank"
+            rel="noopener noreferrer"
             className="group flex items-center gap-4 rounded-2xl border border-ink-100 bg-paper/60 p-5 transition-all hover:-translate-y-[1px] hover:border-clay-300 hover:bg-clay-50/50"
           >
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-clay-500 to-clay-700 text-paper shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
