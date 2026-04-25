@@ -10,15 +10,46 @@ import { logger } from '../../lib/logger';
 import { sanitizeAppRoute } from '../../lib/auth-redirects';
 
 type CallbackState = 'processing' | 'error';
+type EmailOtpType =
+  | 'signup'
+  | 'magiclink'
+  | 'recovery'
+  | 'invite'
+  | 'email_change'
+  | 'email';
+
+const EMAIL_OTP_TYPES: ReadonlySet<EmailOtpType> = new Set([
+  'signup',
+  'magiclink',
+  'recovery',
+  'invite',
+  'email_change',
+  'email',
+]);
 
 function getDefaultRoute(flow?: string) {
   return flow === 'signup' ? '/onboarding' : '/(tabs)';
+}
+
+function getParamValue(value?: string | string[]) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function getEmailOtpType(rawType?: string, flow?: string): EmailOtpType | null {
+  if (!rawType) {
+    return flow === 'signup' ? 'signup' : null;
+  }
+
+  const normalized = rawType.toLowerCase() as EmailOtpType;
+  return EMAIL_OTP_TYPES.has(normalized) ? normalized : null;
 }
 
 export default function AuthCallbackScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     code?: string;
+    token_hash?: string;
+    type?: string;
     next?: string;
     flow?: string;
     error_description?: string;
@@ -32,7 +63,17 @@ export default function AuthCallbackScreen() {
     let cancelled = false;
 
     async function completeAuth() {
-      const next = sanitizeAppRoute(params.next ?? getDefaultRoute(params.flow));
+      const flow = getParamValue(params.flow);
+      const next = sanitizeAppRoute(getParamValue(params.next) ?? getDefaultRoute(flow));
+      const code = getParamValue(params.code);
+      const tokenHash = getParamValue(params.token_hash);
+      const otpType = getEmailOtpType(getParamValue(params.type), flow);
+      let callbackResult:
+        | {
+            session?: unknown;
+            user?: unknown;
+          }
+        | undefined;
 
       if (params.error_description) {
         logger.warn('Auth callback returned error', {
@@ -42,16 +83,40 @@ export default function AuthCallbackScreen() {
         return;
       }
 
-      if (params.code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(params.code);
+      if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
           logger.warn('Auth callback code exchange failed', { error: error.message });
           if (!cancelled) setState('error');
           return;
         }
+        callbackResult = data;
+      } else if (tokenHash && otpType) {
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: otpType,
+        });
+        if (error) {
+          logger.warn('Auth callback token verification failed', {
+            error: error.message,
+            type: otpType,
+          });
+          if (!cancelled) setState('error');
+          return;
+        }
+        callbackResult = data;
       }
 
       const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session && flow === 'signup' && callbackResult?.user) {
+        logger.info('Auth callback verified signup without session; routing to sign-in');
+        if (!cancelled) {
+          router.replace({ pathname: '/sign-in', params: { initialTab: 'login' } });
+        }
+        return;
+      }
+
       if (!session) {
         logger.warn('Auth callback finished without a session');
         if (!cancelled) setState('error');
