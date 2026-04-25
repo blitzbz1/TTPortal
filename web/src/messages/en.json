@@ -196,6 +196,12 @@
     "colActions": "Actions",
     "save": "Save",
     "cancel": "Cancel",
-    "confirmDelete": "Delete"
+    "confirmDelete": "Delete",
+    "dashboardTitle": "Admin dashboard",
+    "dashboardSubtitle": "Moderate venues, reviews, feedback and feature requests.",
+    "tabVenues": "Venues",
+    "tabReviews": "Flagged reviews",
+    "tabFeedback": "User feedback",
+    "tabFeatures": "Feature requests"
   }
 }

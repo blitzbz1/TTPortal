@@ -196,6 +196,12 @@
     "colActions": "Acțiuni",
     "save": "Salvează",
     "cancel": "Anulează",
-    "confirmDelete": "Șterge"
+    "confirmDelete": "Șterge",
+    "dashboardTitle": "Panou de administrare",
+    "dashboardSubtitle": "Moderează localuri, recenzii, feedback și solicitări.",
+    "tabVenues": "Localuri",
+    "tabReviews": "Recenzii semnalate",
+    "tabFeedback": "Feedback utilizatori",
+    "tabFeatures": "Solicitări"
   }
 }
