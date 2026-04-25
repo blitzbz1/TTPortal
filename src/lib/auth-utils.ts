@@ -1,5 +1,6 @@
 import type { AuthError } from '@supabase/supabase-js';
 import { logger } from './logger';
+import { sanitizeAppRoute } from './auth-redirects';
 
 /** Validates email format using basic RFC 5322 pattern. */
 export function isValidEmail(email: string): boolean {
@@ -8,10 +9,7 @@ export function isValidEmail(email: string): boolean {
 
 /** Validates a route string against an allowlist of internal prefixes. */
 export function sanitizeRoute(route?: string): string {
-  if (!route) return '/(tabs)';
-  const allowed = ['/(tabs)', '/(protected)', '/venue/'];
-  if (allowed.some((prefix) => route.startsWith(prefix))) return route;
-  return '/(tabs)';
+  return sanitizeAppRoute(route);
 }
 
 /** Escapes LIKE/ILIKE wildcard characters in user input. */

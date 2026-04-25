@@ -5,14 +5,28 @@ import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 const mockExchangeCodeForSession = jest.fn();
 const mockUpdateUser = jest.fn();
+const mockSetSession = jest.fn();
+const mockGetInitialUrl = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     auth: {
       exchangeCodeForSession: (...a: unknown[]) =>
         mockExchangeCodeForSession(...a),
+      setSession: (...a: unknown[]) => mockSetSession(...a),
       updateUser: (...a: unknown[]) => mockUpdateUser(...a),
     },
+  },
+}));
+
+jest.mock('expo-linking', () => ({
+  getInitialURL: (...a: unknown[]) => mockGetInitialUrl(...a),
+  parse: (url: string) => {
+    const [schemePath, queryString = ''] = url.split('?');
+    return {
+      scheme: schemePath.split('://')[0],
+      queryParams: Object.fromEntries(new URLSearchParams(queryString).entries()),
+    };
   },
 }));
 
@@ -54,10 +68,12 @@ describe('ResetPasswordScreen — T040', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSearchParams = { code: 'valid-code-123' };
+    mockGetInitialUrl.mockResolvedValue(null);
     mockExchangeCodeForSession.mockResolvedValue({
       data: { session: { access_token: 'token' } },
       error: null,
     });
+    mockSetSession.mockResolvedValue({ data: { session: null }, error: null });
     mockUpdateUser.mockResolvedValue({ data: {}, error: null });
     mockReplace.mockReset();
   });
@@ -142,5 +158,24 @@ describe('ResetPasswordScreen — T040', () => {
     await waitFor(() => {
       expect(getByText('Acest link a fost deja utilizat.')).toBeTruthy();
     });
+  });
+
+  it('accepts recovery tokens from the callback URL fragment', async () => {
+    mockSearchParams = {};
+    mockGetInitialUrl.mockResolvedValue(
+      'ttportal://reset-password#access_token=access-123&refresh_token=refresh-123',
+    );
+
+    const { getByTestId } = render(<ResetPasswordScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('input-new-password')).toBeTruthy();
+    });
+
+    expect(mockSetSession).toHaveBeenCalledWith({
+      access_token: 'access-123',
+      refresh_token: 'refresh-123',
+    });
+    expect(mockExchangeCodeForSession).not.toHaveBeenCalled();
   });
 });

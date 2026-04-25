@@ -58,7 +58,7 @@ describe('SignInScreen — registration flow (T013)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockSignUp.mockResolvedValue({ error: null });
+    mockSignUp.mockResolvedValue({ error: null, requiresEmailVerification: true });
     mockUseSession.mockReturnValue({
       session: null,
       user: null,
@@ -74,28 +74,35 @@ describe('SignInScreen — registration flow (T013)', () => {
     mockReplace.mockReset();
   });
 
-  it('successful signUp navigates to /onboarding', async () => {
-    const { getByTestId } = render(<SignInScreen />);
+  it('successful signUp shows check-email confirmation instead of navigating immediately', async () => {
+    const { getByTestId, getByText } = render(<SignInScreen />);
     fireEvent.press(getByTestId('tab-signup'));
 
     await fillAndSubmit(getByTestId, user);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/onboarding');
+      expect(
+        getByText('Verifică emailul pentru a-ți confirma contul, apoi revino pentru conectare.'),
+      ).toBeTruthy();
     });
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it('successful signUp navigates to /onboarding even with returnTo param', async () => {
+  it('successful signUp ignores returnTo until verification is complete', async () => {
     mockSearchParams.mockReturnValue({ returnTo: '/(protected)/add-venue' });
 
-    const { getByTestId } = render(<SignInScreen />);
+    const { getByTestId, getByText, queryByTestId } = render(<SignInScreen />);
     fireEvent.press(getByTestId('tab-signup'));
 
     await fillAndSubmit(getByTestId, user);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/onboarding');
+      expect(
+        getByText('Verifică emailul pentru a-ți confirma contul, apoi revino pentru conectare.'),
+      ).toBeTruthy();
     });
+    expect(queryByTestId('input-name')).toBeNull();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
   it('duplicate email error from server shows account exists message with OAuth suggestion', async () => {
@@ -142,9 +149,9 @@ describe('SignInScreen — registration flow (T013)', () => {
   });
 
   it('loading state disables submit button during signUp call', async () => {
-    let resolveSignUp!: (value: { error: null }) => void;
+    let resolveSignUp!: (value: { error: null; requiresEmailVerification: true }) => void;
     mockSignUp.mockReturnValue(
-      new Promise<{ error: null }>((resolve) => {
+      new Promise<{ error: null; requiresEmailVerification: true }>((resolve) => {
         resolveSignUp = resolve;
       }),
     );
@@ -168,7 +175,7 @@ describe('SignInScreen — registration flow (T013)', () => {
 
     // Resolve the signUp promise
     await waitFor(async () => {
-      resolveSignUp({ error: null });
+      resolveSignUp({ error: null, requiresEmailVerification: true });
     });
 
     // Button should be re-enabled

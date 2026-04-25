@@ -45,11 +45,13 @@ export default function SignInScreen() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleTabSwitch = useCallback(
     (tab: 'signup' | 'login') => {
       setActiveTab(tab);
       setError(null);
+      setSuccessMessage(null);
     },
     [],
   );
@@ -70,13 +72,15 @@ export default function SignInScreen() {
 
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       const isLogin = activeTab === 'login';
       logger.track(isLogin ? 'login_submit' : 'signup_submit', { email });
-      const { error: authError } = isLogin
+      const authResult = isLogin
         ? await signIn(email, password)
         : await signUp(fullName, email, password);
+      const { error: authError } = authResult;
       if (authError) {
         logger.warn(isLogin ? 'login failed' : 'signup failed', {
           code: authError.code,
@@ -86,6 +90,12 @@ export default function SignInScreen() {
       }
       logger.info(isLogin ? 'login success' : 'signup success');
       if (!isLogin) {
+        if (authResult.requiresEmailVerification) {
+          setSuccessMessage(s('authVerifyEmailNotice'));
+          setPassword('');
+          setActiveTab('login');
+          return;
+        }
         router.replace('/onboarding' as any);
       } else {
         router.replace(sanitizeRoute(returnTo) as any);
@@ -101,16 +111,19 @@ export default function SignInScreen() {
   const handleGoogleSignIn = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
     try {
       logger.track('google_signin_submit');
-      const { error: authError } = await signInWithGoogle();
+      const { error: authError, isRedirecting } = await signInWithGoogle(sanitizeRoute(returnTo));
       if (authError) {
         logger.warn('Google sign-in failed', { code: authError.code });
         setError(s(mapAuthErrorToKey(authError)));
         return;
       }
       logger.info('Google sign-in success');
-      router.replace(sanitizeRoute(returnTo) as any);
+      if (!isRedirecting) {
+        router.replace(sanitizeRoute(returnTo) as any);
+      }
     } catch (err) {
       logger.error('Google sign-in exception', err);
       setError(s('errorNetwork'));
@@ -122,16 +135,19 @@ export default function SignInScreen() {
   const handleAppleSignIn = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
     try {
       logger.track('apple_signin_submit');
-      const { error: authError } = await signInWithApple();
+      const { error: authError, isRedirecting } = await signInWithApple(sanitizeRoute(returnTo));
       if (authError) {
         logger.warn('Apple sign-in failed', { code: authError.code });
         setError(s(mapAuthErrorToKey(authError)));
         return;
       }
       logger.info('Apple sign-in success');
-      router.replace(sanitizeRoute(returnTo) as any);
+      if (!isRedirecting) {
+        router.replace(sanitizeRoute(returnTo) as any);
+      }
     } catch (err) {
       logger.error('Apple sign-in exception', err);
       setError(s('errorNetwork'));
@@ -268,6 +284,12 @@ export default function SignInScreen() {
               style={styles.errorText}
             >
               {error}
+            </Text>
+          )}
+
+          {successMessage && (
+            <Text testID="success-message" style={styles.successText}>
+              {successMessage}
             </Text>
           )}
 
@@ -480,6 +502,12 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       fontFamily: Fonts.body,
       fontSize: 13,
       color: colors.red,
+      textAlign: 'center',
+    },
+    successText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: isDark ? colors.primary : colors.primaryLight,
       textAlign: 'center',
     },
     submitBtn: {

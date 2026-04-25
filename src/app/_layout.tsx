@@ -94,6 +94,7 @@ function RootNavigator() {
       <Stack screenOptions={{ animation: 'fade' }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="sign-in" options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen name="auth/callback" options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="forgot-password" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="reset-password" options={{ headerShown: false, animation: 'slide_from_bottom' }} />

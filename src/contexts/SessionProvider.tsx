@@ -10,6 +10,11 @@ import type { AuthError, Session, User } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
+import {
+  getEmailConfirmationRedirectUrl,
+  getOAuthRedirectUrl,
+  getPasswordResetRedirectUrl,
+} from '../lib/auth-redirects';
 
 // Lazy-load GoogleSignin to avoid crashing in Expo Go where native module is unavailable
 let GoogleSignin: typeof import('@react-native-google-signin/google-signin').GoogleSignin | null = null;
@@ -28,6 +33,8 @@ try {
 /** Result type for auth operations that may fail. */
 interface AuthResult {
   error: AuthError | null;
+  isRedirecting?: boolean;
+  requiresEmailVerification?: boolean;
 }
 
 /** Context value exposed by SessionProvider per Auth Context Contract. */
@@ -43,9 +50,9 @@ export interface SessionContextValue {
   /** Email login. */
   signIn: (email: string, password: string) => Promise<AuthResult>;
   /** Google OAuth flow via native Google Sign-In + Supabase signInWithIdToken. */
-  signInWithGoogle: () => Promise<AuthResult>;
+  signInWithGoogle: (returnTo?: string) => Promise<AuthResult>;
   /** Apple auth flow — native on iOS, OAuth web fallback on Android. */
-  signInWithApple: () => Promise<AuthResult>;
+  signInWithApple: (returnTo?: string) => Promise<AuthResult>;
   /** End current session. */
   signOut: () => Promise<AuthResult>;
   /** Send password reset email. */
@@ -94,17 +101,28 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
   const signUp = useCallback(
     async (name: string, email: string, password: string): Promise<AuthResult> => {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: name } },
+        options: {
+          data: {
+            full_name: name,
+            auth_provider: 'email',
+          },
+          emailRedirectTo: getEmailConfirmationRedirectUrl(),
+        },
       });
       if (error) {
         logger.warn('Sign up failed', { code: error.code });
       } else {
-        logger.info('User signed up');
+        logger.info('User signed up', {
+          requiresEmailVerification: data.session == null,
+        });
       }
-      return { error };
+      return {
+        error,
+        requiresEmailVerification: !error && data.session == null,
+      };
     },
     [],
   );
@@ -125,7 +143,26 @@ export function SessionProvider({ children }: SessionProviderProps) {
     [],
   );
 
-  const signInWithGoogle = useCallback(async (): Promise<AuthResult> => {
+  const signInWithGoogle = useCallback(async (returnTo?: string): Promise<AuthResult> => {
+    if (Platform.OS === 'web') {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: getOAuthRedirectUrl(returnTo),
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+      if (error) {
+        logger.warn('Google web sign-in failed', { code: error.code });
+        return { error };
+      }
+      logger.info('Google web sign-in initiated');
+      return { error: null, isRedirecting: true };
+    }
+
     if (!GoogleSignin) {
       logger.warn('Google Sign-In unavailable (native module not loaded)');
       return { error: { message: 'Google Sign-In is not available in Expo Go. Use a development build.', name: 'AuthApiError', status: 0 } as unknown as AuthError };
@@ -171,15 +208,20 @@ export function SessionProvider({ children }: SessionProviderProps) {
     return { error: null };
   }, []);
 
-  const signInWithApple = useCallback(async (): Promise<AuthResult> => {
+  const signInWithApple = useCallback(async (returnTo?: string): Promise<AuthResult> => {
     if (Platform.OS !== 'ios') {
-      const { error } = await supabase.auth.signInWithOAuth({ provider: 'apple' });
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: getOAuthRedirectUrl(returnTo),
+        },
+      });
       if (error) {
         logger.warn('Apple sign-in OAuth failed', { code: error.code });
       } else {
         logger.info('Apple sign-in OAuth initiated (Android)');
       }
-      return { error: error ?? null };
+      return { error: error ?? null, isRedirecting: error == null };
     }
 
     const credential = await AppleAuthentication.signInAsync({
@@ -243,7 +285,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const resetPassword = useCallback(
     async (email: string): Promise<AuthResult> => {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'ttportal://reset-password',
+        redirectTo: getPasswordResetRedirectUrl(),
       });
       if (error) {
         logger.warn('Reset password failed', { code: error.code });

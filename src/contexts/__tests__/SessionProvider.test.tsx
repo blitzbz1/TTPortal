@@ -50,6 +50,10 @@ const mockUpdateUser = jest.fn().mockResolvedValue({
   data: { user: null },
   error: null,
 });
+const mockSetSession = jest.fn().mockResolvedValue({
+  data: { session: null },
+  error: null,
+});
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
@@ -60,6 +64,7 @@ jest.mock('../../lib/supabase', () => ({
       signInWithIdToken: (...a: any[]) => mockSignInWithIdToken(...a),
       signInWithOAuth: (...a: any[]) => mockSignInWithOAuth(...a),
       updateUser: (...a: any[]) => mockUpdateUser(...a),
+      setSession: (...a: any[]) => mockSetSession(...a),
       signOut: (...a: any[]) => mockSignOut(...a),
       resetPasswordForEmail: (...a: any[]) => mockResetPasswordForEmail(...a),
       onAuthStateChange: (...a: any[]) => mockOnAuthStateChange(...a),
@@ -286,7 +291,10 @@ describe('SessionProvider', () => {
     expect(mockSignUp).toHaveBeenCalledWith({
       email: 'john@example.com',
       password: 'password123',
-      options: { data: { full_name: 'John Doe' } },
+      options: {
+        data: { full_name: 'John Doe', auth_provider: 'email' },
+        emailRedirectTo: 'ttportal://sign-in',
+      },
     });
   });
 
@@ -652,9 +660,12 @@ describe('SessionProvider', () => {
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
     await user.press(screen.getByTestId('apple'));
 
-    expect(mockSignInWithOAuth).toHaveBeenCalledWith({ provider: 'apple' });
+    expect(mockSignInWithOAuth).toHaveBeenCalledWith({
+      provider: 'apple',
+      options: { redirectTo: 'ttportal://sign-in' },
+    });
     expect(mockAppleSignIn).not.toHaveBeenCalled();
-    expect(result).toEqual({ error: null });
+    expect(result).toEqual({ error: null, isRedirecting: true });
   });
 
   it('signUp returns error when supabase returns an error', async () => {

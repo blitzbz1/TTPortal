@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { useI18n } from '../hooks/useI18n';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
@@ -23,6 +24,53 @@ import { isStrongPassword } from '../lib/auth-utils';
 
 type TokenStatus = 'loading' | 'valid' | 'expired' | 'used';
 
+interface RecoveryParams {
+  code?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  errorDescription?: string;
+}
+
+function readRecoveryParams(rawParams: Record<string, string | string[] | undefined>): RecoveryParams {
+  const getValue = (key: string) => {
+    const value = rawParams[key];
+    return Array.isArray(value) ? value[0] : value;
+  };
+
+  return {
+    code: getValue('code'),
+    accessToken: getValue('access_token'),
+    refreshToken: getValue('refresh_token'),
+    errorDescription: getValue('error_description'),
+  };
+}
+
+function readRecoveryParamsFromUrl(url: string): RecoveryParams {
+  const parsed = Linking.parse(url);
+  const query = parsed.queryParams ?? {};
+  const fragment = url.includes('#') ? new URLSearchParams(url.split('#')[1]) : null;
+
+  return {
+    code: typeof query.code === 'string' ? query.code : undefined,
+    accessToken:
+      typeof query.access_token === 'string'
+        ? query.access_token
+        : (fragment?.get('access_token') ?? undefined),
+    refreshToken:
+      typeof query.refresh_token === 'string'
+        ? query.refresh_token
+        : (fragment?.get('refresh_token') ?? undefined),
+    errorDescription:
+      typeof query.error_description === 'string'
+        ? query.error_description
+        : (fragment?.get('error_description') ?? undefined),
+  };
+}
+
+function isUsedTokenMessage(message?: string): boolean {
+  return message?.toLowerCase().includes('already') === true;
+}
+
 /**
  * Reset password screen — allows users to set a new password after
  * clicking the reset link from their email. Handles expired and
@@ -31,7 +79,7 @@ type TokenStatus = 'loading' | 'valid' | 'expired' | 'used';
 export default function ResetPasswordScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { code } = useLocalSearchParams<{ code: string }>();
+  const params = useLocalSearchParams() as Record<string, string | string[] | undefined>;
   const { s } = useI18n();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -43,29 +91,72 @@ export default function ResetPasswordScreen() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    if (!code) {
-      setTokenStatus('expired');
-      return;
+    let cancelled = false;
+
+    async function bootstrapRecoverySession() {
+      const directParams = readRecoveryParams(params);
+      const initialUrl = await Linking.getInitialURL();
+      const urlParams = initialUrl ? readRecoveryParamsFromUrl(initialUrl) : {};
+      const recovery = {
+        ...urlParams,
+        ...Object.fromEntries(
+          Object.entries(directParams).filter(([, value]) => value !== undefined),
+        ),
+      };
+
+      if (recovery.errorDescription) {
+        setTokenStatus(isUsedTokenMessage(recovery.errorDescription) ? 'used' : 'expired');
+        return;
+      }
+
+      if (recovery.accessToken && recovery.refreshToken) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: recovery.accessToken,
+          refresh_token: recovery.refreshToken,
+        });
+
+        if (cancelled) return;
+
+        if (sessionError) {
+          logger.warn('reset password session bootstrap failed', {
+            error: sessionError.message,
+          });
+          setTokenStatus(isUsedTokenMessage(sessionError.message) ? 'used' : 'expired');
+          return;
+        }
+
+        logger.info('reset password session restored from tokens');
+        setTokenStatus('valid');
+        return;
+      }
+
+      if (!recovery.code) {
+        setTokenStatus('expired');
+        return;
+      }
+
+      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(recovery.code);
+
+      if (cancelled) return;
+
+      if (exchangeError) {
+        logger.warn('reset password token exchange failed', {
+          error: exchangeError.message,
+        });
+        setTokenStatus(isUsedTokenMessage(exchangeError.message) ? 'used' : 'expired');
+        return;
+      }
+
+      logger.info('reset password token verified');
+      setTokenStatus('valid');
     }
 
-    supabase.auth
-      .exchangeCodeForSession(code)
-      .then(({ error: exchangeError }) => {
-        if (exchangeError) {
-          logger.warn('reset password token exchange failed', {
-            error: exchangeError.message,
-          });
-          if (exchangeError.message?.includes('already')) {
-            setTokenStatus('used');
-          } else {
-            setTokenStatus('expired');
-          }
-        } else {
-          logger.info('reset password token verified');
-          setTokenStatus('valid');
-        }
-      });
-  }, [code]);
+    void bootstrapRecoverySession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params]);
 
   const handleSubmit = useCallback(async () => {
     if (!isStrongPassword(newPassword)) {

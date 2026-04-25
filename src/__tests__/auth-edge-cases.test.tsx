@@ -42,14 +42,28 @@ jest.mock('expo-router', () => ({
 
 const mockExchangeCodeForSession = jest.fn();
 const mockUpdateUser = jest.fn();
+const mockSetSession = jest.fn();
+const mockGetInitialUrl = jest.fn();
 
 jest.mock('../lib/supabase', () => ({
   supabase: {
     auth: {
       exchangeCodeForSession: (...a: unknown[]) =>
         mockExchangeCodeForSession(...a),
+      setSession: (...a: unknown[]) => mockSetSession(...a),
       updateUser: (...a: unknown[]) => mockUpdateUser(...a),
     },
+  },
+}));
+
+jest.mock('expo-linking', () => ({
+  getInitialURL: (...a: unknown[]) => mockGetInitialUrl(...a),
+  parse: (url: string) => {
+    const [schemePath, queryString = ''] = url.split('?');
+    return {
+      scheme: schemePath.split('://')[0],
+      queryParams: Object.fromEntries(new URLSearchParams(queryString).entries()),
+    };
   },
 }));
 
@@ -124,6 +138,8 @@ describe('auth edge cases', () => {
     jest.clearAllMocks();
     mockSearchParams = {};
     mockPathname = '/(tabs)/';
+    mockGetInitialUrl.mockResolvedValue(null);
+    mockSetSession.mockResolvedValue({ data: { session: null }, error: null });
     mockAnonymousSession();
   });
 
