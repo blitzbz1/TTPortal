@@ -69,6 +69,7 @@
   "authVerifyEmailNotice": "Verifică emailul pentru a-ți confirma contul, apoi revino pentru conectare.",
   "authCallbackProcessing": "Te conectăm…",
   "authCallbackError": "Nu am putut finaliza autentificarea. Încearcă din nou.",
+  "authCallbackExpired": "Link-ul de confirmare a expirat sau este invalid. Solicită un email nou și încearcă din nou.",
   "authCallbackBackToLogin": "Înapoi la conectare",
   "resetPasswordConfirmBtn": "Confirmă parola nouă",
   "resetPasswordSuccess": "Parola a fost actualizată cu succes.",

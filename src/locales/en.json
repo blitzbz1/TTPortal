@@ -69,6 +69,7 @@
   "authVerifyEmailNotice": "Check your email to verify your account, then come back to sign in.",
   "authCallbackProcessing": "Signing you in…",
   "authCallbackError": "We couldn't complete authentication. Try signing in again.",
+  "authCallbackExpired": "The confirmation link has expired or is invalid. Request a new email and try again.",
   "authCallbackBackToLogin": "Back to login",
   "resetPasswordConfirmBtn": "Confirm new password",
   "resetPasswordSuccess": "Password updated successfully.",

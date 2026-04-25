@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { useI18n } from '../../hooks/useI18n';
 import { useTheme } from '../../hooks/useTheme';
 import type { ThemeColors } from '../../theme';
@@ -9,7 +10,7 @@ import { supabase } from '../../lib/supabase';
 import { logger } from '../../lib/logger';
 import { sanitizeAppRoute } from '../../lib/auth-redirects';
 
-type CallbackState = 'processing' | 'error';
+type CallbackState = 'processing' | 'error' | 'expired';
 type EmailOtpType =
   | 'signup'
   | 'magiclink'
@@ -44,6 +45,81 @@ function getEmailOtpType(rawType?: string, flow?: string): EmailOtpType | null {
   return EMAIL_OTP_TYPES.has(normalized) ? normalized : null;
 }
 
+interface CallbackParams {
+  accessToken?: string;
+  code?: string;
+  errorCode?: string;
+  errorDescription?: string;
+  flow?: string;
+  next?: string;
+  refreshToken?: string;
+  tokenHash?: string;
+  type?: string;
+}
+
+function readCallbackParams(
+  rawParams: Record<string, string | string[] | undefined>,
+): CallbackParams {
+  return {
+    code: getParamValue(rawParams.code),
+    tokenHash: getParamValue(rawParams.token_hash),
+    type: getParamValue(rawParams.type),
+    next: getParamValue(rawParams.next),
+    flow: getParamValue(rawParams.flow),
+    errorDescription: getParamValue(rawParams.error_description),
+    errorCode: getParamValue(rawParams.error_code),
+    accessToken: getParamValue(rawParams.access_token),
+    refreshToken: getParamValue(rawParams.refresh_token),
+  };
+}
+
+function readCallbackParamsFromUrl(url: string): CallbackParams {
+  const parsed = Linking.parse(url);
+  const query = parsed.queryParams ?? {};
+  const fragment = url.includes('#') ? new URLSearchParams(url.split('#')[1]) : null;
+  const stateQuery = fragment?.get('sb')?.startsWith('?')
+    ? new URLSearchParams(fragment.get('sb')!.slice(1))
+    : null;
+
+  const readString = (
+    key: string,
+    fallback?: URLSearchParams | null,
+  ) => {
+    const queryValue = query[key];
+    if (typeof queryValue === 'string') {
+      return queryValue;
+    }
+
+    const fragmentValue = fragment?.get(key);
+    if (fragmentValue) {
+      return fragmentValue;
+    }
+
+    return fallback?.get(key) ?? undefined;
+  };
+
+  return {
+    code: readString('code', stateQuery),
+    tokenHash: readString('token_hash', stateQuery),
+    type: readString('type', stateQuery),
+    next: readString('next', stateQuery),
+    flow: readString('flow', stateQuery),
+    errorDescription: readString('error_description'),
+    errorCode: readString('error_code'),
+    accessToken: readString('access_token'),
+    refreshToken: readString('refresh_token'),
+  };
+}
+
+function isExpiredCallback(errorCode?: string, errorDescription?: string) {
+  if (errorCode?.toLowerCase() === 'otp_expired') {
+    return true;
+  }
+
+  const normalized = errorDescription?.toLowerCase() ?? '';
+  return normalized.includes('expired') || normalized.includes('invalid');
+}
+
 export default function AuthCallbackScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -63,11 +139,22 @@ export default function AuthCallbackScreen() {
     let cancelled = false;
 
     async function completeAuth() {
-      const flow = getParamValue(params.flow);
-      const next = sanitizeAppRoute(getParamValue(params.next) ?? getDefaultRoute(flow));
-      const code = getParamValue(params.code);
-      const tokenHash = getParamValue(params.token_hash);
-      const otpType = getEmailOtpType(getParamValue(params.type), flow);
+      const directParams = readCallbackParams(params);
+      const initialUrl = await Linking.getInitialURL();
+      const urlParams = initialUrl ? readCallbackParamsFromUrl(initialUrl) : {};
+      const callback = {
+        ...urlParams,
+        ...Object.fromEntries(
+          Object.entries(directParams).filter(([, value]) => value !== undefined),
+        ),
+      };
+      const flow = callback.flow;
+      const next = sanitizeAppRoute(callback.next ?? getDefaultRoute(flow));
+      const code = callback.code;
+      const tokenHash = callback.tokenHash;
+      const accessToken = callback.accessToken;
+      const refreshToken = callback.refreshToken;
+      const otpType = getEmailOtpType(callback.type, flow);
       let callbackResult:
         | {
             session?: unknown;
@@ -75,15 +162,29 @@ export default function AuthCallbackScreen() {
           }
         | undefined;
 
-      if (params.error_description) {
+      if (callback.errorDescription) {
         logger.warn('Auth callback returned error', {
-          error: params.error_description,
+          error: callback.errorDescription,
+          code: callback.errorCode,
         });
-        if (!cancelled) setState('error');
+        if (!cancelled) {
+          setState(isExpiredCallback(callback.errorCode, callback.errorDescription) ? 'expired' : 'error');
+        }
         return;
       }
 
-      if (code) {
+      if (accessToken && refreshToken) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (error) {
+          logger.warn('Auth callback token session restore failed', { error: error.message });
+          if (!cancelled) setState('error');
+          return;
+        }
+        callbackResult = data;
+      } else if (code) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
           logger.warn('Auth callback code exchange failed', { error: error.message });
@@ -141,6 +242,20 @@ export default function AuthCallbackScreen() {
       <View style={styles.container} testID="auth-callback-loading">
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.message}>{s('authCallbackProcessing')}</Text>
+      </View>
+    );
+  }
+
+  if (state === 'expired') {
+    return (
+      <View style={styles.container} testID="auth-callback-expired">
+        <Text style={styles.message}>{s('authCallbackExpired')}</Text>
+        <Pressable
+          onPress={() => router.replace({ pathname: '/sign-in', params: { initialTab: 'login' } })}
+          style={styles.button}
+        >
+          <Text style={styles.buttonText}>{s('authCallbackBackToLogin')}</Text>
+        </Pressable>
       </View>
     );
   }

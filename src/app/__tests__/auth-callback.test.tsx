@@ -11,6 +11,8 @@ let mockSearchParams: Record<string, string> = {
 const mockExchangeCodeForSession = jest.fn();
 const mockVerifyOtp = jest.fn();
 const mockGetSession = jest.fn();
+const mockSetSession = jest.fn();
+const mockGetInitialUrl = jest.fn();
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: (...args: unknown[]) => mockReplace(...args) }),
@@ -32,6 +34,17 @@ jest.mock('../../hooks/useTheme', () => ({
   }),
 }));
 
+jest.mock('expo-linking', () => ({
+  getInitialURL: (...args: unknown[]) => mockGetInitialUrl(...args),
+  parse: (url: string) => {
+    const [schemePath, queryString = ''] = url.split('?');
+    return {
+      scheme: schemePath.split('://')[0],
+      queryParams: Object.fromEntries(new URLSearchParams(queryString).entries()),
+    };
+  },
+}));
+
 jest.mock('../../lib/logger', () => ({
   logger: {
     info: jest.fn(),
@@ -48,6 +61,7 @@ jest.mock('../../lib/supabase', () => ({
       exchangeCodeForSession: (...args: unknown[]) => mockExchangeCodeForSession(...args),
       verifyOtp: (...args: unknown[]) => mockVerifyOtp(...args),
       getSession: (...args: unknown[]) => mockGetSession(...args),
+      setSession: (...args: unknown[]) => mockSetSession(...args),
     },
   },
 }));
@@ -66,6 +80,10 @@ describe('AuthCallbackScreen', () => {
       data: { session: { access_token: 'session-token' } },
       error: null,
     });
+    mockSetSession.mockResolvedValue({
+      data: { session: { access_token: 'session-token' } },
+      error: null,
+    });
     mockVerifyOtp.mockResolvedValue({
       data: { session: { access_token: 'session-token' } },
       error: null,
@@ -74,6 +92,7 @@ describe('AuthCallbackScreen', () => {
       data: { session: { access_token: 'session-token' } },
       error: null,
     });
+    mockGetInitialUrl.mockResolvedValue(null);
   });
 
   it('completes PKCE code callbacks and routes to the next screen', async () => {
@@ -130,5 +149,21 @@ describe('AuthCallbackScreen', () => {
         params: { initialTab: 'login' },
       });
     });
+  });
+
+  it('reads signup callback errors from the URL fragment and shows an expired-link state', async () => {
+    mockSearchParams = {};
+    mockGetInitialUrl.mockResolvedValue(
+      'https://www.ttportal.org/TTPortal/app/auth/callback#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired&sb=?next=%2Fonboarding&flow=signup',
+    );
+
+    const { getByTestId, getByText } = render(<AuthCallbackScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('auth-callback-expired')).toBeTruthy();
+    });
+    expect(
+      getByText('Link-ul de confirmare a expirat sau este invalid. Solicită un email nou și încearcă din nou.'),
+    ).toBeTruthy();
   });
 });
