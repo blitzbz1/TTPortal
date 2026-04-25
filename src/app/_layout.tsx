@@ -81,6 +81,26 @@ function RootNavigator() {
     }
   }, [fontsLoaded, isLoading]);
 
+  // On web, RN's <Modal> portals to a fixed-position [role="dialog"] outside
+  // the phone-frame (webFrame), so sheets stretch across the full viewport.
+  // Cap the sheet to the same width and center it, while keeping the dim
+  // overlay full-screen.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const id = 'rnw-modal-phone-frame';
+    if (typeof document === 'undefined' || document.getElementById(id)) return;
+    const style = document.createElement('style');
+    style.id = id;
+    style.textContent = `
+      [role="dialog"][aria-modal="true"] > div { align-items: center !important; }
+      [role="dialog"][aria-modal="true"] > div > * {
+        width: 100% !important;
+        max-width: 430px !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }, []);
+
   if (!fontsLoaded || isLoading) {
     return (
       <View style={styles.splash} testID="splash-loading">
