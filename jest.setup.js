@@ -77,6 +77,37 @@ jest.mock('expo-router', () => {
   };
 });
 
+// Mock @gorhom/bottom-sheet (native + reanimated module not available in tests).
+jest.mock('@gorhom/bottom-sheet', () => {
+  const React = require('react');
+  const { View, ScrollView, FlatList, TextInput } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({ children }) => React.createElement(View, null, children),
+    BottomSheet: ({ children }) => React.createElement(View, null, children),
+    BottomSheetModal: React.forwardRef((props, _ref) => React.createElement(View, null, props.children)),
+    BottomSheetModalProvider: ({ children }) => children,
+    BottomSheetView: View,
+    BottomSheetScrollView: ScrollView,
+    BottomSheetFlatList: FlatList,
+    BottomSheetBackdrop: () => null,
+    BottomSheetTextInput: TextInput,
+  };
+});
+
+// Mock react-native-keyboard-controller (native module not available in tests).
+// Stub KeyboardAwareScrollView with a plain ScrollView and KeyboardProvider as a passthrough.
+jest.mock('react-native-keyboard-controller', () => {
+  const { ScrollView } = require('react-native');
+  return {
+    KeyboardAwareScrollView: ScrollView,
+    KeyboardProvider: ({ children }) => children,
+    KeyboardController: { dismiss: jest.fn() },
+    useKeyboardHandler: jest.fn(),
+    useReanimatedKeyboardAnimation: () => ({ height: { value: 0 }, progress: { value: 0 } }),
+  };
+});
+
 // Mock react-native-map-clustering
 jest.mock('react-native-map-clustering', () => {
   return {

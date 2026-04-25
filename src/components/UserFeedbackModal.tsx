@@ -7,10 +7,9 @@ import {
   StyleSheet,
   Modal,
   Pressable,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { usePathname } from 'expo-router';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
@@ -107,11 +106,7 @@ export function UserFeedbackModal({ visible, onClose }: UserFeedbackModalProps) 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={handleClose}>
       <Pressable style={styles.overlay} onPress={handleClose}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.kav}
-        >
-          <Pressable style={styles.sheet} onPress={() => {}}>
+        <Pressable style={styles.sheet} onPress={() => {}}>
             <View style={styles.handleWrap}>
               <View style={styles.handle} />
             </View>
@@ -128,6 +123,13 @@ export function UserFeedbackModal({ visible, onClose }: UserFeedbackModalProps) 
               </TouchableOpacity>
             </View>
 
+            <KeyboardAwareScrollView
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              bottomOffset={20}
+              contentContainerStyle={{ paddingBottom: 24 }}
+              showsVerticalScrollIndicator={false}
+            >
             {submitted ? (
               <View style={styles.successWrap} testID="feedback-success">
                 <View style={styles.successIcon}>
@@ -227,8 +229,8 @@ export function UserFeedbackModal({ visible, onClose }: UserFeedbackModalProps) 
                 </TouchableOpacity>
               </>
             )}
-          </Pressable>
-        </KeyboardAvoidingView>
+            </KeyboardAwareScrollView>
+        </Pressable>
       </Pressable>
     </Modal>
   );
@@ -240,9 +242,6 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       backgroundColor: colors.overlayHeavy,
       justifyContent: 'flex-end',
-    },
-    kav: {
-      width: '100%',
     },
     sheet: {
       backgroundColor: colors.bgAlt,

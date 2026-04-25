@@ -1,5 +1,6 @@
 import React from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Lucide } from '../../components/Icon';
 import { useTheme } from '../../hooks/useTheme';
 import { useI18n } from '../../hooks/useI18n';
@@ -42,16 +43,18 @@ export function CheckinDurationModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
       <Pressable style={cm.overlay} onPress={onDismiss}>
         <Pressable style={cm.sheet} onPress={() => {}}>
           <View style={cm.handleWrap}><View style={cm.handle} /></View>
 
           <Text style={cm.title}>{s('checkinDuration')}</Text>
 
+          <KeyboardAwareScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            bottomOffset={20}
+            showsVerticalScrollIndicator={false}
+          >
           {customMode === 'none' && (
             <View style={cm.options}>
               <TouchableOpacity style={cm.optionBtn} onPress={() => onPickDuration(60)}>
@@ -137,9 +140,9 @@ export function CheckinDurationModal({
               </View>
             </View>
           )}
+          </KeyboardAwareScrollView>
         </Pressable>
       </Pressable>
-      </KeyboardAvoidingView>
     </Modal>
   );
 }

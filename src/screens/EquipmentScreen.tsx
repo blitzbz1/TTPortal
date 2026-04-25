@@ -2,16 +2,19 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
-  Keyboard,
   Modal,
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import {
+  BottomSheetBackdrop,
+  BottomSheetFlatList,
+  BottomSheetModal,
+  BottomSheetTextInput,
+} from '@gorhom/bottom-sheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -28,7 +31,6 @@ import type {
   RubberColor,
 } from '../types/database';
 import type { ThemeColors } from '../theme';
-import { Spacing } from '../theme';
 import { createSelectStyles, createStyles } from './EquipmentScreen.styles';
 
 type TabKey = 'edit' | 'current';
@@ -191,74 +193,41 @@ function SearchableSelect({
   onSelect,
   colors,
 }: SearchableSelectProps) {
-  const anchorRef = useRef<View>(null);
-  const [query, setQuery] = useState(value);
-  const [open, setOpen] = useState(false);
-  const [anchor, setAnchor] = useState({ x: 0, y: 0, width: 0, height: 0 });
-  const [kbHeight, setKbHeight] = useState(0);
-
-  useEffect(() => {
-    setQuery(value);
-  }, [value]);
-
-  // Track keyboard height so the dropdown positioning can avoid being covered
-  // when the inner TextInput's autoFocus pops the keyboard.
-  useEffect(() => {
-    if (!open) return;
-    const showSub = Keyboard.addListener('keyboardDidShow', (e) =>
-      setKbHeight(e.endCoordinates.height),
-    );
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, [open]);
+  const sheetRef = useRef<BottomSheetModal>(null);
+  const [query, setQuery] = useState('');
+  const styles = useMemo(() => createSelectStyles(colors), [colors]);
 
   const suggestions = useMemo(() => {
-    if (disabled) return [];
-    const filtered = query.trim()
-      ? options.filter((option) => filterText(option.name, query))
-      : options;
-    return filtered.slice(0, 8);
-  }, [disabled, options, query]);
+    const q = query.trim();
+    if (!q) return options;
+    return options.filter((option) => filterText(option.name, q));
+  }, [options, query]);
 
-  const styles = useMemo(() => createSelectStyles(colors), [colors]);
+  const open = () => {
+    if (disabled) return;
+    setQuery('');
+    sheetRef.current?.present();
+  };
+
   const handleSelect = (option: { id: string; name: string }) => {
     onSelect(option);
-    setQuery(option.name);
-    setOpen(false);
+    sheetRef.current?.dismiss();
   };
 
-  const openDropdown = () => {
-    if (disabled) return;
-    anchorRef.current?.measureInWindow((x, y, width, height) => {
-      setAnchor({ x, y, width, height });
-      setOpen(true);
-    });
-  };
-
-  const windowHeight = Dimensions.get('window').height;
-  // Reserve the keyboard area. Use measured height when available; otherwise a
-  // conservative estimate so the dropdown doesn't flash under the keyboard
-  // before the keyboardDidShow event fires (TextInput below uses autoFocus).
-  const kbReserve = kbHeight > 0 ? kbHeight : 320;
-  const usableBottom = windowHeight - kbReserve;
-  const belowTop = anchor.y + anchor.height + 6;
-  const roomBelow = usableBottom - belowTop - Spacing.md;
-  const dropdownMaxHeight = Math.max(150, Math.min(260, roomBelow));
-  // When there isn't room under the anchor (field is near or behind the keyboard),
-  // flip the dropdown above the anchor so it stays visible.
-  const dropdownTop = roomBelow >= 150 ? belowTop : Math.max(Spacing.md, anchor.y - 266);
+  const renderBackdrop = useCallback(
+    (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
+      <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.45} />
+    ),
+    [],
+  );
 
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       <Pressable
-        ref={anchorRef}
         disabled={disabled}
         style={[styles.inputWrap, disabled && styles.inputDisabled]}
-        onPress={openDropdown}
+        onPress={open}
       >
         <Text style={[styles.inputValue, !value && styles.placeholder]} numberOfLines={1}>
           {value || placeholder}
@@ -266,52 +235,55 @@ function SearchableSelect({
         <Lucide name="chevron-down" size={16} color={colors.textFaint} />
       </Pressable>
 
-      <Modal visible={open} transparent animationType="none" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.dropdownBackdrop} onPress={() => setOpen(false)} />
-        <View
-          style={[
-            styles.dropdown,
-            {
-              left: anchor.x,
-              top: dropdownTop,
-              width: anchor.width,
-              maxHeight: dropdownMaxHeight,
-            },
-          ]}
-        >
-          <TextInput
-            value={query}
-            autoFocus
-            placeholder={placeholder}
-            placeholderTextColor={colors.textFaint}
-            autoComplete="off"
-            autoCorrect={false}
-            importantForAutofill="no"
-            spellCheck={false}
-            textContentType="none"
-            style={styles.dropdownSearch}
-            onChangeText={setQuery}
-            onSubmitEditing={() => {
-              if (suggestions[0]) handleSelect(suggestions[0]);
-            }}
-          />
-          <ScrollView keyboardShouldPersistTaps="always" showsVerticalScrollIndicator={suggestions.length > 5}>
-            {suggestions.length > 0 ? suggestions.map((option) => (
-              <Pressable
-                key={option.id}
-                style={({ pressed }) => [styles.optionRow, pressed && styles.optionRowPressed]}
-                onPress={() => handleSelect(option)}
-                accessibilityRole="button"
-                accessibilityLabel={`Select ${option.name}`}
-              >
-                <Text style={styles.optionText}>{option.name}</Text>
-              </Pressable>
-            )) : (
-              <Text style={styles.emptyOption}>{emptyText}</Text>
-            )}
-          </ScrollView>
-        </View>
-      </Modal>
+      <BottomSheetModal
+        ref={sheetRef}
+        snapPoints={['65%']}
+        enableDynamicSizing={false}
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
+        android_keyboardInputMode="adjustResize"
+        backdropComponent={renderBackdrop}
+        backgroundStyle={{ backgroundColor: colors.bgAlt }}
+        handleIndicatorStyle={{ backgroundColor: colors.border }}
+      >
+        <BottomSheetFlatList
+          data={suggestions}
+          keyExtractor={(option: { id: string }) => option.id}
+          keyboardShouldPersistTaps="always"
+          contentContainerStyle={{ paddingBottom: 24 }}
+          stickyHeaderIndices={[0]}
+          ListHeaderComponent={
+            <View style={[styles.sheetHeader, { backgroundColor: colors.bgAlt }]}>
+              <Text style={styles.sheetTitle}>{label}</Text>
+              <BottomSheetTextInput
+                value={query}
+                placeholder={placeholder}
+                placeholderTextColor={colors.textFaint}
+                autoFocus
+                autoComplete="off"
+                autoCorrect={false}
+                spellCheck={false}
+                style={styles.sheetSearch}
+                onChangeText={setQuery}
+                onSubmitEditing={() => {
+                  if (suggestions[0]) handleSelect(suggestions[0]);
+                }}
+              />
+            </View>
+          }
+          ListEmptyComponent={<Text style={styles.emptyOption}>{emptyText}</Text>}
+          renderItem={({ item }: { item: { id: string; name: string } }) => (
+            <Pressable
+              style={({ pressed }) => [styles.optionRow, pressed && styles.optionRowPressed]}
+              onPress={() => handleSelect(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Select ${item.name}`}
+            >
+              <Text style={styles.optionText}>{item.name}</Text>
+            </Pressable>
+          )}
+        />
+      </BottomSheetModal>
     </View>
   );
 }

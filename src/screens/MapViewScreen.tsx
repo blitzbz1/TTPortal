@@ -85,6 +85,14 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const [venues, setVenues] = useState<VenueWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+
+  // Debounce search input by 150ms — prevents map markers from re-rendering
+  // on every keystroke while typing, which is the actual lag source.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery), 150);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('toate');
   const [cityModalVisible, setCityModalVisible] = useState(false);
   const [selectedCity, setSelectedCity] = useState<string>('București');
@@ -272,9 +280,9 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
       result = result.filter((v) => v.verified === true);
     }
 
-    // Apply search query
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
+    // Apply search query (debounced)
+    if (debouncedQuery.trim()) {
+      const q = debouncedQuery.trim().toLowerCase();
       result = result.filter(
         (v) =>
           v.name.toLowerCase().includes(q) ||
@@ -293,7 +301,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     }
 
     return result;
-  }, [venuesWithDistance, activeFilter, searchQuery, nearMeEnabled, userLocation]);
+  }, [venuesWithDistance, activeFilter, debouncedQuery, nearMeEnabled, userLocation]);
 
   return (
     <View style={styles.container}>

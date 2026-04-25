@@ -1,5 +1,7 @@
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { useFonts } from 'expo-font';
 import {
   Syne_400Regular,
@@ -43,15 +45,19 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SessionProvider>
-        <I18nProvider>
-          <ThemeProvider>
-            <NotificationProvider>
-              <RootNavigator />
-            </NotificationProvider>
-          </ThemeProvider>
-        </I18nProvider>
-      </SessionProvider>
+      <KeyboardProvider>
+        <BottomSheetModalProvider>
+          <SessionProvider>
+            <I18nProvider>
+              <ThemeProvider>
+                <NotificationProvider>
+                  <RootNavigator />
+                </NotificationProvider>
+              </ThemeProvider>
+            </I18nProvider>
+          </SessionProvider>
+        </BottomSheetModalProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

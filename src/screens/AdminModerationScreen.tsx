@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput, Modal, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput, Modal, Pressable } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -526,13 +527,18 @@ export function AdminModerationScreen() {
       <FeedbackReplyModal feedback={replyTarget} onClose={() => setReplyTarget(null)} />
       {/* Edit Venue Modal */}
       <Modal visible={editVenue !== null} transparent animationType="slide" onRequestClose={() => setEditVenue(null)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <Pressable style={styles.modalOverlay} onPress={() => setEditVenue(null)}>
             <Pressable style={styles.modalSheet} onPress={() => {}}>
               <View style={styles.modalHandle}><View style={styles.modalHandleBar} /></View>
               <Text style={styles.modalTitle}>{s('editVenue')}</Text>
 
-              <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
+              <KeyboardAwareScrollView
+                style={styles.modalScroll}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                bottomOffset={20}
+                contentContainerStyle={{ paddingBottom: 24 }}
+              >
                 {/* Name */}
                 <View style={styles.modalField}>
                   <Text style={styles.modalLabel}>{s('fieldName')}</Text>
@@ -603,7 +609,7 @@ export function AdminModerationScreen() {
                     maxLength={500}
                   />
                 </View>
-              </ScrollView>
+              </KeyboardAwareScrollView>
 
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setEditVenue(null)}>
@@ -623,7 +629,6 @@ export function AdminModerationScreen() {
               </View>
             </Pressable>
           </Pressable>
-        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

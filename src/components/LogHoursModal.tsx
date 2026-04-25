@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
@@ -60,7 +61,6 @@ export function LogHoursModal({ visible, eventId, eventTitle, initialHours, onDi
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onDismiss}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.overlay} onPress={onDismiss}>
           <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + Spacing.sm }]} onPress={() => {}}>
             <View style={styles.handleWrap}>
@@ -74,6 +74,12 @@ export function LogHoursModal({ visible, eventId, eventTitle, initialHours, onDi
               </TouchableOpacity>
             </View>
 
+            <KeyboardAwareScrollView
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              bottomOffset={20}
+              showsVerticalScrollIndicator={false}
+            >
             {eventTitle ? (
               <View style={styles.eventRow}>
                 <Lucide name="calendar" size={14} color={colors.textFaint} />
@@ -117,9 +123,9 @@ export function LogHoursModal({ visible, eventId, eventTitle, initialHours, onDi
                 }
               </TouchableOpacity>
             </View>
+            </KeyboardAwareScrollView>
           </Pressable>
         </Pressable>
-      </KeyboardAvoidingView>
     </Modal>
   );
 }

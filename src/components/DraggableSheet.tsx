@@ -1,5 +1,5 @@
-import React, { useRef, useMemo } from 'react';
-import { View, PanResponder, Dimensions, StyleSheet } from 'react-native';
+import React, { useRef, useMemo, useEffect } from 'react';
+import { View, PanResponder, Dimensions, Keyboard, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -28,11 +28,36 @@ export function DraggableSheet({ children, floatingContent }: DraggableSheetProp
 
   const translateY = useSharedValue(SNAP_MID);
   const lastSnap = useRef(SNAP_MID);
+  const preKeyboardSnap = useRef<number | null>(null);
 
   const snapTo = (value: number) => {
     lastSnap.current = value;
     translateY.value = withSpring(value, SNAP_SPRING);
   };
+
+  // When the keyboard opens, lift the sheet to SNAP_TOP so inputs (e.g. the
+  // map search bar) are visible above the keyboard. Restore the previous
+  // snap when the keyboard hides.
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardWillShow', () => {
+      if (lastSnap.current !== SNAP_TOP) {
+        preKeyboardSnap.current = lastSnap.current;
+        snapTo(SNAP_TOP);
+      }
+    });
+    const hideSub = Keyboard.addListener('keyboardWillHide', () => {
+      if (preKeyboardSnap.current !== null) {
+        const target = preKeyboardSnap.current;
+        preKeyboardSnap.current = null;
+        snapTo(target);
+      }
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const panResponder = useRef(
     PanResponder.create({
