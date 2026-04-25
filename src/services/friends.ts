@@ -97,9 +97,10 @@ export async function getFriendIds(userId: string): Promise<string[]> {
 
 export async function searchUsers(query: string) {
   if (query.length < 3) return { data: [], error: null };
+  const pattern = escapeLikePattern(query.trim());
   return supabase
     .from('profiles')
-    .select('id, full_name, avatar_url, city')
-    .ilike('email', escapeLikePattern(query.trim()))
+    .select('id, full_name, avatar_url, city, username')
+    .or(`username.ilike.${pattern},email.ilike.${pattern}`)
     .limit(5);
 }
