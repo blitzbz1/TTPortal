@@ -4,6 +4,7 @@ import { fireEvent, render, userEvent, waitFor } from '@testing-library/react-na
 // --- Mocks (must be defined before component import) ---
 
 const mockSignUp = jest.fn();
+const mockResendVerificationEmail = jest.fn();
 const mockUseSession = jest.fn();
 
 jest.mock('../../hooks/useSession', () => ({
@@ -69,9 +70,11 @@ describe('SignInScreen — registration flow (T013)', () => {
       signInWithApple: jest.fn(),
       signOut: jest.fn(),
       resetPassword: jest.fn(),
+      resendVerificationEmail: (...a: unknown[]) => mockResendVerificationEmail(...a),
     });
     mockSearchParams.mockReturnValue({});
     mockReplace.mockReset();
+    mockResendVerificationEmail.mockResolvedValue({ error: null });
   });
 
   it('successful signUp shows check-email confirmation instead of navigating immediately', async () => {
@@ -103,6 +106,26 @@ describe('SignInScreen — registration flow (T013)', () => {
     });
     expect(queryByTestId('input-name')).toBeNull();
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('offers resend verification after signup and sends a new email to the same address', async () => {
+    const { getByTestId, getByText } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
+
+    await fillAndSubmit(getByTestId, user);
+
+    await waitFor(() => {
+      expect(getByTestId('resend-verification-button')).toBeTruthy();
+    });
+
+    await user.press(getByTestId('resend-verification-button'));
+
+    await waitFor(() => {
+      expect(mockResendVerificationEmail).toHaveBeenCalledWith('john@example.com');
+      expect(
+        getByText('Am trimis un nou email de confirmare. Verifică inbox-ul și spam-ul.'),
+      ).toBeTruthy();
+    });
   });
 
   it('duplicate email error from server shows account exists message with OAuth suggestion', async () => {

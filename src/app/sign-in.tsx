@@ -31,7 +31,7 @@ export default function SignInScreen() {
   }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { signUp, signIn, signInWithGoogle, signInWithApple } = useSession();
+  const { signUp, signIn, signInWithGoogle, signInWithApple, resendVerificationEmail } = useSession();
   const { s, lang, setLang } = useI18n();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
@@ -44,14 +44,17 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
 
   const handleTabSwitch = useCallback(
     (tab: 'signup' | 'login') => {
       setActiveTab(tab);
       setError(null);
       setSuccessMessage(null);
+      setPendingVerificationEmail(null);
     },
     [],
   );
@@ -92,6 +95,7 @@ export default function SignInScreen() {
       if (!isLogin) {
         if (authResult.requiresEmailVerification) {
           setSuccessMessage(s('authVerifyEmailNotice'));
+          setPendingVerificationEmail(email.trim().toLowerCase());
           setPassword('');
           setActiveTab('login');
           return;
@@ -107,6 +111,31 @@ export default function SignInScreen() {
       setLoading(false);
     }
   }, [activeTab, fullName, email, password, signUp, signIn, s, router, returnTo]);
+
+  const handleResendVerification = useCallback(async () => {
+    if (!pendingVerificationEmail) {
+      return;
+    }
+
+    setResendLoading(true);
+    setError(null);
+
+    try {
+      const { error: resendError } = await resendVerificationEmail(pendingVerificationEmail);
+      if (resendError) {
+        logger.warn('Resend verification failed', { code: resendError.code });
+        setError(s(mapAuthErrorToKey(resendError)));
+        return;
+      }
+
+      setSuccessMessage(s('authVerifyEmailResent'));
+    } catch (err) {
+      logger.error('Resend verification exception', err);
+      setError(s('errorNetwork'));
+    } finally {
+      setResendLoading(false);
+    }
+  }, [pendingVerificationEmail, resendVerificationEmail, s]);
 
   const handleGoogleSignIn = useCallback(async () => {
     setLoading(true);
@@ -288,9 +317,29 @@ export default function SignInScreen() {
           )}
 
           {successMessage && (
-            <Text testID="success-message" style={styles.successText}>
-              {successMessage}
-            </Text>
+            <View style={styles.successBlock} testID="success-block">
+              <Text testID="success-message" style={styles.successText}>
+                {successMessage}
+              </Text>
+              {pendingVerificationEmail && (
+                <View style={styles.resendBlock}>
+                  <Text style={styles.resendHint}>{s('authVerifyEmailResendHint')}</Text>
+                  <Pressable
+                    onPress={handleResendVerification}
+                    disabled={resendLoading || loading}
+                    accessibilityRole="button"
+                    testID="resend-verification-button"
+                    style={[styles.resendButton, (resendLoading || loading) && styles.submitBtnDisabled]}
+                  >
+                    {resendLoading ? (
+                      <ActivityIndicator size="small" color={colors.primary} testID="resend-loading-spinner" />
+                    ) : (
+                      <Text style={styles.resendButtonText}>{s('authVerifyEmailResendButton')}</Text>
+                    )}
+                  </Pressable>
+                </View>
+              )}
+            </View>
           )}
 
           {/* Submit Button */}
@@ -509,6 +558,35 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       fontSize: 13,
       color: isDark ? colors.primary : colors.primaryLight,
       textAlign: 'center',
+    },
+    successBlock: {
+      gap: 10,
+      alignItems: 'center',
+    },
+    resendBlock: {
+      gap: 8,
+      alignItems: 'center',
+    },
+    resendHint: {
+      fontFamily: Fonts.body,
+      fontSize: 12,
+      color: colors.textFaint,
+      textAlign: 'center',
+    },
+    resendButton: {
+      minHeight: 36,
+      paddingHorizontal: 14,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? colors.primary : colors.primaryLight,
+    },
+    resendButtonText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      fontWeight: '700',
+      color: isDark ? colors.primary : colors.primaryLight,
     },
     submitBtn: {
       flexDirection: 'row',

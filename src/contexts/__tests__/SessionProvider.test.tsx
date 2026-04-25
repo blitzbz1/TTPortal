@@ -31,6 +31,10 @@ const mockResetPasswordForEmail = jest.fn().mockResolvedValue({
   data: {},
   error: null,
 });
+const mockResend = jest.fn().mockResolvedValue({
+  data: {},
+  error: null,
+});
 
 const mockOnAuthStateChange = jest.fn(
   (...args: any[]) => {
@@ -67,6 +71,7 @@ jest.mock('../../lib/supabase', () => ({
       setSession: (...a: any[]) => mockSetSession(...a),
       signOut: (...a: any[]) => mockSignOut(...a),
       resetPasswordForEmail: (...a: any[]) => mockResetPasswordForEmail(...a),
+      resend: (...a: any[]) => mockResend(...a),
       onAuthStateChange: (...a: any[]) => mockOnAuthStateChange(...a),
     },
     from: () => ({ upsert: (...a: any[]) => mockUpsert(...a) }),
@@ -163,6 +168,12 @@ function TestConsumer() {
         onPress={() => ctx.resetPassword('john@example.com')}
       >
         <Text>Reset</Text>
+      </Pressable>
+      <Pressable
+        testID="resendVerification"
+        onPress={() => ctx.resendVerificationEmail('john@example.com')}
+      >
+        <Text>Resend Verification</Text>
       </Pressable>
       <Text testID="hasSignInWithGoogle">
         {typeof ctx.signInWithGoogle === 'function' ? 'yes' : 'no'}
@@ -354,6 +365,30 @@ describe('SessionProvider', () => {
 
     expect(mockResetPasswordForEmail).toHaveBeenCalledWith('john@example.com', {
       redirectTo: 'ttportal://reset-password',
+    });
+  });
+
+  it('resendVerificationEmail calls supabase.auth.resend with signup redirect', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SessionProvider>
+        <TestConsumer />
+      </SessionProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isLoading')).toHaveTextContent('false');
+    });
+
+    await user.press(screen.getByTestId('resendVerification'));
+
+    expect(mockResend).toHaveBeenCalledWith({
+      type: 'signup',
+      email: 'john@example.com',
+      options: {
+        emailRedirectTo: 'ttportal://sign-in',
+      },
     });
   });
 

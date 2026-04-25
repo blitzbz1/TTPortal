@@ -57,6 +57,8 @@ export interface SessionContextValue {
   signOut: () => Promise<AuthResult>;
   /** Send password reset email. */
   resetPassword: (email: string) => Promise<AuthResult>;
+  /** Resend signup verification email. */
+  resendVerificationEmail: (email: string) => Promise<AuthResult>;
 }
 
 /** @internal Exported for useSession hook consumption. */
@@ -297,6 +299,25 @@ export function SessionProvider({ children }: SessionProviderProps) {
     [],
   );
 
+  const resendVerificationEmail = useCallback(
+    async (email: string): Promise<AuthResult> => {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: getEmailConfirmationRedirectUrl(),
+        },
+      });
+      if (error) {
+        logger.warn('Resend verification email failed', { code: error.code });
+      } else {
+        logger.info('Verification email resent');
+      }
+      return { error };
+    },
+    [],
+  );
+
   const value = useMemo<SessionContextValue>(
     () => ({
       session,
@@ -308,6 +329,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       signInWithApple,
       signOut,
       resetPassword,
+      resendVerificationEmail,
     }),
     [
       session,
@@ -319,6 +341,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       signInWithApple,
       signOut,
       resetPassword,
+      resendVerificationEmail,
     ],
   );
 
