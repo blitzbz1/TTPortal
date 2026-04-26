@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, Modal, Pressable, KeyboardAvoidingView, Platform, RefreshControl, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, Modal, Pressable, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import { createStyles } from './FriendsScreen.styles';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getFriends, getPendingRequests, acceptRequest, declineRequest, findUserByUsername, getFriendshipBetweenUsers, sendRequest } from '../services/friends';
+import { sendAppInviteEmail } from '../services/invites';
 import { getActiveFriendCheckins } from '../services/checkins';
 import { Card } from '../components/Card';
 import { EmptyState } from '../components/EmptyState';
@@ -16,7 +17,7 @@ import { isValidEmail } from '../lib/auth-utils';
 
 type FriendsTab = 'all' | 'playing' | 'pending';
 type AddFriendResult = 'idle' | 'sent' | 'not_found' | 'already_friends' | 'already_pending' | 'incoming_pending' | 'self' | 'error';
-type InviteEmailResult = 'idle' | 'sent' | 'invalid' | 'error';
+type InviteEmailResult = 'idle' | 'sent' | 'invalid' | 'already_registered' | 'error';
 
 export function FriendsScreen() {
   const [activeTab, setActiveTab] = useState<FriendsTab>('all');
@@ -148,19 +149,13 @@ export function FriendsScreen() {
     setInviteEmailResult('idle');
 
     try {
-      const subject = encodeURIComponent(s('inviteEmailSubject'));
-      const body = encodeURIComponent(s('inviteEmailBody'));
-      const mailtoUrl = `mailto:${normalizedEmail}?subject=${subject}&body=${body}`;
-      const supported = await Linking.canOpenURL(mailtoUrl);
-
-      if (!supported) {
-        setInviteEmailLoading(false);
-        setInviteEmailResult('error');
+      const { error } = await sendAppInviteEmail(normalizedEmail);
+      setInviteEmailLoading(false);
+      if (error) {
+        const code = typeof error === 'object' && error && 'code' in error ? String((error as { code?: string }).code ?? '') : '';
+        setInviteEmailResult(code === 'already_registered' ? 'already_registered' : 'error');
         return;
       }
-
-      await Linking.openURL(mailtoUrl);
-      setInviteEmailLoading(false);
       setInviteEmailResult('sent');
       setInviteEmail('');
     } catch {
@@ -258,10 +253,7 @@ export function FriendsScreen() {
           <Lucide name="arrow-left" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('friendsTitle')}</Text>
-        <TouchableOpacity style={styles.inviteBtn} onPress={handleInvite}>
-          <Lucide name="mail" size={16} color={colors.textOnPrimary} />
-          <Text style={styles.inviteBtnText}>{s('invite')}</Text>
-        </TouchableOpacity>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
@@ -598,6 +590,12 @@ export function FriendsScreen() {
                 <View style={im.resultRow}>
                   <Lucide name="alert-circle" size={16} color={colors.accent} />
                   <Text style={[im.resultText, { color: colors.accent }]}>{s('inviteEmailInvalid')}</Text>
+                </View>
+              )}
+              {inviteEmailResult === 'already_registered' && (
+                <View style={im.resultRow}>
+                  <Lucide name="users" size={16} color={colors.textFaint} />
+                  <Text style={[im.resultText, { color: colors.textFaint }]}>{s('inviteEmailAlreadyRegistered')}</Text>
                 </View>
               )}
               {inviteEmailResult === 'error' && (

@@ -25,31 +25,20 @@ export function createStyles(colors: ThemeColors) {
       fontWeight: FontWeight.bold,
       color: colors.text,
     },
-    inviteBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.primary,
-      borderRadius: 16,
-      paddingVertical: 6,
-      paddingHorizontal: Spacing.sm,
-      gap: 6,
-      ...Shadows.md,
-    },
-    inviteBtnText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.md,
-      fontWeight: FontWeight.semibold,
-      color: colors.textOnPrimary,
+    headerSpacer: {
+      width: 24,
     },
     scroll: {
       flex: 1,
     },
     actionsRow: {
+      flexDirection: 'row',
       paddingHorizontal: Spacing.md,
       paddingTop: Spacing.md,
       gap: Spacing.sm,
     },
     actionCard: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.bgAlt,
