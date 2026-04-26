@@ -8,6 +8,7 @@ export async function getEvents(
   userId?: string,
 ) {
   const now = new Date().toISOString();
+  const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
   const needsParticipantFilter = filter === 'past' && !!userId;
   // Profiles embedded via event_participants_user_profiles_fk (migration 038)
   // — single round trip, no manual merge.
@@ -22,9 +23,19 @@ export async function getEvents(
     );
 
   if (filter === 'upcoming') {
-    query = query.gte('starts_at', now).not('status', 'in', '(cancelled,completed)');
+    // "Upcoming" = anything that hasn't ended yet:
+    //   - future events                   (starts_at >= now)
+    //   - in-progress with explicit end   (ends_at >= now)
+    //   - in-progress without end, recent (ends_at IS NULL AND starts_at >= now - 4h)
+    // In-progress events surface here so they don't slip between tabs.
+    query = query
+      .or(`starts_at.gte.${now},ends_at.gte.${now},and(ends_at.is.null,starts_at.gte.${fourHoursAgo})`)
+      .not('status', 'in', '(cancelled,completed)');
   } else if (filter === 'past') {
-    query = query.lt('starts_at', now);
+    // Complement of upcoming: events that have actually ended.
+    //   - ended explicitly  (ends_at < now)
+    //   - no end, started > 4h ago
+    query = query.or(`ends_at.lt.${now},and(ends_at.is.null,starts_at.lt.${fourHoursAgo})`);
     if (userId) query = query.eq('ep_filter.user_id', userId);
   } else if (filter === 'mine' && userId) {
     query = query.eq('organizer_id', userId);

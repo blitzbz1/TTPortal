@@ -375,21 +375,34 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     return endOfDay < new Date();
   }, []);
 
+  // True when the event has started but hasn't ended yet — used by the
+  // upcoming-tab cards to show a "live" timer icon.
+  const isInProgress = useCallback((event: any) => {
+    if (event.status === 'cancelled' || event.status === 'completed') return false;
+    const now = Date.now();
+    const start = new Date(event.starts_at).getTime();
+    if (start > now) return false;
+    return !isEffectivelyOver(event);
+  }, [isEffectivelyOver]);
+
   const getBadgeInfo = useCallback((event: any) => {
     if (event.status === 'completed' || (event.status !== 'cancelled' && isEffectivelyOver(event))) {
-      return { text: s('completed'), bg: colors.borderLight, color: colors.textMuted };
+      return { text: s('completed'), bg: colors.borderLight, color: colors.textMuted, icon: undefined as string | undefined };
     }
     if (event.status === 'cancelled') {
-      return { text: s('cancelled'), bg: colors.cancelledBadgeBg, color: colors.red };
+      return { text: s('cancelled'), bg: colors.cancelledBadgeBg, color: colors.red, icon: undefined as string | undefined };
+    }
+    if (isInProgress(event)) {
+      return { text: s('inProgress'), bg: colors.primaryPale, color: colors.primaryLight, icon: 'timer' as string | undefined };
     }
     if (event.status === 'confirmed') {
-      return { text: s('confirmed'), bg: colors.primaryPale, color: colors.primaryMid };
+      return { text: s('confirmed'), bg: colors.primaryPale, color: colors.primaryMid, icon: undefined as string | undefined };
     }
     if (event.event_type === 'tournament') {
-      return { text: s('tournament'), bg: colors.bluePale, color: colors.blue };
+      return { text: s('tournament'), bg: colors.bluePale, color: colors.blue, icon: undefined as string | undefined };
     }
-    return { text: s('open'), bg: colors.amberPale, color: colors.accent };
-  }, [colors, s, isEffectivelyOver]);
+    return { text: s('open'), bg: colors.amberPale, color: colors.accent, icon: undefined as string | undefined };
+  }, [colors, s, isEffectivelyOver, isInProgress]);
 
   const getInitials = (name?: string) => {
     if (!name) return '?';
@@ -510,7 +523,10 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                             <Lucide name="repeat" size={13} color={colors.purple} />
                           )}
                         </View>
-                        <View style={[styles.eventBadge, { backgroundColor: badge.bg }]}>
+                        <View style={[styles.eventBadge, { backgroundColor: badge.bg, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                          {badge.icon && (
+                            <Lucide name={badge.icon} size={11} color={badge.color} />
+                          )}
                           <Text style={[styles.eventBadgeText, { color: badge.color }]}>
                             {badge.text}
                           </Text>

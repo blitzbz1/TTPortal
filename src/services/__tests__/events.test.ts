@@ -17,6 +17,7 @@ function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
     in: jest.fn(() => chain),
     gte: jest.fn(() => chain),
     lt: jest.fn(() => chain),
+    or: jest.fn(() => chain),
     neq: jest.fn(() => chain),
     not: jest.fn(() => chain),
     order: jest.fn(() => chain),
@@ -100,24 +101,30 @@ describe('getEventParticipants', () => {
 describe('getEvents', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('filters upcoming events by starts_at >= now and excludes cancelled/completed', async () => {
+  it('filters upcoming events to "not yet ended" and excludes cancelled/completed', async () => {
     mockFrom.mockReturnValue(createQueryChain([]));
 
     await getEvents('upcoming');
 
     const chain = mockFrom.mock.results[0].value;
-    expect(chain.gte).toHaveBeenCalledWith('starts_at', expect.any(String));
+    // Upcoming covers future + in-progress events via an OR over the time window.
+    const orArg = chain.or.mock.calls[0][0] as string;
+    expect(orArg).toContain('starts_at.gte.');
+    expect(orArg).toContain('ends_at.gte.');
+    expect(orArg).toContain('and(ends_at.is.null,starts_at.gte.');
     expect(chain.not).toHaveBeenCalledWith('status', 'in', '(cancelled,completed)');
     expect(chain.order).toHaveBeenCalledWith('starts_at', { ascending: true });
   });
 
-  it('filters past events by starts_at < now and user participation', async () => {
+  it('filters past events to "ended" and user participation', async () => {
     mockFrom.mockReturnValue(createQueryChain([]));
 
     await getEvents('past', 'user-1');
 
     const chain = mockFrom.mock.results[0].value;
-    expect(chain.lt).toHaveBeenCalledWith('starts_at', expect.any(String));
+    const orArg = chain.or.mock.calls[0][0] as string;
+    expect(orArg).toContain('ends_at.lt.');
+    expect(orArg).toContain('and(ends_at.is.null,starts_at.lt.');
     expect(chain.eq).toHaveBeenCalledWith('ep_filter.user_id', 'user-1');
     expect(chain.order).toHaveBeenCalledWith('starts_at', { ascending: false });
   });
