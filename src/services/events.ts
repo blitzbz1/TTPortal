@@ -35,13 +35,20 @@ export async function getEvents(
 
 export async function getUpcomingEventsByVenue(venueId: number) {
   const now = new Date().toISOString();
+  const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+  // Match anything that hasn't ended yet:
+  //   - future events                            (starts_at >= now)
+  //   - in-progress with explicit end            (ends_at >= now)
+  //   - in-progress without end, recent start    (ends_at IS NULL AND starts_at >= now - 4h)
+  // Sorted ascending by starts_at so currently running events surface
+  // first, followed by upcoming ones.
   return supabase
     .from('events')
     .select(
       '*, venues(name, city, lat, lng), event_participants(user_id, hours_played, profiles!event_participants_user_profiles_fk(id, full_name))',
     )
     .eq('venue_id', venueId)
-    .gte('starts_at', now)
+    .or(`starts_at.gte.${now},ends_at.gte.${now},and(ends_at.is.null,starts_at.gte.${fourHoursAgo})`)
     .not('status', 'in', '(cancelled,completed)')
     .order('starts_at', { ascending: true })
     .limit(50);
@@ -57,11 +64,15 @@ export async function getEventById(eventId: number) {
 
 export type ActiveFriendEventRow = {
   id: number;
+  title: string | null;
   venue_id: number | null;
   starts_at: string;
   ends_at: string | null;
   status: string;
-  event_participants: { user_id: string }[];
+  event_participants: {
+    user_id: string;
+    profiles: { full_name: string | null; avatar_url: string | null } | null;
+  }[];
 };
 
 /**
@@ -70,23 +81,32 @@ export type ActiveFriendEventRow = {
  * venue markers when friends are at an event there (mirrors the live-checkin
  * badge behavior).
  *
- * "In progress" = `starts_at <= now()` AND (`ends_at >= now()` OR `ends_at` is
- * null — events without an end time are treated as in-progress for at most a
- * few hours after start; we let the start-time gate plus the status filter
- * keep the result set small).
+ * "In progress" =
+ *   - `starts_at <= now()` AND
+ *   - (`ends_at >= now()` OR (`ends_at IS NULL` AND `starts_at >= now() - 4h`))
+ *   - status not in (cancelled, completed)
+ *
+ * The 4-hour fallback for null `ends_at` matters: many historical events
+ * have no end time stored, and treating them as forever-in-progress would
+ * light up the friend-presence badge on every venue where a friend ever
+ * participated in an event.
  */
 export async function getActiveFriendEvents(friendIds: string[]) {
   if (!friendIds.length) return { data: [] as ActiveFriendEventRow[], error: null };
   const now = new Date().toISOString();
+  const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
   // `event_participants!inner` filters events down to ones with a matching
   // friend; the embed is restricted to those friend rows by the same
   // .in('event_participants.user_id', ...) clause below, which is exactly
   // what we want to read on the client.
   return supabase
     .from('events')
-    .select('id, venue_id, starts_at, ends_at, status, event_participants!inner(user_id)')
+    .select(
+      'id, title, venue_id, starts_at, ends_at, status, ' +
+        'event_participants!inner(user_id, profiles!event_participants_user_profiles_fk(full_name, avatar_url))',
+    )
     .lte('starts_at', now)
-    .or(`ends_at.gte.${now},ends_at.is.null`)
+    .or(`ends_at.gte.${now},and(ends_at.is.null,starts_at.gte.${fourHoursAgo})`)
     .not('status', 'in', '(cancelled,completed)')
     .in('event_participants.user_id', friendIds)
     .returns<ActiveFriendEventRow[]>();

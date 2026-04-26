@@ -22,7 +22,7 @@ import { getProfile } from '../services/profiles';
 import * as ImagePicker from 'expo-image-picker';
 import { getReviewsForVenue } from '../services/reviews';
 import { checkin, checkout, getUserActiveCheckin, getUserAnyActiveCheckin, getActiveFriendCheckins, getVenueChampion } from '../services/checkins';
-import { getUpcomingEventsByVenue } from '../services/events';
+import { getUpcomingEventsByVenue, getActiveFriendEvents } from '../services/events';
 import { getFriendIds } from '../services/friends';
 import { isFavorite, addFavorite, removeFavorite } from '../services/favorites';
 import type { Venue, Review, VenueStats } from '../types/database';
@@ -146,13 +146,38 @@ export function VenueDetailScreen({ venueId }: Props) {
           setActiveCheckin(checkinRes.data ?? null);
         }
 
-        // Fetch friends currently checked in at this venue
+        // Fetch friends present at this venue — checkins AND in-progress
+        // event participations. Each is normalized to the same shape used
+        // by the "Friends here" list below: { user_id, profiles, source }.
         try {
           const fIds = await getFriendIds(user.id);
           if (fIds.length > 0 && !cancelled) {
-            const { data: friendCheckins } = await getActiveFriendCheckins(fIds);
+            const [checkinsRes, eventsRes] = await Promise.all([
+              getActiveFriendCheckins(fIds),
+              getActiveFriendEvents(fIds),
+            ]);
             if (!cancelled) {
-              const here = (friendCheckins ?? []).filter((c: any) => c.venue_id === Number(venueId));
+              const seen = new Set<string>();
+              const here: any[] = [];
+              for (const c of (checkinsRes.data ?? []) as any[]) {
+                if (c.venue_id !== Number(venueId)) continue;
+                if (seen.has(c.user_id)) continue;
+                seen.add(c.user_id);
+                here.push({ ...c, _source: 'checkin' });
+              }
+              for (const ev of eventsRes.data ?? []) {
+                if (ev.venue_id !== Number(venueId)) continue;
+                for (const p of ev.event_participants ?? []) {
+                  if (seen.has(p.user_id)) continue;
+                  seen.add(p.user_id);
+                  here.push({
+                    user_id: p.user_id,
+                    profiles: p.profiles,
+                    _source: 'event',
+                    _eventTitle: ev.title,
+                  });
+                }
+              }
               setFriendsHere(here);
             }
           }
@@ -610,7 +635,13 @@ export function VenueDetailScreen({ venueId }: Props) {
                 </View>
                 <View style={styles.checkinInfo}>
                   <Text style={styles.checkinName}>{name}</Text>
-                  {ago != null && <Text style={styles.checkinTime}>{`${ago}m`}</Text>}
+                  {fc._source === 'event' ? (
+                    <Text style={styles.checkinTime} numberOfLines={1}>
+                      {fc._eventTitle ? `· ${fc._eventTitle}` : '·'}
+                    </Text>
+                  ) : ago != null ? (
+                    <Text style={styles.checkinTime}>{`${ago}m`}</Text>
+                  ) : null}
                 </View>
               </TouchableOpacity>
             );
