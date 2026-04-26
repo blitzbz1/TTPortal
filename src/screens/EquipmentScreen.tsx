@@ -77,12 +77,16 @@ function filterText(value: string, query: string) {
   return value.toLowerCase().includes(query.trim().toLowerCase());
 }
 
+// Cache Intl.DateTimeFormat per locale — constructing the formatter is the
+// expensive part. With this cache, repeated calls in lists are effectively free.
+const _equipmentDateFmtByLocale = new Map<string, Intl.DateTimeFormat>();
 function formatDate(value: string, locale: string) {
-  return new Date(value).toLocaleDateString(locale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  let fmt = _equipmentDateFmtByLocale.get(locale);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' });
+    _equipmentDateFmtByLocale.set(locale, fmt);
+  }
+  return fmt.format(new Date(value));
 }
 
 function labelFromValue<T extends string>(
@@ -116,6 +120,28 @@ interface SearchableSelectProps {
   onSelect: (option: { id: string; name: string }) => void;
   colors: ThemeColors;
 }
+
+interface OptionRowProps {
+  item: { id: string; name: string };
+  onPress: (item: { id: string; name: string }) => void;
+  rowStyle: any;
+  pressedStyle: any;
+  textStyle: any;
+}
+const OptionRow = React.memo(function OptionRow({
+  item, onPress, rowStyle, pressedStyle, textStyle,
+}: OptionRowProps) {
+  return (
+    <Pressable
+      style={({ pressed }) => [rowStyle, pressed && pressedStyle]}
+      onPress={() => onPress(item)}
+      accessibilityRole="button"
+      accessibilityLabel={`Select ${item.name}`}
+    >
+      <Text style={textStyle}>{item.name}</Text>
+    </Pressable>
+  );
+});
 
 interface ColorSelectProps {
   value: RubberColor;
@@ -209,16 +235,34 @@ function SearchableSelect({
     sheetRef.current?.present();
   };
 
-  const handleSelect = (option: { id: string; name: string }) => {
-    onSelect(option);
-    sheetRef.current?.dismiss();
-  };
+  const handleSelect = useCallback(
+    (option: { id: string; name: string }) => {
+      onSelect(option);
+      sheetRef.current?.dismiss();
+    },
+    [onSelect],
+  );
 
   const renderBackdrop = useCallback(
     (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
       <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.45} />
     ),
     [],
+  );
+
+  const renderOption = useCallback(
+    ({ item }: { item: { id: string; name: string } }) => (
+      <OptionRow
+        item={item}
+        onPress={handleSelect}
+        rowStyle={styles.optionRow}
+        pressedStyle={styles.optionRowPressed}
+        textStyle={styles.optionText}
+      />
+    ),
+    // styles is per-theme; handleSelect closes over `onSelect` and `sheetRef`
+    // (refs are stable, onSelect is the parent's callback)
+    [styles.optionRow, styles.optionRowPressed, styles.optionText, handleSelect],
   );
 
   return (
@@ -272,16 +316,7 @@ function SearchableSelect({
             </View>
           }
           ListEmptyComponent={<Text style={styles.emptyOption}>{emptyText}</Text>}
-          renderItem={({ item }: { item: { id: string; name: string } }) => (
-            <Pressable
-              style={({ pressed }) => [styles.optionRow, pressed && styles.optionRowPressed]}
-              onPress={() => handleSelect(item)}
-              accessibilityRole="button"
-              accessibilityLabel={`Select ${item.name}`}
-            >
-              <Text style={styles.optionText}>{item.name}</Text>
-            </Pressable>
-          )}
+          renderItem={renderOption}
         />
       </BottomSheetModal>
     </View>

@@ -77,7 +77,11 @@ export function ThemeProvider({ children, initialMode }: ThemeProviderProps) {
 
   const colors = resolved === 'dark' ? darkColors : lightColors;
   const isDark = resolved === 'dark';
-  updateShadowsForTheme(isDark);
+  // Side-effect: defer to commit phase so rebuilding shadow style objects
+  // doesn't run on every render — only when the resolved theme actually flips.
+  useEffect(() => {
+    updateShadowsForTheme(isDark);
+  }, [isDark]);
 
   const value = useMemo(
     () => ({ mode, resolved, colors, setMode, isDark }),

@@ -125,6 +125,7 @@ const mockGetEvents = jest.fn();
 const mockGetEventParticipants = jest.fn();
 const mockGetEventFeedback = jest.fn();
 const mockGetUserEventFeedback = jest.fn();
+const mockGetUserEventFeedbackForEvents = jest.fn();
 const mockGetEventById = jest.fn();
 
 jest.mock('../../services/events', () => ({
@@ -142,6 +143,7 @@ jest.mock('../../services/events', () => ({
 jest.mock('../../services/eventFeedback', () => ({
   getEventFeedback: (...args: any[]) => mockGetEventFeedback(...args),
   getUserEventFeedback: (...args: any[]) => mockGetUserEventFeedback(...args),
+  getUserEventFeedbackForEvents: (...args: any[]) => mockGetUserEventFeedbackForEvents(...args),
 }));
 
 jest.mock('../../services/friends', () => ({
@@ -203,6 +205,7 @@ describe('EventSchedulingScreen — feedback integration', () => {
     mockGetEventParticipants.mockResolvedValue({ data: [] });
     mockGetEventFeedback.mockResolvedValue({ data: [] });
     mockGetUserEventFeedback.mockResolvedValue({ data: null });
+    mockGetUserEventFeedbackForEvents.mockResolvedValue({ data: [], error: null });
     mockGetEventById.mockResolvedValue({ data: null, error: null });
   });
 
@@ -249,7 +252,7 @@ describe('EventSchedulingScreen — feedback integration', () => {
 
   it('hides feedback button when user already gave feedback', async () => {
     mockGetEvents.mockResolvedValue({ data: [pastEvent], error: null });
-    mockGetUserEventFeedback.mockResolvedValue({ data: { id: 99 } }); // already submitted
+    mockGetUserEventFeedbackForEvents.mockResolvedValue({ data: [pastEvent.id], error: null }); // already submitted
 
     const { findByText, queryByText } = render(<EventSchedulingScreen />);
 
@@ -314,6 +317,7 @@ describe('EventSchedulingScreen — deep link via eventId param', () => {
     mockGetEventParticipants.mockResolvedValue({ data: [] });
     mockGetEventFeedback.mockResolvedValue({ data: [] });
     mockGetUserEventFeedback.mockResolvedValue({ data: null });
+    mockGetUserEventFeedbackForEvents.mockResolvedValue({ data: [], error: null });
   });
 
   it('fetches and opens the event when eventId param is set', async () => {

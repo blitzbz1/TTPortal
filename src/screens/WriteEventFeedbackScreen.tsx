@@ -18,6 +18,29 @@ interface Props {
   onDismiss: () => void;
 }
 
+interface StarsRowProps {
+  rating: number;
+  onPress: (n: number) => void;
+  styles: ReturnType<typeof createStyles>;
+}
+const StarsRow = React.memo(function StarsRow({ rating, onPress, styles }: StarsRowProps) {
+  return (
+    <View style={styles.starsRow}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <TouchableOpacity
+          key={star}
+          style={[styles.starBtn, star <= rating ? styles.starBtnActive : styles.starBtnInactive]}
+          onPress={() => onPress(star)}
+        >
+          <Text style={[styles.starText, star <= rating ? styles.starTextActive : styles.starTextInactive]}>
+            {'★'}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+});
+
 export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useSession();
@@ -30,6 +53,11 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
   const [eventTitle, setEventTitle] = useState('');
   const [loading, setLoading] = useState(false);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+
+  const onStarPress = useCallback((star: number) => {
+    hapticLight();
+    setRating(star);
+  }, []);
 
   useEffect(() => {
     if (!visible || !eventId) return;
@@ -121,19 +149,7 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
               <ScrollView style={styles.formScroll} keyboardShouldPersistTaps="handled">
                 <View style={styles.field}>
                   <Text style={styles.fieldLabel}>{s('fieldRating')}</Text>
-                  <View style={styles.starsRow}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <TouchableOpacity
-                        key={star}
-                        style={[styles.starBtn, star <= rating ? styles.starBtnActive : styles.starBtnInactive]}
-                        onPress={() => { hapticLight(); setRating(star); }}
-                      >
-                        <Text style={[styles.starText, star <= rating ? styles.starTextActive : styles.starTextInactive]}>
-                          {'\u2605'}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                  <StarsRow rating={rating} onPress={onStarPress} styles={styles} />
                 </View>
 
                 <View style={styles.field}>

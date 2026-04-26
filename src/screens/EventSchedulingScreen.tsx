@@ -17,7 +17,7 @@ import { EventDetailContent } from './EventSchedulingScreen/EventDetailContent';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getEvents, getEventById, getEventParticipants, joinEvent, leaveEvent, sendEventInvites } from '../services/events';
-import { getEventFeedback, getUserEventFeedback } from '../services/eventFeedback';
+import { getEventFeedback, getUserEventFeedbackForEvents } from '../services/eventFeedback';
 import { getFriendIds } from '../services/friends';
 import { FriendPickerModal } from '../components/FriendPickerModal';
 import { WriteEventFeedbackScreen } from './WriteEventFeedbackScreen';
@@ -133,16 +133,11 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         setEventsError(true);
       } else {
         setEvents((data ?? []) as unknown as EventListItem[]);
-        // Check which past events already have user feedback
+        // Check which past events already have user feedback (single round trip).
         if (tab === 'past' && user?.id && data?.length) {
-          const checks = await Promise.all(
-            data.map((ev: any) => getUserEventFeedback(ev.id, user.id)),
-          );
-          const givenIds = new Set<number>();
-          data.forEach((ev: any, i: number) => {
-            if (checks[i].data) givenIds.add(ev.id);
-          });
-          setFeedbackGivenIds(givenIds);
+          const eventIds = (data as any[]).map((ev) => ev.id);
+          const { data: feedbackEventIds } = await getUserEventFeedbackForEvents(user.id, eventIds);
+          setFeedbackGivenIds(new Set(feedbackEventIds));
         }
       }
     } catch {

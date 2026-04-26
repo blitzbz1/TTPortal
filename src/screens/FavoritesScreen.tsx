@@ -74,15 +74,26 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
   }, [user, s]);
 
 
-  const sortedFavorites = [...favorites].sort((a, b) => {
+  // Pre-parse created_at to ms once per favorites update so the sort comparator
+  // doesn't allocate two Date objects per pair.
+  const favoritesWithCreatedMs = useMemo(
+    () => favorites.map((f) => ({ ...f, _createdMs: new Date(f.created_at).getTime() })),
+    [favorites],
+  );
+
+  const sortedFavorites = useMemo(() => {
+    const arr = [...favoritesWithCreatedMs];
     if (sortMode === 'name') {
-      const nameA = a.venues?.name ?? '';
-      const nameB = b.venues?.name ?? '';
-      return nameA.localeCompare(nameB, 'ro');
+      arr.sort((a, b) => {
+        const nameA = a.venues?.name ?? '';
+        const nameB = b.venues?.name ?? '';
+        return nameA.localeCompare(nameB, 'ro');
+      });
+    } else {
+      arr.sort((a, b) => b._createdMs - a._createdMs);
     }
-    // 'recent' — sort by created_at descending
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
+    return arr;
+  }, [favoritesWithCreatedMs, sortMode]);
 
   const getVenueTypeInfo = (venue: any) => {
     const type = venue?.type;

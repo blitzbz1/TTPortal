@@ -49,6 +49,62 @@ const TRACK_ROWS = [
   BADGE_TRACKS.slice(4, 8),
 ];
 
+interface CooldownTimerProps {
+  endsAt: number;
+  totalMs: number;
+  color: string;
+  trackStyle: any;
+  pillStyle: any;
+  fillStyle: any;
+  textStyle: any;
+  onElapsed: () => void;
+}
+
+// Owns the 1Hz tick locally so the parent ChallengeScreen doesn't re-render
+// every second while a cooldown is active.
+const CooldownTimer = React.memo(function CooldownTimer({
+  endsAt,
+  totalMs,
+  color,
+  trackStyle,
+  pillStyle,
+  fillStyle,
+  textStyle,
+  onElapsed,
+}: CooldownTimerProps) {
+  const [remaining, setRemaining] = useState(() =>
+    Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)),
+  );
+  const elapsedFiredRef = useRef(false);
+
+  useEffect(() => {
+    elapsedFiredRef.current = false;
+    const tick = () => {
+      const next = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+      setRemaining(next);
+      if (next <= 0 && !elapsedFiredRef.current) {
+        elapsedFiredRef.current = true;
+        onElapsed();
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [endsAt, onElapsed]);
+
+  const label = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`;
+  const widthPct = `${Math.max(0, Math.min(100, (remaining / (totalMs / 1000)) * 100))}%` as `${number}%`;
+
+  return (
+    <View style={[pillStyle, { borderColor: color }]}>
+      <Text style={[textStyle, { color }]}>{label}</Text>
+      <View style={trackStyle}>
+        <View style={[fillStyle, { width: widthPct, backgroundColor: color }]} />
+      </View>
+    </View>
+  );
+});
+
 export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
@@ -64,7 +120,6 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const [selectedChallenge, setSelectedChallenge] = useState<DbChallenge | null>(null);
   const [lockedChallengeId, setLockedChallengeId] = useState<string | null>(null);
   const [challengeCooldown, setChallengeCooldown] = useState<{ challengeId: string; endsAt: number; reason: ChallengeCooldownReason } | null>(null);
-  const [cooldownRemainingSeconds, setCooldownRemainingSeconds] = useState(0);
   const [actionChallengeId, setActionChallengeId] = useState<string | null>(null);
   const [completedSessionChallengeIds, setCompletedSessionChallengeIds] = useState<Set<string>>(new Set());
   const [earnedBadgeModal, setEarnedBadgeModal] = useState<{ badge: BadgeTrack; tier: BadgeTier } | null>(null);
@@ -78,24 +133,14 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     }
   }, [params.tab]);
 
-  useEffect(() => {
-    if (!challengeCooldown) return;
-
-    const updateRemaining = () => {
-      const remaining = Math.max(0, Math.ceil((challengeCooldown.endsAt - Date.now()) / 1000));
-      setCooldownRemainingSeconds(remaining);
-      if (remaining <= 0) {
-        setChallengeCooldown(null);
-        setSelectedChallenge(null);
-        setLockedChallengeId(null);
-        setCurrentSelectedChallenge(null);
-      }
-    };
-
-    updateRemaining();
-    const timer = setInterval(updateRemaining, 1000);
-    return () => clearInterval(timer);
-  }, [challengeCooldown]);
+  // The 1Hz tick is owned by <CooldownTimer/>; this callback handles the
+  // "cooldown elapsed" transition without re-rendering the parent every second.
+  const handleCooldownElapsed = React.useCallback(() => {
+    setChallengeCooldown(null);
+    setSelectedChallenge(null);
+    setLockedChallengeId(null);
+    setCurrentSelectedChallenge(null);
+  }, []);
 
   useEffect(() => {
     if (!challengeCooldown) {
@@ -220,8 +265,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   }, [earnedAtByBadgeTier]);
   const selectedChallengeLocked = !!selectedChallenge && lockedChallengeId === selectedChallenge.id;
   const selectedChallengeCoolingDown = !!selectedChallenge && challengeCooldown?.challengeId === selectedChallenge.id;
-  const cooldownTimerLabel = `${Math.floor(cooldownRemainingSeconds / 60)}:${String(cooldownRemainingSeconds % 60).padStart(2, '0')}`;
-  const cooldownProgressWidth = `${Math.max(0, Math.min(100, (cooldownRemainingSeconds / (CHALLENGE_COOLDOWN_MS / 1000)) * 100))}%` as `${number}%`;
+  // cooldownTimerLabel / cooldownProgressWidth now live inside <CooldownTimer/>.
   const ballTranslateX = ballBounce.interpolate({
     inputRange: [0, 0.5, 1],
     outputRange: [-104, 104, -104],
@@ -294,7 +338,6 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
       endsAt: Date.now() + CHALLENGE_COOLDOWN_MS,
       reason: 'forfeit',
     });
-    setCooldownRemainingSeconds(CHALLENGE_COOLDOWN_MS / 1000);
   };
 
   const handleComplete = async () => {
@@ -318,7 +361,6 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
         endsAt: Date.now() + CHALLENGE_COOLDOWN_MS,
         reason: 'soloComplete',
       });
-      setCooldownRemainingSeconds(CHALLENGE_COOLDOWN_MS / 1000);
       setCurrentSelectedChallenge(null);
       await refreshProgress();
       await refreshChoices();
@@ -484,12 +526,18 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
               : s('challengeForfeitCooldownDesc')}
           </Text>
         </View>
-        <View style={[styles.cooldownTimerPill, { borderColor: activeBadge.color }]}>
-          <Text style={[styles.cooldownTimer, { color: activeBadge.color }]}>{cooldownTimerLabel}</Text>
-          <View style={styles.cooldownTimerTrack}>
-            <View style={[styles.cooldownTimerFill, { width: cooldownProgressWidth, backgroundColor: activeBadge.color }]} />
-          </View>
-        </View>
+        {challengeCooldown && (
+          <CooldownTimer
+            endsAt={challengeCooldown.endsAt}
+            totalMs={CHALLENGE_COOLDOWN_MS}
+            color={activeBadge.color}
+            pillStyle={styles.cooldownTimerPill}
+            textStyle={styles.cooldownTimer}
+            trackStyle={styles.cooldownTimerTrack}
+            fillStyle={styles.cooldownTimerFill}
+            onElapsed={handleCooldownElapsed}
+          />
+        )}
       </View>
     </View>
   );

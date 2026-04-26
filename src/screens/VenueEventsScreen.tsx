@@ -68,10 +68,18 @@ export function VenueEventsScreen({ venueId }: Props) {
     setRefreshing(false);
   }, [load]);
 
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short' });
-  const formatTime = (d: string) =>
-    new Date(d).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  // Cache one Intl formatter per locale; constructing them is the expensive
+  // part — `.format()` is cheap to call repeatedly.
+  const dateFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'short' }),
+    [locale],
+  );
+  const timeFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }),
+    [locale],
+  );
+  const formatDate = useCallback((d: string) => dateFormatter.format(new Date(d)), [dateFormatter]);
+  const formatTime = useCallback((d: string) => timeFormatter.format(new Date(d)), [timeFormatter]);
 
   const getBadge = (ev: EventItem) => {
     if (ev.status === 'confirmed') return { text: s('confirmed'), bg: colors.primaryPale, color: colors.primaryMid };

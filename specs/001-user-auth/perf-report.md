@@ -1,7 +1,10 @@
 # Performance Improvement Report — 2026-04-26
 
-> Round 2 (same date) extends this report with additional findings surfaced by
-> a follow-up audit; see the **Round 2** section at the bottom.
+> Rounds 2, 3, and 4 (all same date) extend this report. Round 2 collapses
+> remaining N+1s and converts long lists to FlatList; Round 3 catches less-
+> audited screens and adds Promise.allSettled / freshness gates; Round 4
+> targets the subtler wins surfaced by a fourth-pass audit (Intl formatter
+> reuse, 1Hz cooldown isolation, list-card memoization). See sections below.
 
 ## Round 1
 
@@ -116,3 +119,99 @@ where applicable. All Round 1 wins stand.
 - `npm run typecheck` — clean for `src/`.
 - `npm run lint` — 0 errors; one pre-existing warning at
   `FriendsScreen.tsx:179` is unrelated to perf work.
+
+---
+
+## Round 3
+
+A third pass surfaced screens and services not deeply audited in Rounds 1–2.
+All Round 1 and Round 2 wins still stand.
+
+### Results
+
+| Issue | Where | Before | After | Win |
+|---|---|---|---|---|
+| 18. Per-event feedback lookup on the past tab | `services/eventFeedback.ts`, `screens/EventSchedulingScreen.tsx:138-145` | `Promise.all(events.map(ev => getUserEventFeedback(ev.id, userId)))` — N round trips per render of the past tab | New `getUserEventFeedbackForEvents(userId, eventIds)` runs one query with `IN (...)`; screen consumes a `Set<eventId>` | O(N) → 1 round trip |
+| 19. ActivityFeed refetch on every focus | `screens/ActivityFeedScreen.tsx:33-44` | `useFocusEffect` re-fetched `getFriendIds` and `getFriendFeed` every time the tab was focused | 60-second freshness gate via `lastFetchedAtRef`; pull-to-refresh forces refresh | drops most repeat refetches |
+| 20. FavoritesScreen sort allocates Dates per comparison | `screens/FavoritesScreen.tsx:84` | `new Date(a.created_at).getTime()` × 2 per comparator call | `favoritesWithCreatedMs` `useMemo` pre-parses `created_at`; comparator uses cached `_createdMs`; entire `sortedFavorites` is `useMemo`'d | linear → constant per render |
+| 21. PlayerProfile blocked on slowest of three fetches | `screens/PlayerProfileScreen.tsx:43-57` | `Promise.all` of `getProfile` + `getProfileStats` + `getCurrentEquipmentForUser` — slow stats stalled the entire screen | `Promise.allSettled` lands each independently; profile header renders with whatever has resolved | partial render under slow stats |
+| 22. Form thrash on review text keystrokes | `screens/WriteReviewScreen.tsx`, `screens/WriteEventFeedbackScreen.tsx` | Star buttons (5) and tag buttons (8) re-rendered on every `reviewText` keystroke | Extracted `StarsRow` and `TagsRow` (`React.memo`); only re-render on `rating`/`tags` change | constant cost during typing |
+| 23. ThemeProvider runs side-effect in render | `contexts/ThemeProvider.tsx:75-80` | `updateShadowsForTheme(isDark)` invoked synchronously in render — ran on every theme-context update | Moved into `useEffect(..., [isDark])` so it runs on commit only when the resolved theme flips | no-op on most renders |
+
+### False positives from the audit (verified against current code)
+
+- `ConditionVotingScreen.tsx:66-67` `.filter().length` is inside the `load()`
+  effect, not in the render path. No change needed.
+- `ProfileScreen.tsx` `progressRows` reduction — already inside a stable
+  `useMemo`; `useBadgeProgress` returns an identity-stable array.
+
+### Schema changes (Round 3)
+
+- None. All Round 3 wins are JS-side.
+
+### Verification (Round 3)
+
+- `npm test` — 90 suites / 664 tests pass; `EventSchedulingScreen.feedback`
+  test mocks updated to the batched `getUserEventFeedbackForEvents` shape.
+- `npm run typecheck` — clean for `src/`.
+- `npm run lint` — 0 errors; one pre-existing warning at
+  `FriendsScreen.tsx:179` is unrelated to perf work.
+
+### Migrations applied to remote
+
+`038_profile_fks_for_perf.sql`, `039_notifications_sender_profile_fk.sql`, and
+`040_weekly_leaderboard_rpcs.sql` were pushed to the linked TTPortal Supabase
+project (project ref `vzewwlaqqgukjkqjyfoq`) on 2026-04-26. PostgREST
+`reload schema` notifications fire from each migration, so the embeds and
+RPCs are queryable immediately.
+
+---
+
+## Round 4
+
+A fourth pass focused on the remaining subtler wins after three earlier rounds
+exhausted the obvious ones. Honest framing: the wins here are real but
+smaller — the next round of optimization should be a profiling pass on a
+real device, not another static analysis.
+
+### Results
+
+| Issue | Where | Before | After | Win |
+|---|---|---|---|---|
+| 24. Intl formatter recreated per row | `screens/VenueEventsScreen.tsx:71-74` | New `Date` + fresh `.toLocaleDateString` / `.toLocaleTimeString` per row per render | One `Intl.DateTimeFormat` cached per locale via `useMemo`; `formatDate` / `formatTime` are `useCallback` wrappers over `.format()` | Intl construction collapsed to once per locale |
+| 25. ChallengeScreen 1Hz parent re-render during cooldown | `screens/ChallengeScreen.tsx:81-98` | `setInterval` updated screen state every second; the entire screen re-rendered for up to 60s | Extracted `<CooldownTimer/>` (`React.memo`) that owns the tick locally and fires `onElapsed` once; parent state is stable | parent renders unaffected by the timer |
+| 26. AdminModerationScreen monolith re-renders all rows on any state change | `screens/AdminModerationScreen.tsx:336-543` | ~635-line component with 12+ `useState` hooks; per-row inline date formatting on three list types | Extracted `PendingVenueCard`, `FlaggedReviewCard`, `FeedbackCard` (`React.memo`); module-level `Intl.DateTimeFormat` caches for `ro-RO` and locale date-time | per-card re-renders gated by row props |
+| 27. EquipmentScreen `formatDate` rebuild per call | `screens/EquipmentScreen.tsx:80-86` | `.toLocaleDateString` with options on every call | Module-level `Map<locale, Intl.DateTimeFormat>` cache; subsequent calls reuse the cached formatter | constant per-call cost |
+| 28. EquipmentScreen `BottomSheetFlatList` inline `renderItem` | `screens/EquipmentScreen.tsx:279-288` | Inline arrow rebuilt every render; option rows re-rendered on parent re-render | Extracted `<OptionRow/>` (`React.memo`); `renderOption` `useCallback` with stable deps; `handleSelect` wrapped in `useCallback` | rows skip re-render when their props don't change |
+
+### False positives from the audit (verified against current code)
+
+- `ConditionVotingScreen.tsx` filter — already inside the `load()` effect.
+- `useBadgeProgress` — already `Promise.all`'d.
+- The `useMemo(createStyles(colors), [colors])` pattern across 80+ screens —
+  already correct; `ThemeProvider` returns a stable `colors` reference.
+
+### Schema changes (Round 4)
+
+- None. All Round 4 wins are client-side.
+
+### Verification (Round 4)
+
+- `npm test` — 90 suites / 664 tests pass; `EventSchedulingScreen.feedback`
+  tests still green after Round 3's batched feedback service.
+- `npm run typecheck` — clean for `src/`.
+- `npm run lint` — 0 errors; one pre-existing warning at
+  `FriendsScreen.tsx:179` is unrelated to perf work.
+
+### Where to go next
+
+After four rounds, static analysis has diminishing returns. Recommended next
+steps if performance work continues:
+
+1. **Profile on a real mid-tier Android** with React DevTools / Hermes
+   profiler — measure actual per-screen frame time and identify the slowest
+   commit phases.
+2. **Bundle audit** — measure cold-start time and the contribution of
+   `lucide-react-native`, locale JSON, and Reanimated.
+3. **Realtime listener audit** — confirm no leaked Supabase channel
+   subscriptions and that polling intervals (notifications) are reasonable.

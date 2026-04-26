@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +15,8 @@ import { getFriendIds } from '../services/friends';
 import { getFriendFeed } from '../services/feed';
 import type { FeedItem } from '../services/feed';
 
+const FEED_FRESH_TTL_MS = 60 * 1000;
+
 export function ActivityFeedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -27,12 +29,21 @@ export function ActivityFeedScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchFeed = useCallback(async () => {
+  // Skip the feed refetch on focus if we just fetched it. Pull-to-refresh
+  // (and explicit invalidation elsewhere) still bypass the freshness check.
+  const lastFetchedAtRef = useRef<number>(0);
+
+  const fetchFeed = useCallback(async (force = false) => {
     if (!user) { setLoading(false); return; }
+    if (!force && Date.now() - lastFetchedAtRef.current < FEED_FRESH_TTL_MS) {
+      setLoading(false);
+      return;
+    }
     try {
       const friendIds = await getFriendIds(user.id);
       const { data } = await getFriendFeed(friendIds);
       setFeed(data);
+      lastFetchedAtRef.current = Date.now();
     } finally {
       setLoading(false);
     }
@@ -46,7 +57,7 @@ export function ActivityFeedScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchFeed();
+    await fetchFeed(true);
     setRefreshing(false);
   }, [fetchFeed]);
 

@@ -27,6 +27,160 @@ import {
 } from '../services/admin';
 import { getProfile } from '../services/profiles';
 
+// Cached at module scope so each per-row format call doesn't construct a fresh
+// Intl.DateTimeFormat. Use lazy access to keep startup cheap.
+const _roDateFmt: { current: Intl.DateTimeFormat | null } = { current: null };
+function formatRoDate(iso: string) {
+  if (!_roDateFmt.current) _roDateFmt.current = new Intl.DateTimeFormat('ro-RO');
+  return _roDateFmt.current.format(new Date(iso));
+}
+const _localizedDateTimeFmt: { current: Intl.DateTimeFormat | null } = { current: null };
+function formatLocalizedDateTime(iso: string) {
+  if (!_localizedDateTimeFmt.current) {
+    _localizedDateTimeFmt.current = new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    });
+  }
+  return _localizedDateTimeFmt.current.format(new Date(iso));
+}
+
+interface PendingVenueCardProps {
+  venue: any;
+  styles: any;
+  colors: any;
+  s: (key: string) => string;
+  onApprove: (id: number) => void;
+  onEdit: (venue: any) => void;
+  onReject: (id: number) => void;
+}
+const PendingVenueCard = React.memo(function PendingVenueCard({
+  venue, styles, colors, s, onApprove, onEdit, onReject,
+}: PendingVenueCardProps) {
+  return (
+    <View style={styles.modCard}>
+      <View style={styles.modTop}>
+        <Text style={styles.modTitle}>{venue.name}</Text>
+        <View style={styles.modBadge}>
+          <Text style={styles.modBadgeText}>{s('newBadge')}</Text>
+        </View>
+      </View>
+      <Text style={styles.modMeta}>
+        {s('addedBy')}{venue.profiles?.full_name ?? s('user').toLowerCase()} {'·'}{' '}
+        {formatRoDate(venue.created_at)} {'·'}{' '}
+        {venue.city ?? ''}{venue.address ? `, ${venue.address}` : ''}
+      </Text>
+      <View style={styles.modActions}>
+        <TouchableOpacity style={styles.approveBtn} onPress={() => onApprove(venue.id)}>
+          <Lucide name="check" size={14} color={colors.textOnPrimary} />
+          <Text style={styles.approveBtnText}>{s('approve')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.editBtn} onPress={() => onEdit(venue)}>
+          <Lucide name="pencil" size={14} color={colors.textMuted} />
+          <Text style={styles.editBtnText}>{s('edit')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.rejectBtn} onPress={() => onReject(venue.id)}>
+          <Lucide name="x" size={14} color={colors.red} />
+          <Text style={styles.rejectBtnText}>{s('reject')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
+interface FlaggedReviewCardProps {
+  review: any;
+  styles: any;
+  colors: any;
+  s: (key: string) => string;
+  onKeep: (id: number) => void;
+  onDelete: (id: number) => void;
+}
+const FlaggedReviewCard = React.memo(function FlaggedReviewCard({
+  review, styles, colors, s, onKeep, onDelete,
+}: FlaggedReviewCardProps) {
+  return (
+    <View style={styles.flagCard}>
+      <View style={styles.flagTop}>
+        <View style={styles.flagInfo}>
+          <Text style={styles.flagAuthor}>{review.profiles?.full_name ?? s('user')}</Text>
+          <Text style={styles.flagMeta}>
+            {review.venues?.name ?? s('venue')} {'·'}{' '}
+            {formatRoDate(review.created_at)}
+          </Text>
+        </View>
+        <View style={styles.flagBadge}>
+          <Text style={styles.flagBadgeText}>{review.flag_count ?? 0} {s('reports')}</Text>
+        </View>
+      </View>
+      <Text style={styles.flagText}>{`"${review.body ?? review.text ?? ''}"`}</Text>
+      <View style={styles.flagActions}>
+        <TouchableOpacity style={styles.keepBtn} onPress={() => onKeep(review.id)}>
+          <Lucide name="check" size={14} color={colors.textMuted} />
+          <Text style={styles.keepBtnText}>{s('keep')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(review.id)}>
+          <Lucide name="trash-2" size={14} color={colors.textOnPrimary} />
+          <Text style={styles.deleteBtnText}>{s('deleteBtn')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
+interface FeedbackCardProps {
+  item: any;
+  styles: any;
+  colors: any;
+  s: (key: string) => string;
+  onReply: (item: any) => void;
+  onDelete: (id: any) => void;
+}
+const FeedbackCard = React.memo(function FeedbackCard({
+  item, styles, colors, s, onReply, onDelete,
+}: FeedbackCardProps) {
+  const authorName = item.profiles?.full_name || item.profiles?.email || s('anon');
+  const iconName = item.category === 'bug' ? 'bug' : 'message-square';
+  const categoryLabel = item.category === 'bug' ? s('feedbackCategoryBug') : s('feedbackCategoryGeneral');
+  return (
+    <View style={styles.flagCard} testID={`feedback-row-${item.id}`}>
+      <View style={styles.flagTop}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+          <Lucide name={iconName} size={14} color={colors.textMuted} />
+          <Text style={styles.flagAuthor} numberOfLines={1}>{authorName}</Text>
+        </View>
+        <View style={styles.flagBadge}>
+          <Text style={styles.flagBadgeText}>{categoryLabel}</Text>
+        </View>
+      </View>
+      <Text style={styles.flagText}>{item.message}</Text>
+      <Text style={styles.flagMeta}>
+        {item.page}
+        {' · '}
+        {formatLocalizedDateTime(item.created_at)}
+      </Text>
+      <View style={styles.modActions}>
+        <TouchableOpacity
+          style={styles.keepBtn}
+          onPress={() => onReply(item)}
+          testID={`feedback-reply-${item.id}`}
+        >
+          <Lucide name="message-circle" size={14} color={colors.primary} />
+          <Text style={styles.keepBtnText}>{s('feedbackReply')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.deleteBtn}
+          onPress={() => onDelete(item.id)}
+          testID={`feedback-delete-${item.id}`}
+        >
+          <Lucide name="trash-2" size={14} color={colors.textOnPrimary} />
+          <Text style={styles.deleteBtnText}>{s('deleteBtn')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
 export function AdminModerationScreen() {
   const [pendingVenues, setPendingVenues] = useState<any[]>([]);
   const [venueResults, setVenueResults] = useState<any[]>([]);
@@ -334,33 +488,16 @@ export function AdminModerationScreen() {
               </View>
             ) : (
               pendingVenues.map((venue) => (
-                <View key={venue.id} style={styles.modCard}>
-                  <View style={styles.modTop}>
-                    <Text style={styles.modTitle}>{venue.name}</Text>
-                    <View style={styles.modBadge}>
-                      <Text style={styles.modBadgeText}>{s('newBadge')}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.modMeta}>
-                    {s('addedBy')}{venue.profiles?.full_name ?? s('user').toLowerCase()} {'\u00B7'}{' '}
-                    {new Date(venue.created_at).toLocaleDateString('ro-RO')} {'\u00B7'}{' '}
-                    {venue.city ?? ''}{venue.address ? `, ${venue.address}` : ''}
-                  </Text>
-                  <View style={styles.modActions}>
-                    <TouchableOpacity style={styles.approveBtn} onPress={() => handleApprove(venue.id)}>
-                      <Lucide name="check" size={14} color={colors.textOnPrimary} />
-                      <Text style={styles.approveBtnText}>{s('approve')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(venue)}>
-                      <Lucide name="pencil" size={14} color={colors.textMuted} />
-                      <Text style={styles.editBtnText}>{s('edit')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.rejectBtn} onPress={() => handleReject(venue.id)}>
-                      <Lucide name="x" size={14} color={colors.red} />
-                      <Text style={styles.rejectBtnText}>{s('reject')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
+                <PendingVenueCard
+                  key={venue.id}
+                  venue={venue}
+                  styles={styles}
+                  colors={colors}
+                  s={s}
+                  onApprove={handleApprove}
+                  onEdit={openEditModal}
+                  onReject={handleReject}
+                />
               ))
             )}
           </View>
@@ -378,31 +515,15 @@ export function AdminModerationScreen() {
               </View>
             ) : (
               flaggedReviews.map((review) => (
-                <View key={review.id} style={styles.flagCard}>
-                  <View style={styles.flagTop}>
-                    <View style={styles.flagInfo}>
-                      <Text style={styles.flagAuthor}>{review.profiles?.full_name ?? s('user')}</Text>
-                      <Text style={styles.flagMeta}>
-                        {review.venues?.name ?? s('venue')} {'\u00B7'}{' '}
-                        {new Date(review.created_at).toLocaleDateString('ro-RO')}
-                      </Text>
-                    </View>
-                    <View style={styles.flagBadge}>
-                      <Text style={styles.flagBadgeText}>{review.flag_count ?? 0} {s('reports')}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.flagText}>{`"${review.body ?? review.text ?? ''}"`}</Text>
-                  <View style={styles.flagActions}>
-                    <TouchableOpacity style={styles.keepBtn} onPress={() => handleKeep(review.id)}>
-                      <Lucide name="check" size={14} color={colors.textMuted} />
-                      <Text style={styles.keepBtnText}>{s('keep')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(review.id)}>
-                      <Lucide name="trash-2" size={14} color={colors.textOnPrimary} />
-                      <Text style={styles.deleteBtnText}>{s('deleteBtn')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
+                <FlaggedReviewCard
+                  key={review.id}
+                  review={review}
+                  styles={styles}
+                  colors={colors}
+                  s={s}
+                  onKeep={handleKeep}
+                  onDelete={handleDelete}
+                />
               ))
             )}
           </View>
@@ -479,48 +600,17 @@ export function AdminModerationScreen() {
               </Text>
             </View>
           ) : (
-            userFeedback.map((item) => {
-              const authorName = item.profiles?.full_name || item.profiles?.email || s('anon');
-              const iconName = item.category === 'bug' ? 'bug' : 'message-square';
-              const categoryLabel = item.category === 'bug' ? s('feedbackCategoryBug') : s('feedbackCategoryGeneral');
-              return (
-                <View key={item.id} style={styles.flagCard} testID={`feedback-row-${item.id}`}>
-                  <View style={styles.flagTop}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                      <Lucide name={iconName} size={14} color={colors.textMuted} />
-                      <Text style={styles.flagAuthor} numberOfLines={1}>{authorName}</Text>
-                    </View>
-                    <View style={styles.flagBadge}>
-                      <Text style={styles.flagBadgeText}>{categoryLabel}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.flagText}>{item.message}</Text>
-                  <Text style={styles.flagMeta}>
-                    {item.page}
-                    {' · '}
-                    {new Date(item.created_at).toLocaleString()}
-                  </Text>
-                  <View style={styles.modActions}>
-                    <TouchableOpacity
-                      style={styles.keepBtn}
-                      onPress={() => setReplyTarget(item)}
-                      testID={`feedback-reply-${item.id}`}
-                    >
-                      <Lucide name="message-circle" size={14} color={colors.primary} />
-                      <Text style={styles.keepBtnText}>{s('feedbackReply')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.deleteBtn}
-                      onPress={() => handleDeleteFeedback(item.id)}
-                      testID={`feedback-delete-${item.id}`}
-                    >
-                      <Lucide name="trash-2" size={14} color={colors.red} />
-                      <Text style={styles.deleteBtnText}>{s('deleteBtn')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              );
-            })
+            userFeedback.map((item) => (
+              <FeedbackCard
+                key={item.id}
+                item={item}
+                styles={styles}
+                colors={colors}
+                s={s}
+                onReply={setReplyTarget}
+                onDelete={handleDeleteFeedback}
+              />
+            ))
           )}
         </ScrollView>
       )}

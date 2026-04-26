@@ -40,15 +40,23 @@ export function PlayerProfileScreen({ userId }: Props) {
     async function load() {
       setLoading(true);
       setEquipmentLoading(true);
-      const [profileRes, statsRes, equipmentRes] = await Promise.all([
+      // allSettled: a slow stats/equipment call shouldn't block rendering the
+      // profile header. Each fetch lands independently with whatever it has.
+      const [profileRes, statsRes, equipmentRes] = await Promise.allSettled([
         getProfile(userId),
         getProfileStats(userId),
         getCurrentEquipmentForUser(userId),
       ]);
       if (cancelled) return;
-      if (profileRes.data) setProfile(profileRes.data as Profile);
-      if (statsRes.data) setStats(statsRes.data);
-      setEquipment(equipmentRes.data?.[0] ?? null);
+      if (profileRes.status === 'fulfilled' && profileRes.value.data) {
+        setProfile(profileRes.value.data as Profile);
+      }
+      if (statsRes.status === 'fulfilled' && statsRes.value.data) {
+        setStats(statsRes.value.data);
+      }
+      if (equipmentRes.status === 'fulfilled') {
+        setEquipment(equipmentRes.value.data?.[0] ?? null);
+      }
       setEquipmentLoading(false);
       setLoading(false);
     }

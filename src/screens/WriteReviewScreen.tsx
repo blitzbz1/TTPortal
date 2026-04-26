@@ -17,6 +17,68 @@ interface Props {
   venueId?: string;
 }
 
+// Static list — hoisted so it isn't rebuilt every render and so the memoized
+// TagsRow below sees identity-stable input.
+const TAG_KEYS = [
+  { key: 'goodTables', label: 'tagGoodTables' },
+  { key: 'newPaddles', label: 'tagNewPaddles' },
+  { key: 'goodLighting', label: 'tagGoodLighting' },
+  { key: 'crowded', label: 'tagCrowded' },
+  { key: 'quiet', label: 'tagQuiet' },
+  { key: 'friendlyStaff', label: 'tagFriendlyStaff' },
+  { key: 'clean', label: 'tagClean' },
+  { key: 'nearbyParking', label: 'tagParking' },
+] as const;
+
+interface StarsRowProps {
+  rating: number;
+  onPress: (n: number) => void;
+  styles: ReturnType<typeof createStyles>;
+}
+const StarsRow = React.memo(function StarsRow({ rating, onPress, styles }: StarsRowProps) {
+  return (
+    <View style={styles.starsRow}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <TouchableOpacity
+          key={star}
+          style={[styles.starBtn, star <= rating ? styles.starBtnActive : styles.starBtnInactive]}
+          onPress={() => onPress(star)}
+        >
+          <Text style={[styles.starText, star <= rating ? styles.starTextActive : styles.starTextInactive]}>
+            {'★'}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+});
+
+interface TagsRowProps {
+  selected: string[];
+  onToggle: (key: string) => void;
+  s: (key: string) => string;
+  styles: ReturnType<typeof createStyles>;
+}
+const TagsRow = React.memo(function TagsRow({ selected, onToggle, s, styles }: TagsRowProps) {
+  return (
+    <View style={styles.tagsRow}>
+      {TAG_KEYS.map((t) => {
+        const isSelected = selected.includes(t.key);
+        return (
+          <TouchableOpacity
+            key={t.key}
+            testID={`tag-${t.key}`}
+            style={[styles.tagPill, isSelected && styles.tagPillSelected]}
+            onPress={() => onToggle(t.key)}
+          >
+            <Text style={[styles.tagText, isSelected && styles.tagTextSelected]}>{s(t.label)}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+});
+
 export function WriteReviewScreen({ venueId }: Props) {
   const router = useRouter();
   const { user } = useSession();
@@ -29,16 +91,10 @@ export function WriteReviewScreen({ venueId }: Props) {
   const [venueName, setVenueName] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const TAG_KEYS = [
-    { key: 'goodTables', label: 'tagGoodTables' },
-    { key: 'newPaddles', label: 'tagNewPaddles' },
-    { key: 'goodLighting', label: 'tagGoodLighting' },
-    { key: 'crowded', label: 'tagCrowded' },
-    { key: 'quiet', label: 'tagQuiet' },
-    { key: 'friendlyStaff', label: 'tagFriendlyStaff' },
-    { key: 'clean', label: 'tagClean' },
-    { key: 'nearbyParking', label: 'tagParking' },
-  ] as const;
+  const onStarPress = useCallback((star: number) => {
+    hapticLight();
+    setRating(star);
+  }, []);
 
   useEffect(() => {
     if (!venueId || isNaN(Number(venueId)) || Number(venueId) < 1) return;
@@ -119,41 +175,13 @@ export function WriteReviewScreen({ venueId }: Props) {
           {/* Rating */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>{s('fieldRating')}</Text>
-            <View style={styles.starsRow}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <TouchableOpacity
-                  key={star}
-                  style={[styles.starBtn, star <= rating ? styles.starBtnActive : styles.starBtnInactive]}
-                  onPress={() => { hapticLight(); setRating(star); }}
-                >
-                  <Text style={[styles.starText, star <= rating ? styles.starTextActive : styles.starTextInactive]}>
-                    {'\u2605'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <StarsRow rating={rating} onPress={onStarPress} styles={styles} />
           </View>
 
           {/* Tags */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>{s('fieldTags')}</Text>
-            <View style={styles.tagsRow}>
-              {TAG_KEYS.map((t) => {
-                const selected = tags.includes(t.key);
-                return (
-                  <TouchableOpacity
-                    key={t.key}
-                    testID={`tag-${t.key}`}
-                    style={[styles.tagPill, selected && styles.tagPillSelected]}
-                    onPress={() => toggleTag(t.key)}
-                  >
-                    <Text style={[styles.tagText, selected && styles.tagTextSelected]}>
-                      {s(t.label)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <TagsRow selected={tags} onToggle={toggleTag} s={s} styles={styles} />
           </View>
 
           {/* Review Text */}
