@@ -38,6 +38,7 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('send-app-invite: missing authorization header');
       return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
@@ -52,11 +53,13 @@ Deno.serve(async (req) => {
     ]);
 
     if (userError || !userRes.user) {
+      console.error('send-app-invite: failed user lookup', { userError });
       return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
     const email = String(body?.email ?? '').trim().toLowerCase();
     if (!isValidEmail(email)) {
+      console.error('send-app-invite: invalid email', { email });
       return jsonResponse({ error: 'Invalid email address' }, 400);
     }
 
@@ -67,10 +70,12 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (profileError) {
+      console.error('send-app-invite: failed recipient validation', { profileError, email });
       return jsonResponse({ error: 'Failed to validate invite recipient' }, 500);
     }
 
     if (existingProfile?.id) {
+      console.warn('send-app-invite: user already registered via profile', { email });
       return jsonResponse({ error: 'User already registered', code: 'already_registered' }, 409);
     }
 
@@ -82,11 +87,18 @@ Deno.serve(async (req) => {
     });
 
     if (error) {
-      return jsonResponse({ error: error.message, code: error.code ?? 'invite_failed' }, 400);
+      const message = error.message ?? 'Invite failed';
+      const code = /already registered|user already exists/i.test(message)
+        ? 'already_registered'
+        : (error.code ?? 'invite_failed');
+      console.error('send-app-invite: invite failed', { email, code, message });
+      return jsonResponse({ error: message, code }, 400);
     }
 
+    console.info('send-app-invite: invite sent', { email, invitedBy: userRes.user.id });
     return jsonResponse({ success: true });
   } catch (error) {
-    return jsonResponse({ error: (error as Error).message }, 500);
+    console.error('send-app-invite: unexpected error', { error });
+    return jsonResponse({ error: (error as Error).message, code: 'unexpected_error' }, 500);
   }
 });
