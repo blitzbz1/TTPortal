@@ -97,22 +97,6 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Invalid email address' }, 400);
     }
 
-    const { data: existingProfile, error: profileError } = await adminClient
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error('send-app-invite: failed recipient validation', { profileError, email });
-      return jsonResponse({ error: 'Failed to validate invite recipient' }, 500);
-    }
-
-    if (existingProfile?.id) {
-      console.warn('send-app-invite: user already registered via profile', { email });
-      return jsonResponse({ error: 'User already registered', code: 'already_registered' }, 409);
-    }
-
     const { user: existingAuthUser, error: authLookupError } = await findAuthUserByEmail(
       adminClient,
       email,
@@ -129,7 +113,7 @@ Deno.serve(async (req) => {
       );
 
       if (isConfirmed) {
-        console.warn('send-app-invite: user already registered via auth', {
+        console.warn('send-app-invite: user already registered via confirmed auth account', {
           email,
           authUserId: existingAuthUser.id,
         });
