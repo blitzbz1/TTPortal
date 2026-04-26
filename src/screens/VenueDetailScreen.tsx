@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, Alert, Linking, Share, ActivityIndicator, Platform, Image, FlatList, Dimensions, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, Linking, Share, ActivityIndicator, Platform, FlatList, Dimensions, Animated } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -70,6 +71,12 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [lastCheckinEndTime, setLastCheckinEndTime] = useState<string | undefined>();
   const [champion, setChampion] = useState<{ userId: string; fullName: string; dayCount: number } | null>(null);
   const [upcomingEventCount, setUpcomingEventCount] = useState(0);
+  const REVIEW_INITIAL_LIMIT = 10;
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const visibleReviews = useMemo(
+    () => (showAllReviews ? reviews : reviews.slice(0, REVIEW_INITIAL_LIMIT)),
+    [reviews, showAllReviews],
+  );
 
   const heartScale = useRef(new Animated.Value(1)).current;
 
@@ -150,6 +157,10 @@ export function VenueDetailScreen({ venueId }: Props) {
     load();
     return () => { cancelled = true; };
   }, [venueId, user]);
+
+  const handleReview = useCallback(() => {
+    router.push(`/(protected)/review/${venueId}` as any);
+  }, [router, venueId]);
 
   const handleShare = useCallback(() => {
     if (!venue) return;
@@ -416,9 +427,11 @@ export function VenueDetailScreen({ venueId }: Props) {
                 }}
                 renderItem={({ item }) => (
                   <Image
-                    source={{ uri: item }}
+                    source={item}
                     style={{ width: photoWidth, height: photoHeight }}
-                    resizeMode="cover"
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={150}
                   />
                 )}
                 getItemLayout={(_, index) => ({ length: photoWidth, offset: photoWidth * index, index })}
@@ -467,7 +480,7 @@ export function VenueDetailScreen({ venueId }: Props) {
           checkedIn={!!activeCheckin}
           checkinLoading={checkinLoading}
           onCheckin={activeCheckin ? handleCheckout : openCheckinModal}
-          onReview={() => router.push(`/(protected)/review/${venueId}` as any)}
+          onReview={handleReview}
           onFavorite={handleToggleFavorite}
           onShare={handleShare}
         />
@@ -664,7 +677,7 @@ export function VenueDetailScreen({ venueId }: Props) {
             />
           )}
 
-          {reviews.map((review) => (
+          {visibleReviews.map((review) => (
             <Card key={review.id} shadow="sm" borderRadius={Radius.md} style={styles.reviewCard}>
               <View style={styles.reviewTop}>
                 <Text style={styles.reviewAuthor}>{review.reviewer_name || s('anon')}</Text>
@@ -674,6 +687,17 @@ export function VenueDetailScreen({ venueId }: Props) {
               <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString(dateLocale)}</Text>
             </Card>
           ))}
+          {!showAllReviews && reviews.length > REVIEW_INITIAL_LIMIT && (
+            <TouchableOpacity
+              onPress={() => setShowAllReviews(true)}
+              style={styles.writeReviewBtn}
+              accessibilityRole="button"
+            >
+              <Text style={styles.writeReviewText}>
+                {`+ ${reviews.length - REVIEW_INITIAL_LIMIT}`}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </Reanimated.ScrollView>
 

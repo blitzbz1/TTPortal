@@ -63,14 +63,53 @@ export function PlayHistoryScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  // Fetch is windowed to the lower bound of (current period, earliest visible
+  // calendar month minus 1 month buffer). For period='all' we omit the bound.
+  // Recomputing on period/calendar paging keeps load times flat for active
+  // accounts that may have hundreds of checkins.
+  const sinceIso = useMemo<string | null>(() => {
+    if (period === 'all') return null;
+    const now = new Date();
+    const periodStart =
+      period === 'week'
+        ? (() => {
+            const d = new Date(now);
+            const day = d.getDay();
+            const diff = day === 0 ? 6 : day - 1;
+            d.setDate(d.getDate() - diff);
+            d.setHours(0, 0, 0, 0);
+            return d;
+          })()
+        : period === 'month'
+          ? new Date(now.getFullYear(), now.getMonth(), 1)
+          : new Date(now.getFullYear(), 0, 1);
+    // Earliest month the calendar can currently display, minus a 1-month buffer.
+    const calStart = new Date(now.getFullYear(), now.getMonth() + Math.min(calMonthOffset, 0) - 1, 1);
+    return new Date(Math.min(periodStart.getTime(), calStart.getTime())).toISOString();
+  }, [period, calMonthOffset]);
+
   const fetchData = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
+    // Only show the full-screen spinner on the very first load; refetches
+    // triggered by period/calendar paging keep the chrome on screen.
+    setLoading((prev) => (history.length === 0 ? true : prev));
     try {
+      let allCheckinsQuery = supabase
+        .from('checkins')
+        .select('venue_id, started_at, ended_at, venues(name)')
+        .eq('user_id', user.id);
+      let eventsQuery = supabase
+        .from('event_participants')
+        .select('event_id, hours_played, events(venue_id, starts_at, title, venues(name))')
+        .eq('user_id', user.id);
+      if (sinceIso) {
+        allCheckinsQuery = allCheckinsQuery.gte('started_at', sinceIso);
+        eventsQuery = eventsQuery.gte('events.starts_at', sinceIso);
+      }
       const [historyRes, allCheckinsRes, eventParticipationsRes] = await Promise.all([
-        getPlayHistory(user.id, PAGE_SIZE, 0),
-        supabase.from('checkins').select('venue_id, started_at, ended_at, venues(name)').eq('user_id', user.id),
-        supabase.from('event_participants').select('event_id, hours_played, events(venue_id, starts_at, title, venues(name))').eq('user_id', user.id),
+        getPlayHistory(user.id, PAGE_SIZE, 0, sinceIso ?? undefined),
+        allCheckinsQuery,
+        eventsQuery,
       ]);
       setAllCheckins((allCheckinsRes.data ?? []).map((c: any) => ({ venue_id: c.venue_id, venue_name: c.venues?.name ?? '', started_at: c.started_at, ended_at: c.ended_at })));
 
@@ -98,7 +137,7 @@ export function PlayHistoryScreen() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, sinceIso]);
 
   useEffect(() => {
     fetchData();
@@ -121,33 +160,39 @@ export function PlayHistoryScreen() {
     }
   }, [user, offset, loadingMore, hasMore]);
 
-  // Group history entries by day
+  // Group history entries by day. Sort by timestamp once (input may be unsorted),
+  // then walk in order and create a group only on the first occurrence of each
+  // dateKey. Map lookup avoids the O(n\u00b2) groups.find() in the legacy version,
+  // and toLocaleDateString is invoked at most once per group rather than per entry.
   const groupByDay = (entries: any[]) => {
-    const groups: { dayLabel: string; dateKey: string; entries: any[] }[] = [];
+    const sorted = [...entries].sort(
+      (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime(),
+    );
     const today = new Date().toDateString();
     const yesterday = new Date(Date.now() - 86400000).toDateString();
+    const map = new Map<string, { dayLabel: string; dateKey: string; entries: any[] }>();
+    const order: string[] = [];
 
-    for (const entry of entries) {
+    for (const entry of sorted) {
       const date = new Date(entry.started_at);
       const dateStr = date.toDateString();
-      let dayLabel: string;
-
-      if (dateStr === today) {
-        dayLabel = `${s('today')} \u2014 ${date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' })}`;
-      } else if (dateStr === yesterday) {
-        dayLabel = `${s('yesterday')} \u2014 ${date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' })}`;
-      } else {
-        dayLabel = date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' });
+      let group = map.get(dateStr);
+      if (!group) {
+        let dayLabel: string;
+        if (dateStr === today) {
+          dayLabel = `${s('today')} \u2014 ${date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' })}`;
+        } else if (dateStr === yesterday) {
+          dayLabel = `${s('yesterday')} \u2014 ${date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' })}`;
+        } else {
+          dayLabel = date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' });
+        }
+        group = { dayLabel, dateKey: dateStr, entries: [] };
+        map.set(dateStr, group);
+        order.push(dateStr);
       }
-
-      const existing = groups.find((g) => g.dateKey === dateStr);
-      if (existing) {
-        existing.entries.push(entry);
-      } else {
-        groups.push({ dayLabel, dateKey: dateStr, entries: [entry] });
-      }
+      group.entries.push(entry);
     }
-    return groups;
+    return order.map((k) => map.get(k)!);
   };
 
   const formatTime = (dateStr: string) => {

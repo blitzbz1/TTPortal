@@ -74,6 +74,7 @@ function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
   const chain: any = {
     select: jest.fn(() => chain),
     eq: jest.fn(() => chain),
+    gte: jest.fn(() => chain),
     then: (resolve: any) => Promise.resolve(result).then(resolve),
   };
   return chain;
@@ -304,7 +305,8 @@ describe('PlayHistoryScreen', () => {
     render(<PlayHistoryScreen />);
 
     await waitFor(() => {
-      expect(mockGetPlayHistory).toHaveBeenCalledWith('u-1', 20, 0);
+      // Default period is 'week'; PlayHistoryScreen passes a sinceIso bound on initial fetch.
+      expect(mockGetPlayHistory).toHaveBeenCalledWith('u-1', 20, 0, expect.any(String));
       expect(mockSupabaseFrom).toHaveBeenCalledWith('checkins');
       expect(mockSupabaseFrom).toHaveBeenCalledWith('event_participants');
     });

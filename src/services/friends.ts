@@ -1,5 +1,32 @@
 import { supabase } from '../lib/supabase';
 
+type FriendProfile = {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  city: string | null;
+  username: string | null;
+};
+
+type FriendshipRow = {
+  id: number;
+  requester_id: string;
+  addressee_id: string;
+  status: string;
+  created_at: string;
+  requester: FriendProfile | null;
+  addressee: FriendProfile | null;
+};
+
+type PendingRequestRow = {
+  id: number;
+  requester_id: string;
+  addressee_id: string;
+  status: string;
+  created_at: string;
+  requester: Pick<FriendProfile, 'id' | 'full_name' | 'avatar_url'> | null;
+};
+
 export async function sendRequest(requesterId: string, addresseeId: string) {
   return supabase
     .from('friendships')
@@ -29,59 +56,33 @@ export async function declineRequest(id: number, userId: string) {
 }
 
 export async function getFriends(userId: string) {
-  const { data: friendships, error } = await supabase
+  // Single query: embed both endpoints' profiles via the friendships→profiles FKs
+  // added in migration 038. The disambiguator `!fk_name` is required because two
+  // FK paths from friendships to profiles exist (requester_id, addressee_id).
+  // Cast: supabase TS inference can't statically parse multi-FK aliased embeds.
+  return supabase
     .from('friendships')
-    .select('*')
+    .select(
+      'id, requester_id, addressee_id, status, created_at, ' +
+        'requester:profiles!friendships_requester_profiles_fk(id, full_name, avatar_url, city, username), ' +
+        'addressee:profiles!friendships_addressee_profiles_fk(id, full_name, avatar_url, city, username)',
+    )
     .eq('status', 'accepted')
-    .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
-
-  if (error || !friendships?.length) return { data: friendships ?? [], error };
-
-  const userIds = new Set<string>();
-  for (const f of friendships) {
-    userIds.add(f.requester_id);
-    userIds.add(f.addressee_id);
-  }
-  userIds.delete(userId);
-
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, full_name, avatar_url, city, username')
-    .in('id', [...userIds]);
-
-  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-  const merged = friendships.map((f) => ({
-    ...f,
-    requester: profileMap.get(f.requester_id) ?? null,
-    addressee: profileMap.get(f.addressee_id) ?? null,
-  }));
-
-  return { data: merged, error: null };
+    .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
+    .returns<FriendshipRow[]>();
 }
 
 export async function getPendingRequests(userId: string) {
-  const { data: pending, error } = await supabase
+  return supabase
     .from('friendships')
-    .select('*')
+    .select(
+      'id, requester_id, addressee_id, status, created_at, ' +
+        'requester:profiles!friendships_requester_profiles_fk(id, full_name, avatar_url)',
+    )
     .eq('addressee_id', userId)
     .eq('status', 'pending')
-    .order('created_at', { ascending: false });
-
-  if (error || !pending?.length) return { data: pending ?? [], error };
-
-  const requesterIds = pending.map((p) => p.requester_id);
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, full_name, avatar_url')
-    .in('id', requesterIds);
-
-  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-  const merged = pending.map((p) => ({
-    ...p,
-    requester: profileMap.get(p.requester_id) ?? null,
-  }));
-
-  return { data: merged, error: null };
+    .order('created_at', { ascending: false })
+    .returns<PendingRequestRow[]>();
 }
 
 export async function getFriendIds(userId: string): Promise<string[]> {

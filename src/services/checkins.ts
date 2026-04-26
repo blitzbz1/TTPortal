@@ -33,7 +33,9 @@ export async function getActiveCheckins(venueId: number) {
   const now = new Date().toISOString();
   return supabase
     .from('checkins')
-    .select('*, profiles(full_name, avatar_url)')
+    .select(
+      'id, user_id, venue_id, table_number, started_at, ended_at, profiles!checkins_user_profiles_fk(full_name, avatar_url)',
+    )
     .eq('venue_id', venueId)
     .or(activeFilter(now))
     .order('started_at', { ascending: false });
@@ -42,40 +44,20 @@ export async function getActiveCheckins(venueId: number) {
 export async function getActiveFriendCheckins(friendIds: string[]) {
   if (!friendIds.length) return { data: [], error: null };
   const now = new Date().toISOString();
-  const result = await supabase
+  // Single query: embed profiles via the checkins→profiles FK added in migration 038.
+  return supabase
     .from('checkins')
-    .select('id, user_id, venue_id, started_at, ended_at, venues(name, city)')
+    .select('id, user_id, venue_id, started_at, ended_at, venues(name, city), profiles!checkins_user_profiles_fk(full_name)')
     .in('user_id', friendIds)
     .or(activeFilter(now))
     .order('started_at', { ascending: false });
-
-  if (result.error || !result.data?.length) return result;
-
-  // Resolve friend profile names separately (checkins.user_id FKs auth.users, not profiles).
-  const userIds = Array.from(new Set(result.data.map((c: { user_id: string }) => c.user_id)));
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, full_name')
-    .in('id', userIds);
-
-  const nameById = new Map<string, string | null>(
-    (profiles ?? []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name]),
-  );
-
-  return {
-    ...result,
-    data: result.data.map((c: { user_id: string }) => ({
-      ...c,
-      profiles: { full_name: nameById.get(c.user_id) ?? null },
-    })),
-  };
 }
 
 export async function getUserActiveCheckin(userId: string, venueId: number) {
   const now = new Date().toISOString();
   const { data } = await supabase
     .from('checkins')
-    .select('*')
+    .select('id, user_id, venue_id, table_number, started_at, ended_at')
     .eq('user_id', userId)
     .eq('venue_id', venueId)
     .or(activeFilter(now))
@@ -84,15 +66,26 @@ export async function getUserActiveCheckin(userId: string, venueId: number) {
   return { data: data?.[0] ?? null, error: null };
 }
 
+type ActiveCheckinWithVenueName = {
+  id: number;
+  user_id: string;
+  venue_id: number;
+  table_number: number | null;
+  started_at: string;
+  ended_at: string | null;
+  venues: { name: string } | null;
+};
+
 export async function getUserAnyActiveCheckin(userId: string) {
   const now = new Date().toISOString();
   const { data } = await supabase
     .from('checkins')
-    .select('*, venues(name)')
+    .select('id, user_id, venue_id, table_number, started_at, ended_at, venues(name)')
     .eq('user_id', userId)
     .or(activeFilter(now))
     .order('started_at', { ascending: false })
-    .limit(1);
+    .limit(1)
+    .returns<ActiveCheckinWithVenueName[]>();
   return { data: data?.[0] ?? null, error: null };
 }
 
@@ -100,11 +93,14 @@ export async function getPlayHistory(
   userId: string,
   limit = 20,
   offset = 0,
+  since?: string | null,
 ) {
-  return supabase
+  let query = supabase
     .from('checkins')
-    .select('*, venues(name, city)')
-    .eq('user_id', userId)
+    .select('id, user_id, venue_id, started_at, ended_at, venues(name, city)')
+    .eq('user_id', userId);
+  if (since) query = query.gte('started_at', since);
+  return query
     .order('started_at', { ascending: false })
     .range(offset, offset + limit - 1);
 }

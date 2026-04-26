@@ -1,7 +1,25 @@
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
-import type { VenueInsert, VenueType } from '../types/database';
+import type { Venue, VenueInsert, VenueType, VenueStats } from '../types/database';
 import { escapeLikePattern } from '../lib/auth-utils';
+
+type VenueListRow = Pick<
+  Venue,
+  | 'id'
+  | 'name'
+  | 'type'
+  | 'city'
+  | 'address'
+  | 'lat'
+  | 'lng'
+  | 'tables_count'
+  | 'condition'
+  | 'free_access'
+  | 'night_lighting'
+  | 'nets'
+  | 'verified'
+  | 'approved'
+>;
 
 export async function getVenues(city?: string, type?: VenueType) {
   let query = supabase
@@ -12,14 +30,15 @@ export async function getVenues(city?: string, type?: VenueType) {
   if (city) query = query.eq('city', city);
   if (type) query = query.eq('type', type);
 
-  const { data: venues, error } = await query.order('name').limit(300);
+  const { data: venues, error } = await query.order('name').limit(300).returns<VenueListRow[]>();
   if (error || !venues?.length) return { data: venues ?? [], error };
 
   const venueIds = venues.map((v) => v.id);
   const { data: stats } = await supabase
     .from('venue_stats')
-    .select('*')
-    .in('venue_id', venueIds);
+    .select('venue_id, avg_rating, review_count, checkin_count, favorite_count')
+    .in('venue_id', venueIds)
+    .returns<VenueStats[]>();
 
   const statsMap = new Map((stats ?? []).map((s) => [s.venue_id, s]));
   const merged = venues.map((v) => ({
@@ -33,17 +52,23 @@ export async function getVenues(city?: string, type?: VenueType) {
 export async function getVenueById(id: number) {
   const { data: venue, error } = await supabase
     .from('venues')
-    .select('*')
+    .select(
+      'id, name, type, city, address, lat, lng, tables_count, condition, free_access, ' +
+        'night_lighting, nets, verified, approved, photos, description, opening_hours, ' +
+        'created_by, created_at',
+    )
     .eq('id', id)
-    .single();
+    .single()
+    .returns<Venue>();
 
   if (error || !venue) return { data: venue, error };
 
   const { data: stats } = await supabase
     .from('venue_stats')
-    .select('*')
+    .select('venue_id, avg_rating, review_count, checkin_count, favorite_count')
     .eq('venue_id', id)
-    .single();
+    .single()
+    .returns<VenueStats>();
 
   return { data: { ...venue, venue_stats: stats ?? null }, error: null };
 }

@@ -23,7 +23,7 @@ interface VenueActionRowProps {
   onShare: () => void;
 }
 
-export function VenueActionRow({
+function VenueActionRowImpl({
   favorited,
   checkedIn,
   checkinLoading,
@@ -42,13 +42,19 @@ export function VenueActionRow({
     transform: [{ scale: favScale.value }],
   }));
 
-  const animateFavorite = () => {
+  const animateFavorite = React.useCallback(() => {
     favScale.value = withSpring(1.4, Springs.bouncy, () => {
       favScale.value = withSpring(1, Springs.gentle);
     });
-  };
+  }, [favScale]);
 
-  const actions = [
+  const onFavoritePress = React.useCallback(() => {
+    hapticLight();
+    animateFavorite();
+    onFavorite();
+  }, [animateFavorite, onFavorite]);
+
+  const actions = useMemo(() => [
     {
       key: 'checkin',
       icon: checkedIn ? 'check-circle' : 'map-pin',
@@ -71,7 +77,7 @@ export function VenueActionRow({
       key: 'favorite',
       icon: 'heart',
       label: favorited ? s('favRemove') : s('favAdd'),
-      onPress: () => { hapticLight(); animateFavorite(); onFavorite(); },
+      onPress: onFavoritePress,
       active: favorited,
       loading: false,
       activeColor: colors.red,
@@ -85,7 +91,19 @@ export function VenueActionRow({
       loading: false,
       activeColor: colors.primary,
     },
-  ];
+  ], [
+    favorited,
+    checkedIn,
+    checkinLoading,
+    onCheckin,
+    onReview,
+    onFavoritePress,
+    onShare,
+    colors.primaryLight,
+    colors.primary,
+    colors.red,
+    s,
+  ]);
 
   return (
     <View style={styles.container} testID="venue-action-row">
@@ -124,6 +142,8 @@ export function VenueActionRow({
     </View>
   );
 }
+
+export const VenueActionRow = React.memo(VenueActionRowImpl);
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({

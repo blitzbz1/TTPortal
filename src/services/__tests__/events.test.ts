@@ -26,6 +26,7 @@ function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
     delete: jest.fn(() => chain),
     single: jest.fn(() => Promise.resolve(result)),
     maybeSingle: jest.fn(() => Promise.resolve(result)),
+    returns: jest.fn(() => chain),
     then: (resolve: any) => Promise.resolve(result).then(resolve),
   };
   return chain;
@@ -43,31 +44,26 @@ jest.mock('../../lib/supabase', () => ({
 describe('getEventParticipants', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('returns participants with merged profiles', async () => {
+  it('returns participants with embedded profiles via FK', async () => {
+    const profileA = { id: 'u-1', full_name: 'Andrei P.', avatar_url: null, city: 'București' };
+    const profileB = { id: 'u-2', full_name: 'Maria I.', avatar_url: null, city: 'București' };
     const participants = [
-      { user_id: 'u-1', joined_at: '2026-03-25T10:00:00Z' },
-      { user_id: 'u-2', joined_at: '2026-03-25T11:00:00Z' },
+      { user_id: 'u-1', joined_at: '2026-03-25T10:00:00Z', profiles: profileA },
+      { user_id: 'u-2', joined_at: '2026-03-25T11:00:00Z', profiles: profileB },
     ];
-    const profiles = [
-      { id: 'u-1', full_name: 'Andrei P.', avatar_url: null, city: 'București' },
-      { id: 'u-2', full_name: 'Maria I.', avatar_url: null, city: 'București' },
-    ];
-
-    const participantsChain = createQueryChain(participants);
-    const profilesChain = createQueryChain(profiles);
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'event_participants') return participantsChain;
-      if (table === 'profiles') return profilesChain;
-      return createQueryChain();
-    });
+    const chain = createQueryChain(participants);
+    mockFrom.mockReturnValue(chain);
 
     const { data, error } = await getEventParticipants(4);
 
     expect(error).toBeNull();
+    expect(mockFrom).toHaveBeenCalledTimes(1);
+    expect(mockFrom).toHaveBeenCalledWith('event_participants');
+    const selectArg = chain.select.mock.calls[0][0];
+    expect(selectArg).toContain('profiles!event_participants_user_profiles_fk');
     expect(data).toHaveLength(2);
-    expect((data![0] as any).profiles).toEqual(profiles[0]);
-    expect((data![1] as any).profiles).toEqual(profiles[1]);
-    expect(data![0].user_id).toBe('u-1');
+    expect((data![0] as any).profiles).toEqual(profileA);
+    expect((data![1] as any).profiles).toEqual(profileB);
   });
 
   it('returns empty when event has no participants', async () => {
@@ -88,18 +84,11 @@ describe('getEventParticipants', () => {
     expect(chain.eq).toHaveBeenCalledWith('event_id', 7);
   });
 
-  it('handles missing profiles gracefully', async () => {
+  it('passes through null profiles when the embed has no match', async () => {
     const participants = [
-      { user_id: 'u-1', joined_at: '2026-03-25T10:00:00Z' },
+      { user_id: 'u-1', joined_at: '2026-03-25T10:00:00Z', profiles: null },
     ];
-
-    const participantsChain = createQueryChain(participants);
-    const profilesChain = createQueryChain([]); // no profiles found
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'event_participants') return participantsChain;
-      if (table === 'profiles') return profilesChain;
-      return createQueryChain();
-    });
+    mockFrom.mockReturnValue(createQueryChain(participants));
 
     const { data } = await getEventParticipants(1);
 

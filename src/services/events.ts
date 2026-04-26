@@ -7,12 +7,16 @@ export async function getEvents(
 ) {
   const now = new Date().toISOString();
   const needsParticipantFilter = filter === 'past' && !!userId;
+  // Profiles embedded via event_participants_user_profiles_fk (migration 038)
+  // — single round trip, no manual merge.
+  const participantsEmbed =
+    'event_participants(user_id, hours_played, profiles!event_participants_user_profiles_fk(id, full_name))';
   let query = supabase
     .from('events')
     .select(
       needsParticipantFilter
-        ? '*, venues(name, city, lat, lng), event_participants(user_id, hours_played), ep_filter:event_participants!inner(user_id)'
-        : '*, venues(name, city, lat, lng), event_participants(user_id, hours_played)',
+        ? `*, venues(name, city, lat, lng), ${participantsEmbed}, ep_filter:event_participants!inner(user_id)`
+        : `*, venues(name, city, lat, lng), ${participantsEmbed}`,
     );
 
   if (filter === 'upcoming') {
@@ -24,67 +28,21 @@ export async function getEvents(
     query = query.eq('organizer_id', userId);
   }
 
-  const result = await query.order('starts_at', { ascending: filter === 'upcoming' }).limit(50);
-  if (result.error || !result.data?.length) return result;
-
-  // Resolve participant profile names separately (no FK between event_participants and profiles)
-  const allUserIds = new Set<string>();
-  for (const event of result.data) {
-    for (const p of (event as any).event_participants ?? []) {
-      allUserIds.add(p.user_id);
-    }
-  }
-  if (allUserIds.size > 0) {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name')
-      .in('id', Array.from(allUserIds));
-    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-    for (const event of result.data) {
-      (event as any).event_participants = ((event as any).event_participants ?? []).map((p: any) => ({
-        ...p,
-        profiles: profileMap.get(p.user_id) ?? null,
-      }));
-    }
-  }
-
-  return result;
+  return query.order('starts_at', { ascending: filter === 'upcoming' }).limit(50);
 }
 
 export async function getUpcomingEventsByVenue(venueId: number) {
   const now = new Date().toISOString();
-  const result = await supabase
+  return supabase
     .from('events')
-    .select('*, venues(name, city, lat, lng), event_participants(user_id, hours_played)')
+    .select(
+      '*, venues(name, city, lat, lng), event_participants(user_id, hours_played, profiles!event_participants_user_profiles_fk(id, full_name))',
+    )
     .eq('venue_id', venueId)
     .gte('starts_at', now)
     .not('status', 'in', '(cancelled,completed)')
     .order('starts_at', { ascending: true })
     .limit(50);
-
-  if (result.error || !result.data?.length) return result;
-
-  const allUserIds = new Set<string>();
-  for (const event of result.data) {
-    for (const p of (event as any).event_participants ?? []) {
-      allUserIds.add(p.user_id);
-    }
-  }
-  if (allUserIds.size > 0) {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name')
-      .in('id', Array.from(allUserIds));
-    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-    for (const event of result.data) {
-      (event as any).event_participants = ((event as any).event_participants ?? []).map((p: any) => ({
-        ...p,
-        profiles: profileMap.get(p.user_id) ?? null,
-      }));
-    }
-  }
-
-  return result;
 }
 
 export async function getEventById(eventId: number) {
@@ -96,27 +54,13 @@ export async function getEventById(eventId: number) {
 }
 
 export async function getEventParticipants(eventId: number) {
-  const { data: participants, error } = await supabase
+  return supabase
     .from('event_participants')
-    .select('user_id, joined_at')
+    .select(
+      'user_id, joined_at, profiles!event_participants_user_profiles_fk(id, full_name, avatar_url, city)',
+    )
     .eq('event_id', eventId)
     .order('joined_at', { ascending: true });
-
-  if (error || !participants?.length) return { data: participants ?? [], error };
-
-  const userIds = participants.map((p) => p.user_id);
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, full_name, avatar_url, city')
-    .in('id', userIds);
-
-  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-  const merged = participants.map((p) => ({
-    ...p,
-    profiles: profileMap.get(p.user_id) ?? null,
-  }));
-
-  return { data: merged, error: null };
 }
 
 export async function createEvent(data: EventInsert) {

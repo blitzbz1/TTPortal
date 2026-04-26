@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -165,7 +166,7 @@ export function ConditionVotingScreen({ venueId }: Props) {
           <Text style={styles.label}>{s('addPhotoOptional')}</Text>
           <TouchableOpacity style={styles.photoBtn} onPress={handlePickPhoto}>
             {photoUri ? (
-              <Image source={{ uri: photoUri }} style={{ width: 48, height: 48, borderRadius: 8 }} />
+              <Image source={photoUri} style={{ width: 48, height: 48, borderRadius: 8 }} cachePolicy="memory-disk" contentFit="cover" />
             ) : (
               <Lucide name="camera" size={20} color={colors.textFaint} />
             )}
