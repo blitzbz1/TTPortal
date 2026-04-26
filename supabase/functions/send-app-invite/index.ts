@@ -19,6 +19,33 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+async function findAuthUserByEmail(adminClient: ReturnType<typeof createClient>, email: string) {
+  let page = 1;
+
+  while (true) {
+    const { data, error } = await adminClient.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+
+    if (error) {
+      return { user: null, error };
+    }
+
+    const users = data?.users ?? [];
+    const matchedUser = users.find((user) => user.email?.toLowerCase() === email);
+    if (matchedUser) {
+      return { user: matchedUser, error: null };
+    }
+
+    if (users.length < 200) {
+      return { user: null, error: null };
+    }
+
+    page += 1;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -47,7 +74,12 @@ Deno.serve(async (req) => {
     const authClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
     const [{ data: userRes, error: userError }, body] = await Promise.all([
       authClient.auth.getUser(),
@@ -79,6 +111,45 @@ Deno.serve(async (req) => {
     if (existingProfile?.id) {
       console.warn('send-app-invite: user already registered via profile', { email });
       return jsonResponse({ error: 'User already registered', code: 'already_registered' }, 409);
+    }
+
+    const { user: existingAuthUser, error: authLookupError } = await findAuthUserByEmail(
+      adminClient,
+      email,
+    );
+
+    if (authLookupError) {
+      console.error('send-app-invite: failed auth user lookup', { authLookupError, email });
+      return jsonResponse({ error: 'Failed to validate invite recipient', code: 'auth_lookup_failed' }, 500);
+    }
+
+    if (existingAuthUser) {
+      const isConfirmed = Boolean(
+        existingAuthUser.email_confirmed_at || existingAuthUser.confirmed_at || existingAuthUser.last_sign_in_at,
+      );
+
+      if (isConfirmed) {
+        console.warn('send-app-invite: user already registered via auth', {
+          email,
+          authUserId: existingAuthUser.id,
+        });
+        return jsonResponse({ error: 'User already registered', code: 'already_registered' }, 409);
+      }
+
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(existingAuthUser.id);
+      if (deleteError) {
+        console.error('send-app-invite: failed to replace stale invite user', {
+          email,
+          authUserId: existingAuthUser.id,
+          deleteError,
+        });
+        return jsonResponse({ error: 'Failed to refresh pending invite', code: 'stale_invite_cleanup_failed' }, 500);
+      }
+
+      console.info('send-app-invite: replaced stale invite user before resend', {
+        email,
+        authUserId: existingAuthUser.id,
+      });
     }
 
     const { error } = await adminClient.auth.admin.inviteUserByEmail(email, {

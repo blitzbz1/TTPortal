@@ -262,23 +262,17 @@ export function FriendsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
       >
         <View style={styles.actionsRow}>
-          <TouchableOpacity style={styles.actionCard} onPress={handleOpenAddFriend} activeOpacity={0.85}>
-            <View style={[styles.actionIconWrap, { backgroundColor: colors.primaryPale }]}>
-              <Lucide name="user-plus" size={18} color={colors.primaryMid} />
+          <TouchableOpacity style={[styles.actionCard, styles.actionCardPrimary]} onPress={handleOpenAddFriend} activeOpacity={0.85}>
+            <View style={[styles.actionIconWrap, styles.actionIconPrimary]}>
+              <Lucide name="user-plus" size={17} color={colors.textOnPrimary} />
             </View>
-            <View style={styles.actionCopy}>
-              <Text style={styles.actionTitle}>{s('addFriend')}</Text>
-              <Text style={styles.actionDesc}>{s('addFriendDesc')}</Text>
-            </View>
+            <Text style={[styles.actionTitle, styles.actionTitlePrimary]}>{s('addFriend')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCard} onPress={handleInvite} activeOpacity={0.85}>
-            <View style={[styles.actionIconWrap, { backgroundColor: colors.amberPale }]}>
-              <Lucide name="send" size={18} color={colors.accent} />
+          <TouchableOpacity style={[styles.actionCard, styles.actionCardSecondary]} onPress={handleInvite} activeOpacity={0.85}>
+            <View style={[styles.actionIconWrap, styles.actionIconSecondary]}>
+              <Lucide name="send" size={17} color={colors.accent} />
             </View>
-            <View style={styles.actionCopy}>
-              <Text style={styles.actionTitle}>{s('inviteFriends')}</Text>
-              <Text style={styles.actionDesc}>{s('inviteDesc')}</Text>
-            </View>
+            <Text style={[styles.actionTitle, styles.actionTitleSecondary]}>{s('inviteFriends')}</Text>
           </TouchableOpacity>
         </View>
 
