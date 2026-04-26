@@ -85,7 +85,7 @@ export default function GetStartedModal({
           </a>
 
           <a
-            href="https://github.com/blitzbz1/TTPortal/releases/download/v0.0.2-alpha/ttportal-v0.0.2-alpha.apk"
+            href="https://github.com/blitzbz1/TTPortal/releases/download/v0.0.3-alpha/ttportal-v0.0.3-alpha.apk"
             target="_blank"
             rel="noopener noreferrer"
             className="group flex items-center gap-4 rounded-2xl border border-ink-100 bg-paper/60 p-5 transition-all hover:-translate-y-[1px] hover:border-clay-300 hover:bg-clay-50/50"
