@@ -60,9 +60,9 @@ export async function getVenueById(id: number) {
   const { data: venue, error } = await supabase
     .from('venues')
     .select(
-      'id, name, type, city, address, lat, lng, tables_count, condition, free_access, ' +
-        'night_lighting, nets, verified, approved, photos, description, opening_hours, ' +
-        'created_by, created_at',
+      'id, name, type, city, county, sector, address, lat, lng, tables_count, condition, ' +
+        'hours, description, tags, photos, free_access, night_lighting, nets, verified, ' +
+        'tariff, website, submitted_by, approved, created_at',
     )
     .eq('id', id)
     .single()

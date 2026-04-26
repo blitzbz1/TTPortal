@@ -5,9 +5,13 @@ import { invalidateProfileCache } from '../lib/profileCache';
 export async function getProfile(userId: string) {
   return supabase
     .from('profiles')
-    .select('id, full_name, email, avatar_url, city, lang, auth_provider, created_at, username, is_admin')
+    .select(
+      'id, full_name, email, avatar_url, city, lang, auth_provider, created_at, ' +
+        'username, is_admin, notify_friend_checkins',
+    )
     .eq('id', userId)
-    .single();
+    .single()
+    .returns<Profile & { notify_friend_checkins: boolean }>();
 }
 
 export async function updateProfile(

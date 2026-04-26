@@ -441,8 +441,9 @@ export function VenueDetailScreen({ venueId }: Props) {
       </View>
 
       <Reanimated.ScrollView style={styles.scroll} onScroll={scrollHandler} scrollEventThrottle={16}>
-        {/* Photo Strip */}
-        <Reanimated.View style={[styles.photoStrip, photoAnimStyle]}>
+        {/* Photo Strip — pin the height so the placeholder branch renders
+            at the same size as a photo, instead of collapsing. */}
+        <Reanimated.View style={[styles.photoStrip, { height: photoHeight }, photoAnimStyle]}>
           {venue.photos && venue.photos.length > 0 ? (
             <>
               <FlatList
