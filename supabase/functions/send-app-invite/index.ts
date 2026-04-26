@@ -1,5 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+const DEFAULT_INVITE_REDIRECT_TO = 'ttportal://auth/callback?flow=signup&next=%2Fsign-in';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -30,7 +32,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const redirectTo = Deno.env.get('INVITE_REDIRECT_TO') ?? 'ttportal://sign-in';
+    const redirectTo = Deno.env.get('INVITE_REDIRECT_TO') ?? DEFAULT_INVITE_REDIRECT_TO;
 
     if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
       return jsonResponse({ error: 'Supabase environment is not configured' }, 500);

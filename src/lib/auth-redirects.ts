@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 const DEFAULT_NATIVE_RESET_URL = 'ttportal://reset-password';
-const DEFAULT_NATIVE_AUTH_URL = 'ttportal://sign-in';
+const DEFAULT_NATIVE_AUTH_CALLBACK_URL = 'ttportal://auth/callback';
 const DEFAULT_WEB_APP_URL = 'https://www.ttportal.org/TTPortal/app';
 
 function trimTrailingSlash(value: string): string {
@@ -51,12 +51,19 @@ function buildWebCallbackUrl(nextRoute: string, flow: 'oauth' | 'signup') {
   return callbackUrl.toString();
 }
 
+function buildNativeCallbackUrl(nextRoute: string, flow: 'oauth' | 'signup') {
+  const callbackUrl = new URL(DEFAULT_NATIVE_AUTH_CALLBACK_URL);
+  callbackUrl.searchParams.set('next', sanitizeAppRoute(nextRoute));
+  callbackUrl.searchParams.set('flow', flow);
+  return callbackUrl.toString();
+}
+
 export function getEmailConfirmationRedirectUrl(): string {
   if (Platform.OS === 'web') {
     return buildWebCallbackUrl('/onboarding', 'signup');
   }
 
-  return DEFAULT_NATIVE_AUTH_URL;
+  return buildNativeCallbackUrl('/onboarding', 'signup');
 }
 
 export function getOAuthRedirectUrl(nextRoute = '/(tabs)'): string {
@@ -64,7 +71,7 @@ export function getOAuthRedirectUrl(nextRoute = '/(tabs)'): string {
     return buildWebCallbackUrl(nextRoute, 'oauth');
   }
 
-  return DEFAULT_NATIVE_AUTH_URL;
+  return buildNativeCallbackUrl(nextRoute, 'oauth');
 }
 
 export function sanitizeAppRoute(route?: string): string {

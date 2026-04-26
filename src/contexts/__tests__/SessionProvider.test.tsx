@@ -304,7 +304,7 @@ describe('SessionProvider', () => {
       password: 'password123',
       options: {
         data: { full_name: 'John Doe', auth_provider: 'email' },
-        emailRedirectTo: 'ttportal://sign-in',
+        emailRedirectTo: 'ttportal://auth/callback?next=%2Fonboarding&flow=signup',
       },
     });
   });
@@ -387,7 +387,7 @@ describe('SessionProvider', () => {
       type: 'signup',
       email: 'john@example.com',
       options: {
-        emailRedirectTo: 'ttportal://sign-in',
+        emailRedirectTo: 'ttportal://auth/callback?next=%2Fonboarding&flow=signup',
       },
     });
   });
@@ -697,7 +697,7 @@ describe('SessionProvider', () => {
 
     expect(mockSignInWithOAuth).toHaveBeenCalledWith({
       provider: 'apple',
-      options: { redirectTo: 'ttportal://sign-in' },
+      options: { redirectTo: 'ttportal://auth/callback?next=%2F%28tabs%29&flow=oauth' },
     });
     expect(mockAppleSignIn).not.toHaveBeenCalled();
     expect(result).toEqual({ error: null, isRedirecting: true });
