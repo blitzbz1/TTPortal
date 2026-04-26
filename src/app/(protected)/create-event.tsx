@@ -10,6 +10,7 @@ import type { ThemeColors } from '@/src/theme';
 import { Fonts } from '@/src/theme';
 import { createStyles } from './create-event.styles';
 import { createEvent, joinEvent, sendEventInvites } from '@/src/services/events';
+import { invalidateEventsCache } from '@/src/lib/eventsCache';
 import {
   addChallengeToEvent,
   getChallengeById,
@@ -252,6 +253,10 @@ export default function CreateEventRoute() {
     });
     setLoading(false);
     if (error) { Alert.alert('Eroare', 'Nu s-a putut crea evenimentul.'); return; }
+    // The new event will appear in the user's "mine" tab and (if it starts in
+    // the future) on the global "upcoming" tab — drop both caches so the next
+    // visit re-fetches.
+    invalidateEventsCache(user.id, ['mine', 'upcoming']);
     await joinEvent(data.id, user.id);
     if (effectiveSelectedChallenge && attachChallenge) {
       const challengeRes = await addChallengeToEvent(data.id, effectiveSelectedChallenge.id);

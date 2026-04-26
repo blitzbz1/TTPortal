@@ -2,6 +2,28 @@ process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
 process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
 process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = 'test-google-web-client-id';
 
+// Mock react-native-mmkv (JSI/Nitro module not available in jest)
+jest.mock('react-native-mmkv', () => {
+  const stores = new Map();
+  function createMMKV(opts) {
+    const id = (opts && opts.id) || 'default';
+    if (!stores.has(id)) stores.set(id, new Map());
+    const store = stores.get(id);
+    return {
+      id,
+      set(key, value) { store.set(key, String(value)); },
+      getString(key) { return store.has(key) ? store.get(key) : undefined; },
+      getNumber(key) { const v = store.get(key); return v != null ? Number(v) : undefined; },
+      getBoolean(key) { return store.get(key) === 'true'; },
+      contains(key) { return store.has(key); },
+      remove(key) { return store.delete(key); },
+      clearAll() { store.clear(); },
+      getAllKeys() { return Array.from(store.keys()); },
+    };
+  }
+  return { createMMKV };
+});
+
 // Mock expo-sqlite (native module not available in test environment)
 jest.mock('expo-sqlite', () => ({
   openDatabaseSync: () => ({

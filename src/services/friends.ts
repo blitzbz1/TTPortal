@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { invalidateFriendsCache, invalidatePendingCache } from '../lib/friendsCache';
 
 type FriendProfile = {
   id: string;
@@ -28,31 +29,46 @@ type PendingRequestRow = {
 };
 
 export async function sendRequest(requesterId: string, addresseeId: string) {
-  return supabase
+  const result = await supabase
     .from('friendships')
     .insert({ requester_id: requesterId, addressee_id: addresseeId, status: 'pending' })
     .select()
     .single();
+  if (!result.error) {
+    // Pending list changes for both sides; sender sees nothing new in their
+    // pending tab but the addressee does on next visit.
+    invalidatePendingCache(addresseeId);
+  }
+  return result;
 }
 
 export async function acceptRequest(id: number, userId: string) {
-  return supabase
+  const result = await supabase
     .from('friendships')
     .update({ status: 'accepted' })
     .eq('id', id)
     .eq('addressee_id', userId)
     .select()
     .single();
+  if (!result.error) {
+    invalidatePendingCache(userId);
+    invalidateFriendsCache(userId);
+    // The other side's friend list also changed.
+    if (result.data?.requester_id) invalidateFriendsCache(result.data.requester_id);
+  }
+  return result;
 }
 
 export async function declineRequest(id: number, userId: string) {
-  return supabase
+  const result = await supabase
     .from('friendships')
     .update({ status: 'declined' })
     .eq('id', id)
     .eq('addressee_id', userId)
     .select()
     .single();
+  if (!result.error) invalidatePendingCache(userId);
+  return result;
 }
 
 export async function getFriends(userId: string) {

@@ -16,6 +16,7 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getPlayHistory } from '../services/checkins';
 import { supabase } from '../lib/supabase';
+import { loadCachedPlayHistory, saveCachedPlayHistory } from '../lib/playHistoryCache';
 
 const PAGE_SIZE = 20;
 
@@ -33,10 +34,15 @@ function AnimatedCounter({ value, style }: { value: string; style: any }) {
     sv.value = withTiming(numeric, { duration: 600, easing: Easings.decelerate });
   }, [numeric, sv]);
 
+  // Quantize the prepare value so the UI-thread reaction fires once per
+  // displayed step (every 0.1 unit for decimals, every 1 unit for integers)
+  // rather than every animation frame. Was ~36 setState calls per
+  // animation; now O(target / step), and runOnJS bridges drop accordingly.
   useAnimatedReaction(
-    () => sv.value,
-    (current) => {
-      const formatted = isDecimal ? current.toFixed(1) : Math.round(current).toString();
+    () => (isDecimal ? Math.round(sv.value * 10) / 10 : Math.round(sv.value)),
+    (current, previous) => {
+      if (current === previous) return;
+      const formatted = isDecimal ? current.toFixed(1) : current.toString();
       runOnJS(setDisplay)(formatted + suffix);
     },
     [sv, suffix, isDecimal],
@@ -88,11 +94,31 @@ export function PlayHistoryScreen() {
     return new Date(Math.min(periodStart.getTime(), calStart.getTime())).toISOString();
   }, [period, calMonthOffset]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (force = false) => {
     if (!user) return;
-    // Only show the full-screen spinner on the very first load; refetches
-    // triggered by period/calendar paging keep the chrome on screen.
-    setLoading((prev) => (history.length === 0 ? true : prev));
+
+    // Cache-first hydrate; show whatever the previous window had immediately.
+    if (!force) {
+      const cached = loadCachedPlayHistory(user.id, sinceIso);
+      if (cached) {
+        setHistory(cached.data.history);
+        setAllCheckins(cached.data.allCheckins);
+        setEventHours(cached.data.eventHours);
+        setEventVenues(cached.data.eventVenues);
+        setOffset(cached.data.history.length);
+        setHasMore(cached.data.history.length >= PAGE_SIZE);
+        if (cached.fresh) {
+          setLoading(false);
+          return;
+        }
+        setLoading(false); // background refresh
+      } else {
+        setLoading((prev) => (history.length === 0 ? true : prev));
+      }
+    } else {
+      setLoading((prev) => (history.length === 0 ? true : prev));
+    }
+
     try {
       let allCheckinsQuery = supabase
         .from('checkins')
@@ -111,28 +137,41 @@ export function PlayHistoryScreen() {
         allCheckinsQuery,
         eventsQuery,
       ]);
-      setAllCheckins((allCheckinsRes.data ?? []).map((c: any) => ({ venue_id: c.venue_id, venue_name: c.venues?.name ?? '', started_at: c.started_at, ended_at: c.ended_at })));
+      const allCheckinsMapped = (allCheckinsRes.data ?? []).map((c: any) => ({
+        venue_id: c.venue_id, venue_name: c.venues?.name ?? '', started_at: c.started_at, ended_at: c.ended_at,
+      }));
+      setAllCheckins(allCheckinsMapped);
 
       const participants = eventParticipationsRes.data ?? [];
-      setEventHours(participants
+      const eventHoursMapped = participants
         .map((ep: any) => ({
           hours_played: Number(ep.hours_played ?? 0),
           starts_at: ep.events?.starts_at,
           venue_id: ep.events?.venue_id ?? null,
         }))
-        .filter((r: any) => r.starts_at && r.hours_played > 0));
-      setEventVenues(participants.map((ep: any) => ({
+        .filter((r: any) => r.starts_at && r.hours_played > 0);
+      setEventHours(eventHoursMapped);
+      const eventVenuesMapped = participants.map((ep: any) => ({
         venue_id: ep.events?.venue_id,
         venue_name: ep.events?.venues?.name ?? ep.events?.title ?? '',
         event_title: ep.events?.title ?? '',
         starts_at: ep.events?.starts_at,
         hours_played: Number(ep.hours_played ?? 0) > 0 ? Number(ep.hours_played) : null,
-      })).filter((v: any) => v.venue_id));
+      })).filter((v: any) => v.venue_id);
+      setEventVenues(eventVenuesMapped);
+      const historyData = historyRes.data ?? [];
       if (historyRes.data) {
-        setHistory(historyRes.data);
-        setOffset(historyRes.data.length);
-        setHasMore(historyRes.data.length >= PAGE_SIZE);
+        setHistory(historyData);
+        setOffset(historyData.length);
+        setHasMore(historyData.length >= PAGE_SIZE);
       }
+
+      saveCachedPlayHistory(user.id, sinceIso, {
+        history: historyData,
+        allCheckins: allCheckinsMapped,
+        eventHours: eventHoursMapped,
+        eventVenues: eventVenuesMapped,
+      });
     } finally {
       setLoading(false);
     }

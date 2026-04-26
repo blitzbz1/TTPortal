@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { useColorScheme } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getStringSync, setString } from '../lib/mmkv';
 import { lightColors, darkColors, updateShadowsForTheme } from '../theme';
 import type { ThemeColors } from '../theme';
 
@@ -27,23 +27,25 @@ const STORAGE_KEY = 'ttportal-theme';
 const DEFAULT_MODE: ThemeMode = 'system';
 const VALID_MODES: ReadonlySet<string> = new Set(['light', 'dark', 'system']);
 
-async function loadMode(): Promise<ThemeMode> {
+// Synchronous MMKV read so the initial render uses the persisted theme
+// directly — no flash of default theme followed by a re-render to the
+// real preference.
+function loadModeSync(): ThemeMode {
   try {
-    const value = await AsyncStorage.getItem(STORAGE_KEY);
-    if (value && VALID_MODES.has(value)) {
-      return value as ThemeMode;
-    }
+    const value = getStringSync(STORAGE_KEY);
+    if (value && VALID_MODES.has(value)) return value as ThemeMode;
   } catch {
-    // Storage unavailable — fall through to default
+    // Storage unavailable (web SSR / tests) — fall through to default
   }
   return DEFAULT_MODE;
 }
 
 function saveMode(mode: ThemeMode): void {
-  // Fire-and-forget; the in-memory state is already updated by the caller.
-  AsyncStorage.setItem(STORAGE_KEY, mode).catch(() => {
-    // Storage write failed — mode is still set in memory
-  });
+  try {
+    setString(STORAGE_KEY, mode);
+  } catch {
+    // best-effort — in-memory state is already updated by the caller
+  }
 }
 
 interface ThemeProviderProps {
@@ -53,19 +55,10 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children, initialMode }: ThemeProviderProps) {
   const systemScheme = useColorScheme();
-  const [mode, setModeState] = useState<ThemeMode>(initialMode ?? DEFAULT_MODE);
-
-  useEffect(() => {
-    if (initialMode === undefined) {
-      let cancelled = false;
-      loadMode().then((next) => {
-        if (!cancelled) setModeState(next);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }
-  }, [initialMode]);
+  // Read MMKV synchronously on first render — no async hydration step.
+  const [mode, setModeState] = useState<ThemeMode>(
+    () => initialMode ?? loadModeSync(),
+  );
 
   const setMode = useCallback((newMode: ThemeMode) => {
     setModeState(newMode);

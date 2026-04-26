@@ -1,4 +1,10 @@
 import { supabase } from '../lib/supabase';
+import { removeCacheItemsByPrefix } from '../lib/cacheUtils';
+import { invalidateVenueMetaCache, invalidateVenueReviewsCache } from '../lib/venueDetailCache';
+
+function invalidateMapVenuesCache() {
+  removeCacheItemsByPrefix('venues_');
+}
 
 async function verifyAdmin(userId: string): Promise<boolean> {
   const { data } = await supabase.from('profiles').select('is_admin').eq('id', userId).single();
@@ -15,17 +21,27 @@ export async function getPendingVenues() {
 
 export async function approveVenue(id: number, userId: string) {
   if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
-  return supabase
+  const result = await supabase
     .from('venues')
     .update({ approved: true })
     .eq('id', id)
     .select()
     .single();
+  if (!result.error) {
+    invalidateMapVenuesCache();
+    invalidateVenueMetaCache(id);
+  }
+  return result;
 }
 
 export async function rejectVenue(id: number, userId: string) {
   if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
-  return supabase.from('venues').delete().eq('id', id);
+  const result = await supabase.from('venues').delete().eq('id', id);
+  if (!result.error) {
+    invalidateMapVenuesCache();
+    invalidateVenueMetaCache(id);
+  }
+  return result;
 }
 
 export async function searchVenuesAdmin(query: string) {
@@ -54,12 +70,23 @@ export async function updateVenue(
   },
 ) {
   if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
-  return supabase.from('venues').update(updates).eq('id', id).select().single();
+  const result = await supabase.from('venues').update(updates).eq('id', id).select().single();
+  if (!result.error) {
+    invalidateMapVenuesCache();
+    invalidateVenueMetaCache(id);
+  }
+  return result;
 }
 
 export async function deleteVenue(id: number, userId: string) {
   if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
-  return supabase.from('venues').delete().eq('id', id);
+  const result = await supabase.from('venues').delete().eq('id', id);
+  if (!result.error) {
+    invalidateMapVenuesCache();
+    invalidateVenueMetaCache(id);
+    invalidateVenueReviewsCache(id);
+  }
+  return result;
 }
 
 export async function getFlaggedReviews() {

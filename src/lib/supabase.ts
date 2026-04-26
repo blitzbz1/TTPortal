@@ -1,18 +1,17 @@
 import 'react-native-url-polyfill/auto';
 import { Platform } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { mmkvAsyncStorage } from './mmkv';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 /**
  * Storage adapter factory.
- * - Native (iOS/Android): AsyncStorage (the canonical Supabase-on-React-Native
- *   choice). We previously used expo-sqlite here, but on Expo SDK 54's new
- *   architecture Android the sqlite handle is permanently broken when opened
- *   during module load — every prepareSync NPE'd, so sessions never persisted
- *   and every auth-gated query returned as unauthenticated.
+ * - Native (iOS/Android): MMKV via `mmkvAsyncStorage` — JSI-backed sync
+ *   storage wrapped in the AsyncStorage-shaped interface Supabase expects.
+ *   Migrates legacy AsyncStorage values on first read so existing sessions
+ *   survive the upgrade.
  * - Web: localStorage with an in-memory fallback for SSR.
  */
 function createStorage() {
@@ -32,7 +31,7 @@ function createStorage() {
       },
     };
   }
-  return AsyncStorage;
+  return mmkvAsyncStorage;
 }
 
 const storage = createStorage();

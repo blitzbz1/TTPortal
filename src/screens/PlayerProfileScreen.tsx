@@ -9,6 +9,12 @@ import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme'
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getProfile, getProfileStats } from '../services/profiles';
+import {
+  loadCachedProfile,
+  saveCachedProfile,
+  loadCachedProfileStats,
+  saveCachedProfileStats,
+} from '../lib/profileCache';
 import { getEvents, sendEventInvites } from '../services/events';
 import { getCurrentEquipmentForUser } from '../services/equipment';
 import type { Profile, EquipmentSelection } from '../types/database';
@@ -38,21 +44,30 @@ export function PlayerProfileScreen({ userId }: Props) {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      setLoading(true);
+      // Cache-first hydrate of profile + stats; equipment loads in parallel.
+      const cachedProfile = loadCachedProfile<Profile>(userId);
+      const cachedStats = loadCachedProfileStats<any>(userId);
+      if (cachedProfile) setProfile(cachedProfile.data);
+      if (cachedStats) setStats(cachedStats.data);
+      if (!cachedProfile) setLoading(true);
       setEquipmentLoading(true);
-      // allSettled: a slow stats/equipment call shouldn't block rendering the
-      // profile header. Each fetch lands independently with whatever it has.
+
+      const profileFresh = !!cachedProfile?.fresh;
+      const statsFresh = !!cachedStats?.fresh;
+
       const [profileRes, statsRes, equipmentRes] = await Promise.allSettled([
-        getProfile(userId),
-        getProfileStats(userId),
+        profileFresh ? Promise.resolve({ data: cachedProfile!.data, error: null }) : getProfile(userId),
+        statsFresh ? Promise.resolve({ data: cachedStats!.data, error: null }) : getProfileStats(userId),
         getCurrentEquipmentForUser(userId),
       ]);
       if (cancelled) return;
       if (profileRes.status === 'fulfilled' && profileRes.value.data) {
         setProfile(profileRes.value.data as Profile);
+        if (!profileFresh) saveCachedProfile(userId, profileRes.value.data);
       }
       if (statsRes.status === 'fulfilled' && statsRes.value.data) {
         setStats(statsRes.value.data);
+        if (!statsFresh) saveCachedProfileStats(userId, statsRes.value.data);
       }
       if (equipmentRes.status === 'fulfilled') {
         setEquipment(equipmentRes.value.data?.[0] ?? null);

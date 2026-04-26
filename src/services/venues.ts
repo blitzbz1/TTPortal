@@ -2,6 +2,13 @@ import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Venue, VenueInsert, VenueType, VenueStats } from '../types/database';
 import { escapeLikePattern } from '../lib/auth-utils';
+import { invalidateVenueMetaCache } from '../lib/venueDetailCache';
+import { removeCacheItemsByPrefix } from '../lib/cacheUtils';
+
+// Drops every cached `venues_*` entry — covers all city scopes.
+function invalidateMapVenuesCache() {
+  removeCacheItemsByPrefix('venues_');
+}
 
 type VenueListRow = Pick<
   Venue,
@@ -74,7 +81,9 @@ export async function getVenueById(id: number) {
 }
 
 export async function createVenue(data: VenueInsert) {
-  return supabase.from('venues').insert(data).select().single();
+  const result = await supabase.from('venues').insert(data).select().single();
+  if (!result.error) invalidateMapVenuesCache();
+  return result;
 }
 
 export async function uploadVenuePhoto(venueId: number, fileUri: string): Promise<{ url: string | null; error: string | null }> {
@@ -114,12 +123,17 @@ export async function uploadVenuePhoto(venueId: number, fileUri: string): Promis
 }
 
 export async function addPhotoToVenue(venueId: number, currentPhotos: string[], newUrl: string) {
-  return supabase
+  const result = await supabase
     .from('venues')
     .update({ photos: [...currentPhotos, newUrl] })
     .eq('id', venueId)
     .select()
     .single();
+  if (!result.error) {
+    invalidateVenueMetaCache(venueId);
+    invalidateMapVenuesCache();
+  }
+  return result;
 }
 
 export async function searchVenues(query: string) {

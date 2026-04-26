@@ -11,6 +11,13 @@ import { CheckinDurationModal } from './VenueDetailScreen/CheckinDurationModal';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getVenueById, uploadVenuePhoto, addPhotoToVenue } from '../services/venues';
+import {
+  loadCachedVenueMeta,
+  saveCachedVenueMeta,
+  loadCachedVenueReviews,
+  saveCachedVenueReviews,
+} from '../lib/venueDetailCache';
+import { venueImageUrl } from '../lib/imageTransforms';
 import { getProfile } from '../services/profiles';
 import * as ImagePicker from 'expo-image-picker';
 import { getReviewsForVenue } from '../services/reviews';
@@ -87,24 +94,47 @@ export function VenueDetailScreen({ venueId }: Props) {
       scrollY.value = event.contentOffset.y;
     },
   });
-  const photoAnimStyle = useAnimatedStyle(() => ({
-    height: interpolate(scrollY.value, [0, 150], [photoHeight, 100], Extrapolation.CLAMP),
-    opacity: interpolate(scrollY.value, [0, 120], [1, 0.6], Extrapolation.CLAMP),
-  }));
+  // Scroll-driven collapsing header. The strip is animated with a
+  // top-anchored scaleY (transformOrigin) so the work runs entirely on
+  // the UI thread — animating `height` would force a layout pass per
+  // frame on the JS thread.
+  const photoAnimStyle = useAnimatedStyle(() => {
+    const targetHeight = interpolate(scrollY.value, [0, 150], [photoHeight, 100], Extrapolation.CLAMP);
+    return {
+      transform: [{ scaleY: targetHeight / photoHeight }],
+      transformOrigin: 'top' as const,
+      opacity: interpolate(scrollY.value, [0, 120], [1, 0.6], Extrapolation.CLAMP),
+    };
+  });
 
   useEffect(() => {
     if (!venueId || isNaN(Number(venueId)) || Number(venueId) < 1) return;
     let cancelled = false;
 
     async function load() {
-      setLoading(true);
+      const vId = Number(venueId);
+      // Cache-first: paint venue meta + reviews from cache while the network
+      // refreshes them. Live data (active checkins, champion, friends here)
+      // is always fetched fresh below.
+      const cachedMeta = loadCachedVenueMeta<any>(vId);
+      const cachedReviews = loadCachedVenueReviews<Review>(vId);
+      if (cachedMeta) setVenue(cachedMeta.data);
+      if (cachedReviews) setReviews(cachedReviews.data);
+      if (!cachedMeta) setLoading(true);
+
       const [venueRes, reviewsRes] = await Promise.all([
-        getVenueById(Number(venueId)),
-        getReviewsForVenue(Number(venueId)),
+        getVenueById(vId),
+        getReviewsForVenue(vId),
       ]);
       if (cancelled) return;
-      if (venueRes.data) setVenue(venueRes.data as any);
-      if (reviewsRes.data) setReviews(reviewsRes.data as Review[]);
+      if (venueRes.data) {
+        setVenue(venueRes.data as any);
+        saveCachedVenueMeta(vId, venueRes.data);
+      }
+      if (reviewsRes.data) {
+        setReviews(reviewsRes.data as Review[]);
+        saveCachedVenueReviews(vId, reviewsRes.data);
+      }
 
       if (user) {
         const [favRes, checkinRes] = await Promise.all([
@@ -427,7 +457,7 @@ export function VenueDetailScreen({ venueId }: Props) {
                 }}
                 renderItem={({ item }) => (
                   <Image
-                    source={item}
+                    source={venueImageUrl(item, { width: Math.round(photoWidth * 2), quality: 75 })}
                     style={{ width: photoWidth, height: photoHeight }}
                     contentFit="cover"
                     cachePolicy="memory-disk"

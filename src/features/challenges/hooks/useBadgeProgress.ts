@@ -6,6 +6,7 @@ import {
   getUserPendingChallengeSubmissions,
 } from '../api';
 import { TIER_TARGETS } from '../../../lib/badgeChallenges';
+import { loadCachedBadgeBundle, saveCachedBadgeBundle } from '../../../lib/challengeCache';
 import type {
   ApprovedChallengeCompletion,
   BadgeAward,
@@ -140,10 +141,15 @@ export function useBadgeProgress(userId?: string | null) {
       return;
     }
 
-    setProgressRows((progressData ?? []) as UserBadgeProgress[]);
-    setPendingSubmissions((pendingData ?? []) as ChallengeSubmission[]);
-    setApprovedCompletions((approvedData ?? []) as ApprovedChallengeCompletion[]);
-    setBadgeAwards((awardsData ?? []) as BadgeAward[]);
+    const progress = (progressData ?? []) as UserBadgeProgress[];
+    const pending = (pendingData ?? []) as ChallengeSubmission[];
+    const approved = (approvedData ?? []) as ApprovedChallengeCompletion[];
+    const awards = (awardsData ?? []) as BadgeAward[];
+    setProgressRows(progress);
+    setPendingSubmissions(pending);
+    setApprovedCompletions(approved);
+    setBadgeAwards(awards);
+    if (userId) saveCachedBadgeBundle(userId, { progress, pending, approved, awards });
   }, [userId]);
 
   useEffect(() => {
@@ -158,7 +164,18 @@ export function useBadgeProgress(userId?: string | null) {
       return undefined;
     }
 
-    setIsLoading(true);
+    // Cache-first hydrate so the screen paints instantly on cold open.
+    const cached = loadCachedBadgeBundle(userId);
+    if (cached) {
+      setProgressRows(cached.data.progress as UserBadgeProgress[]);
+      setPendingSubmissions(cached.data.pending as ChallengeSubmission[]);
+      setApprovedCompletions(cached.data.approved as ApprovedChallengeCompletion[]);
+      setBadgeAwards(cached.data.awards as BadgeAward[]);
+      setIsLoading(false);
+      if (cached.fresh) return undefined;
+    } else {
+      setIsLoading(true);
+    }
     setError(null);
     Promise.all([
       getUserBadgeProgress(userId),
@@ -176,10 +193,15 @@ export function useBadgeProgress(userId?: string | null) {
         return;
       }
 
-      setProgressRows((progressRes.data ?? []) as UserBadgeProgress[]);
-      setPendingSubmissions((pendingRes.data ?? []) as ChallengeSubmission[]);
-      setApprovedCompletions((approvedRes.data ?? []) as ApprovedChallengeCompletion[]);
-      setBadgeAwards((awardsRes.data ?? []) as BadgeAward[]);
+      const progress = (progressRes.data ?? []) as UserBadgeProgress[];
+      const pending = (pendingRes.data ?? []) as ChallengeSubmission[];
+      const approved = (approvedRes.data ?? []) as ApprovedChallengeCompletion[];
+      const awards = (awardsRes.data ?? []) as BadgeAward[];
+      setProgressRows(progress);
+      setPendingSubmissions(pending);
+      setApprovedCompletions(approved);
+      setBadgeAwards(awards);
+      saveCachedBadgeBundle(userId, { progress, pending, approved, awards });
     });
 
     return () => {

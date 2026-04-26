@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { invalidateFavoritesCache } from '../lib/favoritesCache';
 
 export async function getFavorites(userId: string) {
   return supabase
@@ -10,19 +11,23 @@ export async function getFavorites(userId: string) {
 }
 
 export async function addFavorite(userId: string, venueId: number) {
-  return supabase
+  const result = await supabase
     .from('favorites')
     .insert({ user_id: userId, venue_id: venueId })
     .select()
     .single();
+  if (!result.error) invalidateFavoritesCache(userId);
+  return result;
 }
 
 export async function removeFavorite(userId: string, venueId: number) {
-  return supabase
+  const result = await supabase
     .from('favorites')
     .delete()
     .eq('user_id', userId)
     .eq('venue_id', venueId);
+  if (!result.error) invalidateFavoritesCache(userId);
+  return result;
 }
 
 export async function isFavorite(userId: string, venueId: number) {

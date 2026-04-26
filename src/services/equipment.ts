@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { invalidateEquipmentCache } from '../lib/equipmentCache';
 import type { EquipmentCategory, EquipmentManufacturer, EquipmentSelection, EquipmentSelectionInsert } from '../types/database';
 
 interface EquipmentManufacturerRow {
@@ -65,9 +66,11 @@ export async function getCurrentEquipmentForUser(userId: string) {
 }
 
 export async function saveEquipmentSelection(data: EquipmentSelectionInsert) {
-  return supabase
+  const result = await supabase
     .from('equipment_history')
     .insert(data)
     .select()
     .single();
+  if (!result.error && data.user_id) invalidateEquipmentCache(data.user_id);
+  return result;
 }

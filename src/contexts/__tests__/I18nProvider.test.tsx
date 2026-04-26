@@ -1,18 +1,10 @@
-const mockGetItem = jest.fn<Promise<string | null>, [string]>(() =>
-  Promise.resolve(null),
-);
-const mockSetItem = jest.fn<Promise<void>, [string, string]>(() =>
-  Promise.resolve(),
-);
-const mockRemoveItem = jest.fn<Promise<void>, [string]>(() => Promise.resolve());
+const mockGetSync = jest.fn<string | null, [string]>(() => null);
+const mockSetString = jest.fn<void, [string, string]>(() => undefined);
 
-jest.mock('@react-native-async-storage/async-storage', () => ({
+jest.mock('../../lib/mmkv', () => ({
   __esModule: true,
-  default: {
-    getItem: (...args: [string]) => mockGetItem(...args),
-    setItem: (...args: [string, string]) => mockSetItem(...args),
-    removeItem: (...args: [string]) => mockRemoveItem(...args),
-  },
+  getStringSync: (...args: [string]) => mockGetSync(...args),
+  setString: (...args: [string, string]) => mockSetString(...args),
 }));
 
  
@@ -46,7 +38,7 @@ function TestConsumer() {
 describe('I18nProvider', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetItem.mockImplementation(() => Promise.resolve(null));
+    mockGetSync.mockImplementation(() => null);
   });
 
   it('returns Romanian string for authLogin when lang is ro', () => {
@@ -115,7 +107,7 @@ describe('I18nProvider', () => {
     expect(screen.getByTestId('authLogin')).toHaveTextContent('Conectare');
   });
 
-  it('persists language to AsyncStorage when setLang is called', async () => {
+  it('persists language to MMKV when setLang is called', async () => {
     const user = userEvent.setup();
 
     render(
@@ -126,11 +118,11 @@ describe('I18nProvider', () => {
 
     await user.press(screen.getByTestId('switchToEn'));
 
-    expect(mockSetItem).toHaveBeenCalledWith('ttportal-lang', 'en');
+    expect(mockSetString).toHaveBeenCalledWith('ttportal-lang', 'en');
   });
 
-  it('loads language from AsyncStorage when no initialLang is provided', async () => {
-    mockGetItem.mockImplementationOnce(() => Promise.resolve('en'));
+  it('loads language from MMKV synchronously when no initialLang is provided', () => {
+    mockGetSync.mockReturnValueOnce('en');
 
     render(
       <I18nProvider>
@@ -138,13 +130,12 @@ describe('I18nProvider', () => {
       </I18nProvider>
     );
 
-    expect(mockGetItem).toHaveBeenCalledWith('ttportal-lang');
-    await screen.findByText('en');
+    expect(mockGetSync).toHaveBeenCalledWith('ttportal-lang');
     expect(screen.getByTestId('lang')).toHaveTextContent('en');
   });
 
-  it('falls back to ro when stored value is invalid', async () => {
-    mockGetItem.mockImplementationOnce(() => Promise.resolve('fr'));
+  it('falls back to ro when stored value is invalid', () => {
+    mockGetSync.mockReturnValueOnce('fr');
 
     render(
       <I18nProvider>
@@ -152,7 +143,6 @@ describe('I18nProvider', () => {
       </I18nProvider>
     );
 
-    await new Promise((r) => setTimeout(r, 0));
     expect(screen.getByTestId('lang')).toHaveTextContent('ro');
   });
 

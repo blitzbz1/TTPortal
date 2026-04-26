@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -11,6 +12,7 @@ import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme'
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getLeaderboard } from '../services/leaderboard';
+import { loadCachedLeaderboard, saveCachedLeaderboard } from '../lib/leaderboardCache';
 import { LeaderboardSkeleton } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
 import { hapticSelection } from '../lib/haptics';
@@ -47,16 +49,28 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
   const COLOR_BY_RANK: Record<number, string> = { 1: colors.primary, 2: colors.primaryMid, 3: colors.accent };
   const PODIUM_COLORS = [colors.primaryMid, colors.primary, colors.accent];
 
-  const fetchLeaderboard = useCallback(async () => {
-    setLoading(true);
-    try {
-      const type = TAB_TO_TYPE[activeTab];
-      const { data } = await getLeaderboard(type, selectedCity ?? undefined, period);
-      if (data) {
-        setEntries(data);
+  const fetchLeaderboard = useCallback(async (force = false) => {
+    const type = TAB_TO_TYPE[activeTab];
+    if (!force) {
+      const cached = loadCachedLeaderboard<any>(type, selectedCity, period);
+      if (cached) {
+        setEntries(cached.data);
+        if (cached.fresh) {
+          setLoading(false);
+          return;
+        }
+        setLoading(false); // background refresh
       } else {
-        setEntries([]);
+        setLoading(true);
       }
+    } else {
+      setLoading(true);
+    }
+    try {
+      const { data } = await getLeaderboard(type, selectedCity ?? undefined, period);
+      const list = data ?? [];
+      setEntries(list);
+      saveCachedLeaderboard(type, selectedCity, period, list);
     } finally {
       setLoading(false);
     }
@@ -64,7 +78,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchLeaderboard();
+    await fetchLeaderboard(true);
     setRefreshing(false);
   }, [fetchLeaderboard]);
 
@@ -234,16 +248,13 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
           );
         }
         return (
-          <FlatList
-            style={styles.scroll}
+          <FlashList
             data={rankEntries}
             keyExtractor={(r, idx) => r.user_id ?? String(idx)}
             ListHeaderComponent={Header}
             ListFooterComponent={Footer}
-            initialNumToRender={10}
-            windowSize={7}
-            removeClippedSubviews
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             renderItem={({ item: r, index: idx }) => (
               <View style={styles.rankList}>
                 <Animated.View entering={FadeInDown.delay(Math.min(idx, 8) * 60).duration(300)}>

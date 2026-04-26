@@ -14,6 +14,7 @@ import { useI18n } from '../hooks/useI18n';
 import { getFriendIds } from '../services/friends';
 import { getFriendFeed } from '../services/feed';
 import type { FeedItem } from '../services/feed';
+import { loadCachedFeed, saveCachedFeed } from '../lib/feedCache';
 
 const FEED_FRESH_TTL_MS = 60 * 1000;
 
@@ -35,14 +36,30 @@ export function ActivityFeedScreen() {
 
   const fetchFeed = useCallback(async (force = false) => {
     if (!user) { setLoading(false); return; }
-    if (!force && Date.now() - lastFetchedAtRef.current < FEED_FRESH_TTL_MS) {
-      setLoading(false);
-      return;
+
+    // Cache-first: paint the feed instantly on cold open from sqlite, then
+    // refresh in the background if stale. Pull-to-refresh always forces.
+    if (!force) {
+      // In-memory ref handles tab toggles within the same session.
+      if (Date.now() - lastFetchedAtRef.current < FEED_FRESH_TTL_MS) {
+        setLoading(false);
+        return;
+      }
+      const cached = loadCachedFeed<FeedItem>(user.id);
+      if (cached) {
+        setFeed(cached.data);
+        setLoading(false);
+        if (cached.fresh) {
+          lastFetchedAtRef.current = Date.now();
+          return;
+        }
+      }
     }
     try {
       const friendIds = await getFriendIds(user.id);
       const { data } = await getFriendFeed(friendIds);
       setFeed(data);
+      saveCachedFeed(user.id, data);
       lastFetchedAtRef.current = Date.now();
     } finally {
       setLoading(false);

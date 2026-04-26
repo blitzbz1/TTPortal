@@ -41,6 +41,22 @@ export function getCacheItem<T>(key: string): T | null {
   }
 }
 
+export function removeCacheItem(key: string): void {
+  const d = getDb();
+  if (!d) return;
+  try {
+    d.runSync('DELETE FROM cache WHERE key = ?', [key]);
+  } catch {}
+}
+
+export function removeCacheItemsByPrefix(prefix: string): void {
+  const d = getDb();
+  if (!d) return;
+  try {
+    d.runSync('DELETE FROM cache WHERE key LIKE ?', [`${prefix}%`]);
+  } catch {}
+}
+
 export function getCacheAge(key: string): number | null {
   const d = getDb();
   if (!d) return null;

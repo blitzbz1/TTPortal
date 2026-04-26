@@ -7,6 +7,7 @@ import { Lucide } from '../../components/Icon';
 import { useTheme } from '../../hooks/useTheme';
 import { useI18n } from '../../hooks/useI18n';
 import { cancelEvent, closeEvent, stopRecurrence, sendEventUpdate } from '../../services/events';
+import { invalidateEventsCache } from '../../lib/eventsCache';
 import { BADGE_TRACKS } from '../../lib/badgeChallenges';
 import type { DbChallenge, EventChallengeSubmission } from '../../features/challenges';
 import { createStyles } from '../EventSchedulingScreen.styles';
@@ -634,6 +635,9 @@ export function EventDetailContent(props: EventDetailContentProps) {
                       if (error) {
                         Alert.alert(s('error'), error.message);
                       } else {
+                        // Closing moves the event from upcoming → past and
+                        // updates its status on the organizer's "mine" view.
+                        invalidateEventsCache(user!.id, ['upcoming', 'past', 'mine']);
                         closeDetail();
                         fetchEvents();
                       }
@@ -671,6 +675,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
                         if (error) {
                           Alert.alert(s('error'), error.message);
                         } else {
+                          invalidateEventsCache(user!.id, ['upcoming', 'mine']);
                           closeDetail();
                           fetchEvents();
                         }
@@ -700,6 +705,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
                       if (error) {
                         Alert.alert(s('error'), error.message);
                       } else {
+                        invalidateEventsCache(user!.id, ['upcoming', 'mine']);
                         closeDetail();
                         fetchEvents();
                       }

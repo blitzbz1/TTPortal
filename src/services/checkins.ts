@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { CheckinInsert } from '../types/database';
+import { invalidatePlayHistoryCache } from '../lib/playHistoryCache';
+import { invalidateProfileStatsCache } from '../lib/profileCache';
 
 function endOfDay(dateStr: string): string {
   const d = new Date(dateStr);
@@ -12,17 +14,27 @@ export async function checkin(data: CheckinInsert) {
     ...data,
     ended_at: data.ended_at ?? endOfDay(data.started_at),
   };
-  return supabase.from('checkins').insert(withExpiry).select().single();
+  const result = await supabase.from('checkins').insert(withExpiry).select().single();
+  if (!result.error && data.user_id) {
+    invalidatePlayHistoryCache(data.user_id);
+    invalidateProfileStatsCache(data.user_id);
+  }
+  return result;
 }
 
 export async function checkout(checkinId: number, userId: string) {
-  return supabase
+  const result = await supabase
     .from('checkins')
     .update({ ended_at: new Date().toISOString() })
     .eq('id', checkinId)
     .eq('user_id', userId)
     .select()
     .single();
+  if (!result.error) {
+    invalidatePlayHistoryCache(userId);
+    invalidateProfileStatsCache(userId);
+  }
+  return result;
 }
 
 // Checkin is active if ended_at > now, OR if ended_at is null but started_at is today (fallback: expires end of day)

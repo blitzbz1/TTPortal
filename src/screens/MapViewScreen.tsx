@@ -107,10 +107,20 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     return type;
   };
 
-  const fetchVenues = useCallback(async () => {
-    setLoading(true);
-    setFetchError(false);
-    setFromCache(false);
+  const fetchVenues = useCallback(async (force = false) => {
+    // Cache-first: paint markers from cache immediately while we refresh in
+    // the background. On error, the cache also acts as the fallback.
+    const cached = getCacheItem<VenueWithStats[]>(`venues_${selectedCity}`);
+    if (cached && !force) {
+      setVenues(cached);
+      setFromCache(false);
+      setFetchError(false);
+      setLoading(false);
+    } else {
+      setLoading(true);
+      setFromCache(false);
+      setFetchError(false);
+    }
     try {
       const { data } = await getVenues(selectedCity);
       if (data) {
@@ -118,11 +128,9 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
         setCacheItem(`venues_${selectedCity}`, data);
       }
     } catch {
-      // Try loading from cache
-      const cached = getCacheItem<VenueWithStats[]>(`venues_${selectedCity}`);
       if (cached) {
         setVenues(cached);
-        setFetchError(false); // Don't show error if we have cached data
+        setFetchError(false);
         setFromCache(true);
       } else {
         setFetchError(true);
@@ -134,7 +142,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchVenues();
+    await fetchVenues(true);
     setRefreshing(false);
   }, [fetchVenues]);
 

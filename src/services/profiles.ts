@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { Profile } from '../types/database';
+import { invalidateProfileCache } from '../lib/profileCache';
 
 export async function getProfile(userId: string) {
   return supabase
@@ -13,12 +14,14 @@ export async function updateProfile(
   userId: string,
   data: Partial<Pick<Profile, 'full_name' | 'avatar_url' | 'city' | 'lang' | 'username'>> & { notify_friend_checkins?: boolean },
 ) {
-  return supabase
+  const result = await supabase
     .from('profiles')
     .update(data)
     .eq('id', userId)
     .select()
     .single();
+  if (!result.error) invalidateProfileCache(userId);
+  return result;
 }
 
 export async function getProfileStats(userId: string) {

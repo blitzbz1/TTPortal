@@ -9,6 +9,7 @@ import { createStyles } from './FriendsScreen.styles';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getFriends, getPendingRequests, acceptRequest, declineRequest, findUserByUsername, getFriendshipBetweenUsers, sendRequest } from '../services/friends';
+import { loadCachedFriends, saveCachedFriends, loadCachedPending, saveCachedPending } from '../lib/friendsCache';
 import { sendAppInviteEmail } from '../services/invites';
 import { getActiveFriendCheckins } from '../services/checkins';
 import { Card } from '../components/Card';
@@ -55,26 +56,59 @@ export function FriendsScreen() {
     [playingFriends],
   );
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (force = false) => {
     if (!user) return;
-    setLoading(true);
+    let normalizedFriends: any[] = [];
+
+    // Cache-first hydrate of the friends + pending lists. Active-friend
+    // checkins are always fetched fresh further down (live data).
+    if (!force) {
+      const cachedFriends = loadCachedFriends<any>(user.id);
+      const cachedPending = loadCachedPending<any>(user.id);
+      if (cachedFriends) {
+        normalizedFriends = cachedFriends.data;
+        setFriends(normalizedFriends);
+      }
+      if (cachedPending) setPending(cachedPending.data);
+      const friendsFresh = !!cachedFriends?.fresh;
+      const pendingFresh = !!cachedPending?.fresh;
+      if (friendsFresh && pendingFresh) {
+        // Skip the network for friends + pending; still refresh active checkins.
+        setLoading(false);
+      } else if (cachedFriends || cachedPending) {
+        setLoading(false); // already showing cached data; refresh in background
+      } else {
+        setLoading(true);
+      }
+    } else {
+      setLoading(true);
+    }
+
     try {
+      const cachedFriends = !force ? loadCachedFriends<any>(user.id) : null;
+      const cachedPending = !force ? loadCachedPending<any>(user.id) : null;
+      const skipFriendsFetch = !!cachedFriends?.fresh;
+      const skipPendingFetch = !!cachedPending?.fresh;
+
       const [friendsRes, pendingRes] = await Promise.all([
-        getFriends(user.id),
-        getPendingRequests(user.id),
+        skipFriendsFetch ? Promise.resolve({ data: cachedFriends!.data, error: null }) : getFriends(user.id),
+        skipPendingFetch ? Promise.resolve({ data: cachedPending!.data, error: null }) : getPendingRequests(user.id),
       ]);
 
-      let normalizedFriends: any[] = [];
-      if (friendsRes.data) {
-        normalizedFriends = friendsRes.data.map((f: any) => {
+      if (friendsRes.data && !skipFriendsFetch) {
+        normalizedFriends = (friendsRes.data as any[]).map((f: any) => {
           const isRequester = f.requester_id === user.id;
           const profile = isRequester ? f.addressee : f.requester;
           return { ...f, friend: profile };
         });
         setFriends(normalizedFriends);
+        saveCachedFriends(user.id, normalizedFriends);
+      } else if (skipFriendsFetch) {
+        normalizedFriends = cachedFriends!.data;
       }
-      if (pendingRes.data) {
-        setPending(pendingRes.data);
+      if (pendingRes.data && !skipPendingFetch) {
+        setPending(pendingRes.data as any[]);
+        saveCachedPending(user.id, pendingRes.data as any[]);
       }
 
       if (normalizedFriends.length > 0) {
@@ -110,7 +144,7 @@ export function FriendsScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchData();
+    await fetchData(true);
     setRefreshing(false);
   }, [fetchData]);
 

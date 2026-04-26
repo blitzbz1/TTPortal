@@ -7,6 +7,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
 import { useSession } from '../hooks/useSession';
 import { logEventHours } from '../services/events';
+import { invalidateEventsCache } from '../lib/eventsCache';
 import { safeErrorMessage } from '../lib/auth-utils';
 import { hapticLight, hapticSuccess } from '../lib/haptics';
 import { Fonts, FontSize, FontWeight, Radius, Shadows, Spacing } from '../theme';
@@ -53,6 +54,9 @@ export function LogHoursModal({ visible, eventId, eventTitle, initialHours, onDi
       Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s));
       return;
     }
+    // Hours changed; the past tab embeds participant.hours_played, so the
+    // cached list is now stale.
+    invalidateEventsCache(user.id, ['past']);
     hapticSuccess();
     onDismiss();
   }, [hours, user, eventId, onDismiss, s]);

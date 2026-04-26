@@ -9,6 +9,7 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { supabase } from '../lib/supabase';
 import { createEventFeedback, getUserEventFeedback } from '../services/eventFeedback';
+import { invalidateEventsCache, invalidateFeedbackGivenCache } from '../lib/eventsCache';
 import { safeErrorMessage } from '../lib/auth-utils';
 import { hapticLight, hapticSuccess } from '../lib/haptics';
 
@@ -108,6 +109,11 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
       return;
     }
 
+    // Past tab gates the "give feedback" CTA off the cached feedbackGiven set;
+    // drop it (and the cached past list, which embeds the feedback rendering)
+    // so the next visit reflects the new submission.
+    invalidateFeedbackGivenCache(user.id);
+    invalidateEventsCache(user.id, ['past']);
     hapticSuccess();
     Alert.alert(s('success'), s('feedbackSubmitted'));
     onDismiss();

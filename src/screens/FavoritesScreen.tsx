@@ -15,6 +15,7 @@ import { Fonts, FontSize, FontWeight, Spacing, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getFavorites, removeFavorite } from '../services/favorites';
+import { loadCachedFavorites, saveCachedFavorites } from '../lib/favoritesCache';
 
 type SortMode = 'recent' | 'name';
 
@@ -35,15 +36,27 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
-  const fetchFavorites = useCallback(async () => {
+  const fetchFavorites = useCallback(async (force = false) => {
     if (!user) return;
-    setLoading(true);
+    if (!force) {
+      const cached = loadCachedFavorites<any>(user.id);
+      if (cached) {
+        setFavorites(cached.data);
+        if (cached.fresh) return;
+      } else {
+        setLoading(true);
+      }
+    } else {
+      setLoading(true);
+    }
     try {
       const { data, error } = await getFavorites(user.id);
       if (error) {
         Alert.alert(s('error'), s('favLoadError'));
       } else {
-        setFavorites(data ?? []);
+        const list = data ?? [];
+        setFavorites(list);
+        saveCachedFavorites(user.id, list);
       }
     } finally {
       setLoading(false);
@@ -53,7 +66,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchFavorites();
+    await fetchFavorites(true);
     setRefreshing(false);
   }, [fetchFavorites]);
 

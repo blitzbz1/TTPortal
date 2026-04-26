@@ -1,18 +1,10 @@
-const mockGetItem = jest.fn<Promise<string | null>, [string]>(() =>
-  Promise.resolve(null),
-);
-const mockSetItem = jest.fn<Promise<void>, [string, string]>(() =>
-  Promise.resolve(),
-);
-const mockRemoveItem = jest.fn<Promise<void>, [string]>(() => Promise.resolve());
+const mockGetSync = jest.fn<string | null, [string]>(() => null);
+const mockSetString = jest.fn<void, [string, string]>(() => undefined);
 
-jest.mock('@react-native-async-storage/async-storage', () => ({
+jest.mock('../../lib/mmkv', () => ({
   __esModule: true,
-  default: {
-    getItem: (...args: [string]) => mockGetItem(...args),
-    setItem: (...args: [string, string]) => mockSetItem(...args),
-    removeItem: (...args: [string]) => mockRemoveItem(...args),
-  },
+  getStringSync: (...args: [string]) => mockGetSync(...args),
+  setString: (...args: [string, string]) => mockSetString(...args),
 }));
 
  
@@ -20,7 +12,7 @@ import React from 'react';
  
 import { Text, Pressable } from 'react-native';
  
-import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, userEvent } from '@testing-library/react-native';
  
 import { ThemeProvider } from '../ThemeProvider';
  
@@ -53,7 +45,7 @@ function TestConsumer() {
 describe('ThemeProvider', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetItem.mockImplementation(() => Promise.resolve(null));
+    mockGetSync.mockImplementation(() => null);
   });
 
   it('defaults to system mode', () => {
@@ -146,7 +138,7 @@ describe('ThemeProvider', () => {
     expect(screen.getByTestId('bgColor')).toHaveTextContent(lightColors.bg);
   });
 
-  it('persists mode to AsyncStorage when setMode is called', async () => {
+  it('persists mode to MMKV when setMode is called', async () => {
     const user = userEvent.setup();
 
     render(
@@ -157,11 +149,11 @@ describe('ThemeProvider', () => {
 
     await user.press(screen.getByTestId('setDark'));
 
-    expect(mockSetItem).toHaveBeenCalledWith('ttportal-theme', 'dark');
+    expect(mockSetString).toHaveBeenCalledWith('ttportal-theme', 'dark');
   });
 
-  it('loads mode from AsyncStorage when no initialMode is provided', async () => {
-    mockGetItem.mockImplementationOnce(() => Promise.resolve('dark'));
+  it('loads mode from MMKV synchronously when no initialMode is provided', () => {
+    mockGetSync.mockReturnValueOnce('dark');
 
     render(
       <ThemeProvider>
@@ -169,15 +161,13 @@ describe('ThemeProvider', () => {
       </ThemeProvider>
     );
 
-    expect(mockGetItem).toHaveBeenCalledWith('ttportal-theme');
-    // loadMode is async; wait for the resolved state to propagate.
-    await waitFor(() => {
-      expect(screen.getByTestId('mode')).toHaveTextContent('dark');
-    });
+    expect(mockGetSync).toHaveBeenCalledWith('ttportal-theme');
+    // Sync hydrate — no waitFor needed.
+    expect(screen.getByTestId('mode')).toHaveTextContent('dark');
   });
 
-  it('falls back to system when stored value is invalid', async () => {
-    mockGetItem.mockImplementationOnce(() => Promise.resolve('invalid'));
+  it('falls back to system when stored value is invalid', () => {
+    mockGetSync.mockReturnValueOnce('invalid');
 
     render(
       <ThemeProvider>
@@ -185,8 +175,6 @@ describe('ThemeProvider', () => {
       </ThemeProvider>
     );
 
-    // Allow the async load to settle — invalid value leaves the default.
-    await new Promise((r) => setTimeout(r, 0));
     expect(screen.getByTestId('mode')).toHaveTextContent('system');
   });
 

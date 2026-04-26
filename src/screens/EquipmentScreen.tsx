@@ -22,6 +22,7 @@ import { useSession } from '../hooks/useSession';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
 import { getEquipmentCatalog, getEquipmentHistory, saveEquipmentSelection } from '../services/equipment';
+import { loadCachedEquipmentHistory, saveCachedEquipmentHistory } from '../lib/equipmentCache';
 import type {
   DominantHand,
   EquipmentManufacturer,
@@ -366,7 +367,16 @@ export function EquipmentScreen() {
 
   const loadHistory = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
+    // Cache-first: paint history immediately. The blade/rubber catalogs are
+    // fetched from the network — they're shared and Supabase will likely
+    // return them from its own cache anyway.
+    const cached = loadCachedEquipmentHistory<EquipmentSelection>(user.id, 4);
+    if (cached) {
+      setHistory(cached.data);
+      if (!cached.fresh) setLoading(true);
+    } else {
+      setLoading(true);
+    }
     setCatalogError(false);
     const [historyRes, bladeRes, rubberRes] = await Promise.all([
       getEquipmentHistory(user.id, 4),
@@ -381,7 +391,9 @@ export function EquipmentScreen() {
     setBladeCatalog(bladeRes.data ?? []);
     setRubberCatalog(rubberRes.data ?? []);
     const { data } = historyRes;
-    setHistory((data ?? []) as EquipmentSelection[]);
+    const histList = (data ?? []) as EquipmentSelection[];
+    setHistory(histList);
+    saveCachedEquipmentHistory(user.id, 4, histList);
     setLoading(false);
   }, [user]);
 

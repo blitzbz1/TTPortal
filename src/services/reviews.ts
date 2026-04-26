@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { ReviewInsert } from '../types/database';
+import { invalidateVenueReviewsCache } from '../lib/venueDetailCache';
 
 export async function getReviewsForVenue(venueId: number) {
   return supabase
@@ -11,7 +12,9 @@ export async function getReviewsForVenue(venueId: number) {
 }
 
 export async function createReview(data: ReviewInsert) {
-  return supabase.from('reviews').insert(data).select().single();
+  const result = await supabase.from('reviews').insert(data).select().single();
+  if (!result.error) invalidateVenueReviewsCache(data.venue_id);
+  return result;
 }
 
 export async function flagReview(id: number) {

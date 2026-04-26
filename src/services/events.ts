@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { EventInsert } from '../types/database';
+import { invalidatePlayHistoryCache } from '../lib/playHistoryCache';
+import { invalidateProfileStatsCache } from '../lib/profileCache';
 
 export async function getEvents(
   filter: 'upcoming' | 'past' | 'mine',
@@ -76,7 +78,7 @@ export async function joinEvent(eventId: number, userId: string) {
 }
 
 export async function logEventHours(eventId: number, userId: string, hours: number) {
-  return supabase
+  const result = await supabase
     .from('event_participants')
     .upsert(
       { event_id: eventId, user_id: userId, hours_played: hours },
@@ -84,6 +86,11 @@ export async function logEventHours(eventId: number, userId: string, hours: numb
     )
     .select()
     .single();
+  if (!result.error) {
+    invalidatePlayHistoryCache(userId);
+    invalidateProfileStatsCache(userId);
+  }
+  return result;
 }
 
 export async function leaveEvent(eventId: number, userId: string) {

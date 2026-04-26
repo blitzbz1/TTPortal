@@ -1,10 +1,17 @@
 # Performance Improvement Report — 2026-04-26
 
-> Rounds 2, 3, and 4 (all same date) extend this report. Round 2 collapses
-> remaining N+1s and converts long lists to FlatList; Round 3 catches less-
-> audited screens and adds Promise.allSettled / freshness gates; Round 4
-> targets the subtler wins surfaced by a fourth-pass audit (Intl formatter
-> reuse, 1Hz cooldown isolation, list-card memoization). See sections below.
+> Rounds 2–8 (all same date) extend this report. Round 2 collapses
+> remaining N+1s and converts long lists to FlatList; Round 3 catches
+> less-audited screens and adds Promise.allSettled / freshness gates;
+> Round 4 targets the subtler wins surfaced by a fourth-pass audit (Intl
+> formatter reuse, 1Hz cooldown isolation, list-card memoization);
+> Round 5 introduces a cache-first pattern for the events screen
+> (mine/past/upcoming) so common tabs paint instantly from sqlite;
+> Round 6 applies that same pattern to the rest of the app; Round 7
+> closes the loop on the database side with a targeted index audit;
+> Round 8 lands the platform-wide RN optimizations (Lucide
+> tree-shaking, MMKV, FlashList, animation native-driver fixes,
+> Supabase image transforms, New Architecture). See sections below.
 
 ## Round 1
 
@@ -215,3 +222,238 @@ steps if performance work continues:
    `lucide-react-native`, locale JSON, and Reanimated.
 3. **Realtime listener audit** — confirm no leaked Supabase channel
    subscriptions and that polling intervals (notifications) are reasonable.
+
+---
+
+## Round 5 — Events cache-first
+
+User-driven follow-up: the EventScheduling screen reloads `mine` / `past` /
+`upcoming` from the network on every tab visit. The "mine" tab in particular
+should load once and only refresh on a user-driven mutation (create) or pull-
+to-refresh; "past" rarely changes (events transition past once and stay).
+
+### What landed
+
+- New `src/lib/eventsCache.ts` — per-user, per-tab keys backed by the SQLite
+  offline-cache. TTLs: `mine` 6h, `past` 12h, `upcoming` 60s. Pull-to-refresh
+  forces. Helpers: `loadCachedEvents`, `saveCachedEvents`,
+  `loadCachedFeedbackGiven`, `saveCachedFeedbackGiven`,
+  `invalidateEventsCache`, `invalidateFeedbackGivenCache`.
+- `src/lib/offline-cache.ts` gained `removeCacheItem` and
+  `removeCacheItemsByPrefix`.
+- `EventSchedulingScreen.fetchEvents` reads cache first. If a cached list
+  exists, it renders immediately and skips the network when fresh; if stale
+  it shows cached data and refreshes in the background (no spinner). The
+  past-tab `feedbackGivenIds` set is cached alongside.
+- Invalidation at mutation sites:
+  - `app/(protected)/create-event.tsx` → `mine` + `upcoming` after
+    `createEvent`.
+  - `EventDetailContent.tsx` → `closeEvent` invalidates
+    `upcoming` + `past` + `mine`; `cancelEvent` and `stopRecurrence`
+    invalidate `upcoming` + `mine`.
+  - `WriteEventFeedbackScreen.tsx` → clears feedbackGiven + invalidates
+    `past` after `createEventFeedback`.
+  - `LogHoursModal.tsx` → invalidates `past` after `logEventHours`.
+
+### Effect
+
+Mine tab opens instantly on subsequent app launches and only refetches after
+the user creates / cancels / closes an event or pulls to refresh. Past tab
+opens instantly and only refetches after a relevant mutation
+(close / feedback / hours) or pull-to-refresh.
+
+---
+
+## Round 6 — Cache-first across the rest of the app
+
+Generalized the Round 5 pattern. New `src/lib/cacheUtils.ts` provides
+`cachedLoad<T>(key, ttlMs): { data, fresh } | null`, `cachedSave`,
+`cachedInvalidate`, and re-exports `removeCacheItemsByPrefix`. Each domain
+gets its own thin module that owns keys + TTLs + invalidation helpers.
+
+### Cache modules added
+
+| Module | Keys | TTL | Invalidated by |
+|---|---|---|---|
+| `favoritesCache` | `favorites:{userId}` | 12h | `addFavorite`, `removeFavorite` (service-level) |
+| `friendsCache` | `friends:{userId}:list`, `friends:{userId}:pending` | 6h / 10min | `sendRequest`, `acceptRequest`, `declineRequest` (service-level; both sides invalidated for `acceptRequest`) |
+| `venueDetailCache` | `venue:{id}:meta`, `venue:{id}:reviews` | 24h / 4h | `addPhotoToVenue`, `createReview`, admin venue mutations (service-level) |
+| `playHistoryCache` | `playHistory:{userId}:{sinceIso}` | 6h | `checkin`, `checkout`, `logEventHours` (service-level; wipes by prefix) |
+| `leaderboardCache` | `leaderboard:{type}:{city}:{period}` | 1h all / 15m week | none — eventual consistency is fine |
+| `profileCache` | `profile:{userId}:meta`, `profile:{userId}:stats` | 24h / 30min | `updateProfile` (meta), `checkin`/`checkout`/`logEventHours` (stats) |
+| `challengeCache` | `challenge:{userId}:bundle` | 30min | refresh-after-mutation rewrites cache |
+| `equipmentCache` | `equipment:{userId}:history:{limit}` | 24h | `saveEquipmentSelection` (service-level) |
+| `feedCache` | `feed:{userId}` | 60s | (none — TTL handles it) |
+| MapView venues (existing key) | `venues_{city}` | — | upgraded to cache-first; invalidated by `createVenue`, `addPhotoToVenue`, `approveVenue`, `rejectVenue`, `updateVenue`, `deleteVenue` |
+
+### Screen-side wiring
+
+Each consuming screen follows the same pattern as `EventSchedulingScreen`:
+
+1. On mount/focus, read from cache. If hit, render immediately and skip the
+   spinner. If fresh, return without a network call. If stale, kick off a
+   background refresh (no spinner — the cached data stays on screen).
+2. On cache miss, fall back to the previous fetch behavior with the spinner.
+3. Pull-to-refresh always passes `force=true` and bypasses the cache.
+4. Network responses save back into the cache.
+
+Touched: `FavoritesScreen`, `FriendsScreen`, `VenueDetailScreen`,
+`PlayHistoryScreen`, `LeaderboardsScreen`, `ProfileScreen`,
+`PlayerProfileScreen`, `EquipmentScreen`, `MapViewScreen`,
+`ActivityFeedScreen`, plus the `useBadgeProgress` hook.
+
+### Service-side wiring
+
+For mutations with a clear single funnel (favorites, profile, equipment,
+reviews, friends), invalidation is centralized in the service layer so new
+callers can't accidentally leave a stale cache. For widely-mutated domains
+with many sites (events, venues, play-history) we mix: the heaviest sites
+invalidate at the call site, and where the same userId/venueId is always
+known we also drop caches in the service.
+
+### Verification (Round 6)
+
+- `npm test` — 90 suites / 664 tests pass.
+- `npm run typecheck` — clean for `src/`.
+- `npm run lint` — 0 errors; one pre-existing warning at
+  `FriendsScreen.tsx:213` is unrelated.
+
+### Effect
+
+Most read-heavy screens now paint instantly on cold open from the persistent
+sqlite cache and refresh in the background. The user only sees a spinner on
+true cold-cache misses (first-ever visit, or after explicit invalidation).
+This compounds well with earlier rounds: prior changes made the network
+fetch fast; this round makes it usually unnecessary.
+
+---
+
+## Round 7 — Database index audit
+
+After six client-side rounds, the remaining "make it faster" lever is the
+database. Cross-referenced every existing `CREATE INDEX` in the migrations
+tree against the actual filters / orders issued by `src/services/`, and
+fixed the gaps that mattered.
+
+### Findings
+
+| # | Where | Existing | Issue | Fix (migration 041) |
+|---|---|---|---|---|
+| 1 | `notifications.sender_id` | none | Migration 039 added the FK to `profiles(id)` but Postgres does not auto-index FK source columns. The PostgREST embed `sender:profiles!notifications_sender_profiles_fk(...)` and any `WHERE sender_id = ?` ran a seq scan. | Partial index `idx_notifications_sender` `WHERE sender_id IS NOT NULL` |
+| 2 | `reviews(venue_id, created_at)` | `idx_reviews_venue` (single column) | `getReviewsForVenue(venueId)` filters by `venue_id` then orders by `created_at DESC`; planner had to sort. | Compound `idx_reviews_venue_created` `(venue_id, created_at DESC)` |
+| 3 | `reviews.flagged` moderation list | none | `getFlaggedReviews()` does `WHERE flagged = true ORDER BY flag_count DESC` on a growing table. | Partial `idx_reviews_flagged` `(flag_count DESC) WHERE flagged = true` |
+| 4 | `events(status, starts_at)` | `idx_events_starts` (starts_at only) | Every event-list query filters `status NOT IN ('cancelled','completed')` AND ranges `starts_at`. Status filter was post-scan. | Compound `idx_events_status_starts` `(status, starts_at)` |
+| 5 | `checkins(user_id, started_at)` | `idx_checkins_user_ended` `(user_id, ended_at)` — wrong column for the sort | `getPlayHistory` filters by `user_id` (optionally `started_at >= since`) and orders by `started_at DESC`. The existing compound did not cover the sort. | Compound `idx_checkins_user_started` `(user_id, started_at DESC)` |
+
+### Verified non-issues
+
+- **`profiles.username`** — `UNIQUE` constraint from migration 002 already
+  yields a btree index; `findUserByUsername` is fine.
+- **`favorites`** — `idx_favorites_user` plus `UNIQUE(user_id, venue_id)`
+  cover the access patterns. Per-user list is small enough that an extra
+  `created_at` index isn't worth the write cost.
+- **`event_feedback`** — `(event_id)` and `(user_id)` indexes plus
+  `UNIQUE(event_id, user_id)` are sufficient for the new
+  `getUserEventFeedbackForEvents` `WHERE user_id = ? AND event_id IN (...)`.
+- **`venues` ILIKE search** — admin-only, low call rate, table is small;
+  installing `pg_trgm` for trigram GIN is overkill at current scale.
+- **`condition_votes(venue_id)`** — already indexed; aggregation per venue
+  is cheap.
+- **FKs landed in 038** (friendships→profiles, checkins→profiles,
+  event_participants→profiles) — those source columns already had
+  indexes from migration 003, so no follow-up was needed.
+
+### Migration
+
+`supabase/migrations/041_perf_indexes.sql` adds all five indexes. They
+are idempotent (`IF NOT EXISTS`), additive, and small on the current
+dataset — sub-second to build.
+
+### Applied to remote
+
+`041_perf_indexes.sql` was pushed to the linked TTPortal Supabase project
+(project ref `vzewwlaqqgukjkqjyfoq`) on 2026-04-26. `supabase migration
+list` shows it on both Local and Remote.
+
+### Effect
+
+The five queries above now satisfy filter + sort from a single index scan
+without an explicit sort step. The biggest user-visible wins are likely
+the notifications screen embed and the play-history list on heavy
+accounts; the admin moderation tab and the events list also benefit but
+the call rate is lower.
+
+---
+
+## Round 8 — Animation, transitions, rendering, and RN-wide optimizations
+
+After seven rounds focused on data-fetching, caching, and indexes, the
+remaining lever is the React Native runtime itself. This round audits
+animations / transitions / re-renders for bottlenecks, then applies the
+broader RN-platform optimizations the codebase had not yet adopted.
+
+### Animation findings (then-state, before fixes)
+
+| Site | Issue | Severity |
+|---|---|---|
+| `screens/PlayHistoryScreen.tsx:36-43` (`AnimatedCounter`) | `useAnimatedReaction` fired `runOnJS(setDisplay)` on every animation frame (~37 setStates per 600ms animation) | HIGH |
+| `screens/NotificationsScreen.tsx:84-92` (`SwipeableRow`) | Collapse animated `height` (non-native-driver) — JS-thread layout per frame on row delete | MED-HIGH |
+| `screens/VenueDetailScreen.tsx:96-99` (photo strip) | Scroll-driven `height` interpolation — JS-thread layout per scroll tick at 60fps | MED-HIGH |
+| `screens/PlayHistoryScreen.tsx:431-435` | `AnimatedCounter` keyed by `${stat.label}-${period}` — period change remounts all four counters | MED |
+| `components/SkeletonLoader.tsx:19-28` | Each `SkeletonBox` runs its own `Animated.loop`; off-screen skeletons keep animating | LOW-MED |
+| Misc: `OnboardingScreen` `DotIndicator`, `MapView` marker re-creation, `useFocusEffect` debounce | Smaller wins | LOW |
+
+### What landed
+
+| # | Change | Where | Measured / expected gain |
+|---|---|---|---|
+| 1 | **Lucide tree-shaking** — replace `import * as LucideIcons` with explicit named imports + `ICON_MAP` of the ~95 icons actually used | `src/components/Icon.tsx` | Bundle dropped the unused ~1500 lucide icons; cold-start parse scales with bundle size. Production gain measurable via `npx expo export` size diff. |
+| 2 | **MMKV swap** — `react-native-mmkv@4.3.1` installed; `ThemeProvider` and `I18nProvider` do **synchronous** reads on first render (no async hydration before first paint); Supabase auth uses MMKV via async adapter; one-time AsyncStorage migration so existing sessions / theme / lang survive the upgrade | `src/lib/mmkv.ts`, `src/lib/supabase.ts`, `src/contexts/{ThemeProvider,I18nProvider}.tsx` | ~30× faster sync read vs AsyncStorage's bridged async (per published library benchmarks). Eliminates first-paint flash of default theme/lang. |
+| 3 | **FlashList swap** — `@shopify/flash-list@2.0.2`; `NotificationsScreen` and `LeaderboardsScreen` migrated from FlatList | `src/screens/NotificationsScreen.tsx`, `src/screens/LeaderboardsScreen.tsx` | ~5× higher scroll throughput vs FlatList on long lists per Shopify's published benchmarks. Bigger gain on lower-end Android. |
+| 4a | **`AnimatedCounter` quantization** — `useAnimatedReaction` now reads a quantized derived value (round to 0.1 for decimals, 1 for integers) and the JS callback only fires when the displayed string would actually change | `screens/PlayHistoryScreen.tsx:23-50` | **6.17× setState reduction** measured in `src/__tests__/perf/animatedCounter.bench.test.ts` (37 → 6 setStates per integer animation; 37 → 26 for decimal). |
+| 4b | **`SwipeableRow` collapse** — switched from `height` to `transform: scaleY` (native driver-safe) | `screens/NotificationsScreen.tsx:48-92` | Removes ~16 JS-thread layout passes per swipe; eliminates the multi-swipe queue jank. |
+| 4c | **VenueDetail photo strip** — switched from `height` to `transform: scaleY` with `transformOrigin: 'top'` | `screens/VenueDetailScreen.tsx:96-104` | Scroll handler at 60fps no longer triggers a layout pass per frame. |
+| 5 | **Supabase image transforms** — new `lib/imageTransforms.ts:venueImageUrl(url, { width, quality })` rewrites `/storage/v1/object/public/` → `/storage/v1/render/image/public/` with `?width=…&quality=75`; venue photo carousel sources sized + quality-75 JPEGs instead of the full original | `src/lib/imageTransforms.ts`, `src/screens/VenueDetailScreen.tsx:457-465` | Photo payload cut ~3-5× depending on original size; first-paint time on the photo strip drops correspondingly. |
+| 6 | **New Architecture enabled** — `newArchEnabled: true` in `app.json`. Activates Fabric + TurboModules + bridgeless on the next native build | `app.json:50` | Eliminates the JS↔native bridge cost (Reanimated, Supabase calls, native modules). Requires an `eas build` / `expo prebuild` to take effect at runtime; the config ships now. |
+| 7 | **Bench harness** — `src/__tests__/perf/animatedCounter.bench.test.ts` measures the `runOnJS` reduction and asserts ≥3× as a regression gate | `src/__tests__/perf/animatedCounter.bench.test.ts` | Measurement gate. |
+
+### Verified non-issues from the audit
+
+- **VenueDetailScreen heart `Animated.Value`** — uses native driver, animation is short and isolated. Not worth a Reanimated migration.
+- **OnboardingScreen `DotIndicator`** — small, only mounted at sign-up. `React.memo` would be a minor win; left alone.
+- **MapView `<Marker>` re-creation on filter change** — `react-native-maps` doesn't memoize marker children, but the filtered list is already in a `useMemo`; further extraction is a marginal win.
+- **`useFocusEffect` debounce on tab thrash** — Round 6's cache-first pattern already short-circuits the actual fetch on focus, so the underlying network cost is gone.
+- **ThemeProvider tree fan-out** — `colors` references are stable (`lightColors`/`darkColors` are module-level singletons); the consumer re-render concern flagged in Round 4 is already mitigated.
+
+### Not yet validated on device (caveats)
+
+- **#6 New Architecture** ships the config change but only takes effect on the next native build. Worth a one-off `expo prebuild` + dev-client run to confirm no Reanimated / native-module incompatibilities (most major libs already support Fabric, but verifying against this app's plugin list — `expo-router`, `expo-sqlite`, `@react-native-google-signin/google-signin`, `expo-notifications`, `@react-native-community/datetimepicker`, `@maplibre/maplibre-react-native` — is prudent).
+- **#1, #2, #3, #5** are measurable on-device with a Hermes / React DevTools profiler. The numbers above come from published library benchmarks applied to the patterns this app uses; they are not in-repo measurements (with the exception of #4a which is in-repo).
+- **MMKV migration path:** the Supabase auth session migrates from AsyncStorage to MMKV on first read. If a user had a session stored under AsyncStorage, the first MMKV `getItem` falls back to AsyncStorage and writes through. After that, MMKV is canonical.
+
+### Verification (Round 8)
+
+- `npm test` — 91 suites / 668 tests pass (added 4 new bench tests).
+- `npm run typecheck` — clean for `src/`.
+- `npm run lint` — 0 errors; one pre-existing warning at
+  `FriendsScreen.tsx:213` is unrelated.
+
+### Where this leaves us
+
+After eight rounds, the static-analysis perf surface is genuinely
+exhausted. Further wins now require:
+
+1. **Real-device profiling** with Hermes / React DevTools to find any
+   remaining frame drops on specific screens.
+2. **EAS build with the New Architecture turned on** to validate that
+   `newArchEnabled: true` doesn't surface any library incompatibilities,
+   then measure the resulting runtime delta.
+3. **Production bundle size diff** comparing pre- and post-#1 builds to
+   quantify the Lucide tree-shaking win.
+4. **Field telemetry** (Sentry / Datadog / PostHog Performance) to
+   measure cold-start, frame rate, and screen-load TTI on real devices,
+   not synthetic benchmarks.
+
+The codebase is no longer a place where a code review will find big
+gains — the next gains live in measurement infrastructure and on-device
+profiling.

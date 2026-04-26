@@ -11,6 +11,7 @@ import { createStyles } from './ProfileScreen.styles';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getProfile } from '../services/profiles';
+import { loadCachedProfile, saveCachedProfile } from '../lib/profileCache';
 import type { Profile } from '../types/database';
 import { ProfileSkeleton } from '../components/SkeletonLoader';
 import { ErrorState } from '../components/ErrorState';
@@ -39,13 +40,24 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
 
   const loadProfile = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
+
+    // Cache-first: paint from cached profile while we refresh in the background.
+    const cached = loadCachedProfile<Profile>(user.id);
+    if (cached) {
+      setProfile(cached.data);
+      setDataLoaded(true);
+      setLoading(false);
+      if (cached.fresh) return;
+    } else {
+      setLoading(true);
+    }
     setProfileError(false);
 
     try {
       const profileRes = await getProfile(user.id);
       if (profileRes.data) {
         setProfile(profileRes.data as Profile);
+        saveCachedProfile(user.id, profileRes.data);
       }
     } catch {
       setProfileError(true);

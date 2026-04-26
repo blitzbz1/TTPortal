@@ -1,11 +1,10 @@
 import React, {
   createContext,
   useCallback,
-  useEffect,
   useMemo,
   useState,
 } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getStringSync, setString } from '../lib/mmkv';
 import roStrings from '../locales/ro.json';
 import enStrings from '../locales/en.json';
 
@@ -35,27 +34,24 @@ const locales: Record<Lang, Record<string, string>> = {
 };
 
 /**
- * Read the stored language preference from AsyncStorage.
+ * Synchronous read so the first render uses the persisted language.
  */
-async function loadLang(): Promise<Lang> {
+function loadLangSync(): Lang {
   try {
-    const value = await AsyncStorage.getItem(STORAGE_KEY);
-    if (value && VALID_LANGS.has(value)) {
-      return value as Lang;
-    }
+    const value = getStringSync(STORAGE_KEY);
+    if (value && VALID_LANGS.has(value)) return value as Lang;
   } catch {
     // Storage unavailable — fall through to default
   }
   return DEFAULT_LANG;
 }
 
-/**
- * Persist language choice to AsyncStorage.
- */
 function saveLang(lang: Lang): void {
-  AsyncStorage.setItem(STORAGE_KEY, lang).catch(() => {
-    // Storage write failed — language is still set in memory
-  });
+  try {
+    setString(STORAGE_KEY, lang);
+  } catch {
+    // best-effort
+  }
 }
 
 /** Props for I18nProvider. */
@@ -70,19 +66,10 @@ interface I18nProviderProps {
  * `setLang(lang)`, and `s(key, ...args)` string resolver with English fallback.
  */
 export function I18nProvider({ children, initialLang }: I18nProviderProps) {
-  const [lang, setLangState] = useState<Lang>(initialLang ?? DEFAULT_LANG);
-
-  useEffect(() => {
-    if (initialLang === undefined) {
-      let cancelled = false;
-      loadLang().then((next) => {
-        if (!cancelled) setLangState(next);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }
-  }, [initialLang]);
+  // Read MMKV synchronously on mount — no async hydration step before first paint.
+  const [lang, setLangState] = useState<Lang>(
+    () => initialLang ?? loadLangSync(),
+  );
 
   const setLang = useCallback((newLang: Lang) => {
     setLangState(newLang);

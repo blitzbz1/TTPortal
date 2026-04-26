@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, PanResponder, Platform, Alert, RefreshControl, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, PanResponder, Platform, Alert } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -46,7 +47,10 @@ const DELETE_THRESHOLD = -80;
 
 function SwipeableRow({ children, onDelete, colors }: { children: React.ReactNode; onDelete: () => void; colors: ThemeColors }) {
   const translateX = useSharedValue(0);
-  const rowHeight = useSharedValue<number | undefined>(undefined);
+  // scaleY runs on the UI thread (native driver-safe). We avoid animating
+  // `height` because that would force a layout pass per frame on the JS
+  // thread. The row is unmounted by `onDelete` once scaleY reaches 0.
+  const rowScaleY = useSharedValue(1);
   const rowOpacity = useSharedValue(1);
   const sw = useMemo(() => createSwStyles(colors), [colors]);
   const [swiping, setSwiping] = useState(false);
@@ -68,7 +72,7 @@ function SwipeableRow({ children, onDelete, colors }: { children: React.ReactNod
       onPanResponderRelease: (_, g) => {
         if (g.dx < DELETE_THRESHOLD) {
           translateX.value = withTiming(-400, { duration: Duration.fast }, () => {
-            rowHeight.value = withTiming(0, { duration: Duration.base });
+            rowScaleY.value = withTiming(0, { duration: Duration.base });
             rowOpacity.value = withTiming(0, { duration: Duration.fast }, () => {
               runOnJS(onDelete)();
             });
@@ -86,7 +90,7 @@ function SwipeableRow({ children, onDelete, colors }: { children: React.ReactNod
   }));
 
   const containerStyle = useAnimatedStyle(() => ({
-    height: rowHeight.value,
+    transform: [{ scaleY: rowScaleY.value }],
     opacity: rowOpacity.value,
     overflow: 'hidden' as const,
   }));
@@ -272,14 +276,11 @@ export function NotificationsScreen() {
           iconColor={colors.textFaint}
         />
       ) : (
-        <FlatList
-          style={styles.scroll}
+        <FlashList
           data={notifications}
           keyExtractor={(n) => String(n.id)}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
-          initialNumToRender={10}
-          windowSize={7}
-          removeClippedSubviews
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           renderItem={({ item: n, index }) => {
             const icon = ICON_MAP[n.type] || ICON_MAP.friend_request;
             return (

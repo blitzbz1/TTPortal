@@ -18,6 +18,13 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getEvents, getEventById, getEventParticipants, joinEvent, leaveEvent, sendEventInvites } from '../services/events';
 import { getEventFeedback, getUserEventFeedbackForEvents } from '../services/eventFeedback';
+import {
+  loadCachedEvents,
+  saveCachedEvents,
+  loadCachedFeedbackGiven,
+  saveCachedFeedbackGiven,
+  type EventTabKey,
+} from '../lib/eventsCache';
 import { getFriendIds } from '../services/friends';
 import { FriendPickerModal } from '../components/FriendPickerModal';
 import { WriteEventFeedbackScreen } from './WriteEventFeedbackScreen';
@@ -119,25 +126,57 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     challenges: detailChallenges,
   } = useEventChallenges(selectedEvent?.id, user?.id);
 
-  const fetchEvents = useCallback(async () => {
+  const fetchEvents = useCallback(async (force = false) => {
     if (activeTab === 'amatur') return;
-    setLoading(true);
+    const tab = activeTab as EventTabKey;
+    const userId = user?.id;
+
+    // Cache-first for "mine" and "past": these tabs change rarely and benefit
+    // from instant render. We only show the spinner if there's no cached data
+    // to display. "upcoming" still hits the network on entry but takes the
+    // cache fast-path if it's fresh (60s TTL) to handle quick tab toggles.
+    if (!force && userId && (tab === 'mine' || tab === 'past' || tab === 'upcoming')) {
+      const cached = loadCachedEvents<EventListItem>(userId, tab);
+      if (cached) {
+        setEvents(cached.data);
+        setEventsError(false);
+        if (tab === 'past') {
+          const fb = loadCachedFeedbackGiven(userId);
+          if (fb) setFeedbackGivenIds(new Set(fb));
+        }
+        if (cached.fresh) {
+          setLoading(false);
+          return;
+        }
+        // Stale cache — show data, fetch in the background without flashing
+        // a spinner.
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+    } else {
+      setLoading(true);
+    }
     setEventsError(false);
+
     try {
-      const tab = activeTab as 'upcoming' | 'past' | 'mine';
       const { data, error } = await getEvents(
         tab,
-        (tab === 'mine' || tab === 'past') ? user?.id : undefined,
+        (tab === 'mine' || tab === 'past') ? userId : undefined,
       );
       if (error) {
         setEventsError(true);
       } else {
-        setEvents((data ?? []) as unknown as EventListItem[]);
+        const list = (data ?? []) as unknown as EventListItem[];
+        setEvents(list);
+        if (userId) saveCachedEvents(userId, tab, list);
         // Check which past events already have user feedback (single round trip).
-        if (tab === 'past' && user?.id && data?.length) {
-          const eventIds = (data as any[]).map((ev) => ev.id);
-          const { data: feedbackEventIds } = await getUserEventFeedbackForEvents(user.id, eventIds);
-          setFeedbackGivenIds(new Set(feedbackEventIds));
+        if (tab === 'past' && userId && list.length) {
+          const eventIds = list.map((ev) => ev.id);
+          const { data: feedbackEventIds } = await getUserEventFeedbackForEvents(userId, eventIds);
+          const ids = feedbackEventIds ?? [];
+          setFeedbackGivenIds(new Set(ids));
+          saveCachedFeedbackGiven(userId, ids);
         }
       }
     } catch {
@@ -163,7 +202,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     if (activeTab === 'amatur') {
       await fetchAmatur();
     } else {
-      await fetchEvents();
+      await fetchEvents(true);
     }
     setRefreshing(false);
   }, [fetchEvents, fetchAmatur, activeTab]);
