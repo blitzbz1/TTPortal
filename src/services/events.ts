@@ -55,6 +55,43 @@ export async function getEventById(eventId: number) {
     .maybeSingle();
 }
 
+export type ActiveFriendEventRow = {
+  id: number;
+  venue_id: number | null;
+  starts_at: string;
+  ends_at: string | null;
+  status: string;
+  event_participants: { user_id: string }[];
+};
+
+/**
+ * Events that are *currently in progress* and have at least one of `friendIds`
+ * as a participant. Used by the map to surface a friend-presence badge on
+ * venue markers when friends are at an event there (mirrors the live-checkin
+ * badge behavior).
+ *
+ * "In progress" = `starts_at <= now()` AND (`ends_at >= now()` OR `ends_at` is
+ * null — events without an end time are treated as in-progress for at most a
+ * few hours after start; we let the start-time gate plus the status filter
+ * keep the result set small).
+ */
+export async function getActiveFriendEvents(friendIds: string[]) {
+  if (!friendIds.length) return { data: [] as ActiveFriendEventRow[], error: null };
+  const now = new Date().toISOString();
+  // `event_participants!inner` filters events down to ones with a matching
+  // friend; the embed is restricted to those friend rows by the same
+  // .in('event_participants.user_id', ...) clause below, which is exactly
+  // what we want to read on the client.
+  return supabase
+    .from('events')
+    .select('id, venue_id, starts_at, ends_at, status, event_participants!inner(user_id)')
+    .lte('starts_at', now)
+    .or(`ends_at.gte.${now},ends_at.is.null`)
+    .not('status', 'in', '(cancelled,completed)')
+    .in('event_participants.user_id', friendIds)
+    .returns<ActiveFriendEventRow[]>();
+}
+
 export async function getEventParticipants(eventId: number) {
   return supabase
     .from('event_participants')

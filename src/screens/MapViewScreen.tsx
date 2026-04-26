@@ -21,6 +21,7 @@ import { createStyles } from './MapViewScreen.styles';
 import { getVenues } from '../services/venues';
 import { getCities } from '../services/cities';
 import { getActiveFriendCheckins } from '../services/checkins';
+import { getActiveFriendEvents } from '../services/events';
 import { getFriendIds } from '../services/friends';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
@@ -167,7 +168,9 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     })();
   }, [selectedCity]);
 
-  // Fetch active friend checkins
+  // Fetch active friend presence — checkins AND in-progress event
+  // participation. A friend at an event in progress shows the same
+  // friend-presence badge on the venue marker as a friend who has checked in.
   useEffect(() => {
     if (!user?.id) {
       setFriendCheckinVenueIds(new Set());
@@ -181,14 +184,22 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
         setActiveFriendsCount(0);
         return;
       }
-      const { data: checkins } = await getActiveFriendCheckins(fIds);
-      if (!checkins?.length) {
-        setFriendCheckinVenueIds(new Set());
-        setActiveFriendsCount(0);
-        return;
+      const [checkinsRes, eventsRes] = await Promise.all([
+        getActiveFriendCheckins(fIds),
+        getActiveFriendEvents(fIds),
+      ]);
+      const venueIds = new Set<number>();
+      const uniqueFriends = new Set<string>();
+      for (const c of (checkinsRes.data ?? []) as any[]) {
+        if (typeof c.venue_id === 'number') venueIds.add(c.venue_id);
+        if (typeof c.user_id === 'string') uniqueFriends.add(c.user_id);
       }
-      const venueIds = new Set(checkins.map((c: any) => c.venue_id as number));
-      const uniqueFriends = new Set(checkins.map((c: any) => c.user_id as string));
+      for (const ev of eventsRes.data ?? []) {
+        if (typeof ev.venue_id === 'number') venueIds.add(ev.venue_id);
+        for (const p of ev.event_participants ?? []) {
+          if (typeof p.user_id === 'string') uniqueFriends.add(p.user_id);
+        }
+      }
       setFriendCheckinVenueIds(venueIds);
       setActiveFriendsCount(uniqueFriends.size);
     })();
