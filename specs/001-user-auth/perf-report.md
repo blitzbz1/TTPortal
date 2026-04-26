@@ -1,5 +1,10 @@
 # Performance Improvement Report — 2026-04-26
 
+> Round 2 (same date) extends this report with additional findings surfaced by
+> a follow-up audit; see the **Round 2** section at the bottom.
+
+## Round 1
+
 Implements the plan at `~/.claude/plans/adaptive-gliding-bee.md`.
 
 ## Measurement methodology
@@ -63,3 +68,51 @@ PostgREST cache picks up the new relationships without a restart.
     the new embed shape.
 - `npm run typecheck` — clean for `src/`.
 - `npm run lint` — 0 errors, 0 warnings.
+
+---
+
+## Round 2
+
+A second pass surfaced opportunities outside the screens touched in Round 1.
+Same methodology — service-layer round-trip counts and JS microbenchmarks
+where applicable. All Round 1 wins stand.
+
+### Results
+
+| Issue | Where | Before | After | Win |
+|---|---|---|---|---|
+| 9. Notifications sender N+1 | `services/notifications.ts:getNotifications` | 2 round trips (notifications → profiles) | 1 (embed via FK) | -50% RTT |
+| 10. Weekly leaderboard fetched-and-aggregated client-side | `services/leaderboard.ts:queryWeekly{Checkins,Reviews,Venues}` | Pulled every checkin/review/venue since `since` and grouped/sorted in JS — JS fallback was the only path because the RPC didn't exist | Three SQL RPCs return top-20 ranked rows server-side; client-side fallback retained as a safety net | bandwidth + CPU cut to a constant-size response |
+| 11. NotificationsScreen long list inside ScrollView | `screens/NotificationsScreen.tsx:272` | `notifications.map()` inside a `ScrollView` — every row mounted on first render | `FlatList` with `initialNumToRender=10`, `windowSize=7`, `removeClippedSubviews`, `keyExtractor` | windowed mount cost |
+| 12. LeaderboardsScreen rank list inside ScrollView | `screens/LeaderboardsScreen.tsx:211` | `rankEntries.map()` inside `ScrollView` | Outer container is a `FlatList`; period toggle/tabs/podium are `ListHeaderComponent`, `myEntry` is `ListFooterComponent` | windowed mount cost |
+| 13. `formatTime` per row per render | `screens/NotificationsScreen.tsx:226`, `screens/ActivityFeedScreen.tsx:53` | New function identity each render; `Date` object per notification per frame | `useCallback` with stable deps; memoized `unreadCount` | avoids O(n) `Date` allocation per frame |
+| 14. `new Date(ci.started_at)` per row | `screens/FriendsScreen.tsx:419-422` | `Date` constructed + `toLocaleTimeString` for every playing friend on every render | `playingFriendsWithTime` pre-parses once per data update via `useMemo` | linear → constant per render |
+| 15. `getInitials` / `getScoreLabel` / podium reorder rebuilt per render | `screens/LeaderboardsScreen.tsx:75-98` | New function identities + arrays each render | `useCallback` for the helpers; `useMemo` for `{ podiumDisplay, rankEntries, myEntry }` | identity-stable inputs to FlatList renderer |
+| 16. `getProfile` `select('*')` | `services/profiles.ts:getProfile` | Wildcard select | Explicit column list (`id, full_name, email, avatar_url, city, lang, auth_provider, created_at, username, is_admin`) | smaller payloads/parse |
+| 17. `AVATAR_COLORS` rebuilt per render | `screens/FriendsScreen.tsx:249-250` | New array + new function identity per render | `useMemo` keyed on `colors`, `useCallback` keyed on the array | only recomputes on theme change |
+
+### False positives from the audit (verified against current code)
+
+- `services/favorites.ts:6` — already narrows the embedded `venues(id, name, city, type, condition)`; no change needed.
+- `LeaderboardsScreen.tsx` `ICON_MAP` and `VenueDetailScreen.tsx:visibleReviews` — already memoized correctly.
+
+### Schema changes (Round 2)
+
+- `supabase/migrations/039_notifications_sender_profile_fk.sql` — adds the
+  `notifications.sender_id → public.profiles(id)` FK (idempotent, ends with
+  `NOTIFY pgrst, 'reload schema'`). `ON DELETE SET NULL` mirrors the existing
+  auth.users FK.
+- `supabase/migrations/040_weekly_leaderboard_rpcs.sql` — defines the three
+  `weekly_leaderboard_*` SQL functions (`STABLE`, `LANGUAGE sql`,
+  `SECURITY INVOKER` so RLS still applies) and grants `EXECUTE` to
+  `authenticated` and `anon`. The `weekly_leaderboard_checkins` name was
+  already referenced from JS but never existed as a function — the JS
+  fallback path was effectively the production path until this migration.
+
+### Verification (Round 2)
+
+- `npm test` — 90 suites / 664 tests pass (Round 1 added 5 perf-bench suites
+  and 6 tests; Round 2 added no new tests but kept all existing green).
+- `npm run typecheck` — clean for `src/`.
+- `npm run lint` — 0 errors; one pre-existing warning at
+  `FriendsScreen.tsx:179` is unrelated to perf work.

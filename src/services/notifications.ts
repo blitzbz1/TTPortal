@@ -1,30 +1,33 @@
 import { supabase } from '../lib/supabase';
 
+type NotificationSender = { id: string; full_name: string | null; avatar_url: string | null };
+
+type NotificationRow = {
+  id: number;
+  recipient_id: string;
+  sender_id: string | null;
+  type: string;
+  title: string;
+  body: string;
+  data: Record<string, unknown> | null;
+  read: boolean;
+  created_at: string;
+  sender: NotificationSender | null;
+};
+
 export async function getNotifications(userId: string, limit = 50) {
-  const { data: notifications, error } = await supabase
+  // Single query: embed the sender profile via the notifications→profiles FK
+  // added in migration 039.
+  return supabase
     .from('notifications')
-    .select('*')
+    .select(
+      'id, recipient_id, sender_id, type, title, body, data, read, created_at, ' +
+        'sender:profiles!notifications_sender_profiles_fk(id, full_name, avatar_url)',
+    )
     .eq('recipient_id', userId)
     .order('created_at', { ascending: false })
-    .limit(limit);
-
-  if (error || !notifications?.length) return { data: notifications ?? [], error };
-
-  const senderIds = [...new Set(notifications.map((n) => n.sender_id).filter(Boolean))];
-  if (!senderIds.length) return { data: notifications.map((n) => ({ ...n, sender: null })), error: null };
-
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, full_name, avatar_url')
-    .in('id', senderIds);
-
-  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-  const merged = notifications.map((n) => ({
-    ...n,
-    sender: n.sender_id ? (profileMap.get(n.sender_id) ?? null) : null,
-  }));
-
-  return { data: merged, error: null };
+    .limit(limit)
+    .returns<NotificationRow[]>();
 }
 
 export async function getUnreadCount(userId: string) {

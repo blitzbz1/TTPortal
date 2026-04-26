@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, PanResponder, Platform, Alert, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, PanResponder, Platform, Alert, RefreshControl, FlatList } from 'react-native';
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -223,7 +223,7 @@ export function NotificationsScreen() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   }, [clearAll]);
 
-  const formatTime = (dateStr: string) => {
+  const formatTime = useCallback((dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return s('justNow');
@@ -232,9 +232,12 @@ export function NotificationsScreen() {
     if (hours < 24) return `${hours}h`;
     const days = Math.floor(hours / 24);
     return `${days}d`;
-  };
+  }, [s]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = useMemo(
+    () => notifications.reduce((acc, n) => acc + (n.read ? 0 : 1), 0),
+    [notifications],
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -269,11 +272,18 @@ export function NotificationsScreen() {
           iconColor={colors.textFaint}
         />
       ) : (
-        <ScrollView style={styles.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
-          {notifications.map((n, index) => {
+        <FlatList
+          style={styles.scroll}
+          data={notifications}
+          keyExtractor={(n) => String(n.id)}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
+          initialNumToRender={10}
+          windowSize={7}
+          removeClippedSubviews
+          renderItem={({ item: n, index }) => {
             const icon = ICON_MAP[n.type] || ICON_MAP.friend_request;
             return (
-              <Animated.View key={n.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
+              <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
                 <SwipeableRow onDelete={() => handleDelete(n.id)} colors={colors}>
                   <TouchableOpacity
                     style={[styles.card, !n.read && styles.cardUnread]}
@@ -311,8 +321,8 @@ export function NotificationsScreen() {
                 </SwipeableRow>
               </Animated.View>
             );
-          })}
-        </ScrollView>
+          }}
+        />
       )}
     </SafeAreaView>
   );

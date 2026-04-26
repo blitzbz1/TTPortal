@@ -4,7 +4,7 @@ import type { Profile } from '../types/database';
 export async function getProfile(userId: string) {
   return supabase
     .from('profiles')
-    .select('*')
+    .select('id, full_name, email, avatar_url, city, lang, auth_provider, created_at, username, is_admin')
     .eq('id', userId)
     .single();
 }

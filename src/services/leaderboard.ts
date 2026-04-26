@@ -31,25 +31,23 @@ async function getWeeklyLeaderboard(
   city?: string,
 ) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const rpcName =
+    type === 'checkins'
+      ? 'weekly_leaderboard_checkins'
+      : type === 'reviews'
+        ? 'weekly_leaderboard_reviews'
+        : 'weekly_leaderboard_venues';
 
-  if (type === 'checkins') {
-    const { data, error } = await supabase
-      .rpc('weekly_leaderboard_checkins', { since: sevenDaysAgo })
-      .limit(20);
+  const { data, error } = await supabase.rpc(rpcName, { since: sevenDaysAgo });
 
-    if (error) {
-      // Fallback: query directly
-      return queryWeeklyCheckins(sevenDaysAgo, city);
-    }
-    return { data: data ?? [], error: null };
+  if (error) {
+    // Fallback: client-side aggregation. Should be rare — the RPCs were added
+    // in migration 040 and grant EXECUTE to authenticated and anon.
+    if (type === 'checkins') return queryWeeklyCheckins(sevenDaysAgo, city);
+    if (type === 'reviews') return queryWeeklyReviews(sevenDaysAgo, city);
+    return queryWeeklyVenues(sevenDaysAgo, city);
   }
-
-  if (type === 'reviews') {
-    return queryWeeklyReviews(sevenDaysAgo, city);
-  }
-
-  // venues
-  return queryWeeklyVenues(sevenDaysAgo, city);
+  return { data: data ?? [], error: null };
 }
 
 async function queryWeeklyCheckins(since: string, _city?: string) {

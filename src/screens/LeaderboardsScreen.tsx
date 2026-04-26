@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl, FlatList } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -72,7 +72,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
     fetchLeaderboard();
   }, [fetchLeaderboard]);
 
-  const getInitials = (name?: string) => {
+  const getInitials = useCallback((name?: string) => {
     if (!name) return '?';
     return name
       .split(' ')
@@ -80,25 +80,25 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
       .join('')
       .slice(0, 2)
       .toUpperCase();
-  };
+  }, []);
 
-  const getScoreLabel = (entry: any) => {
+  const getScoreLabel = useCallback((entry: any) => {
     if (activeTab === 'checkins') return `${entry.total_checkins ?? entry.score ?? 0} ${s('checkins').toLowerCase()}`;
     if (activeTab === 'reviews') return `${entry.total_reviews ?? entry.score ?? 0} ${s('reviews').toLowerCase()}`;
     return `${entry.unique_venues ?? entry.score ?? 0} ${s('locations').toLowerCase()}`;
-  };
+  }, [activeTab, s]);
 
-  // Split into top 3 (podium) and rest
-  const podiumEntries = entries.slice(0, 3);
-  const rankEntries = entries.slice(3);
-
-  // Reorder podium for display: [2nd, 1st, 3rd]
-  const podiumDisplay = podiumEntries.length >= 3
-    ? [podiumEntries[1], podiumEntries[0], podiumEntries[2]]
-    : podiumEntries;
-
-  // Find current user's rank
-  const myEntry = entries.find((e) => e.user_id === user?.id);
+  // Memoized so identity-stable arrays flow into the FlatList renderer.
+  const { podiumDisplay, rankEntries, myEntry } = useMemo(() => {
+    const top3 = entries.slice(0, 3);
+    const rest = entries.slice(3);
+    const podium = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3;
+    return {
+      podiumDisplay: podium,
+      rankEntries: rest,
+      myEntry: entries.find((e) => e.user_id === user?.id),
+    };
+  }, [entries, user?.id]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -114,102 +114,139 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
-        {/* Period Toggle */}
-        <View style={styles.periodWrap}>
-          <View style={styles.periodToggle}>
-            {([
-              { key: 'week' as const, label: s('periodWeek') },
-              { key: 'all' as const, label: s('periodAll') },
-            ]).map((opt) => (
-              <TouchableOpacity
-                key={opt.key}
-                style={[styles.periodOption, period === opt.key && styles.periodOptionActive]}
-                onPress={() => { hapticSelection(); setPeriod(opt.key); }}
-              >
-                <Text style={[styles.periodText, period === opt.key && styles.periodTextActive]}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Tabs */}
-        <View style={styles.tabs}>
-          {[
-            { key: 'checkins' as LBTab, label: s('checkins') },
-            { key: 'reviews' as LBTab, label: s('reviews') },
-            { key: 'locations' as LBTab, label: s('locations') },
-          ].map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              style={[styles.tab, activeTab === tab.key && styles.tabActive]}
-              onPress={() => setActiveTab(tab.key)}
-            >
-              <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {loading ? (
-          <LeaderboardSkeleton />
-        ) : entries.length === 0 ? (
-          <EmptyState
-            icon="trophy"
-            title={s('emptyLeaderboardTitle')}
-            description={s('emptyLeaderboardDesc')}
-            iconColor={colors.accent}
-            iconBg={colors.amberPale}
-          />
-        ) : (
+      {(() => {
+        const Header = (
           <>
-            {/* Podium */}
-            <View style={styles.podium}>
-              {podiumDisplay.map((p, idx) => {
-                const rank = p.rank ?? (idx + 1);
-                const isHighlight = rank === 1;
-                const size = isHighlight ? 64 : 52;
-                const color = COLOR_BY_RANK[rank] ?? colors.primary;
-
-                return (
-                  <View key={p.user_id ?? idx} style={[styles.podiumItem, { width: isHighlight ? 100 : 90 }]}>
-                    <Text style={styles.podiumRank}>{MEDAL_BY_RANK[rank] ?? ''}</Text>
-                    <View
-                      style={[
-                        styles.podiumAvatar,
-                        {
-                          width: size,
-                          height: size,
-                          borderRadius: size / 2,
-                          backgroundColor: color,
-                        },
-                        isHighlight && styles.podiumAvatarHighlight,
-                      ]}
-                    >
-                      <Text style={[styles.podiumInitials, { fontSize: isHighlight ? 22 : 18 }]}>
-                        {getInitials(p.full_name)}
-                      </Text>
-                    </View>
-                    <Text style={[styles.podiumName, isHighlight && styles.podiumNameHighlight]}>
-                      {p.full_name
-                        ? `${p.full_name.split(' ')[0]} ${(p.full_name.split(' ')[1] ?? '')[0] ?? ''}.`
-                        : s('user')}
+            {/* Period Toggle */}
+            <View style={styles.periodWrap}>
+              <View style={styles.periodToggle}>
+                {([
+                  { key: 'week' as const, label: s('periodWeek') },
+                  { key: 'all' as const, label: s('periodAll') },
+                ]).map((opt) => (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[styles.periodOption, period === opt.key && styles.periodOptionActive]}
+                    onPress={() => { hapticSelection(); setPeriod(opt.key); }}
+                  >
+                    <Text style={[styles.periodText, period === opt.key && styles.periodTextActive]}>
+                      {opt.label}
                     </Text>
-                    <Text style={[styles.podiumScore, isHighlight && styles.podiumScoreHighlight]}>
-                      {getScoreLabel(p)}
-                    </Text>
-                  </View>
-                );
-              })}
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
-            {/* Rank List */}
-            <View style={styles.rankList}>
-              {rankEntries.map((r, idx) => (
-                <Animated.View key={r.user_id ?? idx} entering={FadeInDown.delay(Math.min(idx, 8) * 60).duration(300)}>
+            {/* Tabs */}
+            <View style={styles.tabs}>
+              {[
+                { key: 'checkins' as LBTab, label: s('checkins') },
+                { key: 'reviews' as LBTab, label: s('reviews') },
+                { key: 'locations' as LBTab, label: s('locations') },
+              ].map((tab) => (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={[styles.tab, activeTab === tab.key && styles.tabActive]}
+                  onPress={() => setActiveTab(tab.key)}
+                >
+                  <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {!loading && entries.length > 0 && (
+              <View style={styles.podium}>
+                {podiumDisplay.map((p, idx) => {
+                  const rank = p.rank ?? (idx + 1);
+                  const isHighlight = rank === 1;
+                  const size = isHighlight ? 64 : 52;
+                  const color = COLOR_BY_RANK[rank] ?? colors.primary;
+                  return (
+                    <View key={p.user_id ?? idx} style={[styles.podiumItem, { width: isHighlight ? 100 : 90 }]}>
+                      <Text style={styles.podiumRank}>{MEDAL_BY_RANK[rank] ?? ''}</Text>
+                      <View
+                        style={[
+                          styles.podiumAvatar,
+                          { width: size, height: size, borderRadius: size / 2, backgroundColor: color },
+                          isHighlight && styles.podiumAvatarHighlight,
+                        ]}
+                      >
+                        <Text style={[styles.podiumInitials, { fontSize: isHighlight ? 22 : 18 }]}>
+                          {getInitials(p.full_name)}
+                        </Text>
+                      </View>
+                      <Text style={[styles.podiumName, isHighlight && styles.podiumNameHighlight]}>
+                        {p.full_name
+                          ? `${p.full_name.split(' ')[0]} ${(p.full_name.split(' ')[1] ?? '')[0] ?? ''}.`
+                          : s('user')}
+                      </Text>
+                      <Text style={[styles.podiumScore, isHighlight && styles.podiumScoreHighlight]}>
+                        {getScoreLabel(p)}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </>
+        );
+
+        const Footer = !loading && entries.length > 0 && myEntry ? (
+          <View style={styles.myRank}>
+            <Text style={styles.myNum}>{myEntry.rank ?? '—'}</Text>
+            <View style={[styles.rankAvatar, { backgroundColor: colors.primary }]}>
+              <Text style={styles.rankInitials}>
+                {getInitials(myEntry.full_name ?? user?.user_metadata?.full_name)}
+              </Text>
+            </View>
+            <View style={styles.rankInfo}>
+              <Text style={styles.myName}>
+                {s('you')} — {myEntry.full_name ?? user?.user_metadata?.full_name ?? s('user')}
+              </Text>
+              <Text style={styles.myScore}>{getScoreLabel(myEntry)}</Text>
+            </View>
+            <Lucide name="trending-up" size={18} color={colors.primaryLight} />
+          </View>
+        ) : null;
+
+        if (loading) {
+          return (
+            <ScrollView style={styles.scroll}>
+              {Header}
+              <LeaderboardSkeleton />
+            </ScrollView>
+          );
+        }
+        if (entries.length === 0) {
+          return (
+            <ScrollView style={styles.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
+              {Header}
+              <EmptyState
+                icon="trophy"
+                title={s('emptyLeaderboardTitle')}
+                description={s('emptyLeaderboardDesc')}
+                iconColor={colors.accent}
+                iconBg={colors.amberPale}
+              />
+            </ScrollView>
+          );
+        }
+        return (
+          <FlatList
+            style={styles.scroll}
+            data={rankEntries}
+            keyExtractor={(r, idx) => r.user_id ?? String(idx)}
+            ListHeaderComponent={Header}
+            ListFooterComponent={Footer}
+            initialNumToRender={10}
+            windowSize={7}
+            removeClippedSubviews
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
+            renderItem={({ item: r, index: idx }) => (
+              <View style={styles.rankList}>
+                <Animated.View entering={FadeInDown.delay(Math.min(idx, 8) * 60).duration(300)}>
                   <View style={styles.rankRow}>
                     <Text style={styles.rankNum}>{r.rank ?? idx + 4}</Text>
                     <View style={[styles.rankAvatar, { backgroundColor: PODIUM_COLORS[idx % PODIUM_COLORS.length] }]}>
@@ -221,30 +258,11 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
                     </View>
                   </View>
                 </Animated.View>
-              ))}
-            </View>
-
-            {/* My Rank */}
-            {myEntry && (
-              <View style={styles.myRank}>
-                <Text style={styles.myNum}>{myEntry.rank ?? '—'}</Text>
-                <View style={[styles.rankAvatar, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.rankInitials}>
-                    {getInitials(myEntry.full_name ?? user?.user_metadata?.full_name)}
-                  </Text>
-                </View>
-                <View style={styles.rankInfo}>
-                  <Text style={styles.myName}>
-                    {s('you')} — {myEntry.full_name ?? user?.user_metadata?.full_name ?? s('user')}
-                  </Text>
-                  <Text style={styles.myScore}>{getScoreLabel(myEntry)}</Text>
-                </View>
-                <Lucide name="trending-up" size={18} color={colors.primaryLight} />
               </View>
             )}
-          </>
-        )}
-      </ScrollView>
+          />
+        );
+      })()}
 
 
       <CityPickerModal

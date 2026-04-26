@@ -41,6 +41,20 @@ export function FriendsScreen() {
   const { colors } = useTheme();
   const { styles, im } = useMemo(() => createStyles(colors), [colors]);
 
+  // Pre-parse start timestamps once per friends update — avoids creating a Date
+  // and calling toLocaleTimeString for every row on every render.
+  const playingFriendsWithTime = useMemo(
+    () =>
+      playingFriends.map((f: any) => {
+        const startedAt = f?.checkin?.started_at;
+        const timeStr = startedAt
+          ? new Date(startedAt).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
+          : '';
+        return { ...f, _timeStr: timeStr };
+      }),
+    [playingFriends],
+  );
+
   const fetchData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -232,8 +246,14 @@ export function FriendsScreen() {
       .toUpperCase();
   };
 
-  const AVATAR_COLORS = [colors.primary, colors.primaryMid, colors.purple, colors.purpleMid, colors.accent, colors.blue, colors.textMuted];
-  const getColor = (index: number) => AVATAR_COLORS[index % AVATAR_COLORS.length];
+  const AVATAR_COLORS = useMemo(
+    () => [colors.primary, colors.primaryMid, colors.purple, colors.purpleMid, colors.accent, colors.blue, colors.textMuted],
+    [colors],
+  );
+  const getColor = useCallback(
+    (index: number) => AVATAR_COLORS[index % AVATAR_COLORS.length],
+    [AVATAR_COLORS],
+  );
 
   const openPlayerProfile = useCallback((profile: any) => {
     if (!profile?.id) return;
@@ -411,15 +431,12 @@ export function FriendsScreen() {
                     iconBg={colors.primaryPale}
                   />
                 ) : (
-                  playingFriends.map((friendItem, index) => {
+                  playingFriendsWithTime.map((friendItem, index) => {
                     const profile = friendItem.friend;
                     const ci = friendItem.checkin;
                     const venueName = ci?.venues?.name ?? '';
                     const venueCity = ci?.venues?.city ?? '';
-                    const startedAt = ci?.started_at ? new Date(ci.started_at) : null;
-                    const timeStr = startedAt
-                      ? startedAt.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
-                      : '';
+                    const timeStr = friendItem._timeStr;
                     return (
                       <Animated.View key={friendItem.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
                         <TouchableOpacity activeOpacity={0.78} onPress={() => openPlayerProfile(profile)}>

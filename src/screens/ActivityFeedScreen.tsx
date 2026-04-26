@@ -50,7 +50,7 @@ export function ActivityFeedScreen() {
     setRefreshing(false);
   }, [fetchFeed]);
 
-  const formatTime = (dateStr: string) => {
+  const formatTime = useCallback((dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return s('justNow');
@@ -59,13 +59,13 @@ export function ActivityFeedScreen() {
     if (hours < 24) return `${hours}h`;
     const days = Math.floor(hours / 24);
     return `${days}d`;
-  };
+  }, [s]);
 
-  const renderStars = (rating: number) => {
+  const renderStars = useCallback((rating: number) => {
     const full = Math.floor(rating);
     const empty = 5 - full;
     return '\u2605'.repeat(full) + '\u2606'.repeat(empty);
-  };
+  }, []);
 
   if (!user) {
     return (
