@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, Modal, Pressable, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, Modal, Pressable, KeyboardAvoidingView, Platform, RefreshControl, Linking } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -8,12 +8,15 @@ import { useTheme } from '../hooks/useTheme';
 import { createStyles } from './FriendsScreen.styles';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getFriends, getPendingRequests, acceptRequest, declineRequest, searchUsers, sendRequest } from '../services/friends';
+import { getFriends, getPendingRequests, acceptRequest, declineRequest, findUserByUsername, getFriendshipBetweenUsers, sendRequest } from '../services/friends';
 import { getActiveFriendCheckins } from '../services/checkins';
 import { Card } from '../components/Card';
 import { EmptyState } from '../components/EmptyState';
+import { isValidEmail } from '../lib/auth-utils';
 
 type FriendsTab = 'all' | 'playing' | 'pending';
+type AddFriendResult = 'idle' | 'sent' | 'not_found' | 'already_friends' | 'already_pending' | 'incoming_pending' | 'self' | 'error';
+type InviteEmailResult = 'idle' | 'sent' | 'invalid' | 'error';
 
 export function FriendsScreen() {
   const [activeTab, setActiveTab] = useState<FriendsTab>('all');
@@ -24,8 +27,12 @@ export function FriendsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteLoading, setInviteLoading] = useState(false);
-  const [inviteResult, setInviteResult] = useState<'idle' | 'sent' | 'not_found' | 'already_friends' | 'error'>('idle');
+  const [inviteEmailLoading, setInviteEmailLoading] = useState(false);
+  const [inviteEmailResult, setInviteEmailResult] = useState<InviteEmailResult>('idle');
+  const [addFriendModalVisible, setAddFriendModalVisible] = useState(false);
+  const [enteredUsername, setEnteredUsername] = useState('');
+  const [addFriendLoading, setAddFriendLoading] = useState(false);
+  const [addFriendResult, setAddFriendResult] = useState<AddFriendResult>('idle');
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useSession();
   const router = useRouter();
@@ -55,19 +62,16 @@ export function FriendsScreen() {
         setPending(pendingRes.data);
       }
 
-      // Fetch active checkins for friends
       if (normalizedFriends.length > 0) {
         const friendIds = normalizedFriends.map((f: any) =>
           f.requester_id === user.id ? f.addressee_id : f.requester_id,
         );
         const { data: checkins } = await getActiveFriendCheckins(friendIds);
         if (checkins?.length) {
-          // Build a map: friend user_id -> checkin info
           const checkinMap = new Map<string, any>();
           for (const c of checkins) {
             if (!checkinMap.has(c.user_id)) checkinMap.set(c.user_id, c);
           }
-          // Match with friend profiles
           const playing = normalizedFriends
             .filter((f: any) => {
               const fid = f.requester_id === user.id ? f.addressee_id : f.requester_id;
@@ -81,12 +85,13 @@ export function FriendsScreen() {
         } else {
           setPlayingFriends([]);
         }
+      } else {
+        setPlayingFriends([]);
       }
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -106,7 +111,7 @@ export function FriendsScreen() {
       return;
     }
     fetchData();
-  }, [fetchData, user, s]);
+  }, [fetchData, s, user]);
 
   const handleDecline = useCallback(async (id: number) => {
     if (!user) return;
@@ -116,58 +121,111 @@ export function FriendsScreen() {
       return;
     }
     setPending((prev) => prev.filter((p) => p.id !== id));
-  }, [user, s]);
+  }, [s, user]);
+
+  const handleOpenAddFriend = useCallback(() => {
+    setEnteredUsername('');
+    setAddFriendResult('idle');
+    setAddFriendModalVisible(true);
+  }, []);
 
   const handleInvite = useCallback(() => {
     setInviteEmail('');
-    setInviteResult('idle');
+    setInviteEmailResult('idle');
     setInviteModalVisible(true);
   }, []);
 
+  const handleSendInviteEmail = useCallback(async () => {
+    const normalizedEmail = inviteEmail.trim().toLowerCase();
+    if (!normalizedEmail) return;
 
-  const handleSendInvite = useCallback(async () => {
-    if (!user || !inviteEmail.trim()) return;
-    setInviteLoading(true);
-    setInviteResult('idle');
-
-    // Look up users by name
-    const { data: results } = await searchUsers(inviteEmail.trim());
-
-    if (!results || results.length === 0) {
-      setInviteResult('not_found');
-      setInviteLoading(false);
+    if (!isValidEmail(normalizedEmail)) {
+      setInviteEmailResult('invalid');
       return;
     }
 
-    // Use the first matching result
-    const target = results[0];
+    setInviteEmailLoading(true);
+    setInviteEmailResult('idle');
+
+    try {
+      const subject = encodeURIComponent(s('inviteEmailSubject'));
+      const body = encodeURIComponent(s('inviteEmailBody'));
+      const mailtoUrl = `mailto:${normalizedEmail}?subject=${subject}&body=${body}`;
+      const supported = await Linking.canOpenURL(mailtoUrl);
+
+      if (!supported) {
+        setInviteEmailLoading(false);
+        setInviteEmailResult('error');
+        return;
+      }
+
+      await Linking.openURL(mailtoUrl);
+      setInviteEmailLoading(false);
+      setInviteEmailResult('sent');
+      setInviteEmail('');
+    } catch {
+      setInviteEmailLoading(false);
+      setInviteEmailResult('error');
+    }
+  }, [inviteEmail, s]);
+
+  const handleSendFriendRequest = useCallback(async () => {
+    if (!user || !enteredUsername.trim()) return;
+
+    setAddFriendLoading(true);
+    setAddFriendResult('idle');
+
+    const normalizedUsername = enteredUsername.trim().replace(/^@+/, '').toLowerCase();
+    const { data: target, error: lookupError } = await findUserByUsername(normalizedUsername);
+
+    if (lookupError) {
+      setAddFriendLoading(false);
+      setAddFriendResult('error');
+      return;
+    }
+
+    if (!target) {
+      setAddFriendLoading(false);
+      setAddFriendResult('not_found');
+      return;
+    }
 
     if (target.id === user.id) {
-      setInviteResult('error');
-      setInviteLoading(false);
+      setAddFriendLoading(false);
+      setAddFriendResult('self');
       return;
     }
 
-    // Check if already friends
-    const friendIdSet = new Set(friends.map((f: any) =>
-      f.requester_id === user.id ? f.addressee_id : f.requester_id,
-    ));
-    if (friendIdSet.has(target.id)) {
-      setInviteResult('already_friends');
-      setInviteLoading(false);
+    const { data: existingFriendship, error: friendshipError } = await getFriendshipBetweenUsers(user.id, target.id);
+    if (friendshipError) {
+      setAddFriendLoading(false);
+      setAddFriendResult('error');
+      return;
+    }
+
+    if (existingFriendship?.status === 'accepted') {
+      setAddFriendLoading(false);
+      setAddFriendResult('already_friends');
+      return;
+    }
+
+    if (existingFriendship?.status === 'pending') {
+      setAddFriendLoading(false);
+      setAddFriendResult(existingFriendship.requester_id === user.id ? 'already_pending' : 'incoming_pending');
       return;
     }
 
     const { error } = await sendRequest(user.id, target.id);
-    setInviteLoading(false);
+    setAddFriendLoading(false);
     if (error) {
-      setInviteResult('error');
+      setAddFriendResult('error');
       return;
     }
-    setInviteResult('sent');
-    setInviteEmail('');
-    fetchData(); // Refresh lists
-  }, [user, inviteEmail, friends, fetchData]);
+
+    setAddFriendResult('sent');
+    setEnteredUsername('');
+    fetchData();
+  }, [enteredUsername, fetchData, user]);
 
   const getInitials = (name?: string) => {
     if (!name) return '?';
@@ -187,7 +245,6 @@ export function FriendsScreen() {
     router.push(`/(protected)/player/${profile.id}` as any);
   }, [router]);
 
-  // Filter friends by search query
   const filteredFriends = friends.filter((f) => {
     if (!searchQuery) return true;
     const name = f.friend?.full_name ?? '';
@@ -196,20 +253,43 @@ export function FriendsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Lucide name="arrow-left" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('friendsTitle')}</Text>
         <TouchableOpacity style={styles.inviteBtn} onPress={handleInvite}>
-          <Lucide name="user-plus" size={16} color={colors.textOnPrimary} />
+          <Lucide name="mail" size={16} color={colors.textOnPrimary} />
           <Text style={styles.inviteBtnText}>{s('invite')}</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scroll} keyboardDismissMode="on-drag" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
-        {/* Search friends */}
+      <ScrollView
+        style={styles.scroll}
+        keyboardDismissMode="on-drag"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
+      >
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={styles.actionCard} onPress={handleOpenAddFriend} activeOpacity={0.85}>
+            <View style={[styles.actionIconWrap, { backgroundColor: colors.primaryPale }]}>
+              <Lucide name="user-plus" size={18} color={colors.primaryMid} />
+            </View>
+            <View style={styles.actionCopy}>
+              <Text style={styles.actionTitle}>{s('addFriend')}</Text>
+              <Text style={styles.actionDesc}>{s('addFriendDesc')}</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionCard} onPress={handleInvite} activeOpacity={0.85}>
+            <View style={[styles.actionIconWrap, { backgroundColor: colors.amberPale }]}>
+              <Lucide name="send" size={18} color={colors.accent} />
+            </View>
+            <View style={styles.actionCopy}>
+              <Text style={styles.actionTitle}>{s('inviteFriends')}</Text>
+              <Text style={styles.actionDesc}>{s('inviteDesc')}</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.searchWrap}>
           <View style={styles.searchBar}>
             <Lucide name="search" size={18} color={colors.textFaint} />
@@ -228,7 +308,6 @@ export function FriendsScreen() {
           </View>
         </View>
 
-        {/* Tabs */}
         <View style={styles.tabs}>
           {[
             { key: 'all' as FriendsTab, label: `${s('allFriends')} (${friends.length})` },
@@ -251,7 +330,6 @@ export function FriendsScreen() {
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
         ) : (
           <>
-            {/* Pending Invites */}
             {pending.length > 0 && (activeTab === 'all' || activeTab === 'pending') && (
               <View style={styles.section}>
                 <Text style={styles.sectionLabel}>{s('receivedInvites')}</Text>
@@ -286,7 +364,6 @@ export function FriendsScreen() {
               </View>
             )}
 
-            {/* Friends List (All tab) */}
             {activeTab === 'all' && (
               <View style={styles.section}>
                 <View style={styles.friendsLabel}>
@@ -302,7 +379,7 @@ export function FriendsScreen() {
                     title={searchQuery ? s('noFriendFound') : s('emptyFriendsTitle')}
                     description={searchQuery ? s('emptySearchDesc') : s('emptyFriendsDesc')}
                     ctaLabel={searchQuery ? undefined : s('emptyFriendsCta')}
-                    onCtaPress={searchQuery ? undefined : handleInvite}
+                    onCtaPress={searchQuery ? undefined : handleOpenAddFriend}
                     iconColor={colors.purple}
                     iconBg={colors.purplePale}
                   />
@@ -338,7 +415,6 @@ export function FriendsScreen() {
               </View>
             )}
 
-            {/* Playing Friends (La joc tab) */}
             {activeTab === 'playing' && (
               <View style={styles.section}>
                 {playingFriends.length === 0 ? (
@@ -375,14 +451,14 @@ export function FriendsScreen() {
                                 {profile?.full_name ?? s('user')}
                               </Text>
                               <Text style={styles.playingVenue} numberOfLines={1}>
-                                📍 {venueName}{venueCity ? `, ${venueCity}` : ''}
+                                {venueName}{venueCity ? `, ${venueCity}` : ''}
                               </Text>
                               <Text style={styles.playingTime}>
                                 {s('checkedInSince')} {timeStr}
                               </Text>
                             </View>
                             <View style={styles.playingBadge}>
-                              <Text style={styles.playingBadgeText}>🏓</Text>
+                              <Lucide name="activity" size={16} color={colors.primaryMid} />
                             </View>
                           </Card>
                         </TouchableOpacity>
@@ -392,78 +468,166 @@ export function FriendsScreen() {
                 )}
               </View>
             )}
-
           </>
         )}
       </ScrollView>
 
-      {/* Invite by Email Modal */}
+      <Modal visible={addFriendModalVisible} transparent animationType="slide" onRequestClose={() => setAddFriendModalVisible(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <Pressable style={im.overlay} onPress={() => setAddFriendModalVisible(false)}>
+            <Pressable style={im.sheet} onPress={() => {}}>
+              <View style={im.handleWrap}><View style={im.handle} /></View>
+              <Text style={im.title}>{s('addFriend')}</Text>
+              <Text style={im.desc}>{s('addFriendModalDesc')}</Text>
+
+              <View style={im.inputRow}>
+                <TextInput
+                  style={im.input}
+                  placeholder={s('addFriendPlaceholder')}
+                  placeholderTextColor={colors.textFaint}
+                  value={enteredUsername}
+                  onChangeText={(value) => {
+                    setEnteredUsername(value);
+                    setAddFriendResult('idle');
+                  }}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoFocus
+                />
+              </View>
+
+              {addFriendResult === 'sent' && (
+                <View style={im.resultRow}>
+                  <Lucide name="check-circle" size={16} color={colors.primaryMid} />
+                  <Text style={[im.resultText, { color: colors.primaryMid }]}>{s('friendRequestSent')}</Text>
+                </View>
+              )}
+              {addFriendResult === 'not_found' && (
+                <View style={im.resultRow}>
+                  <Lucide name="alert-circle" size={16} color={colors.accent} />
+                  <Text style={[im.resultText, { color: colors.accent }]}>{s('usernameNotFound')}</Text>
+                </View>
+              )}
+              {addFriendResult === 'already_friends' && (
+                <View style={im.resultRow}>
+                  <Lucide name="users" size={16} color={colors.textFaint} />
+                  <Text style={[im.resultText, { color: colors.textFaint }]}>{s('alreadyFriends')}</Text>
+                </View>
+              )}
+              {addFriendResult === 'already_pending' && (
+                <View style={im.resultRow}>
+                  <Lucide name="clock-3" size={16} color={colors.textFaint} />
+                  <Text style={[im.resultText, { color: colors.textFaint }]}>{s('friendRequestAlreadySent')}</Text>
+                </View>
+              )}
+              {addFriendResult === 'incoming_pending' && (
+                <View style={im.resultRow}>
+                  <Lucide name="mail" size={16} color={colors.textFaint} />
+                  <Text style={[im.resultText, { color: colors.textFaint }]}>{s('friendRequestAlreadyReceived')}</Text>
+                </View>
+              )}
+              {addFriendResult === 'self' && (
+                <View style={im.resultRow}>
+                  <Lucide name="alert-circle" size={16} color={colors.accent} />
+                  <Text style={[im.resultText, { color: colors.accent }]}>{s('cannotAddYourself')}</Text>
+                </View>
+              )}
+              {addFriendResult === 'error' && (
+                <View style={im.resultRow}>
+                  <Lucide name="x-circle" size={16} color={colors.red} />
+                  <Text style={[im.resultText, { color: colors.red }]}>{s('error')}</Text>
+                </View>
+              )}
+
+              <View style={im.actions}>
+                <TouchableOpacity style={im.cancelBtn} onPress={() => setAddFriendModalVisible(false)}>
+                  <Text style={im.cancelText}>{s('cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[im.sendBtn, (!enteredUsername.trim() || addFriendLoading) && im.sendBtnDisabled]}
+                  onPress={handleSendFriendRequest}
+                  disabled={!enteredUsername.trim() || addFriendLoading}
+                >
+                  {addFriendLoading ? (
+                    <ActivityIndicator size="small" color={colors.textOnPrimary} />
+                  ) : (
+                    <>
+                      <Lucide name="send" size={14} color={colors.textOnPrimary} />
+                      <Text style={im.sendText}>{s('sendFriendRequest')}</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <Modal visible={inviteModalVisible} transparent animationType="slide" onRequestClose={() => setInviteModalVisible(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable style={im.overlay} onPress={() => setInviteModalVisible(false)}>
-          <Pressable style={im.sheet} onPress={() => {}}>
-            <View style={im.handleWrap}><View style={im.handle} /></View>
-            <Text style={im.title}>{s('inviteFriends')}</Text>
-            <Text style={im.desc}>{s('inviteDesc')}</Text>
+          <Pressable style={im.overlay} onPress={() => setInviteModalVisible(false)}>
+            <Pressable style={im.sheet} onPress={() => {}}>
+              <View style={im.handleWrap}><View style={im.handle} /></View>
+              <Text style={im.title}>{s('inviteFriends')}</Text>
+              <Text style={im.desc}>{s('inviteEmailDesc')}</Text>
 
-            <View style={im.inputRow}>
-              <TextInput
-                style={im.input}
-                placeholder={s('searchFriends')}
-                placeholderTextColor={colors.textFaint}
-                value={inviteEmail}
-                onChangeText={(t) => { setInviteEmail(t); setInviteResult('idle'); }}
-                autoCapitalize="none"
-                autoFocus
-              />
-            </View>
+              <View style={im.inputRow}>
+                <TextInput
+                  style={im.input}
+                  placeholder={s('inviteEmailPlaceholder')}
+                  placeholderTextColor={colors.textFaint}
+                  value={inviteEmail}
+                  onChangeText={(value) => {
+                    setInviteEmail(value);
+                    setInviteEmailResult('idle');
+                  }}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  autoFocus
+                />
+              </View>
 
-            {inviteResult === 'sent' && (
-              <View style={im.resultRow}>
-                <Lucide name="check-circle" size={16} color={colors.primaryMid} />
-                <Text style={[im.resultText, { color: colors.primaryMid }]}>{s('requestSentSuccess')}</Text>
-              </View>
-            )}
-            {inviteResult === 'not_found' && (
-              <View style={im.resultRow}>
-                <Lucide name="alert-circle" size={16} color={colors.accent} />
-                <Text style={[im.resultText, { color: colors.accent }]}>{s('noUsersFound')}</Text>
-              </View>
-            )}
-            {inviteResult === 'already_friends' && (
-              <View style={im.resultRow}>
-                <Lucide name="users" size={16} color={colors.textFaint} />
-                <Text style={[im.resultText, { color: colors.textFaint }]}>{s('alreadyFriends')}</Text>
-              </View>
-            )}
-            {inviteResult === 'error' && (
-              <View style={im.resultRow}>
-                <Lucide name="x-circle" size={16} color={colors.red} />
-                <Text style={[im.resultText, { color: colors.red }]}>{s('error')}</Text>
-              </View>
-            )}
+              {inviteEmailResult === 'sent' && (
+                <View style={im.resultRow}>
+                  <Lucide name="check-circle" size={16} color={colors.primaryMid} />
+                  <Text style={[im.resultText, { color: colors.primaryMid }]}>{s('inviteEmailSent')}</Text>
+                </View>
+              )}
+              {inviteEmailResult === 'invalid' && (
+                <View style={im.resultRow}>
+                  <Lucide name="alert-circle" size={16} color={colors.accent} />
+                  <Text style={[im.resultText, { color: colors.accent }]}>{s('inviteEmailInvalid')}</Text>
+                </View>
+              )}
+              {inviteEmailResult === 'error' && (
+                <View style={im.resultRow}>
+                  <Lucide name="x-circle" size={16} color={colors.red} />
+                  <Text style={[im.resultText, { color: colors.red }]}>{s('inviteEmailError')}</Text>
+                </View>
+              )}
 
-            <View style={im.actions}>
-              <TouchableOpacity style={im.cancelBtn} onPress={() => setInviteModalVisible(false)}>
-                <Text style={im.cancelText}>{s('cancel')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[im.sendBtn, (!inviteEmail.trim() || inviteLoading) && im.sendBtnDisabled]}
-                onPress={handleSendInvite}
-                disabled={!inviteEmail.trim() || inviteLoading}
-              >
-                {inviteLoading ? (
-                  <ActivityIndicator size="small" color={colors.textOnPrimary} />
-                ) : (
-                  <>
-                    <Lucide name="send" size={14} color={colors.textOnPrimary} />
-                    <Text style={im.sendText}>{s('sendRequest')}</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
+              <View style={im.actions}>
+                <TouchableOpacity style={im.cancelBtn} onPress={() => setInviteModalVisible(false)}>
+                  <Text style={im.cancelText}>{s('cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[im.sendBtn, (!inviteEmail.trim() || inviteEmailLoading) && im.sendBtnDisabled]}
+                  onPress={handleSendInviteEmail}
+                  disabled={!inviteEmail.trim() || inviteEmailLoading}
+                >
+                  {inviteEmailLoading ? (
+                    <ActivityIndicator size="small" color={colors.textOnPrimary} />
+                  ) : (
+                    <>
+                      <Lucide name="send" size={14} color={colors.textOnPrimary} />
+                      <Text style={im.sendText}>{s('sendInviteEmail')}</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </Pressable>
           </Pressable>
-        </Pressable>
         </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>

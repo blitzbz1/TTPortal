@@ -51,6 +51,27 @@ jest.mock('expo-apple-authentication', () => ({
   signOutAsync: jest.fn(),
 }));
 
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const Icon = (props) => React.createElement(View, props);
+  return {
+    MaterialCommunityIcons: Icon,
+    Ionicons: Icon,
+    Feather: Icon,
+    FontAwesome: Icon,
+    FontAwesome5: Icon,
+    AntDesign: Icon,
+    Entypo: Icon,
+    EvilIcons: Icon,
+    Foundation: Icon,
+    MaterialIcons: Icon,
+    Octicons: Icon,
+    SimpleLineIcons: Icon,
+    Zocial: Icon,
+  };
+}, { virtual: true });
+
 jest.mock('expo-router', () => {
   const React = require('react');
   return {
@@ -106,7 +127,7 @@ jest.mock('react-native-keyboard-controller', () => {
     useKeyboardHandler: jest.fn(),
     useReanimatedKeyboardAnimation: () => ({ height: { value: 0 }, progress: { value: 0 } }),
   };
-});
+}, { virtual: true });
 
 // Mock react-native-map-clustering
 jest.mock('react-native-map-clustering', () => {

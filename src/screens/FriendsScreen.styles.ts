@@ -44,6 +44,45 @@ export function createStyles(colors: ThemeColors) {
     scroll: {
       flex: 1,
     },
+    actionsRow: {
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.md,
+      gap: Spacing.sm,
+    },
+    actionCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.bgAlt,
+      borderRadius: Radius.lg,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.md,
+      gap: Spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      ...Shadows.sm,
+    },
+    actionIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    actionCopy: {
+      flex: 1,
+      gap: 2,
+    },
+    actionTitle: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
+      color: colors.text,
+    },
+    actionDesc: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.base,
+      color: colors.textFaint,
+    },
     searchWrap: {
       padding: Spacing.sm,
       paddingHorizontal: Spacing.md,

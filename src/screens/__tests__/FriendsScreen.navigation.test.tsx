@@ -64,7 +64,8 @@ jest.mock('../../services/friends', () => ({
   getPendingRequests: jest.fn().mockResolvedValue({ data: [] }),
   acceptRequest: jest.fn(),
   declineRequest: jest.fn(),
-  searchUsers: jest.fn(),
+  findUserByUsername: jest.fn(),
+  getFriendshipBetweenUsers: jest.fn(),
   sendRequest: jest.fn(),
 }));
 

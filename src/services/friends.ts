@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase';
-import { escapeLikePattern } from '../lib/auth-utils';
 
 export async function sendRequest(requesterId: string, addresseeId: string) {
   return supabase
@@ -95,12 +94,23 @@ export async function getFriendIds(userId: string): Promise<string[]> {
   return data.map((f) => f.requester_id === userId ? f.addressee_id : f.requester_id);
 }
 
-export async function searchUsers(query: string) {
-  if (query.length < 3) return { data: [], error: null };
-  const pattern = escapeLikePattern(query.trim());
+export async function findUserByUsername(username: string) {
+  const normalized = username.trim().replace(/^@+/, '').toLowerCase();
+  if (normalized.length < 3) return { data: null, error: null };
+
   return supabase
     .from('profiles')
     .select('id, full_name, avatar_url, city, username')
-    .or(`username.ilike.${pattern},email.ilike.${pattern}`)
-    .limit(5);
+    .eq('username', normalized)
+    .maybeSingle();
+}
+
+export async function getFriendshipBetweenUsers(userId: string, otherUserId: string) {
+  return supabase
+    .from('friendships')
+    .select('id, requester_id, addressee_id, status')
+    .or(
+      `and(requester_id.eq.${userId},addressee_id.eq.${otherUserId}),and(requester_id.eq.${otherUserId},addressee_id.eq.${userId})`,
+    )
+    .maybeSingle();
 }
