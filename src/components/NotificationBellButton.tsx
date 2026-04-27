@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -8,11 +8,11 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
 import { Lucide } from './Icon';
 import { useNotifications } from '../hooks/useNotifications';
 import { useTheme } from '../hooks/useTheme';
 import { Fonts, FontWeight, Spacing } from '../theme';
+import { NotificationInboxModal, type NotificationInboxModalRef } from './NotificationInboxModal';
 
 const PULSE_DURATION = 2000;
 const PULSE_HALF = PULSE_DURATION / 2;
@@ -45,24 +45,31 @@ interface NotificationBellButtonProps {
 }
 
 export function NotificationBellButton({ color }: NotificationBellButtonProps) {
-  const router = useRouter();
   const { unreadCount } = useNotifications();
   const { colors } = useTheme();
   const pulseStyle = usePulseAnimation(unreadCount > 0);
+  const modalRef = useRef<NotificationInboxModalRef>(null);
+
+  const handlePress = useCallback(() => {
+    modalRef.current?.present();
+  }, []);
 
   return (
-    <TouchableOpacity
-      style={styles.bellBtn}
-      onPress={() => router.push('/(protected)/notifications' as any)}
-      hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-    >
-      <Lucide name="bell" size={18} color={color} />
-      {unreadCount > 0 && (
-        <Animated.View style={[styles.bellBadge, { backgroundColor: colors.red }, pulseStyle]}>
-          <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-        </Animated.View>
-      )}
-    </TouchableOpacity>
+    <>
+      <TouchableOpacity
+        style={styles.bellBtn}
+        onPress={handlePress}
+        hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+      >
+        <Lucide name="bell" size={18} color={color} />
+        {unreadCount > 0 && (
+          <Animated.View style={[styles.bellBadge, { backgroundColor: colors.red }, pulseStyle]}>
+            <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+          </Animated.View>
+        )}
+      </TouchableOpacity>
+      <NotificationInboxModal ref={modalRef} />
+    </>
   );
 }
 

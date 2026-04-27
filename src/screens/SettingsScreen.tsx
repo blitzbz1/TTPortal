@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import { Fonts, FontSize, FontWeight, Spacing, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getProfile, updateProfile } from '../services/profiles';
+import { NotificationInboxModal, type NotificationInboxModalRef } from '../components/NotificationInboxModal';
 
 export function SettingsScreen() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export function SettingsScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [notifyCheckins, setNotifyCheckins] = useState(true);
+  const inboxRef = useRef<NotificationInboxModalRef>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -45,13 +47,14 @@ export function SettingsScreen() {
 
       <ScrollView style={styles.scroll}>
         {/* Notifications */}
-        <TouchableOpacity style={styles.row} onPress={() => router.push('/(protected)/notifications' as any)}>
+        <TouchableOpacity style={styles.row} onPress={() => inboxRef.current?.present()}>
           <View style={[styles.rowIcon, { backgroundColor: colors.amberPale }]}>
             <Lucide name="bell" size={18} color={colors.accent} />
           </View>
           <Text style={styles.rowLabel}>{s('notifications')}</Text>
           <Lucide name="chevron-right" size={16} color={colors.textFaint} />
         </TouchableOpacity>
+        <NotificationInboxModal ref={inboxRef} />
 
         {/* Check-in notifications */}
         <View style={styles.row}>

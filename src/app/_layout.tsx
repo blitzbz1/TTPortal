@@ -46,17 +46,17 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
-        <BottomSheetModalProvider>
-          <SessionProvider>
-            <I18nProvider>
-              <ThemeProvider>
-                <NotificationProvider>
+        <SessionProvider>
+          <I18nProvider>
+            <ThemeProvider>
+              <NotificationProvider>
+                <BottomSheetModalProvider>
                   <RootNavigator />
-                </NotificationProvider>
-              </ThemeProvider>
-            </I18nProvider>
-          </SessionProvider>
-        </BottomSheetModalProvider>
+                </BottomSheetModalProvider>
+              </NotificationProvider>
+            </ThemeProvider>
+          </I18nProvider>
+        </SessionProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>
   );

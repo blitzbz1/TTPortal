@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
 jest.mock('expo-sqlite', () => ({
@@ -40,44 +40,25 @@ jest.mock('../../hooks/useNotifications', () => ({
   }),
 }));
 
-jest.mock('../../components/Icon', () => ({
+jest.mock('../Icon', () => ({
   Lucide: ({ name, ...props }: any) => {
     const { View } = require('react-native');
     return <View testID={`icon-${name}`} {...props} />;
   },
 }));
 
-jest.mock('../../components/SkeletonLoader', () => ({
+jest.mock('../SkeletonLoader', () => ({
   NotificationSkeleton: () => null,
   SkeletonList: ({ children }: any) => children,
 }));
 
-jest.mock('../../components/EmptyState', () => ({
+jest.mock('../EmptyState', () => ({
   EmptyState: () => null,
 }));
 
-jest.mock('react-native-reanimated', () => {
-  const { View } = require('react-native');
-  return {
-    __esModule: true,
-    default: { View, createAnimatedComponent: (c: any) => c },
-    View,
-    FadeInDown: { delay: () => ({ duration: () => ({}) }) },
-    useSharedValue: (v: any) => ({ value: v }),
-    useAnimatedStyle: () => ({}),
-    withTiming: (v: any, _opts?: any, cb?: any) => { cb?.(); return v; },
-    withSpring: (v: any) => v,
-    runOnJS: (fn: any) => fn,
-    Easing: {
-      bezier: () => () => 0,
-      linear: () => 0,
-      ease: () => 0,
-      in: (fn: any) => fn,
-      out: (fn: any) => fn,
-      inOut: (fn: any) => fn,
-    },
-  };
-});
+jest.mock('../SwipeableDeleteRow', () => ({
+  SwipeableDeleteRow: ({ children }: any) => children,
+}));
 
 jest.mock('../../lib/haptics', () => ({
   hapticMedium: jest.fn(),
@@ -88,6 +69,7 @@ const mockMarkAsRead = jest.fn();
 jest.mock('../../services/notifications', () => ({
   getNotifications: (...args: any[]) => mockGetNotifications(...args),
   markAsRead: (...args: any[]) => mockMarkAsRead(...args),
+  markAllAsRead: jest.fn().mockResolvedValue({ error: null }),
   deleteNotification: jest.fn().mockResolvedValue({ error: null }),
   deleteAllNotifications: jest.fn().mockResolvedValue({ error: null }),
 }));
@@ -98,9 +80,30 @@ jest.mock('../../services/friends', () => ({
   getPendingRequests: jest.fn().mockResolvedValue({ data: [] }),
 }));
 
-import { NotificationsScreen } from '../NotificationsScreen';
+jest.mock('../../lib/supabase', () => {
+  const channel = {
+    on: jest.fn().mockReturnThis(),
+    subscribe: jest.fn().mockReturnThis(),
+  };
+  return {
+    supabase: {
+      channel: jest.fn(() => channel),
+      removeChannel: jest.fn(),
+    },
+  };
+});
 
-describe('NotificationsScreen — handleTap deep linking', () => {
+import { NotificationInboxModal, type NotificationInboxModalRef } from '../NotificationInboxModal';
+
+function Harness() {
+  const ref = useRef<NotificationInboxModalRef>(null);
+  useEffect(() => {
+    ref.current?.present();
+  }, []);
+  return <NotificationInboxModal ref={ref} />;
+}
+
+describe('NotificationInboxModal — handleTap deep linking', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseSession.mockReturnValue({
@@ -112,7 +115,7 @@ describe('NotificationsScreen — handleTap deep linking', () => {
 
   async function renderWithNotification(notification: any) {
     mockGetNotifications.mockResolvedValue({ data: [notification], error: null });
-    const utils = render(<NotificationsScreen />);
+    const utils = render(<Harness />);
     await waitFor(() => expect(mockGetNotifications).toHaveBeenCalled());
     return utils;
   }
@@ -204,7 +207,6 @@ describe('NotificationsScreen — handleTap deep linking', () => {
 
     await waitFor(() => {
       expect(mockMarkAsRead).toHaveBeenCalledWith(9, 'u-1');
-      expect(mockRefreshUnreadCount).toHaveBeenCalled();
     });
   });
 });

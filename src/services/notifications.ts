@@ -15,7 +15,7 @@ type NotificationRow = {
   sender: NotificationSender | null;
 };
 
-export async function getNotifications(userId: string, limit = 50) {
+export async function getNotifications(userId: string, limit = 20, offset = 0) {
   // Single query: embed the sender profile via the notifications→profiles FK
   // added in migration 039.
   return supabase
@@ -26,7 +26,7 @@ export async function getNotifications(userId: string, limit = 50) {
     )
     .eq('recipient_id', userId)
     .order('created_at', { ascending: false })
-    .limit(limit)
+    .range(offset, offset + limit - 1)
     .returns<NotificationRow[]>();
 }
 
