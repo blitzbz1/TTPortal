@@ -12,6 +12,7 @@ jest.mock('expo-sqlite', () => ({
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, back: jest.fn() }),
+  useFocusEffect: (effect: any) => effect(),
 }));
 
 const mockS = jest.fn((key: string) => key);
@@ -31,13 +32,10 @@ jest.mock('../../hooks/useSession', () => ({
   useSession: () => mockUseSession(),
 }));
 
-const mockRefreshUnreadCount = jest.fn();
+const mockMarkAsRead = jest.fn().mockResolvedValue(undefined);
+const mockUseNotifications = jest.fn();
 jest.mock('../../hooks/useNotifications', () => ({
-  useNotifications: () => ({
-    unreadCount: 0,
-    refreshUnreadCount: mockRefreshUnreadCount,
-    clearAll: jest.fn(),
-  }),
+  useNotifications: () => mockUseNotifications(),
 }));
 
 jest.mock('../Icon', () => ({
@@ -64,34 +62,11 @@ jest.mock('../../lib/haptics', () => ({
   hapticMedium: jest.fn(),
 }));
 
-const mockGetNotifications = jest.fn();
-const mockMarkAsRead = jest.fn();
-jest.mock('../../services/notifications', () => ({
-  getNotifications: (...args: any[]) => mockGetNotifications(...args),
-  markAsRead: (...args: any[]) => mockMarkAsRead(...args),
-  markAllAsRead: jest.fn().mockResolvedValue({ error: null }),
-  deleteNotification: jest.fn().mockResolvedValue({ error: null }),
-  deleteAllNotifications: jest.fn().mockResolvedValue({ error: null }),
-}));
-
 jest.mock('../../services/friends', () => ({
   acceptRequest: jest.fn().mockResolvedValue({ error: null }),
   declineRequest: jest.fn().mockResolvedValue({ error: null }),
   getPendingRequests: jest.fn().mockResolvedValue({ data: [] }),
 }));
-
-jest.mock('../../lib/supabase', () => {
-  const channel = {
-    on: jest.fn().mockReturnThis(),
-    subscribe: jest.fn().mockReturnThis(),
-  };
-  return {
-    supabase: {
-      channel: jest.fn(() => channel),
-      removeChannel: jest.fn(),
-    },
-  };
-});
 
 import { NotificationInboxModal, type NotificationInboxModalRef } from '../NotificationInboxModal';
 
@@ -110,13 +85,30 @@ describe('NotificationInboxModal — handleTap deep linking', () => {
       user: { id: 'u-1' },
       session: { user: { id: 'u-1' } },
     });
-    mockMarkAsRead.mockResolvedValue({ error: null });
   });
 
+  function setupNotification(notification: any) {
+    mockUseNotifications.mockReturnValue({
+      notifications: [notification],
+      unreadCount: notification.read ? 0 : 1,
+      isLoading: false,
+      isRefreshing: false,
+      hasMore: false,
+      refresh: jest.fn(),
+      loadMore: jest.fn(),
+      markAsRead: mockMarkAsRead,
+      markAllAsRead: jest.fn(),
+      deleteNotification: jest.fn(),
+      deleteAll: jest.fn(),
+      refreshUnreadCount: jest.fn(),
+      clearAll: jest.fn(),
+      pushToken: null,
+    });
+  }
+
   async function renderWithNotification(notification: any) {
-    mockGetNotifications.mockResolvedValue({ data: [notification], error: null });
+    setupNotification(notification);
     const utils = render(<Harness />);
-    await waitFor(() => expect(mockGetNotifications).toHaveBeenCalled());
     return utils;
   }
 
@@ -206,7 +198,7 @@ describe('NotificationInboxModal — handleTap deep linking', () => {
     fireEvent.press(await findByText('Tap me'));
 
     await waitFor(() => {
-      expect(mockMarkAsRead).toHaveBeenCalledWith(9, 'u-1');
+      expect(mockMarkAsRead).toHaveBeenCalledWith(9);
     });
   });
 });

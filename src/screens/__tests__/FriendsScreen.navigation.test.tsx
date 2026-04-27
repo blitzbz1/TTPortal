@@ -10,9 +10,13 @@ jest.mock('expo-sqlite', () => ({
 }));
 
 const mockPush = jest.fn();
-jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush, back: jest.fn() }),
-}));
+jest.mock('expo-router', () => {
+  const React = require('react');
+  return {
+    useRouter: () => ({ push: mockPush, back: jest.fn() }),
+    useFocusEffect: (effect: any) => React.useEffect(effect, []),
+  };
+});
 
 const mockS = jest.fn((key: string) => key);
 jest.mock('../../hooks/useI18n', () => ({

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, Modal, Pressable, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { useTheme } from '../hooks/useTheme';
 import { createStyles } from './FriendsScreen.styles';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
+import { useFocusRefresh } from '../hooks/useFocusRefresh';
 import { getFriends, getPendingRequests, acceptRequest, declineRequest, findUserByUsername, getFriendshipBetweenUsers, sendRequest } from '../services/friends';
 import { loadCachedFriends, saveCachedFriends, loadCachedPending, saveCachedPending } from '../lib/friendsCache';
 import { sendAppInviteEmail } from '../services/invites';
@@ -148,9 +149,7 @@ export function FriendsScreen() {
     setRefreshing(false);
   }, [fetchData]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useFocusRefresh(() => fetchData(), [fetchData]);
 
   const handleAccept = useCallback(async (id: number) => {
     if (!user) return;

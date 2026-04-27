@@ -255,6 +255,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
             ListFooterComponent={Footer}
             refreshing={refreshing}
             onRefresh={onRefresh}
+            drawDistance={400}
             renderItem={({ item: r, index: idx }) => (
               <View style={styles.rankList}>
                 <Animated.View entering={FadeInDown.delay(Math.min(idx, 8) * 60).duration(300)}>

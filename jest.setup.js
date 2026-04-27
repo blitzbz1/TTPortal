@@ -159,6 +159,18 @@ jest.mock('react-native-map-clustering', () => {
   };
 });
 
+// Mock @react-native-community/netinfo
+jest.mock('@react-native-community/netinfo', () => ({
+  __esModule: true,
+  default: {
+    addEventListener: jest.fn(() => () => {}),
+    fetch: jest.fn(() => Promise.resolve({ isConnected: true, isInternetReachable: true })),
+    configure: jest.fn(),
+  },
+  addEventListener: jest.fn(() => () => {}),
+  fetch: jest.fn(() => Promise.resolve({ isConnected: true, isInternetReachable: true })),
+}));
+
 // Mock react-native-safe-area-context
 jest.mock('react-native-safe-area-context', () => {
   const insets = { top: 0, right: 0, bottom: 0, left: 0 };

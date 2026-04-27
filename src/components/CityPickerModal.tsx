@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   Modal,
   View,
@@ -13,7 +13,7 @@ import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useI18n } from '../hooks/useI18n';
-import { getCities } from '../services/cities';
+import { useCitiesQuery } from '../hooks/queries/useCitiesQuery';
 
 interface CityPickerModalProps {
   visible: boolean;
@@ -31,26 +31,12 @@ export function CityPickerModal({
   const { s } = useI18n();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [cities, setCities] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchCities() {
-      setLoading(true);
-      const { data } = await getCities();
-      if (!cancelled && data) {
-        setCities(data.map((c: { name: string }) => c.name));
-      }
-      if (!cancelled) setLoading(false);
-    }
-
-    fetchCities();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { data: cityRows, isLoading } = useCitiesQuery();
+  const cities = useMemo(
+    () => (cityRows ?? []).map((c: { name: string }) => c.name),
+    [cityRows],
+  );
+  const loading = isLoading && cities.length === 0;
 
   return (
     <Modal

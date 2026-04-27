@@ -25,6 +25,7 @@ import { getActiveFriendEvents } from '../services/events';
 import { getFriendIds } from '../services/friends';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import type { Venue, VenueCondition } from '../types/database';
 import { setCacheItem, getCacheItem } from '../lib/offline-cache';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
@@ -62,14 +63,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const [venues, setVenues] = useState<VenueWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-
-  // Debounce search input by 150ms — prevents map markers from re-rendering
-  // on every keystroke while typing, which is the actual lag source.
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(searchQuery), 150);
-    return () => clearTimeout(t);
-  }, [searchQuery]);
+  const debouncedQuery = useDebouncedValue(searchQuery, 150);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('toate');
   const [cityModalVisible, setCityModalVisible] = useState(false);
   const [selectedCity, setSelectedCity] = useState<string>('București');
@@ -505,6 +499,8 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
               initialNumToRender={8}
               maxToRenderPerBatch={8}
               windowSize={7}
+              removeClippedSubviews
+              updateCellsBatchingPeriod={50}
               renderItem={({ item: venue, index }) => {
                 const conditionInfo = conditionLabel(venue.condition);
                 const avgRating = venue.venue_stats?.avg_rating;

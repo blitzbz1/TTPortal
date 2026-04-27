@@ -21,6 +21,8 @@ export interface NotificationInboxModalRef {
   dismiss: () => void;
 }
 
+const EMPTY_NOTIFICATIONS: NotificationRecord[] = [];
+
 function getIconMap(colors: ThemeColors): Record<string, { name: string; color: string; bg: string }> {
   return {
     friend_request: { name: 'user-plus', color: colors.purple, bg: colors.purplePale },
@@ -53,18 +55,19 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
     dismiss: () => sheetRef.current?.dismiss(),
   }));
 
-  const {
-    notifications,
-    isLoading,
-    isRefreshing,
-    hasMore,
-    refresh,
-    loadMore,
-    markAsRead,
-    markAllAsRead,
-    deleteNotification,
-    deleteAll,
-  } = useNotificationHistory();
+  const ctx = useNotificationHistory();
+  const noop = useMemo(() => async () => {}, []);
+  const noopId = useMemo(() => async (_id: number) => {}, []);
+  const notifications = ctx.notifications ?? EMPTY_NOTIFICATIONS;
+  const isLoading = ctx.isLoading ?? false;
+  const isRefreshing = ctx.isRefreshing ?? false;
+  const hasMore = ctx.hasMore ?? false;
+  const refresh = ctx.refresh ?? noop;
+  const loadMore = ctx.loadMore ?? noop;
+  const markAsRead = ctx.markAsRead ?? noopId;
+  const markAllAsRead = ctx.markAllAsRead ?? noop;
+  const deleteNotification = ctx.deleteNotification ?? noopId;
+  const deleteAll = ctx.deleteAll ?? noop;
 
   const [pendingMap, setPendingMap] = useState<Map<string, number>>(new Map());
   const [respondedIds, setRespondedIds] = useState<Set<string>>(new Set());

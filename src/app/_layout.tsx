@@ -2,6 +2,8 @@ import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '../lib/queryClient';
 import { useFonts } from 'expo-font';
 import {
   Syne_400Regular,
@@ -20,6 +22,7 @@ import { SessionProvider } from '../contexts/SessionProvider';
 import { NotificationProvider } from '../contexts/NotificationProvider';
 import { I18nProvider } from '../contexts/I18nProvider';
 import { ThemeProvider } from '../contexts/ThemeProvider';
+import { OfflineQueueProvider } from '../contexts/OfflineQueueProvider';
 import { useSession } from '../hooks/useSession';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
@@ -46,17 +49,21 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
-        <SessionProvider>
-          <I18nProvider>
-            <ThemeProvider>
-              <NotificationProvider>
-                <BottomSheetModalProvider>
-                  <RootNavigator />
-                </BottomSheetModalProvider>
-              </NotificationProvider>
-            </ThemeProvider>
-          </I18nProvider>
-        </SessionProvider>
+        <QueryClientProvider client={queryClient}>
+          <OfflineQueueProvider>
+            <SessionProvider>
+              <I18nProvider>
+                <ThemeProvider>
+                  <NotificationProvider>
+                    <BottomSheetModalProvider>
+                      <RootNavigator />
+                    </BottomSheetModalProvider>
+                  </NotificationProvider>
+                </ThemeProvider>
+              </I18nProvider>
+            </SessionProvider>
+          </OfflineQueueProvider>
+        </QueryClientProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>
   );
