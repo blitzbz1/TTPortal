@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 import type { ThemeColors } from '../theme';
-import { Fonts, FontSize, FontWeight, Shadows, Spacing } from '../theme';
+import { Fonts, FontSize, FontWeight, Radius, Shadows, Spacing } from '../theme';
 
 export function createSelectStyles(colors: ThemeColors) {
   return StyleSheet.create({
@@ -46,6 +46,21 @@ export function createSelectStyles(colors: ThemeColors) {
     },
     sheetContent: {
       flex: 1,
+    },
+    webBackdrop: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+    },
+    webSheet: {
+      width: '100%',
+      maxWidth: 430,
+      maxHeight: '70%',
+      minHeight: 320,
+      borderTopLeftRadius: Radius.xl,
+      borderTopRightRadius: Radius.xl,
+      paddingTop: Spacing.sm,
+      overflow: 'hidden',
     },
     sheetHeader: {
       paddingHorizontal: Spacing.md,

@@ -4,9 +4,11 @@ import {
   Alert,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -223,6 +225,7 @@ function SearchableSelect({
 }: SearchableSelectProps) {
   const sheetRef = useRef<BottomSheetModal>(null);
   const [query, setQuery] = useState('');
+  const [webOpen, setWebOpen] = useState(false);
   const styles = useMemo(() => createSelectStyles(colors), [colors]);
 
   const suggestions = useMemo(() => {
@@ -234,13 +237,18 @@ function SearchableSelect({
   const open = () => {
     if (disabled) return;
     setQuery('');
-    sheetRef.current?.present();
+    if (Platform.OS === 'web') {
+      setWebOpen(true);
+    } else {
+      sheetRef.current?.present();
+    }
   };
 
   const handleSelect = useCallback(
     (option: { id: string; name: string }) => {
       onSelect(option);
-      sheetRef.current?.dismiss();
+      if (Platform.OS === 'web') setWebOpen(false);
+      else sheetRef.current?.dismiss();
     },
     [onSelect],
   );
@@ -281,45 +289,90 @@ function SearchableSelect({
         <Lucide name="chevron-down" size={16} color={colors.textFaint} />
       </Pressable>
 
-      <BottomSheetModal
-        ref={sheetRef}
-        snapPoints={['65%']}
-        enableDynamicSizing={false}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.bgAlt }}
-        handleIndicatorStyle={{ backgroundColor: colors.border }}
-      >
-        <BottomSheetView style={styles.sheetContent}>
-          <View style={[styles.sheetHeader, { backgroundColor: colors.bgAlt }]}>
-            <Text style={styles.sheetTitle}>{label}</Text>
-            <BottomSheetTextInput
-              value={query}
-              placeholder={placeholder}
-              placeholderTextColor={colors.textFaint}
-              autoFocus
-              autoComplete="off"
-              autoCorrect={false}
-              spellCheck={false}
-              style={styles.sheetSearch}
-              onChangeText={setQuery}
-              onSubmitEditing={() => {
-                if (suggestions[0]) handleSelect(suggestions[0]);
-              }}
+      {Platform.OS === 'web' ? (
+        <Modal
+          visible={webOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setWebOpen(false)}
+        >
+          <Pressable
+            style={[styles.webBackdrop, { backgroundColor: colors.overlay }]}
+            onPress={() => setWebOpen(false)}
+          >
+            <Pressable
+              style={[styles.webSheet, { backgroundColor: colors.bgAlt }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={[styles.sheetHeader, { backgroundColor: colors.bgAlt }]}>
+                <Text style={styles.sheetTitle}>{label}</Text>
+                <TextInput
+                  value={query}
+                  placeholder={placeholder}
+                  placeholderTextColor={colors.textFaint}
+                  autoFocus
+                  autoComplete="off"
+                  autoCorrect={false}
+                  spellCheck={false}
+                  style={styles.sheetSearch}
+                  onChangeText={setQuery}
+                  onSubmitEditing={() => {
+                    if (suggestions[0]) handleSelect(suggestions[0]);
+                  }}
+                />
+              </View>
+              <FlatList
+                data={suggestions}
+                keyExtractor={(option: { id: string }) => option.id}
+                keyboardShouldPersistTaps="always"
+                contentContainerStyle={{ paddingBottom: 24 }}
+                ListEmptyComponent={<Text style={styles.emptyOption}>{emptyText}</Text>}
+                renderItem={renderOption}
+              />
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : (
+        <BottomSheetModal
+          ref={sheetRef}
+          snapPoints={['65%']}
+          enableDynamicSizing={false}
+          keyboardBehavior="interactive"
+          keyboardBlurBehavior="restore"
+          android_keyboardInputMode="adjustResize"
+          backdropComponent={renderBackdrop}
+          backgroundStyle={{ backgroundColor: colors.bgAlt }}
+          handleIndicatorStyle={{ backgroundColor: colors.border }}
+        >
+          <BottomSheetView style={styles.sheetContent}>
+            <View style={[styles.sheetHeader, { backgroundColor: colors.bgAlt }]}>
+              <Text style={styles.sheetTitle}>{label}</Text>
+              <BottomSheetTextInput
+                value={query}
+                placeholder={placeholder}
+                placeholderTextColor={colors.textFaint}
+                autoFocus
+                autoComplete="off"
+                autoCorrect={false}
+                spellCheck={false}
+                style={styles.sheetSearch}
+                onChangeText={setQuery}
+                onSubmitEditing={() => {
+                  if (suggestions[0]) handleSelect(suggestions[0]);
+                }}
+              />
+            </View>
+            <FlatList
+              data={suggestions}
+              keyExtractor={(option: { id: string }) => option.id}
+              keyboardShouldPersistTaps="always"
+              contentContainerStyle={{ paddingBottom: 24 }}
+              ListEmptyComponent={<Text style={styles.emptyOption}>{emptyText}</Text>}
+              renderItem={renderOption}
             />
-          </View>
-          <FlatList
-            data={suggestions}
-            keyExtractor={(option: { id: string }) => option.id}
-            keyboardShouldPersistTaps="always"
-            contentContainerStyle={{ paddingBottom: 24 }}
-            ListEmptyComponent={<Text style={styles.emptyOption}>{emptyText}</Text>}
-            renderItem={renderOption}
-          />
-        </BottomSheetView>
-      </BottomSheetModal>
+          </BottomSheetView>
+        </BottomSheetModal>
+      )}
     </View>
   );
 }
