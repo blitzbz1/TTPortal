@@ -44,6 +44,11 @@ jest.mock('../../services/checkins', () => ({
   getUserActiveCheckin: jest.fn().mockResolvedValue({ data: null }),
   getUserAnyActiveCheckin: jest.fn().mockResolvedValue({ data: null }),
   getActiveFriendCheckins: jest.fn().mockResolvedValue({ data: [] }),
+  getVenueChampion: jest.fn().mockResolvedValue({ data: null }),
+}));
+jest.mock('../../services/events', () => ({
+  getUpcomingEventsByVenue: jest.fn().mockResolvedValue({ data: [] }),
+  getActiveFriendEvents: jest.fn().mockResolvedValue({ data: [] }),
 }));
 jest.mock('../../services/friends', () => ({
   getFriendIds: jest.fn().mockResolvedValue([]),

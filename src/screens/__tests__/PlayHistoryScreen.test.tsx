@@ -161,11 +161,15 @@ describe('PlayHistoryScreen', () => {
       user: { id: 'u-1', user_metadata: { full_name: 'Test User' } },
     });
     mockGetPlayHistory.mockResolvedValue({ data: [] });
+    // Use timestamps within the current week to avoid the Monday-boundary edge
+    // case where "yesterday" falls into the previous week.
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     mockSupabaseFrom.mockImplementation((table: string) => {
       if (table === 'event_participants') {
         return createQueryChain([
-          { event_id: 1, hours_played: '1.5', events: { venue_id: 5, starts_at: todayStr } },
-          { event_id: 2, hours_played: '0.75', events: { venue_id: 5, starts_at: yesterdayStr } },
+          { event_id: 1, hours_played: '1.5', events: { venue_id: 5, starts_at: oneHourAgo } },
+          { event_id: 2, hours_played: '0.75', events: { venue_id: 5, starts_at: twoHoursAgo } },
           { event_id: 3, hours_played: '10', events: { venue_id: 5, starts_at: lastMonthStr } },
         ]);
       }
@@ -282,20 +286,19 @@ describe('PlayHistoryScreen', () => {
   // ── Day detail ──
 
   it('shows "no activity" message for days without activities', async () => {
-    setupMocks();
-    const { getByText, getAllByText } = render(<PlayHistoryScreen />);
+    // No checkins, no event participations — today is selected by default
+    // and should render the empty-state.
+    mockUseSession.mockReturnValue({
+      user: { id: 'u-1', user_metadata: { full_name: 'Test User' } },
+    });
+    mockGetPlayHistory.mockResolvedValue({ data: [] });
+    mockSupabaseFrom.mockImplementation(() => createQueryChain([]));
 
-    await waitFor(() => expect(getByText('playHistoryLabel')).toBeTruthy());
+    const { getByText } = render(<PlayHistoryScreen />);
 
-    // Tap a day that likely has no activity (day 1 if not today)
-    const targetDay = new Date().getDate() === 1 ? '2' : '1';
-    const dayElements = getAllByText(targetDay);
-    if (dayElements.length > 0) {
-      fireEvent.press(dayElements[0]);
-      await waitFor(() => {
-        expect(getByText('noActivity')).toBeTruthy();
-      });
-    }
+    await waitFor(() => {
+      expect(getByText('noActivity')).toBeTruthy();
+    });
   });
 
   // ── Data fetching ──

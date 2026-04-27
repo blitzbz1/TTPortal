@@ -44,6 +44,9 @@ export function createSelectStyles(colors: ThemeColors) {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: colors.overlayLight,
     },
+    sheetContent: {
+      flex: 1,
+    },
     sheetHeader: {
       paddingHorizontal: Spacing.md,
       paddingTop: 4,

@@ -209,7 +209,7 @@ export function FriendsScreen() {
       setInviteEmailLoading(false);
       setInviteEmailResult('error');
     }
-  }, [inviteEmail, s]);
+  }, [inviteEmail]);
 
   const handleSendFriendRequest = useCallback(async () => {
     if (!user || !enteredUsername.trim()) return;

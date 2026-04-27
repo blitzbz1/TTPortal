@@ -15,6 +15,7 @@ import { useRealtime } from '../hooks/useRealtime';
 import { logger } from '../lib/logger';
 import { sanitizeRoute } from '../lib/auth-utils';
 import { withOptimistic } from '../lib/optimistic';
+import { useOfflineQueue } from './OfflineQueueProvider';
 
 export const PAGE_SIZE = 20;
 
@@ -58,6 +59,7 @@ export function NotificationProvider({ children }: Props) {
   const { user } = useSession();
   const router = useRouter();
   const userId = user?.id;
+  const { isOnline, enqueue, registerHandler } = useOfflineQueue();
   const [pushToken, setPushToken] = useState<string | null>(null);
   const prevUserIdRef = useRef<string | null>(null);
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
@@ -115,6 +117,16 @@ export function NotificationProvider({ children }: Props) {
   const markAsRead = useCallback(
     async (id: number) => {
       if (!userId) return;
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      if (!isOnline) {
+        enqueue({
+          entityType: 'notification-read',
+          entityId: String(id),
+          operation: 'update',
+          payload: { id, userId },
+        });
+        return;
+      }
       await withOptimistic({
         setState: setNotifications,
         current: notificationsRef.current,
@@ -122,7 +134,7 @@ export function NotificationProvider({ children }: Props) {
         mutate: () => markAsReadService(id, userId),
       });
     },
-    [userId],
+    [userId, isOnline, enqueue],
   );
 
   const markAllAsRead = useCallback(async () => {
@@ -138,6 +150,16 @@ export function NotificationProvider({ children }: Props) {
   const deleteNotification = useCallback(
     async (id: number) => {
       if (!userId) return;
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      if (!isOnline) {
+        enqueue({
+          entityType: 'notification-delete',
+          entityId: String(id),
+          operation: 'delete',
+          payload: { id, userId },
+        });
+        return;
+      }
       await withOptimistic({
         setState: setNotifications,
         current: notificationsRef.current,
@@ -145,7 +167,7 @@ export function NotificationProvider({ children }: Props) {
         mutate: () => deleteNotificationService(id, userId),
       });
     },
-    [userId],
+    [userId, isOnline, enqueue],
   );
 
   const deleteAll = useCallback(async () => {
@@ -193,6 +215,23 @@ export function NotificationProvider({ children }: Props) {
       fetchPage(0, false);
     }
   }, [userId, fetchPage]);
+
+  useEffect(() => {
+    const unregisterRead = registerHandler('notification-read', async (change) => {
+      const { id, userId: uid } = change.payload as { id: number; userId: string };
+      const result = await markAsReadService(id, uid);
+      if (result.error) return { error: result.error };
+    });
+    const unregisterDelete = registerHandler('notification-delete', async (change) => {
+      const { id, userId: uid } = change.payload as { id: number; userId: string };
+      const result = await deleteNotificationService(id, uid);
+      if (result.error) return { error: result.error };
+    });
+    return () => {
+      unregisterRead();
+      unregisterDelete();
+    };
+  }, [registerHandler]);
 
   useEffect(() => {
     const currentUserId = user?.id ?? null;

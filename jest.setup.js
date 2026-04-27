@@ -159,6 +159,99 @@ jest.mock('react-native-map-clustering', () => {
   };
 });
 
+// Mock @tanstack/react-query so screens that call useQuery/useMutation
+// can render in unit tests without a QueryClientProvider wrapper.
+// We run queryFn eagerly so existing tests that mock the underlying service
+// keep working (they never set up QueryClient state).
+jest.mock('@tanstack/react-query', () => {
+  const React = require('react');
+  const actual = jest.requireActual('@tanstack/react-query');
+  const noopClient = {
+    cancelQueries: jest.fn(() => Promise.resolve()),
+    getQueryData: jest.fn(() => undefined),
+    setQueryData: jest.fn(),
+    invalidateQueries: jest.fn(() => Promise.resolve()),
+  };
+  return {
+    ...actual,
+    useQuery: ({ queryKey, queryFn, enabled = true }) => {
+      const [data, setData] = React.useState(undefined);
+      const [isLoading, setIsLoading] = React.useState(true);
+      const refetch = React.useCallback(async () => {
+        if (!queryFn) return { data };
+        const result = await queryFn();
+        setData(result);
+        setIsLoading(false);
+        return { data: result };
+      }, [queryFn]);
+      React.useEffect(() => {
+        if (enabled === false) {
+          setIsLoading(false);
+          return;
+        }
+        if (queryFn) {
+          let cancelled = false;
+          (async () => {
+            try {
+              const result = await queryFn();
+              if (!cancelled) {
+                setData(result);
+                setIsLoading(false);
+              }
+            } catch {
+              if (!cancelled) setIsLoading(false);
+            }
+          })();
+          return () => {
+            cancelled = true;
+          };
+        }
+        setIsLoading(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [JSON.stringify(queryKey), enabled]);
+      return {
+        data,
+        isLoading,
+        isRefreshing: false,
+        isError: false,
+        error: null,
+        refetch,
+      };
+    },
+    useMutation: ({ mutationFn, onMutate, onSuccess, onError, onSettled } = {}) => {
+      const mutate = (vars) => {
+        Promise.resolve()
+          .then(async () => {
+            const ctx = onMutate ? await onMutate(vars) : undefined;
+            try {
+              const data = mutationFn ? await mutationFn(vars) : undefined;
+              if (onSuccess) await onSuccess(data, vars, ctx);
+              if (onSettled) await onSettled(data, null, vars, ctx);
+            } catch (err) {
+              if (onError) await onError(err, vars, ctx);
+              if (onSettled) await onSettled(undefined, err, vars, ctx);
+            }
+          });
+      };
+      return {
+        mutate,
+        mutateAsync: async (vars) => {
+          const ctx = onMutate ? await onMutate(vars) : undefined;
+          const data = mutationFn ? await mutationFn(vars) : undefined;
+          if (onSuccess) await onSuccess(data, vars, ctx);
+          if (onSettled) await onSettled(data, null, vars, ctx);
+          return data;
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+      };
+    },
+    useQueryClient: () => noopClient,
+    QueryClientProvider: ({ children }) => children,
+  };
+});
+
 // Mock @react-native-community/netinfo
 jest.mock('@react-native-community/netinfo', () => ({
   __esModule: true,

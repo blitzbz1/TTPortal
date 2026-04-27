@@ -1,8 +1,9 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { Lucide } from '../components/Icon';
 import { EmptyState } from '../components/EmptyState';
 import { NotificationSkeleton, SkeletonList } from '../components/SkeletonLoader';
@@ -12,11 +13,7 @@ import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme'
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getFriendIds } from '../services/friends';
-import { getFriendFeed } from '../services/feed';
-import type { FeedItem } from '../services/feed';
-import { loadCachedFeed, saveCachedFeed } from '../lib/feedCache';
-
-const FEED_FRESH_TTL_MS = 60 * 1000;
+import { useFeedQuery } from '../hooks/queries/useFeedQuery';
 
 export function ActivityFeedScreen() {
   const insets = useSafeAreaInsets();
@@ -26,57 +23,23 @@ export function ActivityFeedScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const [feed, setFeed] = useState<FeedItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Skip the feed refetch on focus if we just fetched it. Pull-to-refresh
-  // (and explicit invalidation elsewhere) still bypass the freshness check.
-  const lastFetchedAtRef = useRef<number>(0);
+  const { data: friendIds = [] } = useQuery({
+    queryKey: ['friend-ids', user?.id],
+    queryFn: async () => (user ? await getFriendIds(user.id) : []),
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const fetchFeed = useCallback(async (force = false) => {
-    if (!user) { setLoading(false); return; }
-
-    // Cache-first: paint the feed instantly on cold open from sqlite, then
-    // refresh in the background if stale. Pull-to-refresh always forces.
-    if (!force) {
-      // In-memory ref handles tab toggles within the same session.
-      if (Date.now() - lastFetchedAtRef.current < FEED_FRESH_TTL_MS) {
-        setLoading(false);
-        return;
-      }
-      const cached = loadCachedFeed<FeedItem>(user.id);
-      if (cached) {
-        setFeed(cached.data);
-        setLoading(false);
-        if (cached.fresh) {
-          lastFetchedAtRef.current = Date.now();
-          return;
-        }
-      }
-    }
-    try {
-      const friendIds = await getFriendIds(user.id);
-      const { data } = await getFriendFeed(friendIds);
-      setFeed(data);
-      saveCachedFeed(user.id, data);
-      lastFetchedAtRef.current = Date.now();
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchFeed();
-    }, [fetchFeed]),
-  );
+  const { data: feed = [], isLoading, refetch } = useFeedQuery(friendIds, !!user);
+  const loading = isLoading && feed.length === 0;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchFeed(true);
+    await refetch();
     setRefreshing(false);
-  }, [fetchFeed]);
+  }, [refetch]);
 
   const formatTime = useCallback((dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();

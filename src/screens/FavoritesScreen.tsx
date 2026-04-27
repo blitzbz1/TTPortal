@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Card } from '../components/Card';
 import { Lucide } from '../components/Icon';
 import { NotificationBellButton } from '../components/NotificationBellButton';
@@ -14,8 +14,7 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getFavorites, removeFavorite } from '../services/favorites';
-import { loadCachedFavorites, saveCachedFavorites } from '../lib/favoritesCache';
+import { useFavoritesQuery, useToggleFavoriteMutation } from '../hooks/queries/useFavoritesQuery';
 
 type SortMode = 'recent' | 'name';
 
@@ -25,8 +24,6 @@ interface FavoritesScreenProps {
 
 export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
   const insets = useSafeAreaInsets();
-  const [favorites, setFavorites] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [sortMode] = useState<SortMode>('name');
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useSession();
@@ -36,55 +33,22 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
-  const fetchFavorites = useCallback(async (force = false) => {
-    if (!user) return;
-    if (!force) {
-      const cached = loadCachedFavorites<any>(user.id);
-      if (cached) {
-        setFavorites(cached.data);
-        if (cached.fresh) return;
-      } else {
-        setLoading(true);
-      }
-    } else {
-      setLoading(true);
-    }
-    try {
-      const { data, error } = await getFavorites(user.id);
-      if (error) {
-        Alert.alert(s('error'), s('favLoadError'));
-      } else {
-        const list = data ?? [];
-        setFavorites(list);
-        saveCachedFavorites(user.id, list);
-      }
-    } finally {
-      setLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, s]);
+  const { data: favorites = [], isLoading, refetch } = useFavoritesQuery(user?.id);
+  const toggleFavorite = useToggleFavoriteMutation(user?.id);
+  const loading = isLoading && favorites.length === 0;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchFavorites(true);
+    await refetch();
     setRefreshing(false);
-  }, [fetchFavorites]);
+  }, [refetch]);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchFavorites();
-    }, [fetchFavorites])
+  const handleRemove = useCallback(
+    (venueId: number) => {
+      toggleFavorite.mutate({ venueId, isFav: true });
+    },
+    [toggleFavorite],
   );
-
-  const handleRemove = useCallback(async (venueId: number) => {
-    if (!user) return;
-    const { error } = await removeFavorite(user.id, venueId);
-    if (error) {
-      Alert.alert(s('error'), s('favRemoveError'));
-      return;
-    }
-    setFavorites((prev) => prev.filter((f) => f.venue_id !== venueId));
-  }, [user, s]);
 
 
   // Pre-parse created_at to ms once per favorites update so the sort comparator

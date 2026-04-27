@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Modal,
   Pressable,
   ScrollView,
@@ -11,9 +12,9 @@ import {
 } from 'react-native';
 import {
   BottomSheetBackdrop,
-  BottomSheetFlatList,
   BottomSheetModal,
   BottomSheetTextInput,
+  BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -291,34 +292,33 @@ function SearchableSelect({
         backgroundStyle={{ backgroundColor: colors.bgAlt }}
         handleIndicatorStyle={{ backgroundColor: colors.border }}
       >
-        <BottomSheetFlatList
-          data={suggestions}
-          keyExtractor={(option: { id: string }) => option.id}
-          keyboardShouldPersistTaps="always"
-          contentContainerStyle={{ paddingBottom: 24 }}
-          stickyHeaderIndices={[0]}
-          ListHeaderComponent={
-            <View style={[styles.sheetHeader, { backgroundColor: colors.bgAlt }]}>
-              <Text style={styles.sheetTitle}>{label}</Text>
-              <BottomSheetTextInput
-                value={query}
-                placeholder={placeholder}
-                placeholderTextColor={colors.textFaint}
-                autoFocus
-                autoComplete="off"
-                autoCorrect={false}
-                spellCheck={false}
-                style={styles.sheetSearch}
-                onChangeText={setQuery}
-                onSubmitEditing={() => {
-                  if (suggestions[0]) handleSelect(suggestions[0]);
-                }}
-              />
-            </View>
-          }
-          ListEmptyComponent={<Text style={styles.emptyOption}>{emptyText}</Text>}
-          renderItem={renderOption}
-        />
+        <BottomSheetView style={styles.sheetContent}>
+          <View style={[styles.sheetHeader, { backgroundColor: colors.bgAlt }]}>
+            <Text style={styles.sheetTitle}>{label}</Text>
+            <BottomSheetTextInput
+              value={query}
+              placeholder={placeholder}
+              placeholderTextColor={colors.textFaint}
+              autoFocus
+              autoComplete="off"
+              autoCorrect={false}
+              spellCheck={false}
+              style={styles.sheetSearch}
+              onChangeText={setQuery}
+              onSubmitEditing={() => {
+                if (suggestions[0]) handleSelect(suggestions[0]);
+              }}
+            />
+          </View>
+          <FlatList
+            data={suggestions}
+            keyExtractor={(option: { id: string }) => option.id}
+            keyboardShouldPersistTaps="always"
+            contentContainerStyle={{ paddingBottom: 24 }}
+            ListEmptyComponent={<Text style={styles.emptyOption}>{emptyText}</Text>}
+            renderItem={renderOption}
+          />
+        </BottomSheetView>
       </BottomSheetModal>
     </View>
   );

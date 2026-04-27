@@ -110,22 +110,17 @@ export function VenueDetailScreen({ venueId }: Props) {
   useEffect(() => {
     if (!venueId || isNaN(Number(venueId)) || Number(venueId) < 1) return;
     let cancelled = false;
+    const vId = Number(venueId);
 
-    async function load() {
-      const vId = Number(venueId);
-      // Cache-first: paint venue meta + reviews from cache while the network
-      // refreshes them. Live data (active checkins, champion, friends here)
-      // is always fetched fresh below.
-      const cachedMeta = loadCachedVenueMeta<any>(vId);
-      const cachedReviews = loadCachedVenueReviews<Review>(vId);
-      if (cachedMeta) setVenue(cachedMeta.data);
-      if (cachedReviews) setReviews(cachedReviews.data);
-      if (!cachedMeta) setLoading(true);
+    // Cache-first paint.
+    const cachedMeta = loadCachedVenueMeta<any>(vId);
+    const cachedReviews = loadCachedVenueReviews<Review>(vId);
+    if (cachedMeta) setVenue(cachedMeta.data);
+    if (cachedReviews) setReviews(cachedReviews.data);
+    if (!cachedMeta) setLoading(true);
 
-      const [venueRes, reviewsRes] = await Promise.all([
-        getVenueById(vId),
-        getReviewsForVenue(vId),
-      ]);
+    // Phase 1 — primary content. Two parallel queries, then unblock UI.
+    Promise.all([getVenueById(vId), getReviewsForVenue(vId)]).then(([venueRes, reviewsRes]) => {
       if (cancelled) return;
       if (venueRes.data) {
         setVenue(venueRes.data as any);
@@ -135,81 +130,64 @@ export function VenueDetailScreen({ venueId }: Props) {
         setReviews(reviewsRes.data as Review[]);
         saveCachedVenueReviews(vId, reviewsRes.data);
       }
+      setLoading(false);
+    });
 
-      if (user) {
-        const [favRes, checkinRes] = await Promise.all([
-          isFavorite(user.id, Number(venueId)),
-          getUserActiveCheckin(user.id, Number(venueId)),
-        ]);
-        if (!cancelled) {
-          if (favRes.data !== undefined) setFavorited(favRes.data);
-          setActiveCheckin(checkinRes.data ?? null);
-        }
+    // Phase 2 — independent secondary queries fire in parallel with phase 1.
+    // Each populates its own slice as it arrives; nothing waterfalls.
+    getVenueChampion(vId)
+      .then(({ data }) => { if (!cancelled) setChampion(data); })
+      .catch(() => {});
+    getUpcomingEventsByVenue(vId)
+      .then(({ data }) => { if (!cancelled) setUpcomingEventCount(data?.length ?? 0); })
+      .catch(() => {});
 
-        // Fetch friends present at this venue — checkins AND in-progress
-        // event participations. Each is normalized to the same shape used
-        // by the "Friends here" list below: { user_id, profiles, source }.
-        try {
-          const fIds = await getFriendIds(user.id);
-          if (fIds.length > 0 && !cancelled) {
-            const [checkinsRes, eventsRes] = await Promise.all([
-              getActiveFriendCheckins(fIds),
-              getActiveFriendEvents(fIds),
-            ]);
-            if (!cancelled) {
-              const seen = new Set<string>();
-              const here: any[] = [];
-              for (const c of (checkinsRes.data ?? []) as any[]) {
-                if (c.venue_id !== Number(venueId)) continue;
-                if (seen.has(c.user_id)) continue;
-                seen.add(c.user_id);
-                here.push({ ...c, _source: 'checkin' });
-              }
-              for (const ev of eventsRes.data ?? []) {
-                if (ev.venue_id !== Number(venueId)) continue;
-                for (const p of ev.event_participants ?? []) {
-                  if (seen.has(p.user_id)) continue;
-                  seen.add(p.user_id);
-                  here.push({
-                    user_id: p.user_id,
-                    profiles: p.profiles,
-                    _source: 'event',
-                    _eventTitle: ev.title,
-                  });
-                }
-              }
-              setFriendsHere(here);
+    if (user) {
+      isFavorite(user.id, vId)
+        .then((res) => { if (!cancelled && res.data !== undefined) setFavorited(res.data); })
+        .catch(() => {});
+      getUserActiveCheckin(user.id, vId)
+        .then((res) => { if (!cancelled) setActiveCheckin(res.data ?? null); })
+        .catch(() => {});
+      getProfile(user.id)
+        .then(({ data }) => { if (!cancelled && data) setIsAdmin(data.is_admin === true); })
+        .catch(() => {});
+
+      // Friends present: friend ids → two parallel lookups, merged.
+      getFriendIds(user.id)
+        .then(async (fIds) => {
+          if (fIds.length === 0 || cancelled) return;
+          const [checkinsRes, eventsRes] = await Promise.all([
+            getActiveFriendCheckins(fIds),
+            getActiveFriendEvents(fIds),
+          ]);
+          if (cancelled) return;
+          const seen = new Set<string>();
+          const here: any[] = [];
+          for (const c of (checkinsRes.data ?? []) as any[]) {
+            if (c.venue_id !== vId) continue;
+            if (seen.has(c.user_id)) continue;
+            seen.add(c.user_id);
+            here.push({ ...c, _source: 'checkin' });
+          }
+          for (const ev of eventsRes.data ?? []) {
+            if (ev.venue_id !== vId) continue;
+            for (const p of ev.event_participants ?? []) {
+              if (seen.has(p.user_id)) continue;
+              seen.add(p.user_id);
+              here.push({
+                user_id: p.user_id,
+                profiles: p.profiles,
+                _source: 'event',
+                _eventTitle: ev.title,
+              });
             }
           }
-        } catch {
-          // non-critical, ignore
-        }
-
-        // Check admin status
-        try {
-          const { data: profileData } = await getProfile(user.id);
-          if (!cancelled && profileData) setIsAdmin(profileData.is_admin === true);
-        } catch {
-          // non-critical
-        }
-      }
-
-      // Load venue champion
-      try {
-        const { data: champ } = await getVenueChampion(Number(venueId));
-        if (!cancelled) setChampion(champ);
-      } catch {}
-
-      // Load upcoming-events count for this venue
-      try {
-        const { data: evs } = await getUpcomingEventsByVenue(Number(venueId));
-        if (!cancelled) setUpcomingEventCount(evs?.length ?? 0);
-      } catch {}
-
-      setLoading(false);
+          setFriendsHere(here);
+        })
+        .catch(() => {});
     }
 
-    load();
     return () => { cancelled = true; };
   }, [venueId, user]);
 

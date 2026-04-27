@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -11,8 +11,7 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getLeaderboard } from '../services/leaderboard';
-import { loadCachedLeaderboard, saveCachedLeaderboard } from '../lib/leaderboardCache';
+import { useLeaderboardQuery } from '../hooks/queries/useLeaderboardQuery';
 import { LeaderboardSkeleton } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
 import { hapticSelection } from '../lib/haptics';
@@ -36,8 +35,6 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<LBTab>('checkins');
   const [period, setPeriod] = useState<'week' | 'all'>('all');
-  const [entries, setEntries] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [cityModalVisible, setCityModalVisible] = useState(false);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -49,42 +46,19 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
   const COLOR_BY_RANK: Record<number, string> = { 1: colors.primary, 2: colors.primaryMid, 3: colors.accent };
   const PODIUM_COLORS = [colors.primaryMid, colors.primary, colors.accent];
 
-  const fetchLeaderboard = useCallback(async (force = false) => {
-    const type = TAB_TO_TYPE[activeTab];
-    if (!force) {
-      const cached = loadCachedLeaderboard<any>(type, selectedCity, period);
-      if (cached) {
-        setEntries(cached.data);
-        if (cached.fresh) {
-          setLoading(false);
-          return;
-        }
-        setLoading(false); // background refresh
-      } else {
-        setLoading(true);
-      }
-    } else {
-      setLoading(true);
-    }
-    try {
-      const { data } = await getLeaderboard(type, selectedCity ?? undefined, period);
-      const list = data ?? [];
-      setEntries(list);
-      saveCachedLeaderboard(type, selectedCity, period, list);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeTab, selectedCity, period]);
+  const type = TAB_TO_TYPE[activeTab];
+  const { data: entries = [], isLoading, refetch } = useLeaderboardQuery(
+    type,
+    selectedCity ?? undefined,
+    period,
+  );
+  const loading = isLoading && entries.length === 0;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchLeaderboard(true);
+    await refetch();
     setRefreshing(false);
-  }, [fetchLeaderboard]);
-
-  useEffect(() => {
-    fetchLeaderboard();
-  }, [fetchLeaderboard]);
+  }, [refetch]);
 
   const getInitials = useCallback((name?: string) => {
     if (!name) return '?';
