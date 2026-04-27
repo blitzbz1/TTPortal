@@ -118,48 +118,22 @@ export async function getPlayHistory(
 }
 
 export async function getVenueChampion(venueId: number) {
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  // Server-side aggregation via RPC (migration 043). Returns at most one row
+  // — the user with the most distinct active days at this venue in the last
+  // 30 days, requiring at least 2 days to qualify.
+  const { data, error } = await supabase.rpc('get_venue_champion', {
+    p_venue_id: venueId,
+    p_days_back: 30,
+  });
 
-  // Get all checkins in last 30 days, then deduplicate per user per day client-side
-  const { data, error } = await supabase
-    .from('checkins')
-    .select('user_id, started_at, profiles(full_name)')
-    .eq('venue_id', venueId)
-    .gte('started_at', thirtyDaysAgo)
-    .order('started_at', { ascending: false });
+  if (error || !data || data.length === 0) return { data: null, error };
 
-  if (error || !data?.length) return { data: null, error };
-
-  // Count unique days per user
-  const userDays = new Map<string, Set<string>>();
-  const userNames = new Map<string, string>();
-
-  for (const row of data) {
-    const day = row.started_at.split('T')[0];
-    if (!userDays.has(row.user_id)) userDays.set(row.user_id, new Set());
-    userDays.get(row.user_id)!.add(day);
-    if (!userNames.has(row.user_id)) {
-      userNames.set(row.user_id, (row as any).profiles?.full_name ?? '?');
-    }
-  }
-
-  // Find the user with most unique days
-  let championId = '';
-  let maxDays = 0;
-  for (const [userId, days] of userDays) {
-    if (days.size > maxDays) {
-      maxDays = days.size;
-      championId = userId;
-    }
-  }
-
-  if (!championId || maxDays < 2) return { data: null, error: null }; // Need at least 2 days to be champion
-
+  const row = data[0] as { user_id: string; full_name: string | null; day_count: number };
   return {
     data: {
-      userId: championId,
-      fullName: userNames.get(championId) ?? '?',
-      dayCount: maxDays,
+      userId: row.user_id,
+      fullName: row.full_name ?? '?',
+      dayCount: Number(row.day_count),
     },
     error: null,
   };

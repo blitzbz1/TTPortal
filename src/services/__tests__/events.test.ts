@@ -22,6 +22,7 @@ function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
     not: jest.fn(() => chain),
     order: jest.fn(() => chain),
     limit: jest.fn(() => chain),
+    range: jest.fn(() => chain),
     insert: jest.fn(() => chain),
     update: jest.fn(() => chain),
     delete: jest.fn(() => chain),

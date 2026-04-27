@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, RefreshControl, Linking } from 'react-native';
+import { ActivityIndicator, View, Text, TouchableOpacity, ScrollView, Alert, RefreshControl, Linking } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -16,7 +16,7 @@ import { AmaturDetailSheet } from './EventSchedulingScreen/AmaturDetailSheet';
 import { EventDetailContent } from './EventSchedulingScreen/EventDetailContent';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getEvents, getEventById, getEventParticipants, joinEvent, leaveEvent, sendEventInvites } from '../services/events';
+import { getEvents, getEventById, getEventParticipants, joinEvent, leaveEvent, sendEventInvites, PAST_EVENTS_PAGE_SIZE } from '../services/events';
 import { getEventFeedback, getUserEventFeedbackForEvents } from '../services/eventFeedback';
 import {
   loadCachedEvents,
@@ -99,6 +99,8 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const [sendingUpdate, setSendingUpdate] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [pastHasMore, setPastHasMore] = useState(true);
+  const [pastLoadingMore, setPastLoadingMore] = useState(false);
   const [amaturEvents, setAmaturEvents] = useState<AmaturEvent[]>([]);
   const [amaturLoading, setAmaturLoading] = useState(false);
   const [selectedAmatur, setSelectedAmatur] = useState<AmaturEvent | null>(null);
@@ -160,15 +162,20 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     setEventsError(false);
 
     try {
+      // Past tab paginates: fetch the first 20, then lazy-load on scroll.
+      // Other tabs keep the existing 50-cap behavior.
+      const limit = tab === 'past' ? PAST_EVENTS_PAGE_SIZE : 50;
       const { data, error } = await getEvents(
         tab,
         (tab === 'mine' || tab === 'past') ? userId : undefined,
+        { limit, offset: 0 },
       );
       if (error) {
         setEventsError(true);
       } else {
         const list = (data ?? []) as unknown as EventListItem[];
         setEvents(list);
+        if (tab === 'past') setPastHasMore(list.length === PAST_EVENTS_PAGE_SIZE);
         if (userId) saveCachedEvents(userId, tab, list);
         // Check which past events already have user feedback (single round trip).
         if (tab === 'past' && userId && list.length) {
@@ -185,6 +192,42 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       setLoading(false);
     }
   }, [activeTab, user?.id]);
+
+  const loadMorePastEvents = useCallback(async () => {
+    if (activeTab !== 'past' || !user?.id) return;
+    if (pastLoadingMore || !pastHasMore || loading) return;
+    setPastLoadingMore(true);
+    try {
+      const offset = events.length;
+      const { data, error } = await getEvents('past', user.id, {
+        limit: PAST_EVENTS_PAGE_SIZE,
+        offset,
+      });
+      if (error) return;
+      const more = (data ?? []) as unknown as EventListItem[];
+      if (more.length === 0) {
+        setPastHasMore(false);
+        return;
+      }
+      const merged = [...events, ...more];
+      setEvents(merged);
+      setPastHasMore(more.length === PAST_EVENTS_PAGE_SIZE);
+      if (user.id) saveCachedEvents(user.id, 'past', merged);
+      // Augment feedback-given set with the new page.
+      const newIds = more.map((ev) => ev.id);
+      const { data: fb } = await getUserEventFeedbackForEvents(user.id, newIds);
+      if (fb && fb.length) {
+        setFeedbackGivenIds((prev) => {
+          const next = new Set(prev);
+          fb.forEach((id) => next.add(id));
+          saveCachedFeedbackGiven(user.id, Array.from(next));
+          return next;
+        });
+      }
+    } finally {
+      setPastLoadingMore(false);
+    }
+  }, [activeTab, user, events, pastLoadingMore, pastHasMore, loading]);
 
   // Fetch AmaTur events
   const fetchAmatur = useCallback(async () => {
@@ -208,6 +251,9 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   }, [fetchEvents, fetchAmatur, activeTab]);
 
   useEffect(() => {
+    // Reset pagination when leaving or entering the past tab so a fresh
+    // visit always starts at offset 0 with hasMore unknown-but-true.
+    setPastHasMore(true);
     fetchEvents();
   }, [fetchEvents]);
 
@@ -435,7 +481,18 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         </View>
       </View>
 
-      <ScrollView style={styles.scroll} keyboardDismissMode="on-drag" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}>
+      <ScrollView
+        style={styles.scroll}
+        keyboardDismissMode="on-drag"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
+        scrollEventThrottle={200}
+        onScroll={(e) => {
+          if (activeTab !== 'past' || !pastHasMore || pastLoadingMore) return;
+          const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+          const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+          if (distanceFromBottom < 400) loadMorePastEvents();
+        }}
+      >
         {/* Tabs */}
         <View style={styles.tabs}>
           {[
@@ -613,6 +670,11 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                   </Animated.View>
                 );
               })}
+              {activeTab === 'past' && pastLoadingMore && (
+                <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={colors.primaryMid} />
+                </View>
+              )}
             </View>
           )
         )}

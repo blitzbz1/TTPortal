@@ -24,7 +24,8 @@ import { Lucide } from '../components/Icon';
 import { useSession } from '../hooks/useSession';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
-import { getEquipmentCatalog, getEquipmentHistory, saveEquipmentSelection } from '../services/equipment';
+import { getEquipmentHistory, saveEquipmentSelection } from '../services/equipment';
+import { useEquipmentCatalogQuery } from '../hooks/queries/useEquipmentCatalogQuery';
 import { loadCachedEquipmentHistory, saveCachedEquipmentHistory } from '../lib/equipmentCache';
 import type {
   DominantHand,
@@ -388,10 +389,12 @@ export function EquipmentScreen() {
 
   const [activeTab, setActiveTab] = useState<TabKey>('edit');
   const [history, setHistory] = useState<EquipmentSelection[]>([]);
-  const [bladeCatalog, setBladeCatalog] = useState<EquipmentManufacturer[]>([]);
-  const [rubberCatalog, setRubberCatalog] = useState<EquipmentManufacturer[]>([]);
+  const { data: bladeCatalogData, isError: bladeErr } = useEquipmentCatalogQuery('blade');
+  const { data: rubberCatalogData, isError: rubberErr } = useEquipmentCatalogQuery('rubber');
+  const bladeCatalog = useMemo(() => bladeCatalogData ?? [], [bladeCatalogData]);
+  const rubberCatalog = useMemo(() => rubberCatalogData ?? [], [rubberCatalogData]);
   const [loading, setLoading] = useState(true);
-  const [catalogError, setCatalogError] = useState(false);
+  const catalogError = bladeErr || rubberErr;
   const [saving, setSaving] = useState(false);
 
   const [blade, setBlade] = useState<PickedEquipment>(EMPTY_PICK);
@@ -420,9 +423,8 @@ export function EquipmentScreen() {
 
   const loadHistory = useCallback(async () => {
     if (!user) return;
-    // Cache-first: paint history immediately. The blade/rubber catalogs are
-    // fetched from the network — they're shared and Supabase will likely
-    // return them from its own cache anyway.
+    // Cache-first: paint history immediately. Catalogs come from
+    // useEquipmentCatalogQuery (delta-synced + persistent).
     const cached = loadCachedEquipmentHistory<EquipmentSelection>(user.id, 4);
     if (cached) {
       setHistory(cached.data);
@@ -430,19 +432,7 @@ export function EquipmentScreen() {
     } else {
       setLoading(true);
     }
-    setCatalogError(false);
-    const [historyRes, bladeRes, rubberRes] = await Promise.all([
-      getEquipmentHistory(user.id, 4),
-      getEquipmentCatalog('blade'),
-      getEquipmentCatalog('rubber'),
-    ]);
-
-    if (bladeRes.error || rubberRes.error) {
-      setCatalogError(true);
-    }
-
-    setBladeCatalog(bladeRes.data ?? []);
-    setRubberCatalog(rubberRes.data ?? []);
+    const historyRes = await getEquipmentHistory(user.id, 4);
     const { data } = historyRes;
     const histList = (data ?? []) as EquipmentSelection[];
     setHistory(histList);

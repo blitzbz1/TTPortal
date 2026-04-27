@@ -18,7 +18,7 @@ import { hapticSelection } from '../lib/haptics';
 import { useTheme } from '../hooks/useTheme';
 import { Radius, Spacing } from '../theme';
 import { createStyles } from './MapViewScreen.styles';
-import { getVenues } from '../services/venues';
+import { useVenuesQuery } from '../hooks/queries/useVenuesQuery';
 import { getCities } from '../services/cities';
 import { getActiveFriendCheckins } from '../services/checkins';
 import { getActiveFriendEvents } from '../services/events';
@@ -27,7 +27,6 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import type { Venue, VenueCondition } from '../types/database';
-import { setCacheItem, getCacheItem } from '../lib/offline-cache';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
 import { getDistanceKm, formatDistance } from '../lib/geo';
 
@@ -60,8 +59,6 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const { styles, pinStyles } = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
-  const [venues, setVenues] = useState<VenueWithStats[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedQuery = useDebouncedValue(searchQuery, 150);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('toate');
@@ -73,9 +70,18 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const [nearMeEnabled, setNearMeEnabled] = useState(false);
   const [locating, setLocating] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [fetchError, setFetchError] = useState(false);
-  const [fromCache, setFromCache] = useState(false);
   const mapRef = useRef<MapView>(null);
+
+  const { data: venuesRaw, isLoading, isError, refetch } = useVenuesQuery(selectedCity);
+  const venues = useMemo(
+    () => (venuesRaw ?? []) as unknown as VenueWithStats[],
+    [venuesRaw],
+  );
+  // Cache-first: as long as we have ANY rows (from MMKV), don't show a
+  // spinner. The delta sync runs in the background and updates in place.
+  const loading = isLoading && venues.length === 0;
+  const fetchError = isError && venues.length === 0;
+  const fromCache = false;
 
   const filters: { key: FilterKey; label: string; icon?: string }[] = [
     { key: 'toate', label: s('filterAll') },
@@ -102,48 +108,15 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     return type;
   };
 
-  const fetchVenues = useCallback(async (force = false) => {
-    // Cache-first: paint markers from cache immediately while we refresh in
-    // the background. On error, the cache also acts as the fallback.
-    const cached = getCacheItem<VenueWithStats[]>(`venues_${selectedCity}`);
-    if (cached && !force) {
-      setVenues(cached);
-      setFromCache(false);
-      setFetchError(false);
-      setLoading(false);
-    } else {
-      setLoading(true);
-      setFromCache(false);
-      setFetchError(false);
-    }
-    try {
-      const { data } = await getVenues(selectedCity);
-      if (data) {
-        setVenues(data as VenueWithStats[]);
-        setCacheItem(`venues_${selectedCity}`, data);
-      }
-    } catch {
-      if (cached) {
-        setVenues(cached);
-        setFetchError(false);
-        setFromCache(true);
-      } else {
-        setFetchError(true);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedCity]);
+  const fetchVenues = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchVenues(true);
+    await refetch();
     setRefreshing(false);
-  }, [fetchVenues]);
-
-  useEffect(() => {
-    fetchVenues();
-  }, [fetchVenues]);
+  }, [refetch]);
 
   // Reposition map when city changes
   useEffect(() => {

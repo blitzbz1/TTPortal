@@ -138,6 +138,7 @@ jest.mock('../../services/events', () => ({
   stopRecurrence: jest.fn().mockResolvedValue({ error: null }),
   sendEventInvites: jest.fn().mockResolvedValue({ error: null }),
   sendEventUpdate: jest.fn().mockResolvedValue({ error: null }),
+  PAST_EVENTS_PAGE_SIZE: 20,
 }));
 
 jest.mock('../../services/eventFeedback', () => ({
@@ -220,7 +221,7 @@ describe('EventSchedulingScreen — feedback integration', () => {
     fireEvent.press(pastTab);
 
     await waitFor(() => {
-      expect(mockGetEvents).toHaveBeenCalledWith('past', 'u-1');
+      expect(mockGetEvents).toHaveBeenCalledWith('past', 'u-1', { limit: 20, offset: 0 });
     });
   });
 

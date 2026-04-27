@@ -6,7 +6,9 @@ import { invalidateProfileStatsCache } from '../lib/profileCache';
 export async function getEvents(
   filter: 'upcoming' | 'past' | 'mine',
   userId?: string,
+  options: { limit?: number; offset?: number } = {},
 ) {
+  const { limit = 50, offset = 0 } = options;
   const now = new Date().toISOString();
   const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
   const needsParticipantFilter = filter === 'past' && !!userId;
@@ -41,8 +43,12 @@ export async function getEvents(
     query = query.eq('organizer_id', userId);
   }
 
-  return query.order('starts_at', { ascending: filter === 'upcoming' }).limit(50);
+  return query
+    .order('starts_at', { ascending: filter === 'upcoming' })
+    .range(offset, offset + limit - 1);
 }
+
+export const PAST_EVENTS_PAGE_SIZE = 20;
 
 export async function getUpcomingEventsByVenue(venueId: number) {
   const now = new Date().toISOString();
@@ -63,6 +69,24 @@ export async function getUpcomingEventsByVenue(venueId: number) {
     .not('status', 'in', '(cancelled,completed)')
     .order('starts_at', { ascending: true })
     .limit(50);
+}
+
+/**
+ * Lightweight count-only variant of getUpcomingEventsByVenue. The venue
+ * detail screen only needs the number to render a badge, not the full
+ * event rows + participant joins. `head: true` returns just the count
+ * without shipping any rows.
+ */
+export async function getUpcomingEventCountByVenue(venueId: number) {
+  const now = new Date().toISOString();
+  const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+  const { count, error } = await supabase
+    .from('events')
+    .select('id', { count: 'exact', head: true })
+    .eq('venue_id', venueId)
+    .or(`starts_at.gte.${now},ends_at.gte.${now},and(ends_at.is.null,starts_at.gte.${fourHoursAgo})`)
+    .not('status', 'in', '(cancelled,completed)');
+  return { data: count ?? 0, error };
 }
 
 export async function getEventById(eventId: number) {

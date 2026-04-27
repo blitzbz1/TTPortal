@@ -174,15 +174,27 @@ jest.mock('@tanstack/react-query', () => {
   };
   return {
     ...actual,
-    useQuery: ({ queryKey, queryFn, enabled = true }) => {
-      const [data, setData] = React.useState(undefined);
+    useQuery: ({ queryKey, queryFn, enabled = true, initialData }) => {
+      const initial = typeof initialData === 'function' ? initialData() : initialData;
+      const [data, setData] = React.useState(initial);
       const [isLoading, setIsLoading] = React.useState(true);
+      const [isError, setIsError] = React.useState(false);
+      const [error, setError] = React.useState(null);
       const refetch = React.useCallback(async () => {
         if (!queryFn) return { data };
-        const result = await queryFn();
-        setData(result);
-        setIsLoading(false);
-        return { data: result };
+        try {
+          const result = await queryFn();
+          setData(result);
+          setIsError(false);
+          setError(null);
+          setIsLoading(false);
+          return { data: result };
+        } catch (err) {
+          setIsError(true);
+          setError(err);
+          setIsLoading(false);
+          return { data: undefined };
+        }
       }, [queryFn]);
       React.useEffect(() => {
         if (enabled === false) {
@@ -196,10 +208,16 @@ jest.mock('@tanstack/react-query', () => {
               const result = await queryFn();
               if (!cancelled) {
                 setData(result);
+                setIsError(false);
+                setError(null);
                 setIsLoading(false);
               }
-            } catch {
-              if (!cancelled) setIsLoading(false);
+            } catch (err) {
+              if (!cancelled) {
+                setIsError(true);
+                setError(err);
+                setIsLoading(false);
+              }
             }
           })();
           return () => {
@@ -213,8 +231,8 @@ jest.mock('@tanstack/react-query', () => {
         data,
         isLoading,
         isRefreshing: false,
-        isError: false,
-        error: null,
+        isError,
+        error,
         refetch,
       };
     },

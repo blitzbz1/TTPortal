@@ -44,6 +44,15 @@ jest.mock('expo-location', () => ({
 jest.mock('../../services/venues', () => ({
   getVenues: (...args: any[]) => mockGetVenues(...args),
 }));
+jest.mock('../../services/venuesDelta', () => ({
+  getVenuesDelta: (...args: any[]) => mockGetVenues(...args),
+}));
+jest.mock('../../lib/venuesPersistentCache', () => ({
+  readVenueScope: jest.fn().mockReturnValue(null),
+  writeVenueScope: jest.fn(),
+  applyVenuesDelta: jest.fn((_c, _t, upserts) => ({ venues: upserts ?? [], syncedAt: '' })),
+  clearVenuesCache: jest.fn(),
+}));
 jest.mock('../../services/cities', () => ({
   getCities: jest.fn().mockResolvedValue({ data: [] }),
 }));

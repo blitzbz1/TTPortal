@@ -35,6 +35,17 @@ jest.mock('../../services/venues', () => ({
   uploadVenuePhoto: jest.fn(),
   addPhotoToVenue: jest.fn(),
 }));
+const mockRpc = jest.fn();
+jest.mock('../../lib/supabase', () => ({
+  supabase: {
+    rpc: (...args: any[]) => mockRpc(...args),
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    })),
+  },
+}));
 jest.mock('../../services/reviews', () => ({
   getReviewsForVenue: jest.fn().mockResolvedValue({ data: [] }),
 }));
@@ -48,6 +59,7 @@ jest.mock('../../services/checkins', () => ({
 }));
 jest.mock('../../services/events', () => ({
   getUpcomingEventsByVenue: jest.fn().mockResolvedValue({ data: [] }),
+  getUpcomingEventCountByVenue: jest.fn().mockResolvedValue({ data: 0 }),
   getActiveFriendEvents: jest.fn().mockResolvedValue({ data: [] }),
 }));
 jest.mock('../../services/friends', () => ({
@@ -100,6 +112,25 @@ describe('VenueDetailScreen — admin photo button', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetVenueById.mockResolvedValue({ data: VENUE });
+    // get_venue_detail RPC: bundle for the screen.
+    // get_friends_at_venue RPC: returns []
+    mockRpc.mockImplementation((fn: string) => {
+      if (fn === 'get_venue_detail') {
+        return Promise.resolve({
+          data: {
+            venue: VENUE,
+            stats: VENUE.venue_stats,
+            is_favorited: false,
+            user_active_checkin: null,
+            upcoming_event_count: 0,
+            champion: null,
+            recent_reviews: [],
+          },
+          error: null,
+        });
+      }
+      return Promise.resolve({ data: [], error: null });
+    });
   });
 
   it('shows add photo button for admin users', async () => {

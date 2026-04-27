@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, Alert, Linking, Share, ActivityIndicator, Platform, FlatList, Dimensions, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,21 +10,15 @@ import { createStyles } from './VenueDetailScreen.styles';
 import { CheckinDurationModal } from './VenueDetailScreen/CheckinDurationModal';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getVenueById, uploadVenuePhoto, addPhotoToVenue } from '../services/venues';
-import {
-  loadCachedVenueMeta,
-  saveCachedVenueMeta,
-  loadCachedVenueReviews,
-  saveCachedVenueReviews,
-} from '../lib/venueDetailCache';
+import { uploadVenuePhoto, addPhotoToVenue } from '../services/venues';
 import { venueImageUrl } from '../lib/imageTransforms';
-import { getProfile } from '../services/profiles';
 import * as ImagePicker from 'expo-image-picker';
-import { getReviewsForVenue } from '../services/reviews';
-import { checkin, checkout, getUserActiveCheckin, getUserAnyActiveCheckin, getActiveFriendCheckins, getVenueChampion } from '../services/checkins';
-import { getUpcomingEventsByVenue, getActiveFriendEvents } from '../services/events';
-import { getFriendIds } from '../services/friends';
-import { isFavorite, addFavorite, removeFavorite } from '../services/favorites';
+import { checkin, checkout, getUserAnyActiveCheckin } from '../services/checkins';
+import { addFavorite, removeFavorite } from '../services/favorites';
+import { useVenueDetailQuery, useInvalidateVenueDetail } from '../hooks/queries/useVenueDetailQuery';
+import { useFriendsAtVenueQuery } from '../hooks/queries/useFriendsAtVenueQuery';
+import { useIsAdminQuery } from '../hooks/queries/useIsAdminQuery';
+import { useVenueReviewsQuery } from '../hooks/queries/useVenueReviewsQuery';
 import type { Venue, Review, VenueStats } from '../types/database';
 import { Card } from '../components/Card';
 import { safeErrorMessage } from '../lib/auth-utils';
@@ -56,14 +50,61 @@ export function VenueDetailScreen({ venueId }: Props) {
   const dateLocale = lang === 'en' ? 'en-GB' : 'ro-RO';
   const { styles } = useMemo(() => createStyles(colors), [colors]);
 
-  const [venue, setVenue] = useState<(Venue & { venue_stats: VenueStats | null }) | null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [favorited, setFavorited] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const vIdNum = venueId && !isNaN(Number(venueId)) ? Number(venueId) : undefined;
+
+  // ── Phase 1 (critical, single RPC): venue + stats + is_favorited
+  //    + active checkin + upcoming-event count + champion + top-5 reviews.
+  const { data: bundle, isLoading: bundleLoading } = useVenueDetailQuery(vIdNum, user?.id);
+
+  // ── Phase 2 (lazy): full reviews (top-N comes from bundle).
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const REVIEW_INITIAL_LIMIT = 10;
+  const fullReviewsEnabled = showAllReviews || (bundle?.recent_reviews?.length ?? 0) >= 5;
+  const { data: fullReviews } = useVenueReviewsQuery(vIdNum, fullReviewsEnabled);
+
+  // ── Phase 3 (deferred): friends-at-venue (own RPC).
+  const { data: friendsHereRaw } = useFriendsAtVenueQuery(vIdNum, user?.id);
+
+  // ── Phase 4 (one-time, infinite cache): admin gate.
+  const { data: isAdminFlag } = useIsAdminQuery(user?.id);
+  const isAdmin = !!isAdminFlag;
+
+  const invalidateVenueDetail = useInvalidateVenueDetail();
+
+  const venue = useMemo(
+    () =>
+      (bundle?.venue
+        ? { ...bundle.venue, venue_stats: bundle.stats ?? null }
+        : null) as (Venue & { venue_stats: VenueStats | null }) | null,
+    [bundle],
+  );
+  const reviews = useMemo(
+    () => (fullReviews ?? bundle?.recent_reviews ?? []) as Review[],
+    [fullReviews, bundle],
+  );
+  const favorited = !!bundle?.is_favorited;
+  const activeCheckin = bundle?.user_active_checkin ?? null;
+  const upcomingEventCount = bundle?.upcoming_event_count ?? 0;
+  const champion = bundle?.champion
+    ? {
+        userId: bundle.champion.user_id,
+        fullName: bundle.champion.full_name ?? '?',
+        dayCount: Number(bundle.champion.day_count),
+      }
+    : null;
+  const friendsHere = useMemo(
+    () =>
+      (friendsHereRaw ?? []).map((f) => ({
+        user_id: f.user_id,
+        profiles: { full_name: f.full_name, avatar_url: f.avatar_url },
+        _source: f.source,
+        _eventTitle: f.event_title,
+      })),
+    [friendsHereRaw],
+  );
+  const loading = bundleLoading && !bundle;
+
   const [checkinLoading, setCheckinLoading] = useState(false);
-  const [activeCheckin, setActiveCheckin] = useState<any>(null);
-  const [friendsHere, setFriendsHere] = useState<any[]>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const screenWidth = Dimensions.get('window').width;
@@ -76,10 +117,6 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [untilMinute, setUntilMinute] = useState('');
   const [successSheetVisible, setSuccessSheetVisible] = useState(false);
   const [lastCheckinEndTime, setLastCheckinEndTime] = useState<string | undefined>();
-  const [champion, setChampion] = useState<{ userId: string; fullName: string; dayCount: number } | null>(null);
-  const [upcomingEventCount, setUpcomingEventCount] = useState(0);
-  const REVIEW_INITIAL_LIMIT = 10;
-  const [showAllReviews, setShowAllReviews] = useState(false);
   const visibleReviews = useMemo(
     () => (showAllReviews ? reviews : reviews.slice(0, REVIEW_INITIAL_LIMIT)),
     [reviews, showAllReviews],
@@ -107,89 +144,6 @@ export function VenueDetailScreen({ venueId }: Props) {
     };
   });
 
-  useEffect(() => {
-    if (!venueId || isNaN(Number(venueId)) || Number(venueId) < 1) return;
-    let cancelled = false;
-    const vId = Number(venueId);
-
-    // Cache-first paint.
-    const cachedMeta = loadCachedVenueMeta<any>(vId);
-    const cachedReviews = loadCachedVenueReviews<Review>(vId);
-    if (cachedMeta) setVenue(cachedMeta.data);
-    if (cachedReviews) setReviews(cachedReviews.data);
-    if (!cachedMeta) setLoading(true);
-
-    // Phase 1 — primary content. Two parallel queries, then unblock UI.
-    Promise.all([getVenueById(vId), getReviewsForVenue(vId)]).then(([venueRes, reviewsRes]) => {
-      if (cancelled) return;
-      if (venueRes.data) {
-        setVenue(venueRes.data as any);
-        saveCachedVenueMeta(vId, venueRes.data);
-      }
-      if (reviewsRes.data) {
-        setReviews(reviewsRes.data as Review[]);
-        saveCachedVenueReviews(vId, reviewsRes.data);
-      }
-      setLoading(false);
-    });
-
-    // Phase 2 — independent secondary queries fire in parallel with phase 1.
-    // Each populates its own slice as it arrives; nothing waterfalls.
-    getVenueChampion(vId)
-      .then(({ data }) => { if (!cancelled) setChampion(data); })
-      .catch(() => {});
-    getUpcomingEventsByVenue(vId)
-      .then(({ data }) => { if (!cancelled) setUpcomingEventCount(data?.length ?? 0); })
-      .catch(() => {});
-
-    if (user) {
-      isFavorite(user.id, vId)
-        .then((res) => { if (!cancelled && res.data !== undefined) setFavorited(res.data); })
-        .catch(() => {});
-      getUserActiveCheckin(user.id, vId)
-        .then((res) => { if (!cancelled) setActiveCheckin(res.data ?? null); })
-        .catch(() => {});
-      getProfile(user.id)
-        .then(({ data }) => { if (!cancelled && data) setIsAdmin(data.is_admin === true); })
-        .catch(() => {});
-
-      // Friends present: friend ids → two parallel lookups, merged.
-      getFriendIds(user.id)
-        .then(async (fIds) => {
-          if (fIds.length === 0 || cancelled) return;
-          const [checkinsRes, eventsRes] = await Promise.all([
-            getActiveFriendCheckins(fIds),
-            getActiveFriendEvents(fIds),
-          ]);
-          if (cancelled) return;
-          const seen = new Set<string>();
-          const here: any[] = [];
-          for (const c of (checkinsRes.data ?? []) as any[]) {
-            if (c.venue_id !== vId) continue;
-            if (seen.has(c.user_id)) continue;
-            seen.add(c.user_id);
-            here.push({ ...c, _source: 'checkin' });
-          }
-          for (const ev of eventsRes.data ?? []) {
-            if (ev.venue_id !== vId) continue;
-            for (const p of ev.event_participants ?? []) {
-              if (seen.has(p.user_id)) continue;
-              seen.add(p.user_id);
-              here.push({
-                user_id: p.user_id,
-                profiles: p.profiles,
-                _source: 'event',
-                _eventTitle: ev.title,
-              });
-            }
-          }
-          setFriendsHere(here);
-        })
-        .catch(() => {});
-    }
-
-    return () => { cancelled = true; };
-  }, [venueId, user]);
 
   const handleReview = useCallback(() => {
     router.push(`/(protected)/review/${venueId}` as any);
@@ -254,13 +208,11 @@ export function VenueDetailScreen({ venueId }: Props) {
     });
     setCheckinLoading(false);
     if (error) { showAlert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
-    // Refresh active checkin state
-    const { data: active } = await getUserActiveCheckin(user.id, Number(venueId));
-    setActiveCheckin(active ?? null);
+    if (vIdNum) invalidateVenueDetail(vIdNum);
     const endTimeStr = endedAt.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
     setLastCheckinEndTime(endTimeStr);
     setSuccessSheetVisible(true);
-  }, [user, venueId, showAlert, s]);
+  }, [user, venueId, vIdNum, invalidateVenueDetail, showAlert, s]);
 
   const handleCustomConfirm = useCallback(() => {
     if (customMode === 'minutes') {
@@ -289,8 +241,8 @@ export function VenueDetailScreen({ venueId }: Props) {
     const { error } = await checkout(activeCheckin.id, user.id);
     setCheckinLoading(false);
     if (error) { showAlert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
-    setActiveCheckin(null);
-  }, [activeCheckin, showAlert, user, s]);
+    if (vIdNum) invalidateVenueDetail(vIdNum);
+  }, [activeCheckin, vIdNum, invalidateVenueDetail, showAlert, user, s]);
 
   const handleAddPhoto = useCallback(async () => {
     if (!venue || !venueId) return;
@@ -349,15 +301,14 @@ export function VenueDetailScreen({ venueId }: Props) {
         return;
       }
 
-      // Update local state to show new photo immediately
-      setVenue((prev) => prev ? { ...prev, photos: [...(prev.photos ?? []), url] } : prev);
+      if (vIdNum) invalidateVenueDetail(vIdNum);
       showAlert(s('success'), s('photoUploaded'));
     } catch {
       showAlert(s('error'), s('photoUploadError'));
     } finally {
       setUploading(false);
     }
-  }, [venue, venueId, showAlert, s]);
+  }, [venue, venueId, vIdNum, invalidateVenueDetail, showAlert, s]);
 
   const animateHeart = useCallback(() => {
     Animated.sequence([
@@ -369,18 +320,13 @@ export function VenueDetailScreen({ venueId }: Props) {
   const handleToggleFavorite = useCallback(async () => {
     if (!user || !venueId) return;
     hapticLight();
-    if (favorited) {
-      const { error } = await removeFavorite(user.id, Number(venueId));
-      if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
-      setFavorited(false);
-      animateHeart();
-    } else {
-      const { error } = await addFavorite(user.id, Number(venueId));
-      if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
-      setFavorited(true);
-      animateHeart();
-    }
-  }, [user, venueId, favorited, animateHeart, s]);
+    const { error } = favorited
+      ? await removeFavorite(user.id, Number(venueId))
+      : await addFavorite(user.id, Number(venueId));
+    if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
+    if (vIdNum) invalidateVenueDetail(vIdNum);
+    animateHeart();
+  }, [user, venueId, vIdNum, favorited, invalidateVenueDetail, animateHeart, s]);
 
   const handleDirectionGoogle = useCallback(() => {
     if (!venue) return;
