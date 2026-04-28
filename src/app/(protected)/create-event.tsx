@@ -11,6 +11,7 @@ import { Fonts } from '@/src/theme';
 import { createStyles } from './create-event.styles';
 import { createEvent, joinEvent, sendEventInvites } from '@/src/services/events';
 import { invalidateEventsCache } from '@/src/lib/eventsCache';
+import { rateLimitMessageFor } from '@/src/lib/rateLimit';
 import {
   addChallengeToEvent,
   getChallengeById,
@@ -253,7 +254,11 @@ export default function CreateEventRoute() {
       recurrence_day: recurrenceDay,
     });
     setLoading(false);
-    if (error) { Alert.alert('Eroare', 'Nu s-a putut crea evenimentul.'); return; }
+    if (error) {
+      const rateMsg = rateLimitMessageFor(error, t);
+      Alert.alert(t('error'), rateMsg ?? 'Nu s-a putut crea evenimentul.');
+      return;
+    }
     // The new event will appear in the user's "mine" tab and (if it starts in
     // the future) on the global "upcoming" tab — drop both caches so the next
     // visit re-fetches.

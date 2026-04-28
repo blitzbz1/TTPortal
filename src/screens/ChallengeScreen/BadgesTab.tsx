@@ -6,14 +6,12 @@ import type { ThemeColors } from '../../theme';
 import {
   BADGE_TIERS,
   BADGE_TRACKS,
-  TIER_TARGETS,
-  getBadgeTierIcon,
   getBadgeTierPalette,
   type BadgeTier,
   type BadgeTrack,
 } from '../../lib/badgeChallenges';
 import type { createStyles } from '../ChallengeScreen.styles';
-import { EarnedBadgeCard, formatEarnedMonth } from './EarnedBadgeCard';
+import { EarnedBadgeCard } from './EarnedBadgeCard';
 
 interface Props {
   activeBadge: BadgeTrack;

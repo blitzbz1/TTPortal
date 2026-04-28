@@ -22,6 +22,7 @@ import { useVenueReviewsQuery } from '../hooks/queries/useVenueReviewsQuery';
 import type { Venue, Review, VenueStats } from '../types/database';
 import { Card } from '../components/Card';
 import { safeErrorMessage } from '../lib/auth-utils';
+import { rateLimitMessageFor } from '../lib/rateLimit';
 import { VenueActionRow } from '../components/VenueActionRow';
 import { CheckinSuccessSheet } from '../components/CheckinSuccessSheet';
 import { EmptyState } from '../components/EmptyState';
@@ -207,7 +208,11 @@ export function VenueDetailScreen({ venueId }: Props) {
       friends: [],
     });
     setCheckinLoading(false);
-    if (error) { showAlert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
+    if (error) {
+      const rateMsg = rateLimitMessageFor(error, s);
+      showAlert(s('error'), rateMsg ?? safeErrorMessage(error, 'genericError', s));
+      return;
+    }
     if (vIdNum) invalidateVenueDetail(vIdNum);
     const endTimeStr = endedAt.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
     setLastCheckinEndTime(endTimeStr);

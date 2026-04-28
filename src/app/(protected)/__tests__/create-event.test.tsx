@@ -140,13 +140,46 @@ describe('CreateEventRoute – essentials', () => {
     expect(mockJoinEvent).toHaveBeenCalledWith(42, 'user-123');
   });
 
-  it('shows error alert when createEvent fails', async () => {
+  it('shows error alert when createEvent fails (admin-typical path: generic error)', async () => {
+    // An admin is exempt from rate limiting, so any error they see is a
+    // real failure — the screen must fall through to the generic copy.
     mockCreateEvent.mockResolvedValue({ data: null, error: { message: 'fail' } });
     const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
     await act(async () => { fireEvent.press(screen.getByText('Creează')); });
-    expect(alertSpy).toHaveBeenCalledWith('Eroare', 'Nu s-a putut crea evenimentul.');
+    expect(alertSpy).toHaveBeenCalledWith('error', 'Nu s-a putut crea evenimentul.');
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  it('shows the localized rate-limit copy when a normal user trips the limit', async () => {
+    // The DB trigger raises a structured exception; PostgREST surfaces it
+    // on `error.message`. The screen must translate it into the localized
+    // i18n copy instead of the generic fallback.
+    mockCreateEvent.mockResolvedValue({
+      data: null,
+      error: { message: 'rate_limit_exceeded:user:create_event:86400:10' },
+    });
+    const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
+    render(<CreateEventRoute />);
+    fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
+    // i18n mock returns the key — proves the rateLimit branch was taken
+    // and that the action is mapped to rateLimitCreateEvent specifically.
+    expect(alertSpy).toHaveBeenCalledWith('error', 'rateLimitCreateEvent');
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  it('shows the IP-blocked copy when the request is denied at the IP layer', async () => {
+    mockCreateEvent.mockResolvedValue({
+      data: null,
+      error: { message: 'ip_blocked:203.0.113.5' },
+    });
+    const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
+    render(<CreateEventRoute />);
+    fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
+    expect(alertSpy).toHaveBeenCalledWith('error', 'rateLimitIpBlocked');
     expect(mockBack).not.toHaveBeenCalled();
   });
 

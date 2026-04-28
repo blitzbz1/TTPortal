@@ -12,6 +12,7 @@ import { useI18n } from '../hooks/useI18n';
 import { createVenue } from '../services/venues';
 import { getCities, upsertCity } from '../services/cities';
 import { safeErrorMessage } from '../lib/auth-utils';
+import { rateLimitMessageFor } from '../lib/rateLimit';
 import type { VenueType } from '../types/database';
 
 /** Strip diacritics and lowercase for fuzzy city matching. */
@@ -171,7 +172,11 @@ export function AddVenueScreen() {
       approved: false,
     });
     setLoading(false);
-    if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
+    if (error) {
+      const rateMsg = rateLimitMessageFor(error, s);
+      Alert.alert(s('error'), rateMsg ?? safeErrorMessage(error, 'genericError', s));
+      return;
+    }
     Alert.alert(s('success'), s('venueSubmitted'));
     router.back();
   }, [name, address, type, city, tablesCount, notes, user, router, geoLat, geoLng, s]);
