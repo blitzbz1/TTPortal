@@ -15,14 +15,13 @@ import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { DraggableSheet } from '../components/DraggableSheet';
 import { hapticSelection } from '../lib/haptics';
+import { matchesQuery } from '../lib/textSearch';
 import { useTheme } from '../hooks/useTheme';
 import { Radius, Spacing } from '../theme';
 import { createStyles } from './MapViewScreen.styles';
 import { useVenuesQuery } from '../hooks/queries/useVenuesQuery';
-import { getCities } from '../services/cities';
-import { getActiveFriendCheckins } from '../services/checkins';
-import { getActiveFriendEvents } from '../services/events';
-import { getFriendIds } from '../services/friends';
+import { useCitiesQuery } from '../hooks/queries/useCitiesQuery';
+import { useFriendPresenceQuery } from '../hooks/queries/useFriendPresenceQuery';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
@@ -118,59 +117,32 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     setRefreshing(false);
   }, [refetch]);
 
-  // Reposition map when city changes
+  // Look up the city row for camera positioning. Pulled from the
+  // delta-synced cities cache (instant after first sync) instead of a
+  // fresh network round-trip on every city switch.
+  const { data: citiesForCamera } = useCitiesQuery();
   useEffect(() => {
-    if (!selectedCity) return;
-    (async () => {
-      const { data: cities } = await getCities();
-      const city = cities?.find((c: any) => c.name === selectedCity);
-      if (city && mapRef.current) {
-        mapRef.current.animateToRegion({
-          latitude: city.lat,
-          longitude: city.lng,
-          latitudeDelta: city.zoom ? 360 / Math.pow(2, city.zoom) : 0.08,
-          longitudeDelta: city.zoom ? 360 / Math.pow(2, city.zoom) : 0.08,
-        }, 500);
-      }
-    })();
-  }, [selectedCity]);
-
-  // Fetch active friend presence — checkins AND in-progress event
-  // participation. A friend at an event in progress shows the same
-  // friend-presence badge on the venue marker as a friend who has checked in.
-  useEffect(() => {
-    if (!user?.id) {
-      setFriendCheckinVenueIds(new Set());
-      setActiveFriendsCount(0);
-      return;
+    if (!selectedCity || !citiesForCamera) return;
+    const city = citiesForCamera.find((c) => c.name === selectedCity);
+    if (city && city.lat != null && city.lng != null && mapRef.current) {
+      mapRef.current.animateToRegion({
+        latitude: city.lat,
+        longitude: city.lng,
+        latitudeDelta: city.zoom ? 360 / Math.pow(2, city.zoom) : 0.08,
+        longitudeDelta: city.zoom ? 360 / Math.pow(2, city.zoom) : 0.08,
+      }, 500);
     }
-    (async () => {
-      const fIds = await getFriendIds(user.id);
-      if (!fIds.length) {
-        setFriendCheckinVenueIds(new Set());
-        setActiveFriendsCount(0);
-        return;
-      }
-      const [checkinsRes, eventsRes] = await Promise.all([
-        getActiveFriendCheckins(fIds),
-        getActiveFriendEvents(fIds),
-      ]);
-      const venueIds = new Set<number>();
-      const uniqueFriends = new Set<string>();
-      for (const c of (checkinsRes.data ?? []) as any[]) {
-        if (typeof c.venue_id === 'number') venueIds.add(c.venue_id);
-        if (typeof c.user_id === 'string') uniqueFriends.add(c.user_id);
-      }
-      for (const ev of eventsRes.data ?? []) {
-        if (typeof ev.venue_id === 'number') venueIds.add(ev.venue_id);
-        for (const p of ev.event_participants ?? []) {
-          if (typeof p.user_id === 'string') uniqueFriends.add(p.user_id);
-        }
-      }
-      setFriendCheckinVenueIds(venueIds);
-      setActiveFriendsCount(uniqueFriends.size);
-    })();
-  }, [user?.id]);
+  }, [selectedCity, citiesForCamera]);
+
+  // Friend presence overlay (which venues currently host a friend) is
+  // cached via React Query — see useFriendPresenceQuery. Tab switches no
+  // longer refetch within the 30s stale window, eliminating two extra
+  // round-trips per visible map view.
+  const { data: friendPresence } = useFriendPresenceQuery(user?.id);
+  useEffect(() => {
+    setFriendCheckinVenueIds(friendPresence?.venueIds ?? new Set());
+    setActiveFriendsCount(friendPresence?.uniqueFriends ?? 0);
+  }, [friendPresence]);
 
   const handleNearMe = useCallback(async () => {
     if (nearMeEnabled) {
@@ -242,14 +214,15 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
       result = result.filter((v) => v.verified === true);
     }
 
-    // Apply search query (debounced)
+    // Apply search query (debounced). Diacritic- and case-insensitive
+    // across name, address and city — see lib/textSearch.
     if (debouncedQuery.trim()) {
-      const q = debouncedQuery.trim().toLowerCase();
+      const q = debouncedQuery.trim();
       result = result.filter(
         (v) =>
-          v.name.toLowerCase().includes(q) ||
-          (v.address && v.address.toLowerCase().includes(q)) ||
-          (v.city && v.city.toLowerCase().includes(q)),
+          matchesQuery(v.name, q) ||
+          (!!v.address && matchesQuery(v.address, q)) ||
+          (!!v.city && matchesQuery(v.city, q)),
       );
     }
 

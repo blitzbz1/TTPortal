@@ -6,43 +6,40 @@ jest.mock('expo-sqlite', () => ({
   }),
 }));
 
-function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
-  const result = { data: resolvedData, error: resolvedError };
-  const chain: any = {
-    select: jest.fn(() => chain),
-    eq: jest.fn(() => chain),
-    maybeSingle: jest.fn(() => Promise.resolve(result)),
-    single: jest.fn(() => Promise.resolve(result)),
-    then: (resolve: any) => Promise.resolve(result).then(resolve),
-  };
-  return chain;
-}
-
-const mockFrom = jest.fn();
+const mockRpc = jest.fn();
 jest.mock('../../lib/supabase', () => ({
-  supabase: { from: (...args: any[]) => mockFrom(...args) },
+  supabase: {
+    rpc: (...args: any[]) => mockRpc(...args),
+    from: jest.fn(),
+  },
 }));
-
 
 import { getProfileStats } from '../profiles';
 
 describe('getProfileStats', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('returns checkins and events count', async () => {
-    const checkinsChain = createQueryChain({ total_checkins: 15, unique_venues: 8 });
-    const eventsChain = createQueryChain([
-      { hours_played: 0 }, { hours_played: 0 }, { hours_played: 0 }, { hours_played: 0 }, { hours_played: 0 },
-    ]);
+  // The implementation now calls a single RPC (get_profile_stats, see
+  // migration 051) which does the SUM/COUNT server-side. The shape we
+  // assert here mirrors the row the RPC returns. Whether Supabase
+  // returns a one-element array or a single row (the version-dependent
+  // behavior of supabase-js for table-returning RPCs), the service
+  // unwraps both — covered by the two paths below.
 
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'leaderboard_checkins') return checkinsChain;
-      if (table === 'event_participants') return eventsChain;
-      return createQueryChain();
+  it('returns checkins and events count when the RPC yields an array row', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{
+        total_checkins: 15,
+        unique_venues: 8,
+        events_joined: 5,
+        total_hours_played: 0,
+      }],
+      error: null,
     });
 
     const { data, error } = await getProfileStats('user-1');
 
+    expect(mockRpc).toHaveBeenCalledWith('get_profile_stats', { p_user_id: 'user-1' });
     expect(data).toEqual({
       total_checkins: 15,
       unique_venues: 8,
@@ -52,36 +49,31 @@ describe('getProfileStats', () => {
     expect(error).toBeNull();
   });
 
-  it('queries correct tables with user ID', async () => {
-    const checkinsChain = createQueryChain(null);
-    const eventsChain = createQueryChain([]);
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'leaderboard_checkins') return checkinsChain;
-      if (table === 'event_participants') return eventsChain;
-      return createQueryChain();
+  it('also accepts a non-array row payload', async () => {
+    mockRpc.mockResolvedValue({
+      data: {
+        total_checkins: 3,
+        unique_venues: 2,
+        events_joined: 4,
+        total_hours_played: 4,
+      },
+      error: null,
     });
-
-    await getProfileStats('user-42');
-
-    expect(mockFrom).toHaveBeenCalledWith('leaderboard_checkins');
-    expect(mockFrom).toHaveBeenCalledWith('event_participants');
-    expect(checkinsChain.eq).toHaveBeenCalledWith('user_id', 'user-42');
-    expect(eventsChain.eq).toHaveBeenCalledWith('user_id', 'user-42');
+    const { data } = await getProfileStats('user-1');
+    expect(data).toEqual({
+      total_checkins: 3, unique_venues: 2, events_joined: 4, total_hours_played: 4,
+    });
   });
 
-  it('defaults to zero when no checkin or event data exists', async () => {
-    const checkinsChain = createQueryChain(null);
-    const eventsChain = createQueryChain([]);
+  it('passes the user id through to the RPC', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null });
+    await getProfileStats('user-42');
+    expect(mockRpc).toHaveBeenCalledWith('get_profile_stats', { p_user_id: 'user-42' });
+  });
 
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'leaderboard_checkins') return checkinsChain;
-      if (table === 'event_participants') return eventsChain;
-      return createQueryChain();
-    });
-
+  it('defaults to zero when the RPC returns no row', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null });
     const { data } = await getProfileStats('user-1');
-
     expect(data).toEqual({
       total_checkins: 0,
       unique_venues: 0,
@@ -90,77 +82,19 @@ describe('getProfileStats', () => {
     });
   });
 
-  it('reports error when checkins query fails', async () => {
-    const checkinsChain = createQueryChain(null, { message: 'db error' });
-    const eventsChain = createQueryChain([]);
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'leaderboard_checkins') return checkinsChain;
-      if (table === 'event_participants') return eventsChain;
-      return createQueryChain();
+  it('coerces a numeric-string total_hours_played (Postgres returns NUMERIC as string)', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{ total_checkins: 0, unique_venues: 0, events_joined: 1, total_hours_played: '2.5' }],
+      error: null,
     });
+    const { data } = await getProfileStats('user-1');
+    expect(data?.total_hours_played).toBe(2.5);
+  });
 
-    const { error } = await getProfileStats('user-1');
-
+  it('forwards RPC errors with safe defaults', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'db error' } });
+    const { data, error } = await getProfileStats('user-1');
     expect(error).toEqual({ message: 'db error' });
-  });
-
-  it('sums hours_played from event_participants', async () => {
-    const checkinsChain = createQueryChain({ total_checkins: 3, unique_venues: 2 });
-    const eventsChain = createQueryChain([
-      { hours_played: 1.5 },
-      { hours_played: 2 },
-      { hours_played: 0.5 },
-      { hours_played: 0 },
-    ]);
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'leaderboard_checkins') return checkinsChain;
-      if (table === 'event_participants') return eventsChain;
-      return createQueryChain();
-    });
-
-    const { data } = await getProfileStats('user-1');
-
-    expect(data).toEqual({
-      total_checkins: 3,
-      unique_venues: 2,
-      events_joined: 4,
-      total_hours_played: 4,
-    });
-  });
-
-  it('coerces non-numeric / null hours_played to zero', async () => {
-    const checkinsChain = createQueryChain(null);
-    const eventsChain = createQueryChain([
-      { hours_played: null },
-      { hours_played: 'oops' },
-      { hours_played: 2 },
-    ]);
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'leaderboard_checkins') return checkinsChain;
-      if (table === 'event_participants') return eventsChain;
-      return createQueryChain();
-    });
-
-    const { data } = await getProfileStats('user-1');
-
-    expect(data?.total_hours_played).toBe(2);
-  });
-
-  it('reports error when events query fails', async () => {
-    const checkinsChain = createQueryChain({ total_checkins: 5, unique_venues: 3 });
-    const eventsChain = createQueryChain(null, { message: 'events error' });
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'leaderboard_checkins') return checkinsChain;
-      if (table === 'event_participants') return eventsChain;
-      return createQueryChain();
-    });
-
-    const { error } = await getProfileStats('user-1');
-
-    expect(error).toEqual({ message: 'events error' });
+    expect(data).toEqual({ total_checkins: 0, unique_venues: 0, events_joined: 0, total_hours_played: 0 });
   });
 });

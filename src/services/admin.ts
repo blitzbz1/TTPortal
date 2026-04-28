@@ -1,6 +1,22 @@
 import { supabase } from '../lib/supabase';
 import { removeCacheItemsByPrefix } from '../lib/cacheUtils';
 import { invalidateVenueMetaCache, invalidateVenueReviewsCache } from '../lib/venueDetailCache';
+import {
+  invalidateFlaggedReviewsCache,
+  invalidatePendingVenuesCache,
+  invalidateUserFeedbackCache,
+} from '../lib/adminListsCache';
+
+// Slim column lists for the admin moderation lists. The admin UI renders
+// pending-venue cards with name/city/address/created_at/submitter, and the
+// edit modal touches name/address/city/type/tables_count/description/lat/lng
+// — fetching the full row roughly halves egress on this endpoint.
+const PENDING_VENUE_COLS =
+  'id, name, type, city, address, lat, lng, tables_count, description, submitted_by, created_at';
+// Flagged-review cards render author, venue name, flag count and date — the
+// review body itself is not shown in the list.
+const FLAGGED_REVIEW_COLS =
+  'id, user_id, venue_id, flag_count, flagged, created_at, comment, rating';
 
 function invalidateMapVenuesCache() {
   removeCacheItemsByPrefix('venues_');
@@ -43,7 +59,7 @@ async function attachProfiles<T extends Record<string, any>>(
 export async function getPendingVenues() {
   const result = await supabase
     .from('venues')
-    .select('*')
+    .select(PENDING_VENUE_COLS)
     .eq('approved', false)
     .order('created_at', { ascending: false });
   if (result.error || !result.data) return result;
@@ -62,6 +78,7 @@ export async function approveVenue(id: number, userId: string) {
   if (!result.error) {
     invalidateMapVenuesCache();
     invalidateVenueMetaCache(id);
+    invalidatePendingVenuesCache();
   }
   return result;
 }
@@ -72,18 +89,27 @@ export async function rejectVenue(id: number, userId: string) {
   if (!result.error) {
     invalidateMapVenuesCache();
     invalidateVenueMetaCache(id);
+    invalidatePendingVenuesCache();
   }
   return result;
 }
 
 export async function searchVenuesAdmin(query: string) {
-  const pattern = `%${query}%`;
-  return supabase
-    .from('venues')
-    .select('id, name, city, address, type, tables_count, lat, lng, description, approved')
-    .or(`name.ilike.${pattern},address.ilike.${pattern}`)
-    .order('name')
-    .limit(30);
+  // Diacritic-insensitive search via the search_venues_admin RPC
+  // (migration 050) — uses Postgres `unaccent()` so "bucuresti" matches
+  // "București". The RPC returns full venue rows; we project here to
+  // keep the wire payload slim.
+  const { data, error } = await supabase.rpc('search_venues_admin', {
+    p_query: query,
+    p_limit: 30,
+  });
+  if (error || !data) return { data: data ?? [], error };
+  const slim = (data as any[]).map((v) => ({
+    id: v.id, name: v.name, city: v.city, address: v.address, type: v.type,
+    tables_count: v.tables_count, lat: v.lat, lng: v.lng,
+    description: v.description, approved: v.approved,
+  }));
+  return { data: slim, error: null };
 }
 
 export async function updateVenue(
@@ -117,6 +143,8 @@ export async function deleteVenue(id: number, userId: string) {
     invalidateMapVenuesCache();
     invalidateVenueMetaCache(id);
     invalidateVenueReviewsCache(id);
+    invalidatePendingVenuesCache();
+    invalidateFlaggedReviewsCache();
   }
   return result;
 }
@@ -126,7 +154,7 @@ export async function getFlaggedReviews() {
   // Only the profiles embed is broken (FK lands on auth.users).
   const result = await supabase
     .from('reviews')
-    .select('*, venues!venue_id(name)')
+    .select(`${FLAGGED_REVIEW_COLS}, venues!venue_id(name)`)
     .eq('flagged', true)
     .order('flag_count', { ascending: false });
   if (result.error || !result.data) return result;
@@ -136,17 +164,21 @@ export async function getFlaggedReviews() {
 
 export async function keepReview(id: number, userId: string) {
   if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
-  return supabase
+  const result = await supabase
     .from('reviews')
     .update({ flagged: false, flag_count: 0 })
     .eq('id', id)
     .select()
     .single();
+  if (!result.error) invalidateFlaggedReviewsCache();
+  return result;
 }
 
 export async function deleteReview(id: number, userId: string) {
   if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
-  return supabase.from('reviews').delete().eq('id', id);
+  const result = await supabase.from('reviews').delete().eq('id', id);
+  if (!result.error) invalidateFlaggedReviewsCache();
+  return result;
 }
 
 export async function getUserFeedback(limit = 100) {
@@ -162,7 +194,9 @@ export async function getUserFeedback(limit = 100) {
 
 export async function deleteUserFeedback(id: string, userId: string) {
   if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
-  return supabase.from('user_feedback').delete().eq('id', id);
+  const result = await supabase.from('user_feedback').delete().eq('id', id);
+  if (!result.error) invalidateUserFeedbackCache();
+  return result;
 }
 
 export async function getFeedbackReplies(feedbackId: string) {

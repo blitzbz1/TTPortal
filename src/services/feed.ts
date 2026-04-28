@@ -12,53 +12,40 @@ export interface FeedItem {
   venueCity?: string;
 }
 
+interface FeedRpcRow {
+  kind: 'checkin' | 'review';
+  id: number;
+  user_id: string;
+  user_name: string;
+  venue_id: number;
+  venue_name: string;
+  venue_city: string;
+  rating: number | null;
+  ts: string;
+}
+
 export async function getFriendFeed(friendIds: string[], limit = 30): Promise<{ data: FeedItem[]; error: any }> {
   if (!friendIds.length) return { data: [], error: null };
 
-  const [checkinsRes, reviewsRes] = await Promise.all([
-    supabase
-      .from('checkins')
-      .select('id, user_id, venue_id, started_at, venues(name, city), profiles(full_name)')
-      .in('user_id', friendIds)
-      .order('started_at', { ascending: false })
-      .limit(limit),
-    supabase
-      .from('reviews')
-      .select('id, user_id, venue_id, rating, created_at, reviewer_name, venues(name)')
-      .in('user_id', friendIds)
-      .order('created_at', { ascending: false })
-      .limit(limit),
-  ]);
+  // Single RPC (migration 052) returns the merged-and-sorted top-N feed.
+  // Replaces the previous two-query JS merge that hauled back up to 2×n
+  // rows just to drop half of them.
+  const { data, error } = await supabase.rpc('get_friend_feed', {
+    p_friend_ids: friendIds,
+    p_limit: limit,
+  });
+  if (error || !data) return { data: [], error };
 
-  const items: FeedItem[] = [];
-
-  for (const c of (checkinsRes.data ?? [])) {
-    items.push({
-      id: `checkin-${c.id}`,
-      type: 'checkin',
-      userId: c.user_id,
-      userName: (c as any).profiles?.full_name ?? '?',
-      venueName: (c as any).venues?.name ?? '?',
-      venueId: c.venue_id,
-      venueCity: (c as any).venues?.city ?? '',
-      timestamp: c.started_at,
-    });
-  }
-
-  for (const r of (reviewsRes.data ?? [])) {
-    items.push({
-      id: `review-${r.id}`,
-      type: 'review',
-      userId: r.user_id,
-      userName: r.reviewer_name ?? '?',
-      venueName: (r as any).venues?.name ?? '?',
-      venueId: r.venue_id,
-      rating: r.rating,
-      timestamp: r.created_at,
-    });
-  }
-
-  items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-  return { data: items.slice(0, limit), error: checkinsRes.error || reviewsRes.error };
+  const items: FeedItem[] = (data as FeedRpcRow[]).map((row) => ({
+    id: `${row.kind}-${row.id}`,
+    type: row.kind,
+    userId: row.user_id,
+    userName: row.user_name,
+    venueName: row.venue_name,
+    venueId: row.venue_id,
+    venueCity: row.venue_city || undefined,
+    rating: row.rating ?? undefined,
+    timestamp: row.ts,
+  }));
+  return { data: items, error: null };
 }

@@ -148,10 +148,16 @@ export async function getChallengeChoices(category: ChallengeCategory, limitCoun
   });
 }
 
+// Slim projection mirrors the UserBadgeProgress shape consumed by
+// useBadgeProgress — pin the column list so adding bookkeeping fields
+// to the table later doesn't silently bloat this hot read.
+const USER_BADGE_PROGRESS_COLS =
+  'id, user_id, category, completed_count, approved_count, xp, badge_level, last_completed_at, created_at, updated_at';
+
 export async function getUserBadgeProgress(userId: string) {
   return supabase
     .from('user_badge_progress')
-    .select('*')
+    .select(USER_BADGE_PROGRESS_COLS)
     .eq('user_id', userId);
 }
 
@@ -163,10 +169,13 @@ export async function getChallengeById(challengeId: string) {
     .single();
 }
 
+const CHALLENGE_SUBMISSION_COLS =
+  'id, user_id, challenge_id, event_id, status, verification_type, submitted_at, reviewed_at, metadata';
+
 export async function getUserPendingChallengeSubmissions(userId: string) {
   return supabase
     .from('challenge_submissions')
-    .select('*')
+    .select(CHALLENGE_SUBMISSION_COLS)
     .eq('user_id', userId)
     .eq('status', 'pending');
 }
@@ -181,9 +190,10 @@ export async function getUserApprovedChallengeCompletions(userId: string) {
 }
 
 export async function getUserBadgeAwards(userId: string) {
+  // Mirrors the BadgeAward interface above.
   return supabase
     .from('badge_awards')
-    .select('*')
+    .select('id, user_id, category, tier, completed_count, awarded_at, source_submission_id, created_at')
     .eq('user_id', userId)
     .order('awarded_at', { ascending: true });
 }
@@ -204,7 +214,7 @@ export async function createChallengeSubmission(input: {
       event_id: input.eventId ?? null,
       metadata: input.metadata ?? {},
     })
-    .select('*')
+    .select(CHALLENGE_SUBMISSION_COLS)
     .single();
 }
 

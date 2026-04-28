@@ -28,34 +28,49 @@ function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
 }
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn();
 jest.mock('../../lib/supabase', () => ({
-  supabase: { from: (...args: any[]) => mockFrom(...args) },
+  supabase: {
+    from: (...args: any[]) => mockFrom(...args),
+    rpc: (...args: any[]) => mockRpc(...args),
+  },
 }));
 
 beforeEach(() => jest.clearAllMocks());
 
 describe('searchVenuesAdmin', () => {
-  it('searches venues by name or address with ilike pattern', async () => {
-    const venues = [{ id: 1, name: 'Parc Tineretului', address: 'Str. Principala' }];
-    const chain = createQueryChain(venues);
-    mockFrom.mockReturnValue(chain);
+  it('calls the diacritic-insensitive search_venues_admin RPC', async () => {
+    // Server-side `unaccent()` (migration 050) handles the fold so that
+    // typing "bucuresti" matches "București". The client just passes the
+    // raw query through to the RPC and re-shapes the response.
+    const venues = [
+      { id: 1, name: 'Parc Tineretului', address: 'Str. Principala', city: 'Bucureș­ti',
+        type: 'parc_exterior', tables_count: 4, lat: 44.42, lng: 26.10,
+        description: null, approved: true, extra: 'ignored' },
+    ];
+    mockRpc.mockResolvedValue({ data: venues, error: null });
 
     const { data } = await searchVenuesAdmin('Parc');
 
-    expect(mockFrom).toHaveBeenCalledWith('venues');
-    expect(chain.select).toHaveBeenCalledWith('id, name, city, address, type, tables_count, lat, lng, description, approved');
-    expect(chain.or).toHaveBeenCalledWith('name.ilike.%Parc%,address.ilike.%Parc%');
-    expect(chain.order).toHaveBeenCalledWith('name');
-    expect(chain.limit).toHaveBeenCalledWith(30);
-    expect(data).toEqual(venues);
+    expect(mockRpc).toHaveBeenCalledWith('search_venues_admin', { p_query: 'Parc', p_limit: 30 });
+    // The service projects to the slim shape — `extra` is dropped.
+    expect(data).toEqual([
+      { id: 1, name: 'Parc Tineretului', city: 'Bucureș­ti', address: 'Str. Principala',
+        type: 'parc_exterior', tables_count: 4, lat: 44.42, lng: 26.10,
+        description: null, approved: true },
+    ]);
   });
 
   it('returns empty array when no matches', async () => {
-    const chain = createQueryChain([]);
-    mockFrom.mockReturnValue(chain);
-
+    mockRpc.mockResolvedValue({ data: [], error: null });
     const { data } = await searchVenuesAdmin('nonexistent');
+    expect(data).toEqual([]);
+  });
 
+  it('forwards RPC errors and yields an empty list', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } });
+    const { data, error } = await searchVenuesAdmin('foo');
+    expect(error).toEqual({ message: 'boom' });
     expect(data).toEqual([]);
   });
 });

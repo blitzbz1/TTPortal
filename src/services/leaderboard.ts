@@ -6,6 +6,17 @@ const VIEW_MAP = {
   venues: 'leaderboard_venues',
 } as const;
 
+// Per-view column lists. The shared header columns (user_id, full_name,
+// avatar_url, city, rank) are used by every variant; the score columns
+// vary. Pinning these columns instead of `select('*')` keeps the wire
+// payload small and protects against silent bloat if the views ever
+// gain bookkeeping columns.
+const COLUMN_MAP: Record<keyof typeof VIEW_MAP, string> = {
+  checkins: 'user_id, full_name, avatar_url, city, total_checkins, unique_venues, rank',
+  reviews:  'user_id, full_name, avatar_url, city, total_reviews, avg_given_rating, rank',
+  venues:   'user_id, full_name, avatar_url, city, venues_added, rank',
+};
+
 export async function getLeaderboard(
   type: 'checkins' | 'reviews' | 'venues',
   city?: string,
@@ -17,7 +28,7 @@ export async function getLeaderboard(
 
   let query = supabase
     .from(VIEW_MAP[type])
-    .select('*')
+    .select(COLUMN_MAP[type])
     .order('rank', { ascending: true })
     .limit(50);
 

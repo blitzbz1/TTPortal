@@ -10,7 +10,8 @@ import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme'
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { createVenue } from '../services/venues';
-import { getCities, upsertCity } from '../services/cities';
+import { upsertCity } from '../services/cities';
+import { useCitiesQuery } from '../hooks/queries/useCitiesQuery';
 import { safeErrorMessage } from '../lib/auth-utils';
 import { rateLimitMessageFor } from '../lib/rateLimit';
 import type { VenueType } from '../types/database';
@@ -117,11 +118,12 @@ export function AddVenueScreen() {
   // scrolling while the user pans the map.
   const formScrollRef = useRef<any>(null);
 
+  // Read from the delta-synced cities cache (see useCitiesQuery): warm
+  // starts paint instantly and the network call only ships changed rows.
+  const { data: citiesList } = useCitiesQuery();
   useEffect(() => {
-    getCities().then(({ data }) => {
-      if (data) setKnownCities(data.map((c: { name: string }) => c.name));
-    });
-  }, []);
+    if (citiesList) setKnownCities(citiesList.map((c) => c.name));
+  }, [citiesList]);
 
   const handleAddressPatch = useCallback((patch: { address?: string; city?: string; lat?: number | null; lng?: number | null }) => {
     if (patch.address !== undefined) setAddress(patch.address);

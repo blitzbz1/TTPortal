@@ -5,7 +5,8 @@ import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { FeedbackReplyModal } from '../components/FeedbackReplyModal';
 import { AddressPickerField } from '../components/AddressPickerField';
-import { getCities, upsertCity } from '../services/cities';
+import { upsertCity } from '../services/cities';
+import { useCitiesQuery } from '../hooks/queries/useCitiesQuery';
 import { useTheme } from '../hooks/useTheme';
 import { Fonts } from '../theme';
 import { createStyles } from './AdminModerationScreen.styles';
@@ -25,6 +26,14 @@ import {
   deleteUserFeedback,
 } from '../services/admin';
 import { getProfile } from '../services/profiles';
+import {
+  loadCachedPendingVenues,
+  saveCachedPendingVenues,
+  loadCachedFlaggedReviews,
+  saveCachedFlaggedReviews,
+  loadCachedUserFeedback,
+  saveCachedUserFeedback,
+} from '../lib/adminListsCache';
 
 // Cached at module scope so each per-row format call doesn't construct a fresh
 // Intl.DateTimeFormat. Use lazy access to keep startup cheap.
@@ -232,21 +241,37 @@ export function AdminModerationScreen() {
     });
   }, [user]);
 
+  // Read from the delta-synced cities cache: instant render after the
+  // first sync, only fetches added/changed/removed rows on each open.
+  const { data: citiesList } = useCitiesQuery();
   useEffect(() => {
-    getCities().then(({ data }) => {
-      if (data) setKnownCities(data.map((c: { name: string }) => c.name));
-    });
-  }, []);
+    if (citiesList) setKnownCities(citiesList.map((c) => c.name));
+  }, [citiesList]);
 
   const fetchReviewsData = useCallback(async () => {
-    setReviewsLoading(true);
+    // Stale-while-revalidate: paint cached rows immediately so a tab
+    // switch is instant, then fire the network refresh in the background.
+    // Only show the spinner when we have nothing to render at all.
+    const cachedVenues = loadCachedPendingVenues<any>();
+    const cachedReviews = loadCachedFlaggedReviews<any>();
+    if (cachedVenues?.data) setPendingVenues(cachedVenues.data);
+    if (cachedReviews?.data) setFlaggedReviews(cachedReviews.data);
+    if (cachedVenues?.fresh && cachedReviews?.fresh) return;
+
+    if (!cachedVenues?.data && !cachedReviews?.data) setReviewsLoading(true);
     try {
       const [venuesRes, reviewsRes] = await Promise.all([
         getPendingVenues(),
         getFlaggedReviews(),
       ]);
-      if (venuesRes.data) setPendingVenues(venuesRes.data);
-      if (reviewsRes.data) setFlaggedReviews(reviewsRes.data);
+      if (venuesRes.data) {
+        setPendingVenues(venuesRes.data);
+        saveCachedPendingVenues(venuesRes.data);
+      }
+      if (reviewsRes.data) {
+        setFlaggedReviews(reviewsRes.data);
+        saveCachedFlaggedReviews(reviewsRes.data);
+      }
     } finally {
       setReviewsLoading(false);
     }
@@ -394,10 +419,20 @@ export function AdminModerationScreen() {
   }, [user, s]);
 
   const fetchFeedback = useCallback(async () => {
-    setFeedbackLoading(true);
+    const cached = loadCachedUserFeedback<any>(100);
+    if (cached?.data) {
+      setUserFeedback(cached.data);
+      setFeedbackLoaded(true);
+      if (cached.fresh) return;
+    } else {
+      setFeedbackLoading(true);
+    }
     try {
       const { data } = await getUserFeedback();
-      if (data) setUserFeedback(data);
+      if (data) {
+        setUserFeedback(data);
+        saveCachedUserFeedback(100, data);
+      }
       setFeedbackLoaded(true);
     } finally {
       setFeedbackLoading(false);

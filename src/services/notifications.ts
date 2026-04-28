@@ -30,16 +30,6 @@ export async function getNotifications(userId: string, limit = 20, offset = 0) {
     .returns<NotificationRow[]>();
 }
 
-export async function getUnreadCount(userId: string) {
-  const { count, error } = await supabase
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    .eq('recipient_id', userId)
-    .eq('read', false);
-
-  return { data: count ?? 0, error };
-}
-
 export async function markAsRead(notificationId: number, userId: string) {
   return supabase
     .from('notifications')

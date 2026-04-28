@@ -26,11 +26,18 @@ jest.mock('../../../services/events', () => ({
   sendEventInvites: (...args: any[]) => mockSendEventInvites(...args),
 }));
 
-const mockGetVenues = jest.fn();
 const mockSearchVenues = jest.fn();
 jest.mock('../../../services/venues', () => ({
-  getVenues: (...args: any[]) => mockGetVenues(...args),
   searchVenues: (...args: any[]) => mockSearchVenues(...args),
+}));
+
+// VenuePickerModal now reads its browse list from the delta-synced
+// useVenuesQuery hook instead of imperative getVenues. Tests feed the
+// list through this mock; mockUseVenuesQueryData is reassigned in
+// beforeEach so each test sees the same fixture.
+let mockUseVenuesQueryData: any[] = [];
+jest.mock('../../../hooks/queries/useVenuesQuery', () => ({
+  useVenuesQuery: () => ({ data: mockUseVenuesQueryData, isFetching: false }),
 }));
 
 const mockGetFriends = jest.fn();
@@ -91,7 +98,7 @@ beforeEach(() => {
   mockCreateEvent.mockResolvedValue({ data: { id: 42 }, error: null });
   mockJoinEvent.mockResolvedValue({ data: null, error: null });
   mockSendEventInvites.mockResolvedValue({ data: null, error: null });
-  mockGetVenues.mockResolvedValue({ data: venues, error: null });
+  mockUseVenuesQueryData = venues;
   mockSearchVenues.mockResolvedValue({ data: [], error: null });
   mockGetFriends.mockResolvedValue({ data: friends, error: null });
 });

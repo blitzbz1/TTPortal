@@ -28,8 +28,10 @@ jest.mock('../../components/Icon', () => {
   };
 });
 jest.mock('../../services/venues', () => ({
-  getVenues: jest.fn().mockResolvedValue({ data: [] }),
   searchVenues: jest.fn().mockResolvedValue({ data: [] }),
+}));
+jest.mock('../../hooks/queries/useVenuesQuery', () => ({
+  useVenuesQuery: () => ({ data: [], isFetching: false }),
 }));
 
  

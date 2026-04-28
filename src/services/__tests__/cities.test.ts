@@ -1,4 +1,4 @@
-import { getCities, upsertCity } from '../cities';
+import { upsertCity } from '../cities';
 
 function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
   const result = { data: resolvedData, error: resolvedError };
@@ -21,21 +21,9 @@ jest.mock('../../lib/supabase', () => ({
 
 beforeEach(() => jest.clearAllMocks());
 
-describe('getCities', () => {
-  it('fetches active cities ordered by name', async () => {
-    const cities = [{ id: 1, name: 'București' }, { id: 2, name: 'Cluj-Napoca' }];
-    const chain = createQueryChain(cities);
-    mockFrom.mockReturnValue(chain);
-
-    const { data } = await getCities();
-
-    expect(mockFrom).toHaveBeenCalledWith('cities');
-    expect(chain.select).toHaveBeenCalledWith('*');
-    expect(chain.eq).toHaveBeenCalledWith('active', true);
-    expect(chain.order).toHaveBeenCalledWith('name');
-    expect(data).toEqual(cities);
-  });
-});
+// `getCities` is gone — callers use the delta-synced useCitiesQuery
+// hook now (see src/hooks/queries/useCitiesQuery.ts). The hook itself
+// has its own integration test in the React Query layer.
 
 describe('upsertCity', () => {
   it('returns existing city id when city already exists', async () => {

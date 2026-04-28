@@ -29,31 +29,19 @@ export async function updateProfile(
 }
 
 export async function getProfileStats(userId: string) {
-  const [checkins, participations] = await Promise.all([
-    supabase
-      .from('leaderboard_checkins')
-      .select('total_checkins, unique_venues')
-      .eq('user_id', userId)
-      .maybeSingle(),
-    supabase
-      .from('event_participants')
-      .select('hours_played')
-      .eq('user_id', userId),
-  ]);
-
-  const rows = participations.data ?? [];
-  const totalHoursPlayed = rows.reduce(
-    (sum: number, p: { hours_played: number | null }) => sum + (Number(p.hours_played) || 0),
-    0,
-  );
-
+  // Server-side aggregate via get_profile_stats (migration 051).
+  // Replaces the previous two-trip implementation that fetched every
+  // event_participants row for the user just to sum hours_played
+  // client-side — a payload that grew unboundedly with activity.
+  const { data, error } = await supabase.rpc('get_profile_stats', { p_user_id: userId });
+  const row = Array.isArray(data) ? data[0] : data;
   return {
     data: {
-      total_checkins: checkins.data?.total_checkins ?? 0,
-      unique_venues: checkins.data?.unique_venues ?? 0,
-      events_joined: rows.length,
-      total_hours_played: totalHoursPlayed,
+      total_checkins: row?.total_checkins ?? 0,
+      unique_venues: row?.unique_venues ?? 0,
+      events_joined: row?.events_joined ?? 0,
+      total_hours_played: Number(row?.total_hours_played ?? 0),
     },
-    error: checkins.error || participations.error,
+    error,
   };
 }

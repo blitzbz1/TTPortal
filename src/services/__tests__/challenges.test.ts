@@ -86,7 +86,10 @@ describe('challenge table wrappers', () => {
     await getUserBadgeProgress('user-1');
 
     expect(mockFrom).toHaveBeenCalledWith('user_badge_progress');
-    expect(chain.select).toHaveBeenCalledWith('*');
+    // Slim projection — see USER_BADGE_PROGRESS_COLS in services/challenges.ts.
+    expect(chain.select).toHaveBeenCalledWith(
+      'id, user_id, category, completed_count, approved_count, xp, badge_level, last_completed_at, created_at, updated_at',
+    );
     expect(chain.eq).toHaveBeenCalledWith('user_id', 'user-1');
   });
 
@@ -97,7 +100,9 @@ describe('challenge table wrappers', () => {
     await getUserBadgeAwards('user-1');
 
     expect(mockFrom).toHaveBeenCalledWith('badge_awards');
-    expect(chain.select).toHaveBeenCalledWith('*');
+    expect(chain.select).toHaveBeenCalledWith(
+      'id, user_id, category, tier, completed_count, awarded_at, source_submission_id, created_at',
+    );
     expect(chain.eq).toHaveBeenCalledWith('user_id', 'user-1');
     expect(chain.order).toHaveBeenCalledWith('awarded_at', { ascending: true });
   });

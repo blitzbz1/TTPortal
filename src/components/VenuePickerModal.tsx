@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -16,7 +16,8 @@ import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
-import { getVenues, searchVenues } from '../services/venues';
+import { useVenuesQuery } from '../hooks/queries/useVenuesQuery';
+import { matchesQuery } from '../lib/textSearch';
 
 interface VenueOption {
   id: number;
@@ -41,31 +42,27 @@ export function VenuePickerModal({
   const { colors } = useTheme();
   const { s } = useI18n();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [venues, setVenues] = useState<VenueOption[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Browse + search both read from the delta-synced venues cache —
+  // one source, zero network calls per keystroke. The cache holds every
+  // approved venue (the get_venues_delta RPC has no row cap), so a
+  // client-side `name.includes(query)` filter is strictly a subset of
+  // what searchVenues used to return on each ilike round-trip.
+  const { data: cachedVenues, isFetching: cacheFetching } =
+    useVenuesQuery(null, null, visible);
   const [query, setQuery] = useState('');
 
-  useEffect(() => {
-    if (!visible) return;
-    let cancelled = false;
-
-    async function fetch() {
-      setLoading(true);
-      const result = query.trim()
-        ? await searchVenues(query.trim())
-        : await getVenues();
-      if (!cancelled && result.data) {
-        setVenues(result.data.map((v) => ({ id: v.id, name: v.name, city: v.city, type: v.type })));
-      }
-      if (!cancelled) setLoading(false);
-    }
-
-    const timeout = setTimeout(fetch, query ? 300 : 0);
-    return () => {
-      cancelled = true;
-      clearTimeout(timeout);
-    };
-  }, [visible, query]);
+  const venues: VenueOption[] = useMemo(() => {
+    const all = (cachedVenues ?? []).map((v) => ({
+      id: v.id, name: v.name, city: v.city, type: v.type,
+    }));
+    const trimmed = query.trim();
+    if (!trimmed) return all;
+    // Diacritic- and case-insensitive: "Bucuresti" matches "București".
+    // Cap to 20 to mirror the previous server-side limit.
+    return all.filter((v) => matchesQuery(v.name, trimmed)).slice(0, 20);
+  }, [cachedVenues, query]);
+  // Loading only matters on a true cold start with no cached rows.
+  const loading = (!cachedVenues || cachedVenues.length === 0) && cacheFetching;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

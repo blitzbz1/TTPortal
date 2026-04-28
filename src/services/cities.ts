@@ -1,12 +1,10 @@
 import { supabase } from '../lib/supabase';
 
-export async function getCities() {
-  return supabase
-    .from('cities')
-    .select('*')
-    .eq('active', true)
-    .order('name');
-}
+// The "list cities" path is intentionally not in this file anymore —
+// callers should use useCitiesQuery (delta-synced via citiesDelta +
+// citiesPersistentCache). That cache only ever ships rows added/changed/
+// removed since the device's last sync, which beats any TTL strategy at
+// this granularity.
 
 /**
  * Ensures a city exists in the cities table and returns its id.

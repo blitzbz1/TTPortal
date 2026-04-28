@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { logger } from '../lib/logger';
@@ -52,6 +53,17 @@ export function useRealtime(options: RealtimeOptions) {
     let wasConnected = false;
     let cancelled = false;
 
+    const teardownChannel = () => {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      if (channel) {
+        supabase.removeChannel(channel).catch(() => {});
+        channel = null;
+      }
+    };
+
     const subscribeOnce = () => {
       const c = supabase.channel(channelName);
 
@@ -80,7 +92,13 @@ export function useRealtime(options: RealtimeOptions) {
             supabase.removeChannel(channel).catch(() => {});
             channel = null;
           }
-          const delay = Math.min(1000 * Math.pow(2, attempts), MAX_BACKOFF_MS);
+          // Exponential backoff with full jitter — every retry picks a
+          // random delay in [0, cap) where cap doubles each attempt.
+          // Without jitter, every disconnected client retries in lockstep
+          // and amplifies the load on whatever just failed; jitter spreads
+          // them out. Max 30s.
+          const cap = Math.min(1000 * Math.pow(2, attempts), MAX_BACKOFF_MS);
+          const delay = Math.floor(Math.random() * cap);
           attempts += 1;
           logger.debug('useRealtime: reconnecting', { channelName, status, delay, attempts });
           reconnectTimer = setTimeout(() => {
@@ -94,12 +112,31 @@ export function useRealtime(options: RealtimeOptions) {
       return c;
     };
 
-    channel = subscribeOnce();
+    // App-state-aware: tear down the realtime channel when the app
+    // backgrounds and bring it back when it foregrounds. Each realtime
+    // connection is a slot on the project's WebSocket pool — leaving
+    // them open while the app is idle is wasteful, and on the Nano tier
+    // it pushes against the connection cap unnecessarily.
+    const handleAppStateChange = (next: AppStateStatus) => {
+      if (next === 'active') {
+        if (!channel && !cancelled) {
+          attempts = 0;
+          channel = subscribeOnce();
+        }
+      } else if (next === 'background' || next === 'inactive') {
+        teardownChannel();
+      }
+    };
+
+    if (AppState.currentState === 'active') {
+      channel = subscribeOnce();
+    }
+    const sub = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
       cancelled = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (channel) supabase.removeChannel(channel).catch(() => {});
+      sub.remove();
+      teardownChannel();
     };
   }, [channelName, table, schema, event, filter, enabled]);
 }
