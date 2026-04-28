@@ -99,6 +99,9 @@ const MapView = forwardRef(function MapView(
     zoomEnabled,
     rotateEnabled,
     pitchEnabled,
+    onPress: onPressProp,
+    onLongPress: onLongPressProp,
+    onRegionChangeComplete: onRegionChangeCompleteProp,
     children,
     ...rest
   },
@@ -129,13 +132,37 @@ const MapView = forwardRef(function MapView(
     }
   }, []);
   const clearSelection = useCallback(() => setSelectedId(null), []);
-  const onMapPress = useCallback(() => {
+  const onMapPress = useCallback((event) => {
     if (suppressNextMapPress.current) {
       suppressNextMapPress.current = false;
       return;
     }
     setSelectedId(null);
-  }, []);
+    if (onPressProp) onPressProp(maplibreDragToRnMaps(event));
+  }, [onPressProp]);
+
+  const onMapLongPress = useCallback((event) => {
+    if (onLongPressProp) onLongPressProp(maplibreDragToRnMaps(event));
+  }, [onLongPressProp]);
+
+  // MapLibre's onRegionDidChange fires after the camera settles. Translate
+  // the {center: [lng, lat], ...} payload into the react-native-maps shape
+  // `(region, details)` so consumers can stay platform-agnostic.
+  const onMapRegionDidChange = useCallback((event) => {
+    if (!onRegionChangeCompleteProp) return;
+    const center = event?.nativeEvent?.center;
+    if (!center) return;
+    const region = {
+      latitude: center[1],
+      longitude: center[0],
+      latitudeDelta: 0.005,
+      longitudeDelta: 0.005,
+    };
+    const details = {
+      isGesture: !!event?.nativeEvent?.userInteraction,
+    };
+    onRegionChangeCompleteProp(region, details);
+  }, [onRegionChangeCompleteProp]);
   const selectionValue = useMemo(
     () => ({ selectedId, selectMarker, clearSelection }),
     [selectedId, selectMarker, clearSelection],
@@ -168,11 +195,31 @@ const MapView = forwardRef(function MapView(
     <MLMap
       style={[styles.fill, style]}
       mapStyle={DEFAULT_STYLE_URL}
+      // androidView="texture" makes MapLibre render via TextureView instead
+      // of the default GLSurfaceView. SurfaceView is a Window-level surface
+      // that doesn't dispatch touch events correctly when the map is inside
+      // a RN Modal (which itself opens a separate Window) or a ScrollView,
+      // producing the "MultiFingerGesture: events from different view trees
+      // are merged" warning and breaking single-finger pan/tap. TextureView
+      // renders as a normal RN view so gestures flow through the regular
+      // hierarchy. We pay a small perf cost (TextureView is slightly slower
+      // than SurfaceView), but the only screens that need this are the
+      // address picker (180dp preview) and detail sheets — both small and
+      // not perf-critical. Callers can override via the `androidView` prop.
+      androidView="texture"
       scrollEnabled={scrollEnabled !== false}
       zoomEnabled={zoomEnabled !== false}
       rotateEnabled={rotateEnabled !== false}
       pitchEnabled={pitchEnabled !== false}
+      // When the caller listens for taps, disable double-tap-to-zoom and
+      // double-tap-hold-to-zoom so single taps fire onPress immediately
+      // instead of being held back ~300ms for double-tap disambiguation
+      // (which then converts rapid taps into zoom gestures).
+      doubleTapZoom={onPressProp ? false : undefined}
+      doubleTapHoldZoom={onPressProp ? false : undefined}
       onPress={onMapPress}
+      onLongPress={onMapLongPress}
+      onRegionDidChange={onMapRegionDidChange}
       {...rest}
     >
       <MLCamera ref={cameraRef} initialViewState={initialCamera} />
@@ -218,6 +265,7 @@ function Marker({
   description,
   draggable,
   onDragEnd,
+  identifier,
   tracksViewChanges: _tracksViewChanges, // MapLibre ViewAnnotation auto-refreshes; safely ignored.
   children,
   ...rest
@@ -227,18 +275,27 @@ function Marker({
     [children],
   );
 
-  // Stable id per coordinate — MapLibre requires one, and it doubles as the key
-  // in the shared selection context so taps on another pin close this one.
-  const id = useMemo(
-    () =>
-      `mk-${coordinate?.latitude ?? 'x'}-${coordinate?.longitude ?? 'y'}`,
-    [coordinate?.latitude, coordinate?.longitude],
-  );
+  // For draggable markers we MUST keep the id stable across coordinate
+  // changes — otherwise updating `coordinate` (e.g. after onDragEnd or a
+  // tap-to-place) would unmount and remount the underlying ViewAnnotation,
+  // dropping mid-gesture state and flickering. For static markers we keep
+  // the coord-derived id so multiple pins on a map don't collide. Callers
+  // can override either with an explicit `identifier` prop (matches the
+  // react-native-maps API).
+  const id = useMemo(() => {
+    if (identifier) return identifier;
+    if (draggable) return 'mk-draggable';
+    return `mk-${coordinate?.latitude ?? 'x'}-${coordinate?.longitude ?? 'y'}`;
+  }, [identifier, draggable, coordinate?.latitude, coordinate?.longitude]);
 
   const { selectedId, selectMarker, clearSelection } = useContext(
     MapSelectionContext,
   );
   const isSelected = selectedId === id;
+
+  const lngLat = coordinate
+    ? [coordinate.longitude, coordinate.latitude]
+    : undefined;
 
   const handleDragEnd = useCallback(
     (feature) => {
@@ -267,10 +324,6 @@ function Marker({
     ) : (
       <DefaultPin title={title} description={description} />
     );
-
-  const lngLat = coordinate
-    ? [coordinate.longitude, coordinate.latitude]
-    : undefined;
 
   // Draggable pins use ViewAnnotation — it's the only MapLibre primitive with
   // native drag support. On Android its children are rasterized (non-interactive),

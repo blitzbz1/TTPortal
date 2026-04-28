@@ -11,12 +11,44 @@ async function verifyAdmin(userId: string): Promise<boolean> {
   return data?.is_admin === true;
 }
 
+// Several admin queries used to PostgREST-embed profiles via the `<col>` FK
+// (e.g. `profiles!user_id(full_name)`). That works only when the embedded
+// FK actually points at `public.profiles`. In this schema the user-id FKs
+// point at `auth.users`, so PostgREST returns 400 "no relationship found".
+// Workaround: load profiles in a second query keyed by id and stitch them
+// onto each row under the same field name the UI already reads.
+async function attachProfiles<T extends Record<string, any>>(
+  rows: T[],
+  idKey: keyof T,
+  fieldName: string,
+  columns: string,
+): Promise<T[]> {
+  const ids = Array.from(
+    new Set(
+      rows
+        .map((r) => r[idKey])
+        .filter((id) => typeof id === 'string') as string[],
+    ),
+  );
+  if (ids.length === 0) return rows.map((r) => ({ ...r, [fieldName]: null }));
+  const { data } = await supabase.from('profiles').select(`id, ${columns}`).in('id', ids);
+  const byId = new Map<string, any>();
+  (data ?? []).forEach((p: any) => byId.set(p.id, p));
+  return rows.map((r) => ({
+    ...r,
+    [fieldName]: r[idKey] && byId.has(r[idKey] as string) ? byId.get(r[idKey] as string) : null,
+  }));
+}
+
 export async function getPendingVenues() {
-  return supabase
+  const result = await supabase
     .from('venues')
-    .select('*, profiles!submitted_by(full_name)')
+    .select('*')
     .eq('approved', false)
     .order('created_at', { ascending: false });
+  if (result.error || !result.data) return result;
+  const data = await attachProfiles(result.data, 'submitted_by', 'profiles', 'full_name');
+  return { ...result, data };
 }
 
 export async function approveVenue(id: number, userId: string) {
@@ -90,11 +122,16 @@ export async function deleteVenue(id: number, userId: string) {
 }
 
 export async function getFlaggedReviews() {
-  return supabase
+  // Keep the `venues!venue_id` embed — that FK does point to public.venues.
+  // Only the profiles embed is broken (FK lands on auth.users).
+  const result = await supabase
     .from('reviews')
-    .select('*, profiles!user_id(full_name), venues!venue_id(name)')
+    .select('*, venues!venue_id(name)')
     .eq('flagged', true)
     .order('flag_count', { ascending: false });
+  if (result.error || !result.data) return result;
+  const data = await attachProfiles(result.data, 'user_id', 'profiles', 'full_name');
+  return { ...result, data };
 }
 
 export async function keepReview(id: number, userId: string) {
@@ -113,11 +150,14 @@ export async function deleteReview(id: number, userId: string) {
 }
 
 export async function getUserFeedback(limit = 100) {
-  return supabase
+  const result = await supabase
     .from('user_feedback')
-    .select('id, user_id, page, category, message, created_at, profiles!user_id(full_name, email)')
+    .select('id, user_id, page, category, message, created_at')
     .order('created_at', { ascending: false })
     .limit(limit);
+  if (result.error || !result.data) return result;
+  const data = await attachProfiles(result.data, 'user_id', 'profiles', 'full_name, email');
+  return { ...result, data };
 }
 
 export async function deleteUserFeedback(id: string, userId: string) {
@@ -126,11 +166,14 @@ export async function deleteUserFeedback(id: string, userId: string) {
 }
 
 export async function getFeedbackReplies(feedbackId: string) {
-  return supabase
+  const result = await supabase
     .from('feedback_replies')
-    .select('id, feedback_id, admin_id, reply_text, created_at, profiles!admin_id(full_name)')
+    .select('id, feedback_id, admin_id, reply_text, created_at')
     .eq('feedback_id', feedbackId)
     .order('created_at', { ascending: true });
+  if (result.error || !result.data) return result;
+  const data = await attachProfiles(result.data, 'admin_id', 'profiles', 'full_name');
+  return { ...result, data };
 }
 
 export async function replyToFeedback(feedbackId: string, adminId: string, replyText: string) {

@@ -416,7 +416,15 @@ export function createStyles(colors: ThemeColors) {
       marginBottom: Spacing.md,
     },
     modalScroll: {
+      // flexShrink:1 lets the ScrollView take whatever space remains inside
+      // the modalSheet (capped at 85% of the screen) without pushing the
+      // pinned action row off the bottom — required on web/desktop where the
+      // sheet has a real bounded height. On native it just falls through.
+      flexShrink: 1,
+    },
+    modalScrollContent: {
       paddingHorizontal: Spacing.lg,
+      paddingBottom: Spacing.md,
     },
     modalField: {
       gap: 6,
@@ -498,6 +506,50 @@ export function createStyles(colors: ThemeColors) {
       ...Shadows.md,
     },
     modalSaveText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.bold,
+      color: colors.textOnPrimary,
+    },
+    // Reject confirmation sheet — narrower than the edit sheet (no scroll
+    // body, just title + message + 2 buttons), so it auto-sizes to content
+    // instead of capping at 85% screen height.
+    confirmSheet: {
+      backgroundColor: colors.bgAlt,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      width: '100%',
+      maxWidth: 430,
+      paddingBottom: Spacing.xl,
+      ...Shadows.lg,
+    },
+    confirmBody: {
+      paddingHorizontal: Spacing.lg,
+      paddingBottom: Spacing.md,
+      gap: 6,
+    },
+    confirmVenueName: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
+      color: colors.text,
+    },
+    confirmMessage: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      color: colors.textMuted,
+      lineHeight: 20,
+    },
+    confirmRejectBtn: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.red,
+      borderRadius: 12,
+      height: 48,
+      ...Shadows.md,
+    },
+    confirmRejectText: {
       fontFamily: Fonts.body,
       fontSize: FontSize.lg,
       fontWeight: FontWeight.bold,

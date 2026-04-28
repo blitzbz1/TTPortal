@@ -285,7 +285,7 @@
   "fieldAddress": "ADRESĂ *",
   "addressPlaceholder": "Strada, nr…",
   "pinOnMap": "Pin pe hartă",
-  "dragPinHint": "Trage pin-ul pentru a ajusta locația",
+  "dragPinHint": "Apasă sau mută harta pentru a seta pinul",
   "searching": "Se caută...",
   "fieldNotes": "NOTE",
   "notesPlaceholder": "Detalii adiționale...",
@@ -393,11 +393,14 @@
   "approve": "Aprobă",
   "edit": "Editează",
   "reject": "Respinge",
+  "confirmRejectTitle": "Respinge propunerea?",
+  "confirmRejectMessage": "Propunerea de locație va fi ștearsă definitiv. Utilizatorul nu va fi notificat.",
   "allVenues": "TOATE LOCAȚIILE",
   "editVenue": "Editează locația",
   "searchVenues": "Caută locație...",
   "searchVenuesHint": "Scrie minim 3 caractere pentru a căuta",
   "confirmDeleteVenue": "Sigur vrei să ștergi această locație?",
+  "confirmDeleteVenueMessage": "Locația va fi ștearsă definitiv împreună cu toate recenziile, voturile, favoritele și evenimentele asociate.",
   "deleteVenueError": "Eroare la ștergerea locației.",
   "reportedReviews": "RECENZII RAPORTATE",
   "noReportedReviews": "Nicio recenzie raportată",
@@ -986,6 +989,6 @@
   "feedbackReplyError": "Nu am putut trimite răspunsul. Încearcă din nou.",
 
   "pinOnMap": "Marchează pe hartă",
-  "dragPinHint": "Trage pinul pentru a ajusta locația exactă.",
+  "dragPinHint": "Apasă sau mută harta pentru a seta pinul la locația exactă.",
   "updatingAddress": "Se actualizează adresa…"
 }

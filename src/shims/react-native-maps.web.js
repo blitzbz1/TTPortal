@@ -71,10 +71,14 @@ function loadLeaflet() {
   return leafletPromise;
 }
 
-const MapView = React.forwardRef(({ children, style, initialRegion, ...props }, ref) => {
+const MapView = React.forwardRef(({ children, style, initialRegion, onPress, ...props }, ref) => {
   const containerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
+  // Mirror onPress to a ref so the once-only Leaflet click handler always
+  // calls the latest closure without rebinding (and re-rendering the map).
+  const onPressRef = useRef(onPress);
+  onPressRef.current = onPress;
 
   useImperativeHandle(ref, () => ({
     animateToRegion: (region) => {
@@ -105,6 +109,17 @@ const MapView = React.forwardRef(({ children, style, initialRegion, ...props }, 
       });
 
       L.tileLayer(TILE_URL, { maxZoom: 19 }).addTo(map);
+      // Translate Leaflet click → react-native-maps onPress shape so the
+      // address-picker tap-to-place handler stays platform-agnostic.
+      map.on('click', (e) => {
+        const handler = onPressRef.current;
+        if (!handler) return;
+        handler({
+          nativeEvent: {
+            coordinate: { latitude: e.latlng.lat, longitude: e.latlng.lng },
+          },
+        });
+      });
       mapInstanceRef.current = map;
       setMapReady(true);
 
@@ -128,8 +143,11 @@ const MapView = React.forwardRef(({ children, style, initialRegion, ...props }, 
   }, []);
 
   return (
-    <View style={[{ flex: 1 }, style]} {...props}>
-      <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 0 }} />
+    // minHeight + position:relative guards against zero-height collapse when
+    // the parent doesn't pass an explicit height — without it Leaflet renders
+    // into a 0px container and the map appears blank.
+    <View style={[{ flex: 1, minHeight: 180, position: 'relative' }, style]} {...props}>
+      <div ref={containerRef} style={{ width: '100%', height: '100%', minHeight: 180, position: 'absolute', top: 0, left: 0, zIndex: 0 }} />
       {mapReady && (
         <MapContext.Provider value={mapInstanceRef.current}>
           {children}
@@ -216,12 +234,21 @@ function extractText(node) {
   return text;
 }
 
-function Marker({ coordinate, children, tracksViewChanges, ...props }) {
+function Marker({ coordinate, children, tracksViewChanges, draggable, onDragEnd, identifier, ...props }) {
   const map = useContext(MapContext);
   const markerRef = useRef(null);
+  // Latest onDragEnd handler — Leaflet's `dragend` listener is bound once at
+  // marker creation, so we read the closure indirectly to avoid rebinding
+  // (and recreating the marker) every time the parent re-renders.
+  const onDragEndRef = useRef(onDragEnd);
+  onDragEndRef.current = onDragEnd;
 
   const { color, emoji, hasFriend, calloutOnPress, calloutTitle, calloutSub } = extractPinData(children);
 
+  // Build the Leaflet marker once (or when its essential identity changes).
+  // For draggable markers, intentionally exclude coordinate.* from deps so
+  // the marker is not re-created on every drag-end / parent state update —
+  // we update the position imperatively in a separate effect below.
   useEffect(() => {
     if (!map || !coordinate || typeof window === 'undefined') return;
 
@@ -250,8 +277,24 @@ function Marker({ coordinate, children, tracksViewChanges, ...props }) {
       popupAnchor: [0, -40],
     });
 
-    const marker = L.marker([coordinate.latitude, coordinate.longitude], { icon }).addTo(map);
+    const marker = L.marker([coordinate.latitude, coordinate.longitude], {
+      icon,
+      draggable: !!draggable,
+      autoPan: !!draggable,
+    }).addTo(map);
     markerRef.current = marker;
+
+    if (draggable) {
+      marker.on('dragend', () => {
+        const { lat, lng } = marker.getLatLng();
+        const handler = onDragEndRef.current;
+        if (handler) {
+          handler({
+            nativeEvent: { coordinate: { latitude: lat, longitude: lng } },
+          });
+        }
+      });
+    }
 
     if (calloutTitle) {
       const popupHtml = `
@@ -269,8 +312,16 @@ function Marker({ coordinate, children, tracksViewChanges, ...props }) {
 
     return () => {
       if (marker) map.removeLayer(marker);
+      markerRef.current = null;
     };
-  }, [map, coordinate?.latitude, coordinate?.longitude, color, emoji, hasFriend, calloutTitle]);
+  }, [map, color, emoji, hasFriend, calloutTitle, draggable]);
+
+  // Reposition the existing marker when coordinate changes (after a drag
+  // ends, after tap-to-place, or after a programmatic move from search).
+  useEffect(() => {
+    if (!markerRef.current || !coordinate) return;
+    markerRef.current.setLatLng([coordinate.latitude, coordinate.longitude]);
+  }, [coordinate?.latitude, coordinate?.longitude]);
 
   return null;
 }

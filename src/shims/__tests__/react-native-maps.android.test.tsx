@@ -228,10 +228,13 @@ describe('Marker', () => {
         </Marker>
       </MapView>,
     );
-    const annotation = getByTestId('mlrn-annotation-mk-44.4268-26.1025');
+    // Draggable markers use a stable id so coord changes (from onDragEnd or
+    // tap-to-place) re-position the existing annotation instead of remounting
+    // it mid-gesture and dropping native drag state.
+    const annotation = getByTestId('mlrn-annotation-mk-draggable');
     expect(annotation.props['data-draggable']).toBe('true');
     // The interactive Marker primitive is NOT used on the draggable path.
-    expect(queryByTestId('mlrn-marker-mk-44.4268-26.1025')).toBeNull();
+    expect(queryByTestId('mlrn-marker-mk-draggable')).toBeNull();
 
     // Simulate MapLibre firing a drag end event (nativeEvent.lngLat tuple).
     annotation.props.onDragEnd({ nativeEvent: { lngLat: [26.2, 44.5] } });

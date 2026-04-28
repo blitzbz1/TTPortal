@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput, Modal, Pressable } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -52,7 +51,7 @@ interface PendingVenueCardProps {
   s: (key: string) => string;
   onApprove: (id: number) => void;
   onEdit: (venue: any) => void;
-  onReject: (id: number) => void;
+  onReject: (venue: any) => void;
 }
 const PendingVenueCard = React.memo(function PendingVenueCard({
   venue, styles, colors, s, onApprove, onEdit, onReject,
@@ -79,7 +78,7 @@ const PendingVenueCard = React.memo(function PendingVenueCard({
           <Lucide name="pencil" size={14} color={colors.textMuted} />
           <Text style={styles.editBtnText}>{s('edit')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.rejectBtn} onPress={() => onReject(venue.id)}>
+        <TouchableOpacity style={styles.rejectBtn} onPress={() => onReject(venue)}>
           <Lucide name="x" size={14} color={colors.red} />
           <Text style={styles.rejectBtnText}>{s('reject')}</Text>
         </TouchableOpacity>
@@ -208,6 +207,17 @@ export function AdminModerationScreen() {
   const [editDescription, setEditDescription] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [knownCities, setKnownCities] = useState<string[]>([]);
+  // Reject confirmation bottom sheet — set to a venue to open, null to close.
+  const [rejectTarget, setRejectTarget] = useState<any | null>(null);
+  const [rejectSubmitting, setRejectSubmitting] = useState(false);
+  // Delete (approved) venue confirmation — Alert.alert's button callbacks
+  // don't fire on react-native-web, so we use the same bottom sheet here.
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  // Ref to the modal's scroll view so AddressPickerField can disable parent
+  // scrolling while the user pans the map. Without this, single-finger pan
+  // gestures get stolen by the ScrollView before MapLibre claims them.
+  const editScrollRef = useRef<any>(null);
   const router = useRouter();
   const { user } = useSession();
   const { s } = useI18n();
@@ -274,29 +284,41 @@ export function AdminModerationScreen() {
     setPendingVenues((prev) => prev.filter((v) => v.id !== id));
   }, [user, s]);
 
-  const handleReject = useCallback(async (id: number) => {
-    const { error } = await rejectVenue(id, user!.id);
+  const handleReject = useCallback((venue: any) => {
+    setRejectTarget(venue);
+  }, []);
+
+  const confirmReject = useCallback(async () => {
+    if (!rejectTarget || !user) return;
+    setRejectSubmitting(true);
+    const { error } = await rejectVenue(rejectTarget.id, user.id);
+    setRejectSubmitting(false);
     if (error) {
       Alert.alert(s('error'), s('rejectError'));
       return;
     }
-    setPendingVenues((prev) => prev.filter((v) => v.id !== id));
-  }, [user, s]);
+    const rejectedId = rejectTarget.id;
+    setPendingVenues((prev) => prev.filter((v) => v.id !== rejectedId));
+    setRejectTarget(null);
+  }, [rejectTarget, user, s]);
 
-  const handleDeleteVenue = useCallback((id: number) => {
-    Alert.alert(s('confirmDeleteVenue'), '', [
-      { text: s('cancel'), style: 'cancel' },
-      {
-        text: s('deleteBtn'),
-        style: 'destructive',
-        onPress: async () => {
-          const { error } = await deleteVenue(id, user!.id);
-          if (error) { Alert.alert(s('error'), s('deleteVenueError')); return; }
-          setVenueResults((prev) => prev.filter((v) => v.id !== id));
-        },
-      },
-    ]);
-  }, [user, s]);
+  const handleDeleteVenue = useCallback((venue: any) => {
+    setDeleteTarget(venue);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteTarget || !user) return;
+    setDeleteSubmitting(true);
+    const { error } = await deleteVenue(deleteTarget.id, user.id);
+    setDeleteSubmitting(false);
+    if (error) {
+      Alert.alert(s('error'), s('deleteVenueError'));
+      return;
+    }
+    const deletedId = deleteTarget.id;
+    setVenueResults((prev) => prev.filter((v) => v.id !== deletedId));
+    setDeleteTarget(null);
+  }, [deleteTarget, user, s]);
 
   const openEditModal = useCallback((venue: any) => {
     setEditVenue(venue);
@@ -576,7 +598,7 @@ export function AdminModerationScreen() {
                     <TouchableOpacity style={styles.venueEditBtn} onPress={() => openEditModal(venue)}>
                       <Lucide name="pencil" size={14} color={colors.textMuted} />
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.venueDeleteBtn} onPress={() => handleDeleteVenue(venue.id)}>
+                    <TouchableOpacity style={styles.venueDeleteBtn} onPress={() => handleDeleteVenue(venue)}>
                       <Lucide name="trash-2" size={14} color={colors.red} />
                     </TouchableOpacity>
                   </View>
@@ -617,17 +639,16 @@ export function AdminModerationScreen() {
       <FeedbackReplyModal feedback={replyTarget} onClose={() => setReplyTarget(null)} />
       {/* Edit Venue Modal */}
       <Modal visible={editVenue !== null} transparent animationType="slide" onRequestClose={() => setEditVenue(null)}>
-          <Pressable style={styles.modalOverlay} onPress={() => setEditVenue(null)}>
-            <Pressable style={styles.modalSheet} onPress={() => {}}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalSheet}>
               <View style={styles.modalHandle}><View style={styles.modalHandleBar} /></View>
               <Text style={styles.modalTitle}>{s('editVenue')}</Text>
 
-              <KeyboardAwareScrollView
+              <ScrollView
+                ref={editScrollRef}
                 style={styles.modalScroll}
+                contentContainerStyle={styles.modalScrollContent}
                 keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
-                bottomOffset={20}
-                contentContainerStyle={{ paddingBottom: 24 }}
               >
                 {/* Name */}
                 <View style={styles.modalField}>
@@ -668,6 +689,7 @@ export function AdminModerationScreen() {
                     lng={editLng}
                     knownCities={knownCities}
                     onChange={handleEditAddressPatch}
+                    parentScrollRef={editScrollRef}
                   />
                 </View>
 
@@ -699,7 +721,7 @@ export function AdminModerationScreen() {
                     maxLength={500}
                   />
                 </View>
-              </KeyboardAwareScrollView>
+              </ScrollView>
 
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setEditVenue(null)}>
@@ -717,8 +739,94 @@ export function AdminModerationScreen() {
                   )}
                 </TouchableOpacity>
               </View>
-            </Pressable>
+            </View>
+          </View>
+      </Modal>
+
+      {/* Reject confirmation bottom sheet. Reject is a hard delete (no
+          rejected_at flag, no submitter notification), so we surface the
+          consequence and require an explicit confirmation tap. */}
+      <Modal
+        visible={rejectTarget !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !rejectSubmitting && setRejectTarget(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => !rejectSubmitting && setRejectTarget(null)}>
+          <Pressable style={styles.confirmSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHandle}><View style={styles.modalHandleBar} /></View>
+            <Text style={styles.modalTitle}>{s('confirmRejectTitle')}</Text>
+            <View style={styles.confirmBody}>
+              {rejectTarget?.name ? (
+                <Text style={styles.confirmVenueName}>{rejectTarget.name}</Text>
+              ) : null}
+              <Text style={styles.confirmMessage}>{s('confirmRejectMessage')}</Text>
+            </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setRejectTarget(null)}
+                disabled={rejectSubmitting}
+              >
+                <Text style={styles.modalCancelText}>{s('cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmRejectBtn, rejectSubmitting && { opacity: 0.6 }]}
+                onPress={confirmReject}
+                disabled={rejectSubmitting}
+              >
+                {rejectSubmitting ? (
+                  <ActivityIndicator size="small" color={colors.textOnPrimary} />
+                ) : (
+                  <Text style={styles.confirmRejectText}>{s('reject')}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Delete approved-venue confirmation bottom sheet. Same shape as
+          reject — duplicated rather than abstracted because the copy and
+          the action differ and there are only two of them. */}
+      <Modal
+        visible={deleteTarget !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !deleteSubmitting && setDeleteTarget(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => !deleteSubmitting && setDeleteTarget(null)}>
+          <Pressable style={styles.confirmSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHandle}><View style={styles.modalHandleBar} /></View>
+            <Text style={styles.modalTitle}>{s('confirmDeleteVenue')}</Text>
+            <View style={styles.confirmBody}>
+              {deleteTarget?.name ? (
+                <Text style={styles.confirmVenueName}>{deleteTarget.name}</Text>
+              ) : null}
+              <Text style={styles.confirmMessage}>{s('confirmDeleteVenueMessage')}</Text>
+            </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setDeleteTarget(null)}
+                disabled={deleteSubmitting}
+              >
+                <Text style={styles.modalCancelText}>{s('cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmRejectBtn, deleteSubmitting && { opacity: 0.6 }]}
+                onPress={confirmDelete}
+                disabled={deleteSubmitting}
+              >
+                {deleteSubmitting ? (
+                  <ActivityIndicator size="small" color={colors.textOnPrimary} />
+                ) : (
+                  <Text style={styles.confirmRejectText}>{s('deleteBtn')}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );

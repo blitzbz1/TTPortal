@@ -14,6 +14,7 @@ function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
     select: jest.fn(() => chain),
     eq: jest.fn(() => chain),
     or: jest.fn(() => chain),
+    in: jest.fn(() => chain),
     order: jest.fn(() => chain),
     limit: jest.fn(() => chain),
     insert: jest.fn(() => chain),
@@ -160,22 +161,35 @@ describe('deleteVenue', () => {
 });
 
 describe('getUserFeedback', () => {
-  it('selects user_feedback with profile join, ordered desc, with default limit', async () => {
+  it('selects user_feedback then attaches profiles in a follow-up query', async () => {
+    // Profile embed via `profiles!user_id(...)` is broken in this schema
+    // (FK lands on auth.users), so the service fetches profiles separately
+    // and merges them onto each row under the `profiles` key.
     const rows = [
-      { id: 'f-1', category: 'bug', message: 'boom', profiles: { full_name: 'Alex', email: 'a@x.com' } },
+      { id: 'f-1', user_id: 'u-1', category: 'bug', message: 'boom' },
     ];
-    const chain = createQueryChain(rows);
-    mockFrom.mockReturnValue(chain);
+    const profiles = [{ id: 'u-1', full_name: 'Alex', email: 'a@x.com' }];
+    const feedbackChain = createQueryChain(rows);
+    const profilesChain = createQueryChain(profiles);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'user_feedback') return feedbackChain;
+      if (table === 'profiles') return profilesChain;
+      return createQueryChain();
+    });
 
     const { data } = await getUserFeedback();
 
     expect(mockFrom).toHaveBeenCalledWith('user_feedback');
-    expect(chain.select).toHaveBeenCalledWith(
-      'id, user_id, page, category, message, created_at, profiles!user_id(full_name, email)',
+    expect(feedbackChain.select).toHaveBeenCalledWith(
+      'id, user_id, page, category, message, created_at',
     );
-    expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: false });
-    expect(chain.limit).toHaveBeenCalledWith(100);
-    expect(data).toEqual(rows);
+    expect(feedbackChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(feedbackChain.limit).toHaveBeenCalledWith(100);
+    expect(profilesChain.select).toHaveBeenCalledWith('id, full_name, email');
+    expect(profilesChain.in).toHaveBeenCalledWith('id', ['u-1']);
+    expect(data).toEqual([
+      { id: 'f-1', user_id: 'u-1', category: 'bug', message: 'boom', profiles: { id: 'u-1', full_name: 'Alex', email: 'a@x.com' } },
+    ]);
   });
 
   it('honors custom limit', async () => {
@@ -216,22 +230,34 @@ describe('deleteUserFeedback', () => {
 });
 
 describe('getFeedbackReplies', () => {
-  it('fetches replies for a feedback, joined with admin profile, ordered asc', async () => {
+  it('fetches replies for a feedback ordered asc, then attaches admin profiles', async () => {
+    // Same separated-fetch pattern as getUserFeedback — the FK on
+    // feedback_replies.admin_id points to auth.users, not public.profiles.
     const rows = [
-      { id: 'r-1', reply_text: 'Working on it', created_at: '2026-04-20', profiles: { full_name: 'Admin' } },
+      { id: 'r-1', admin_id: 'a-1', reply_text: 'Working on it', created_at: '2026-04-20' },
     ];
-    const chain = createQueryChain(rows);
-    mockFrom.mockReturnValue(chain);
+    const profiles = [{ id: 'a-1', full_name: 'Admin' }];
+    const repliesChain = createQueryChain(rows);
+    const profilesChain = createQueryChain(profiles);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'feedback_replies') return repliesChain;
+      if (table === 'profiles') return profilesChain;
+      return createQueryChain();
+    });
 
     const { data } = await getFeedbackReplies('f-1');
 
     expect(mockFrom).toHaveBeenCalledWith('feedback_replies');
-    expect(chain.select).toHaveBeenCalledWith(
-      'id, feedback_id, admin_id, reply_text, created_at, profiles!admin_id(full_name)',
+    expect(repliesChain.select).toHaveBeenCalledWith(
+      'id, feedback_id, admin_id, reply_text, created_at',
     );
-    expect(chain.eq).toHaveBeenCalledWith('feedback_id', 'f-1');
-    expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: true });
-    expect(data).toEqual(rows);
+    expect(repliesChain.eq).toHaveBeenCalledWith('feedback_id', 'f-1');
+    expect(repliesChain.order).toHaveBeenCalledWith('created_at', { ascending: true });
+    expect(profilesChain.select).toHaveBeenCalledWith('id, full_name');
+    expect(profilesChain.in).toHaveBeenCalledWith('id', ['a-1']);
+    expect(data).toEqual([
+      { id: 'r-1', admin_id: 'a-1', reply_text: 'Working on it', created_at: '2026-04-20', profiles: { id: 'a-1', full_name: 'Admin' } },
+    ]);
   });
 });
 

@@ -290,7 +290,7 @@
   "fieldAddress": "ADDRESS *",
   "addressPlaceholder": "Street, no…",
   "pinOnMap": "Pin on map",
-  "dragPinHint": "Drag the pin to adjust the location",
+  "dragPinHint": "Tap or move the map to set the pin",
   "searching": "Searching...",
   "fieldNotes": "NOTES",
   "notesPlaceholder": "Additional details...",
@@ -398,11 +398,14 @@
   "approve": "Approve",
   "edit": "Edit",
   "reject": "Reject",
+  "confirmRejectTitle": "Reject submission?",
+  "confirmRejectMessage": "This will permanently delete the venue submission. The submitter will not be notified.",
   "allVenues": "ALL VENUES",
   "editVenue": "Edit venue",
   "searchVenues": "Search venue...",
   "searchVenuesHint": "Type at least 3 characters to search",
   "confirmDeleteVenue": "Are you sure you want to delete this venue?",
+  "confirmDeleteVenueMessage": "This will permanently delete the venue along with all its reviews, votes, favorites and events.",
   "deleteVenueError": "Failed to delete venue.",
   "reportedReviews": "REPORTED REVIEWS",
   "noReportedReviews": "No reported reviews",
@@ -986,6 +989,6 @@
   "feedbackReplyError": "Couldn't send the reply. Please try again.",
 
   "pinOnMap": "Pin on map",
-  "dragPinHint": "Drag the pin to adjust the exact location.",
+  "dragPinHint": "Tap or move the map to set the pin to the exact location.",
   "updatingAddress": "Updating address…"
 }

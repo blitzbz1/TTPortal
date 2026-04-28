@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { Lucide } from './Icon';
@@ -21,28 +20,6 @@ import {
   matchCity,
   type NominatimAddressDetails,
 } from '../screens/AddVenueScreen';
-
-// This file is the Android + web implementation. iOS resolves to
-// AddressPickerField.ios.tsx via Metro's platform-extension resolution —
-// that file is the upstream/original (Apple Maps + stock Marker draggable),
-// kept intact because every change made to it in this session regressed
-// behavior on iOS. Do not add iOS branches here.
-
-type ScrollNativeRef = React.RefObject<{ setNativeProps: (p: { scrollEnabled?: boolean }) => void } | null> | undefined;
-
-// Toggle the parent ScrollView's scrollEnabled imperatively. Under Fabric
-// some ScrollView refs throw `_viewConfig of undefined` from setNativeProps,
-// which would crash the screen on a single tap. Swallow that — we lose the
-// gesture-handoff optimization but the map remains usable.
-function setParentScrollEnabled(ref: ScrollNativeRef, enabled: boolean) {
-  const fn = ref?.current?.setNativeProps;
-  if (typeof fn !== 'function') return;
-  try {
-    fn({ scrollEnabled: enabled });
-  } catch {
-    // ignore — best-effort optimization
-  }
-}
 
 interface NominatimSuggestion {
   display_name: string;
@@ -66,18 +43,16 @@ interface AddressPickerFieldProps {
   knownCities: string[];
   onChange: (patch: AddressPickerChange) => void;
   disabled?: boolean;
-  // Ref to a wrapping ScrollView. While the user is touching the map we
-  // imperatively disable parent scrolling so single-finger pan gestures
-  // aren't intercepted by the parent's native onInterceptTouchEvent before
-  // MapLibre's MoveGestureDetector can claim them. Restored on touch end.
-  // setNativeProps bypasses the React reconciler so the change is committed
-  // before the next ACTION_MOVE arrives at the ScrollView.
+  // Accepted for API parity with the Android/web implementation but unused
+  // on iOS — Apple Maps' native gesture handling does not need the parent
+  // ScrollView to be frozen mid-pan, and adding any responder logic here
+  // crashed the screen on tap. Kept optional so callers can stay generic.
   parentScrollRef?: React.RefObject<{ setNativeProps: (p: { scrollEnabled?: boolean }) => void } | null>;
 }
 
 /**
  * Shared address picker: typeahead + geocode button + conditional mini-map
- * with tap-to-set pin + reverse geocoding on tap.
+ * with draggable marker + reverse geocoding on drag.
  * Used by AddVenueScreen and the admin edit-venue modal.
  */
 export function AddressPickerField({
@@ -88,7 +63,6 @@ export function AddressPickerField({
   knownCities,
   onChange,
   disabled,
-  parentScrollRef,
 }: AddressPickerFieldProps) {
   const { colors } = useTheme();
   const { s } = useI18n();
@@ -190,7 +164,9 @@ export function AddressPickerField({
     setGeocoding(false);
   }, [address, onChange, closeSuggestions, maybeSetCity]);
 
-  const reverseGeocodeLatLng = useCallback(async (nextLat: number, nextLng: number) => {
+  const handleMarkerDrag = useCallback(async (e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
+    const nextLat = e.nativeEvent.coordinate.latitude;
+    const nextLng = e.nativeEvent.coordinate.longitude;
     onChange({ lat: nextLat, lng: nextLng });
     closeSuggestions();
     setReverseGeocoding(true);
@@ -214,39 +190,6 @@ export function AddressPickerField({
     } catch { /* ignore */ }
     setReverseGeocoding(false);
   }, [onChange, closeSuggestions, maybeSetCity]);
-
-  // Tap-to-place: tapping the map moves the pin to the tapped coordinate
-  // (secondary affordance; primary is dragging the pin). Camera follows so
-  // the new pin position stays visible without forcing the user to pan.
-  const handleMapPress = useCallback(
-    (event: { nativeEvent?: { coordinate?: { latitude: number; longitude: number } } }) => {
-      const coord = event?.nativeEvent?.coordinate;
-      if (!coord) return;
-      mapRef.current?.animateToRegion(
-        {
-          latitude: coord.latitude,
-          longitude: coord.longitude,
-          latitudeDelta: 0.005,
-          longitudeDelta: 0.005,
-        },
-        300,
-      );
-      void reverseGeocodeLatLng(coord.latitude, coord.longitude);
-    },
-    [reverseGeocodeLatLng],
-  );
-
-  // Drag-to-place: the dragged Marker's onDragEnd delivers the new
-  // coordinate; reverse-geocode and patch the form. Same handler on every
-  // platform since react-native-maps and the two shims emit the same shape.
-  const handleMarkerDragEnd = useCallback(
-    (event: { nativeEvent?: { coordinate?: { latitude: number; longitude: number } } }) => {
-      const coord = event?.nativeEvent?.coordinate;
-      if (!coord) return;
-      void reverseGeocodeLatLng(coord.latitude, coord.longitude);
-    },
-    [reverseGeocodeLatLng],
-  );
 
   const hasLocation = lat !== null && lng !== null;
 
@@ -321,34 +264,7 @@ export function AddressPickerField({
               </View>
             )}
           </View>
-          {/* The responder-capture / touch-end pair below disables the
-              parent ScrollView mid-touch so single-finger pan gestures
-              reach MapLibre's MoveGestureDetector before being intercepted
-              by the parent's onInterceptTouchEvent. Android-only: web
-              Leaflet handles its own gestures, and iOS lives in the
-              .ios.tsx variant which never reaches this code.
-              Best-effort: under the new architecture (Fabric) some
-              ScrollView refs throw `_viewConfig of undefined` from
-              setNativeProps. We catch that — losing the parent-freeze
-              optimization but keeping the screen alive, since the map's
-              own gesture detector can usually claim the touch unaided. */}
-          <View
-            style={styles.mapWrap}
-            {...(Platform.OS === 'android'
-              ? {
-                  onStartShouldSetResponderCapture: () => {
-                    setParentScrollEnabled(parentScrollRef, false);
-                    return false;
-                  },
-                  onTouchEnd: () => {
-                    setParentScrollEnabled(parentScrollRef, true);
-                  },
-                  onTouchCancel: () => {
-                    setParentScrollEnabled(parentScrollRef, true);
-                  },
-                }
-              : null)}
-          >
+          <View style={styles.mapWrap}>
             <MapView
               ref={mapRef}
               style={styles.map}
@@ -358,17 +274,12 @@ export function AddressPickerField({
                 latitudeDelta: 0.005,
                 longitudeDelta: 0.005,
               }}
-              onPress={handleMapPress}
             >
               <Marker
-                identifier="address-picker"
                 coordinate={{ latitude: lat!, longitude: lng! }}
                 draggable
-                onDragEnd={handleMarkerDragEnd}
-              >
-                <View style={styles.markerPinShadow} />
-                <View style={styles.markerPinDot} />
-              </Marker>
+                onDragEnd={handleMarkerDrag}
+              />
             </MapView>
           </View>
           <Text style={styles.mapHint}>{s('dragPinHint')}</Text>
@@ -469,22 +380,6 @@ function createStyles(colors: ThemeColors) {
     map: {
       width: '100%',
       height: 180,
-    },
-    markerPinDot: {
-      width: 18,
-      height: 18,
-      borderRadius: 9,
-      backgroundColor: colors.red,
-      borderWidth: 2,
-      borderColor: '#ffffff',
-      ...Shadows.sm,
-    },
-    markerPinShadow: {
-      width: 6,
-      height: 3,
-      borderRadius: 3,
-      backgroundColor: 'rgba(0,0,0,0.25)',
-      marginTop: 2,
     },
     mapHint: {
       fontFamily: Fonts.body,

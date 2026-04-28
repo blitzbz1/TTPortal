@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -112,6 +112,9 @@ export function AddVenueScreen() {
   const [geoLat, setGeoLat] = useState<number | null>(null);
   const [geoLng, setGeoLng] = useState<number | null>(null);
   const [knownCities, setKnownCities] = useState<string[]>([]);
+  // Ref to the form's ScrollView so AddressPickerField can disable parent
+  // scrolling while the user pans the map.
+  const formScrollRef = useRef<any>(null);
 
   useEffect(() => {
     getCities().then(({ data }) => {
@@ -178,7 +181,7 @@ export function AddVenueScreen() {
       <Text style={styles.header}>{s('addVenueTitle')}</Text>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={styles.formScroll} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={formScrollRef} style={styles.formScroll} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
           {/* Name Field */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>{s('fieldName')}</Text>
@@ -238,6 +241,7 @@ export function AddVenueScreen() {
               lng={geoLng}
               knownCities={knownCities}
               onChange={handleAddressPatch}
+              parentScrollRef={formScrollRef}
             />
           </View>
 
