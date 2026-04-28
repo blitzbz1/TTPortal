@@ -398,6 +398,7 @@
   "approve": "Approve",
   "edit": "Edit",
   "reject": "Reject",
+  "photoProcessingUnavailable": "Photo processing is unavailable on this device. Please try again from a fully updated build of the app.",
   "rateLimitAddVenue": "You've submitted too many venues. Please try again in about {minutes} minutes.",
   "rateLimitCreateEvent": "You've created too many events. Please try again in about {minutes} minutes.",
   "rateLimitCheckin": "Too many check-ins in a short time. Please try again in about {minutes} minutes.",

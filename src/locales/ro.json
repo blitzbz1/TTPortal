@@ -393,6 +393,7 @@
   "approve": "Aprobă",
   "edit": "Editează",
   "reject": "Respinge",
+  "photoProcessingUnavailable": "Procesarea fotografiilor nu este disponibilă pe acest dispozitiv. Încearcă din nou dintr-o versiune actualizată a aplicației.",
   "rateLimitAddVenue": "Ai trimis prea multe locații. Încearcă din nou peste aproximativ {minutes} minute.",
   "rateLimitCreateEvent": "Ai creat prea multe evenimente. Încearcă din nou peste aproximativ {minutes} minute.",
   "rateLimitCheckin": "Prea multe check-in-uri într-un timp scurt. Încearcă din nou peste aproximativ {minutes} minute.",

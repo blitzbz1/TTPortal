@@ -12,6 +12,7 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { uploadVenuePhoto, addPhotoToVenue } from '../services/venues';
 import { venueImageUrl } from '../lib/imageTransforms';
+import { prepareImageForUpload, ImageProcessingUnavailableError } from '../lib/imageUpload';
 import * as ImagePicker from 'expo-image-picker';
 import { checkin, checkout, getUserAnyActiveCheckin } from '../services/checkins';
 import { addFavorite, removeFavorite } from '../services/favorites';
@@ -34,10 +35,6 @@ import Reanimated, {
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
-
-// Lazy-load ImageManipulator to avoid crash when native module is missing
-let ImageManipulator: typeof import('expo-image-manipulator') | null = null;
-try { ImageManipulator = require('expo-image-manipulator'); } catch {}
 
 interface Props {
   venueId?: string;
@@ -277,20 +274,24 @@ export function VenueDetailScreen({ venueId }: Props) {
         showAlert(s('error'), s('photoUploadError'));
         return;
       }
-      // Resize to max 1024px on longest side and convert to JPEG
-      const isLandscape = (asset.width ?? 0) >= (asset.height ?? 0);
-      const needsResize = (asset.width ?? 0) > 1024 || (asset.height ?? 0) > 1024;
-      const actions = needsResize
-        ? [{ resize: isLandscape ? { width: 1024 } : { height: 1024 } }]
-        : [];
-      let uploadUri = asset.uri;
-      if (ImageManipulator) {
-        const manipulated = await ImageManipulator.manipulateAsync(
-          asset.uri,
-          actions,
-          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
-        );
-        uploadUri = manipulated.uri;
+      // Shared resize + re-encode pipeline (see lib/imageUpload). Refuses
+      // the upload if the native ImageManipulator module is missing —
+      // shipping a 3 MB original would silently inflate storage egress
+      // with no signal to the user.
+      let uploadUri: string;
+      try {
+        uploadUri = await prepareImageForUpload({
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
+        });
+      } catch (err) {
+        if (err instanceof ImageProcessingUnavailableError) {
+          showAlert(s('error'), s('photoProcessingUnavailable'));
+        } else {
+          showAlert(s('error'), s('photoUploadError'));
+        }
+        return;
       }
 
       const { url, error: uploadErr } = await uploadVenuePhoto(Number(venueId), uploadUri);
