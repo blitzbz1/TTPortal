@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Lin
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import MapView, { Marker } from 'react-native-maps';
 import { useRouter } from 'expo-router';
+import { BadgeTrackIcon } from '../../components/BadgeTrackIcon';
 import { Lucide } from '../../components/Icon';
 import { useTheme } from '../../hooks/useTheme';
 import { useI18n } from '../../hooks/useI18n';
@@ -395,7 +396,12 @@ export function EventDetailContent(props: EventDetailContentProps) {
                               onPress={() => setEventChallengeTrackId(track.id)}
                             >
                               <View style={[styles.eventChallengeTrackIcon, { backgroundColor: track.paleColor }]}>
-                                <Lucide name={track.icon} size={13} color={track.color} />
+                                <BadgeTrackIcon
+                                  badge={track}
+                                  size={32}
+                                  variant="picker"
+                                  fallbackColor={track.color}
+                                />
                               </View>
                               <Text
                                 style={[styles.eventChallengeTrackText, { color: active ? track.color : colors.text }]}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { BadgeTrackIcon } from '../../components/BadgeTrackIcon';
 import { Lucide } from '../../components/Icon';
 import type { ThemeColors } from '../../theme';
 import type { BadgeTier, BadgeTrack } from '../../lib/badgeChallenges';
@@ -33,7 +34,12 @@ export function EarnedBadgeModal({
           {data ? (
             <>
               <View style={[styles.badgeEarnedIcon, { backgroundColor: data.badge.color }]}>
-                <Lucide name={data.badge.icon} size={34} color={colors.textOnPrimary} />
+                <BadgeTrackIcon
+                  badge={data.badge}
+                  size={64}
+                  variant="modal"
+                  fallbackColor={colors.textOnPrimary}
+                />
               </View>
               <Text style={styles.badgeEarnedTitle}>{s('challengeBadgeUnlocked')}</Text>
               <Text style={styles.badgeEarnedName}>

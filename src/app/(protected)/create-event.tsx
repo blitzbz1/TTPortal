@@ -23,6 +23,7 @@ import {
   useCurrentSelectedChallenge,
 } from '@/src/features/challenges';
 import { BADGE_TRACKS } from '@/src/lib/badgeChallenges';
+import { BadgeTrackIcon } from '@/src/components/BadgeTrackIcon';
 import { Lucide } from '@/src/components/Icon';
 import { VenuePickerModal } from '@/src/components/VenuePickerModal';
 import { FriendPickerModal } from '@/src/components/FriendPickerModal';
@@ -452,12 +453,17 @@ export default function CreateEventRoute() {
                           setSelectedChallenge(null);
                           setAttachChallenge(false);
                         }}
-                      >
-                        <View style={[s.challengeTrackIcon, { backgroundColor: track.paleColor }]}>
-                          <Lucide name={track.icon} size={13} color={track.color} />
-                        </View>
-                        <Text style={[s.challengeTrackText, { color: active ? track.color : colors.text }]} adjustsFontSizeToFit minimumFontScale={0.82}>
-                          {t(`badgeTrack_${track.id}_short`)}
+                        >
+                          <View style={[s.challengeTrackIcon, { backgroundColor: track.paleColor }]}>
+                            <BadgeTrackIcon
+                              badge={track}
+                              size={32}
+                              variant="picker"
+                              fallbackColor={track.color}
+                            />
+                          </View>
+                          <Text style={[s.challengeTrackText, { color: active ? track.color : colors.text }]} adjustsFontSizeToFit minimumFontScale={0.82}>
+                            {t(`badgeTrack_${track.id}_short`)}
                         </Text>
                       </Pressable>
                     );

@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Text, View } from 'react-native';
+import { BadgeTrackIcon } from '../../components/BadgeTrackIcon';
 import { Lucide } from '../../components/Icon';
 import type { ThemeColors } from '../../theme';
 import type { BadgeTier, BadgeTrack } from '../../lib/badgeChallenges';
-import { TIER_TARGETS } from '../../lib/badgeChallenges';
+import { TIER_TARGETS, getBadgeTierPalette } from '../../lib/badgeChallenges';
 import type { createStyles } from '../ChallengeScreen.styles';
 
 export function formatEarnedMonth(value: string | null | undefined, lang: string) {
@@ -41,6 +42,7 @@ export function EarnedBadgeCard({
 }: Props) {
   const scale = useRef(new Animated.Value(isLatest ? 0.94 : 1)).current;
   const opacity = useRef(new Animated.Value(isLatest ? 0 : 1)).current;
+  const tierPalette = getBadgeTierPalette(tier);
 
   useEffect(() => {
     if (!isLatest) return;
@@ -63,20 +65,28 @@ export function EarnedBadgeCard({
     <Animated.View
       style={[
         styles.wonCard,
-        isLatest && { borderColor: badge.color },
+        {
+          backgroundColor: tierPalette.surface,
+          borderColor: isLatest ? badge.color : tierPalette.border,
+        },
         { opacity, transform: [{ scale }] },
       ]}
     >
-      <View style={[styles.wonIcon, { backgroundColor: badge.color }]}>
+      <View style={[styles.wonIcon, { backgroundColor: tierPalette.iconSurface }]}>
         <View style={styles.wonIconHalo} />
-        <Lucide name={badge.icon} size={23} color={colors.textOnPrimary} />
-        <View style={[styles.wonTierSeal, { backgroundColor: colors.bgAlt }]}>
-          <Lucide name="medal" size={12} color={badge.color} />
+        <BadgeTrackIcon
+          badge={badge}
+          size={64}
+          variant="earned"
+          fallbackColor={colors.textOnPrimary}
+        />
+        <View style={[styles.wonTierSeal, { backgroundColor: tierPalette.accent, borderColor: tierPalette.border }]}>
+          <Lucide name="medal" size={12} color={tierPalette.iconForeground} />
         </View>
       </View>
       <View style={styles.wonCopy}>
         <View style={styles.wonTitleRow}>
-          <Text style={styles.wonTitle}>{tierLabel(tier)} {trackName(badge)}</Text>
+          <Text style={[styles.wonTitle, { color: tierPalette.accent }]}>{tierLabel(tier)} {trackName(badge)}</Text>
           {isLatest ? (
             <View style={[styles.newBadgePill, { backgroundColor: badge.paleColor }]}>
               <Text style={[styles.newBadgePillText, { color: badge.color }]}>{s('newBadge')}</Text>
@@ -84,10 +94,10 @@ export function EarnedBadgeCard({
           ) : null}
         </View>
         <View style={styles.wonDateRow}>
-          <Lucide name="calendar-check" size={13} color={colors.textMuted} />
-          <Text style={styles.wonMeta}>{s('challengeEarnedMonth', formatEarnedMonth(earnedAt, lang))}</Text>
+          <Lucide name="calendar-check" size={13} color={tierPalette.accent} />
+          <Text style={[styles.wonMeta, { color: tierPalette.accent }]}>{s('challengeEarnedMonth', formatEarnedMonth(earnedAt, lang))}</Text>
         </View>
-        <Text style={styles.wonSubMeta}>{s('challengeCompletedCount', String(TIER_TARGETS[tier]))}</Text>
+        <Text style={[styles.wonSubMeta, { color: tierPalette.accent }]}>{s('challengeCompletedCount', String(TIER_TARGETS[tier]))}</Text>
       </View>
     </Animated.View>
   );

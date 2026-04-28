@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { NotificationBellButton } from '../components/NotificationBellButton';
 import { FeedbackHeaderButton } from '../components/FeedbackHeaderButton';
+import { BadgeTrackIcon } from '../components/BadgeTrackIcon';
 import { Lucide } from '../components/Icon';
 import { ErrorState } from '../components/ErrorState';
 import { useTheme } from '../hooks/useTheme';
@@ -19,6 +20,7 @@ import {
   TIER_TARGETS,
   getBadgeLevel,
   getCurrentAwardTier,
+  getBadgeTierPalette,
 } from '../lib/badgeChallenges';
 import {
   completeSelfChallenge,
@@ -413,6 +415,19 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
           {row.map((badge) => {
             const active = badge.id === activeBadge.id;
             const count = progressByCategory.get(badge.category as ChallengeCategory)?.completed_count ?? 0;
+            const compactCurrentTier: BadgeTier = count >= TIER_TARGETS.silver
+              ? 'gold'
+              : count >= TIER_TARGETS.bronze
+                ? 'silver'
+                : 'bronze';
+            const compactTierPalette = getBadgeTierPalette(compactCurrentTier);
+            const compactTierStart = compactCurrentTier === 'bronze'
+              ? 0
+              : compactCurrentTier === 'silver'
+                ? 5
+                : 10;
+            const compactTierCount = Math.max(0, Math.min(5, count - compactTierStart));
+            const compactTierProgressWidth = `${(compactTierCount / 5) * 100}%` as `${number}%`;
             return (
               <TouchableOpacity
                 key={badge.id}
@@ -422,11 +437,49 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
                 ]}
                 onPress={() => handleSelectBadge(badge.id)}
               >
-                <Lucide name={badge.icon} size={17} color={active ? colors.textOnPrimary : badge.color} />
+                <BadgeTrackIcon
+                  badge={badge}
+                  size={42}
+                  variant="picker"
+                  fallbackColor={active ? colors.textOnPrimary : badge.color}
+                />
                 <Text style={[styles.trackChipText, active && styles.trackChipTextActive]} numberOfLines={1}>
                   {trackShortName(badge)}
                 </Text>
-                <Text style={[styles.trackChipMeta, active && styles.trackChipMetaActive]}>{count}/15</Text>
+                <View
+                  style={[
+                    styles.trackChipProgressCard,
+                    active && styles.trackChipProgressCardActive,
+                  ]}
+                >
+                  <View style={styles.trackChipProgressHeader}>
+                    <View style={[styles.trackChipProgressFlame, { backgroundColor: compactTierPalette.iconSurface }]}>
+                      <Lucide name="flame" size={8} color={compactTierPalette.iconForeground} />
+                    </View>
+                    <Text
+                      style={[
+                        styles.trackChipProgressLabel,
+                        { color: active ? colors.textOnPrimary : compactTierPalette.accent },
+                      ]}
+                    >
+                      {tierLabel(compactCurrentTier)}
+                    </Text>
+                    <Text style={[styles.trackChipMeta, active && styles.trackChipMetaActive]}>
+                      {compactTierCount}/5
+                    </Text>
+                  </View>
+                  <View style={styles.trackChipProgressTrack}>
+                    <View
+                      style={[
+                        styles.trackChipProgressFill,
+                        {
+                          width: compactTierProgressWidth,
+                          backgroundColor: active ? colors.textOnPrimary : compactTierPalette.iconSurface,
+                        },
+                      ]}
+                    />
+                  </View>
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -559,7 +612,12 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
 
       <View style={[styles.heroCard, { borderColor: activeBadge.color }]}>
         <View style={[styles.heroIcon, { backgroundColor: activeBadge.paleColor }]}>
-          <Lucide name={activeBadge.icon} size={28} color={activeBadge.color} />
+          <BadgeTrackIcon
+            badge={activeBadge}
+            size={64}
+            variant="hero"
+            fallbackColor={activeBadge.color}
+          />
         </View>
         <View style={styles.heroCopy}>
           <Text style={styles.heroTitle}>{trackName()}</Text>
@@ -680,11 +738,12 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
             >
               <View style={[styles.challengeGlow, { backgroundColor: activeBadge.paleColor }]} />
               <View style={styles.challengeCardTop}>
-                <View style={[styles.challengeIcon, { backgroundColor: activeBadge.paleColor }]}>
-                  <Lucide
-                    name={requiresOtherPlayer(challenge) ? 'users' : 'check'}
-                    size={18}
-                    color={activeBadge.color}
+                <View style={styles.challengeIcon}>
+                  <BadgeTrackIcon
+                    badge={activeBadge}
+                    size={24}
+                    variant="challenge-card"
+                    fallbackColor={activeBadge.color}
                   />
                 </View>
                 <View style={styles.verificationPill}>

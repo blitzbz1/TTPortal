@@ -19,6 +19,16 @@ export interface BadgeTrack {
   challenges: Record<BadgeTier, BadgeChallenge[]>;
 }
 
+export interface BadgeTierPalette {
+  surface: string;
+  border: string;
+  accent: string;
+  iconSurface: string;
+  iconForeground: string;
+}
+
+export type BadgeTierIconName = 'award' | 'medal' | 'trophy';
+
 export const TIER_TARGETS: Record<BadgeTier, number> = {
   bronze: 5,
   silver: 10,
@@ -26,6 +36,47 @@ export const TIER_TARGETS: Record<BadgeTier, number> = {
 };
 
 export const BADGE_TIERS: BadgeTier[] = ['bronze', 'silver', 'gold'];
+
+export const BADGE_TIER_PALETTES: Record<BadgeTier, BadgeTierPalette> = {
+  bronze: {
+    surface: '#f8eee4',
+    border: '#d0a273',
+    accent: '#8b5e34',
+    iconSurface: '#b8793f',
+    iconForeground: '#fffaf5',
+  },
+  silver: {
+    surface: '#eef3f8',
+    border: '#b7c3d1',
+    accent: '#64748b',
+    iconSurface: '#8a99aa',
+    iconForeground: '#f8fbff',
+  },
+  gold: {
+    surface: '#fbf2cf',
+    border: '#d8b349',
+    accent: '#9d6b0f',
+    iconSurface: '#d4a729',
+    iconForeground: '#fffdf6',
+  },
+};
+
+export function getBadgeTierPalette(tier: BadgeTier): BadgeTierPalette {
+  return BADGE_TIER_PALETTES[tier];
+}
+
+export function getBadgeTierIcon(tier: BadgeTier): BadgeTierIconName {
+  switch (tier) {
+    case 'bronze':
+      return 'award';
+    case 'silver':
+      return 'medal';
+    case 'gold':
+      return 'trophy';
+    default:
+      return 'medal';
+  }
+}
 
 export const BADGE_TRACKS: BadgeTrack[] = [
   {

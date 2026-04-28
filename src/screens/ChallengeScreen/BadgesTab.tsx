@@ -1,11 +1,14 @@
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import { BadgeTrackIcon } from '../../components/BadgeTrackIcon';
 import { Lucide } from '../../components/Icon';
 import type { ThemeColors } from '../../theme';
 import {
   BADGE_TIERS,
   BADGE_TRACKS,
   TIER_TARGETS,
+  getBadgeTierIcon,
+  getBadgeTierPalette,
   type BadgeTier,
   type BadgeTrack,
 } from '../../lib/badgeChallenges';
@@ -51,6 +54,21 @@ export function BadgesTab({
       return earnedAt ? [{ badge, tier, earnedAt }] : [];
     })
   )).sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime());
+  const tierSegments = BADGE_TIERS.map((tier, index) => {
+    const segmentStart = index * 5;
+    const segmentCompleted = Math.max(0, Math.min(5, completedCount - segmentStart));
+    const tierPalette = getBadgeTierPalette(tier);
+    const isCurrentTier = completedCount >= segmentStart && completedCount < segmentStart + 5;
+    const isCompletedTier = completedCount >= segmentStart + 5;
+    return {
+      tier,
+      tierPalette,
+      completed: segmentCompleted,
+      progressWidth: `${(segmentCompleted / 5) * 100}%` as `${number}%`,
+      isCurrentTier,
+      isCompletedTier,
+    };
+  });
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -64,7 +82,12 @@ export function BadgesTab({
         <View style={styles.badgeFeatureTop}>
           <View style={[styles.badgeFeatureIcon, { backgroundColor: activeBadge.color }]}>
             <View style={styles.badgeFeatureIconHalo} />
-            <Lucide name={activeBadge.icon} size={32} color={colors.textOnPrimary} />
+            <BadgeTrackIcon
+              badge={activeBadge}
+              size={64}
+              variant="feature"
+              fallbackColor={colors.textOnPrimary}
+            />
           </View>
           <View style={styles.badgeFeatureCopy}>
             <Text style={styles.eyebrow}>{s('challengeNextBadge')}</Text>
@@ -75,35 +98,41 @@ export function BadgesTab({
             <Text style={[styles.badgeFeatureCountText, { color: activeBadge.color }]}>{completedCount}/15</Text>
           </View>
         </View>
-        {renderCurrentProgress()}
-        <View style={styles.milestoneRow}>
-          {BADGE_TIERS.map((tier) => {
-            const earnedAt = earnedAtByBadgeTier.get(`${activeCategory}:${tier}`);
-            const won = !!earnedAt;
-            return (
-              <View
-                key={tier}
-                style={[
-                  styles.milestone,
-                  won && { borderColor: activeBadge.color, backgroundColor: activeBadge.paleColor },
-                ]}
-              >
-                <View style={[styles.milestoneMedalWrap, won && { backgroundColor: activeBadge.color }]}>
-                  <Lucide
-                    name={won ? 'medal' : 'lock'}
-                    size={17}
-                    color={won ? colors.textOnPrimary : colors.textFaint}
+        <View style={styles.badgeTierProgressPanel}>
+          {tierSegments.map(({ tier, tierPalette, completed, progressWidth, isCurrentTier, isCompletedTier }) => (
+            <View
+              key={tier}
+              style={[
+                styles.badgeTierProgressRow,
+                {
+                  borderColor: tierPalette.border,
+                  backgroundColor: tierPalette.surface,
+                },
+              ]}
+            >
+              <View style={[styles.badgeTierProgressIcon, { backgroundColor: tierPalette.iconSurface }]}>
+                <Lucide name="flame" size={18} color={tierPalette.iconForeground} />
+              </View>
+              <View style={styles.badgeTierProgressBody}>
+                <View style={styles.badgeTierProgressHeader}>
+                  <Text style={[styles.badgeTierProgressLabel, { color: tierPalette.accent }]}>{tierLabel(tier)}</Text>
+                  <Text style={[styles.badgeTierProgressCount, { color: tierPalette.accent }]}>{completed}/5</Text>
+                </View>
+                <View style={styles.badgeTierProgressTrack}>
+                  <View
+                    style={[
+                      styles.badgeTierProgressFill,
+                      {
+                        width: progressWidth,
+                        backgroundColor: tierPalette.iconSurface,
+                        opacity: isCurrentTier || isCompletedTier ? 1 : 0.88,
+                      },
+                    ]}
                   />
                 </View>
-                <Text style={styles.milestoneLabel}>{tierLabel(tier)}</Text>
-                <Text style={styles.milestoneCount}>
-                  {won && earnedAt
-                    ? s('challengeEarnedMonth', formatEarnedMonth(earnedAt, lang))
-                    : s('challengeLockedUntil', String(TIER_TARGETS[tier]))}
-                </Text>
               </View>
-            );
-          })}
+            </View>
+          ))}
         </View>
       </View>
 
