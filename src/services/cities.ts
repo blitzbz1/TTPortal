@@ -12,23 +12,17 @@ import { supabase } from '../lib/supabase';
  * Otherwise inserts a new row with the given name.
  */
 export async function upsertCity(name: string): Promise<{ id: number | null; error: string | null }> {
-  // Try to find existing city first
-  const { data: existing, error: selectError } = await supabase
+  // Use Postgres ON CONFLICT to be race-safe: a select-then-insert pattern can
+  // double-insert when two clients submit the same new city simultaneously,
+  // surfacing as an opaque 409 from the unique constraint on `cities.name`.
+  // `ignoreDuplicates: false` makes the upsert return the existing row when
+  // there's a name match, so we always get an `id` back.
+  const { data: upserted, error: upsertError } = await supabase
     .from('cities')
-    .select('id')
-    .eq('name', name)
-    .maybeSingle();
-
-  if (selectError) return { id: null, error: selectError.message };
-  if (existing) return { id: existing.id, error: null };
-
-  // Insert new city
-  const { data: inserted, error: insertError } = await supabase
-    .from('cities')
-    .insert({ name, active: true })
+    .upsert({ name, active: true }, { onConflict: 'name', ignoreDuplicates: false })
     .select('id')
     .single();
 
-  if (insertError) return { id: null, error: insertError.message };
-  return { id: inserted.id, error: null };
+  if (upsertError) return { id: null, error: upsertError.message };
+  return { id: upserted.id, error: null };
 }

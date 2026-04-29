@@ -298,6 +298,7 @@
   "addressRequired": "Address is required.",
   "cityRequired": "Select an address from suggestions to detect the city.",
   "venueSubmitted": "Venue submitted for approval.",
+  "venueAlreadyExists": "A venue with this name already exists in this city.",
   "writeReviewTitle": "Write a review",
   "fieldYourName": "YOUR NAME",
   "fieldRating": "RATING",

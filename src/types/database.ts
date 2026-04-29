@@ -227,7 +227,7 @@ export interface LeaderboardVenues {
 
 // ── Insert types (omit id, created_at) ──
 
-export type VenueInsert = Omit<Venue, 'id' | 'created_at' | 'verified' | 'approved'> & Partial<Pick<Venue, 'verified' | 'approved'>>;
+export type VenueInsert = Omit<Venue, 'id' | 'created_at' | 'verified' | 'approved' | 'submitted_by'> & Partial<Pick<Venue, 'verified' | 'approved' | 'submitted_by'>>;
 
 export type ReviewInsert = Omit<Review, 'id' | 'created_at' | 'flagged' | 'flag_count'> & Partial<Pick<Review, 'flagged' | 'flag_count'>>;
 

@@ -7,7 +7,6 @@ import { AddressPickerField } from '../components/AddressPickerField';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
-import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { createVenue } from '../services/venues';
 import { upsertCity } from '../services/cities';
@@ -99,7 +98,6 @@ export function buildNominatimAddress(
 
 export function AddVenueScreen() {
   const router = useRouter();
-  const { user } = useSession();
   const { s } = useI18n();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -170,18 +168,23 @@ export function AddVenueScreen() {
       nets: null,
       tariff: null,
       website: null,
-      submitted_by: user?.id ?? null,
       approved: false,
     });
     setLoading(false);
     if (error) {
       const rateMsg = rateLimitMessageFor(error, s);
-      Alert.alert(s('error'), rateMsg ?? safeErrorMessage(error, 'genericError', s));
+      // Postgres unique_violation (idx_venues_name_city / venues_name_key) →
+      // surface a meaningful "already exists" message instead of the generic
+      // fallback so the user knows to change the name.
+      const isDuplicate = (error as { code?: string }).code === '23505';
+      const msg = rateMsg
+        ?? (isDuplicate ? s('venueAlreadyExists') : safeErrorMessage(error, 'genericError', s));
+      Alert.alert(s('error'), msg);
       return;
     }
     Alert.alert(s('success'), s('venueSubmitted'));
     router.back();
-  }, [name, address, type, city, tablesCount, notes, user, router, geoLat, geoLng, s]);
+  }, [name, address, type, city, tablesCount, notes, router, geoLat, geoLng, s]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

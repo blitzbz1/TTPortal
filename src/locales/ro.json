@@ -293,6 +293,7 @@
   "addressRequired": "Adresa este obligatorie.",
   "cityRequired": "Selectează o adresă din sugestii pentru a detecta orașul.",
   "venueSubmitted": "Locația a fost trimisă spre aprobare.",
+  "venueAlreadyExists": "Există deja o locație cu acest nume în acest oraș.",
   "writeReviewTitle": "Scrie o recenzie",
   "fieldYourName": "NUMELE TĂU",
   "fieldRating": "RATING",

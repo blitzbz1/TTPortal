@@ -105,7 +105,14 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
     setLoading(false);
 
     if (error) {
-      Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s));
+      // The pre-check (getUserEventFeedback) usually catches the duplicate,
+      // but it races: two rapid submissions can both pass the check before
+      // either insert lands. The unique (event_id, user_id) constraint then
+      // fires 23505 on the second one — surface that explicitly instead of
+      // falling through to the generic error copy.
+      const isDuplicate = (error as { code?: string }).code === '23505';
+      const msg = isDuplicate ? s('feedbackAlreadySent') : safeErrorMessage(error, 'genericError', s);
+      Alert.alert(s('error'), msg);
       return;
     }
 
