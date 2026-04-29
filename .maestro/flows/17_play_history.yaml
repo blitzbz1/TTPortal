@@ -1,0 +1,28 @@
+# E2E Test: Play History Screen (Protected)
+# Verifies play history stats and timeline
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+- runFlow: ../helpers/login.yaml
+
+# Navigate to profile -> Play History
+- tapOn: "Profil"
+- extendedWaitUntil:
+    visible: "Profilul meu"
+    timeout: 5000
+
+# Tap play history quick action
+- tapOn: "Istoric joc"
+
+# Wait for play history screen
+- extendedWaitUntil:
+    visible: "Istoric joc"
+    timeout: 5000
+
+# Verify stats cards or empty state
+- assertVisible: "Check-ins"

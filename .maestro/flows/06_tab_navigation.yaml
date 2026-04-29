@@ -1,0 +1,45 @@
+# E2E Test: Tab Navigation
+# Verifies all 5 bottom tabs are accessible and load correct content
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+- runFlow: ../helpers/login.yaml
+
+# --- Map Tab (default) ---
+- assertVisible: "TT PORTAL"
+- assertVisible: "București"
+
+# --- Events Tab ---
+- tapOn: "Evenimente"
+- extendedWaitUntil:
+    visible: "Creează"
+    timeout: 5000
+
+# --- Leaderboard Tab ---
+- tapOn: "Clasament"
+- extendedWaitUntil:
+    visible: "Check-ins"
+    timeout: 5000
+
+# --- Favorites Tab ---
+- tapOn: "Favorite"
+- extendedWaitUntil:
+    visible: "Favorite"
+    timeout: 5000
+
+# --- Profile Tab ---
+- tapOn: "Profil"
+- extendedWaitUntil:
+    visible: "Profilul meu"
+    timeout: 5000
+
+# --- Navigate back to Map ---
+- tapOn: "Hartă"
+- extendedWaitUntil:
+    visible: "TT PORTAL"
+    timeout: 5000

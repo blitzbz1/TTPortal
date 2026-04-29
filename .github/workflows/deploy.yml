@@ -1,0 +1,115 @@
+name: Deploy marketing site + Expo app to Pages
+on:
+  push:
+    branches: [001-user-auth] # Change this to match your current branch
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🏗 Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      # ——— Expo web app (served at /TTPortal/app/) ———
+      - name: 📦 Install mobile-app dependencies
+        run: npm install
+
+      - name: 🚀 Build Expo Web
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_BASE_URL: /TTPortal/app
+        run: npx expo export --platform web
+
+      - name: 🔁 Inject SPA path-restore into Expo shell
+        run: |
+          cat > /tmp/inject-spa-restore.js <<'NODE'
+          const fs = require('fs');
+          const snippet =
+            '<script>(function(l){if(l.search[1]==="/"){' +
+            'var d=l.search.slice(1).split("&").map(function(s){return s.replace(/~and~/g,"&")}).join("?");' +
+            'window.history.replaceState(null,null,l.pathname.slice(0,-1)+d+l.hash)}}(window.location));</script>';
+          let html = fs.readFileSync('dist/index.html', 'utf8');
+          if (!html.includes('replaceState(null,null,l.pathname')) {
+            html = html.replace('<head>', '<head>' + snippet);
+            fs.writeFileSync('dist/index.html', html);
+          }
+          fs.writeFileSync('dist/404.html', html);
+          NODE
+          node /tmp/inject-spa-restore.js
+
+      # ——— Next.js marketing site (served at /TTPortal/) ———
+      - name: 📦 Install marketing-site dependencies
+        working-directory: web
+        run: npm install
+
+      - name: 🚀 Build marketing site
+        working-directory: web
+        env:
+          STATIC_EXPORT: '1'
+          NEXT_PUBLIC_BASE_PATH: /TTPortal
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+        run: npm run build
+
+      # ——— Combine both into one Pages artifact ———
+      - name: 🧩 Assemble Pages artifact
+        run: |
+          mkdir -p _site
+          # Marketing site (Next.js static export) → site root
+          cp -r web/out/. _site/
+          # Expo web app (SPA) → /app/
+          mkdir -p _site/app
+          cp -r dist/. _site/app/
+          # Custom root 404.html — bounces /TTPortal/app/<deep-link> to /TTPortal/app/?/<deep-link>
+          # so the Expo shell loads and its injected restore script rewrites the URL back.
+          cat > _site/404.html <<'HTML'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <title>TTPortal</title>
+            <script>
+              (function () {
+                var l = window.location;
+                var appPath = '/TTPortal/app/';
+                if (l.pathname.indexOf(appPath) === 0) {
+                  var rest = l.pathname.slice(appPath.length);
+                  l.replace(
+                    l.protocol + '//' + l.host + appPath +
+                    '?/' + rest.replace(/\//g, '~and~') +
+                    (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+                    l.hash
+                  );
+                } else {
+                  l.replace(l.protocol + '//' + l.host + '/TTPortal/');
+                }
+              })();
+            </script>
+          </head>
+          <body>Redirecting…</body>
+          </html>
+          HTML
+
+      - name: 🧩 Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: 📤 Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+      - name: 🚀 Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

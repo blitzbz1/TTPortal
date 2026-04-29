@@ -1,0 +1,209 @@
+@import "tailwindcss";
+
+@theme {
+  /* Typography */
+  --font-sans:
+    var(--font-dm-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-heading:
+    var(--font-syne), ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Moss — TTPortal primary (deep forest green) */
+  --color-moss-50: #f0f7f2;
+  --color-moss-100: #d9ebe0;
+  --color-moss-200: #b3d6c0;
+  --color-moss-300: #86bb9b;
+  --color-moss-400: #569c78;
+  --color-moss-500: #388065;
+  --color-moss-600: #266547;
+  --color-moss-700: #1a5a37;
+  --color-moss-800: #14532d;
+  --color-moss-900: #123d25;
+  --color-moss-950: #07201a;
+
+  /* Clay — TTPortal accent (burnt orange, used sparingly) */
+  --color-clay-50: #fdf4ee;
+  --color-clay-100: #fae3d1;
+  --color-clay-200: #f4c49f;
+  --color-clay-300: #ec9c6a;
+  --color-clay-400: #e37442;
+  --color-clay-500: #d8552a;
+  --color-clay-600: #c2410c;
+  --color-clay-700: #a0340a;
+  --color-clay-800: #812c12;
+  --color-clay-900: #6a2712;
+
+  /* Ink — warm-green-cast neutrals */
+  --color-ink-50: #f3f6f4;
+  --color-ink-100: #e7ecea;
+  --color-ink-200: #d3dbd6;
+  --color-ink-300: #b6c1bb;
+  --color-ink-400: #8b9a91;
+  --color-ink-500: #697c73;
+  --color-ink-600: #4f6259;
+  --color-ink-700: #364840;
+  --color-ink-800: #1f2d24;
+  --color-ink-900: #0f1d13;
+
+  /* Surfaces */
+  --color-paper: #fafaf8;
+  --color-surface: #ffffff;
+
+  /* Warm, earthen shadows — not pure black */
+  --shadow-card: 0 1px 2px rgba(12, 29, 19, 0.04),
+    0 10px 28px -10px rgba(12, 29, 19, 0.08);
+  --shadow-lift: 0 2px 6px rgba(12, 29, 19, 0.08),
+    0 28px 64px -16px rgba(12, 29, 19, 0.16);
+  --shadow-press: inset 0 1px 2px rgba(12, 29, 19, 0.1);
+  --shadow-btn-moss: inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 10px 24px -8px rgba(20, 83, 45, 0.32);
+  --shadow-btn-clay: inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 10px 24px -8px rgba(194, 65, 12, 0.34);
+
+  /* Editorial tracking presets */
+  --tracking-kicker: 0.22em;
+}
+
+/* Paper body with a very subtle grain for warmth (premium feel). */
+body {
+  background: var(--color-paper);
+  color: var(--color-ink-900);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0 0.1 0 0 0 0.45 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.5'/></svg>");
+  background-size: 180px 180px;
+}
+
+/* Editorial kicker label — tracked small caps. */
+.kicker {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-kicker);
+}
+
+/* Dotted trajectory used on the hero — draws a ball path. */
+.trajectory {
+  background-image: radial-gradient(
+    circle,
+    var(--color-clay-400) 1.6px,
+    transparent 1.8px
+  );
+  background-size: 14px 14px;
+  background-position: center;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 30%,
+    black 70%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 30%,
+    black 70%,
+    transparent 100%
+  );
+}
+
+/* Subtle moss rule divider used between feature blocks. */
+.rule-moss {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--color-moss-200) 20%,
+    var(--color-moss-200) 80%,
+    transparent
+  );
+}
+
+/* Primary CTA — beveled moss button. */
+.btn-moss {
+  background: linear-gradient(
+    180deg,
+    var(--color-moss-700) 0%,
+    var(--color-moss-800) 100%
+  );
+  color: #fff;
+  box-shadow: var(--shadow-btn-moss);
+  transition: transform 120ms ease, box-shadow 180ms ease;
+}
+.btn-moss:hover {
+  background: linear-gradient(
+    180deg,
+    var(--color-moss-800) 0%,
+    var(--color-moss-900) 100%
+  );
+}
+.btn-moss:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 2px rgba(12, 29, 19, 0.2),
+    0 4px 12px -6px rgba(20, 83, 45, 0.28);
+}
+
+/* Accent CTA — beveled clay. */
+.btn-clay {
+  background: linear-gradient(
+    180deg,
+    var(--color-clay-500) 0%,
+    var(--color-clay-600) 100%
+  );
+  color: #fff;
+  box-shadow: var(--shadow-btn-clay);
+}
+.btn-clay:hover {
+  background: linear-gradient(
+    180deg,
+    var(--color-clay-600) 0%,
+    var(--color-clay-700) 100%
+  );
+}
+
+/* Ghost button — ink border on paper. */
+.btn-ghost {
+  background: var(--color-surface);
+  color: var(--color-ink-900);
+  border: 1.5px solid var(--color-ink-200);
+  transition: border-color 160ms ease, background 160ms ease;
+}
+.btn-ghost:hover {
+  border-color: var(--color-moss-400);
+  background: var(--color-moss-50);
+}
+
+/* Card with the tactile inner highlight the mobile app uses. */
+.card-tactile {
+  background: var(--color-surface);
+  border: 1px solid var(--color-ink-100);
+  box-shadow: var(--shadow-card);
+  border-radius: 20px;
+  position: relative;
+}
+.card-tactile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* Decorative corner paddle silhouette — pure CSS. */
+.paddle-mark {
+  width: 48px;
+  height: 48px;
+  background: var(--color-moss-800);
+  border-radius: 50%;
+  position: relative;
+}
+.paddle-mark::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 88%;
+  width: 6px;
+  height: 22px;
+  background: var(--color-ink-800);
+  border-radius: 2px;
+  transform: translateX(-50%) rotate(-4deg);
+}

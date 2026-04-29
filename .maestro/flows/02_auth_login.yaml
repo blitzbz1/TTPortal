@@ -1,0 +1,54 @@
+# E2E Test: Login Flow
+# Verifies switching to login tab and logging in
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+
+# Wait for map to load, then navigate to sign-in
+- extendedWaitUntil:
+    visible: "TT PORTAL"
+    timeout: 15000
+- tapOn: "Adaugă"
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 10000
+
+# Switch to login tab
+- tapOn:
+    id: "tab-login"
+
+# Verify login-specific UI
+- assertNotVisible:
+    id: "input-name"
+
+# Verify forgot password link
+- assertVisible:
+    id: "forgot-password-link"
+
+# Terms should NOT be visible in login mode
+- assertNotVisible:
+    id: "terms-container"
+
+# Fill login form
+- tapOn:
+    id: "input-email"
+- inputText: "andrei@test.com"
+
+- tapOn:
+    id: "input-password"
+- inputText: "test1234"
+
+# Submit login
+- tapOn:
+    id: "submit-button"
+
+# After login, app navigates to the returnTo route (add-venue screen)
+- extendedWaitUntil:
+    visible: "Adaugă locație"
+    timeout: 15000

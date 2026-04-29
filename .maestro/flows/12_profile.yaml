@@ -1,0 +1,52 @@
+# E2E Test: Profile Screen
+# Verifies profile display, stats, quick actions, and settings
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+- runFlow: ../helpers/login.yaml
+
+# Navigate to profile tab
+- tapOn: "Profil"
+- extendedWaitUntil:
+    visible: "Profilul meu"
+    timeout: 5000
+
+# Verify profile hero section
+- assertVisible: "Jucător activ"
+- assertVisible: "Top contributor"
+
+# Verify stats
+- assertVisible: "Check-ins"
+- assertVisible: "Locații vizitate"
+
+# Verify quick actions section
+- assertVisible: "Acțiuni rapide"
+- assertVisible: "Prieteni"
+- assertVisible: "Istoric joc"
+- assertVisible: "Favorite"
+
+# Verify recent activity section
+- scrollUntilVisible:
+    element: "Activitate recentă"
+    direction: DOWN
+    timeout: 5000
+- assertVisible: "Check-in la Parcul Național"
+
+# Verify settings section
+- scrollUntilVisible:
+    element: "Setări"
+    direction: DOWN
+    timeout: 5000
+- assertVisible: "Notificări"
+
+# Verify sign out button is visible
+- scrollUntilVisible:
+    element: "Deconectare"
+    direction: DOWN
+    timeout: 5000
+- assertVisible: "Deconectare"

@@ -1,0 +1,161 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const DEFAULT_INVITE_REDIRECT_TO = 'ttportal://auth/callback?flow=signup&next=%2Fsign-in';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+function jsonResponse(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+async function findAuthUserByEmail(adminClient: ReturnType<typeof createClient>, email: string) {
+  let page = 1;
+
+  while (true) {
+    const { data, error } = await adminClient.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+
+    if (error) {
+      return { user: null, error };
+    }
+
+    const users = data?.users ?? [];
+    const matchedUser = users.find((user) => user.email?.toLowerCase() === email);
+    if (matchedUser) {
+      return { user: matchedUser, error: null };
+    }
+
+    if (users.length < 200) {
+      return { user: null, error: null };
+    }
+
+    page += 1;
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  if (req.method !== 'POST') {
+    return jsonResponse({ error: 'Method not allowed' }, 405);
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const redirectTo = Deno.env.get('INVITE_REDIRECT_TO') ?? DEFAULT_INVITE_REDIRECT_TO;
+
+    if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
+      return jsonResponse({ error: 'Supabase environment is not configured' }, 500);
+    }
+
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('send-app-invite: missing authorization header');
+      return jsonResponse({ error: 'Unauthorized' }, 401);
+    }
+
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    const [{ data: userRes, error: userError }, body] = await Promise.all([
+      authClient.auth.getUser(),
+      req.json(),
+    ]);
+
+    if (userError || !userRes.user) {
+      console.error('send-app-invite: failed user lookup', { userError });
+      return jsonResponse({ error: 'Unauthorized' }, 401);
+    }
+
+    const email = String(body?.email ?? '').trim().toLowerCase();
+    if (!isValidEmail(email)) {
+      console.error('send-app-invite: invalid email', { email });
+      return jsonResponse({ error: 'Invalid email address' }, 400);
+    }
+
+    const { user: existingAuthUser, error: authLookupError } = await findAuthUserByEmail(
+      adminClient,
+      email,
+    );
+
+    if (authLookupError) {
+      console.error('send-app-invite: failed auth user lookup', { authLookupError, email });
+      return jsonResponse({ error: 'Failed to validate invite recipient', code: 'auth_lookup_failed' }, 500);
+    }
+
+    if (existingAuthUser) {
+      const isConfirmed = Boolean(
+        existingAuthUser.email_confirmed_at || existingAuthUser.confirmed_at || existingAuthUser.last_sign_in_at,
+      );
+
+      if (isConfirmed) {
+        console.warn('send-app-invite: user already registered via confirmed auth account', {
+          email,
+          authUserId: existingAuthUser.id,
+        });
+        return jsonResponse({ error: 'User already registered', code: 'already_registered' }, 409);
+      }
+
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(existingAuthUser.id);
+      if (deleteError) {
+        console.error('send-app-invite: failed to replace stale invite user', {
+          email,
+          authUserId: existingAuthUser.id,
+          deleteError,
+        });
+        return jsonResponse({ error: 'Failed to refresh pending invite', code: 'stale_invite_cleanup_failed' }, 500);
+      }
+
+      console.info('send-app-invite: replaced stale invite user before resend', {
+        email,
+        authUserId: existingAuthUser.id,
+      });
+    }
+
+    const { error } = await adminClient.auth.admin.inviteUserByEmail(email, {
+      redirectTo,
+      data: {
+        invited_by: userRes.user.id,
+      },
+    });
+
+    if (error) {
+      const message = error.message ?? 'Invite failed';
+      const code = /already registered|user already exists/i.test(message)
+        ? 'already_registered'
+        : (error.code ?? 'invite_failed');
+      console.error('send-app-invite: invite failed', { email, code, message });
+      return jsonResponse({ error: message, code }, 400);
+    }
+
+    console.info('send-app-invite: invite sent', { email, invitedBy: userRes.user.id });
+    return jsonResponse({ success: true });
+  } catch (error) {
+    console.error('send-app-invite: unexpected error', { error });
+    return jsonResponse({ error: (error as Error).message, code: 'unexpected_error' }, 500);
+  }
+});
