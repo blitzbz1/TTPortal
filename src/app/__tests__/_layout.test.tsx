@@ -61,6 +61,14 @@ jest.mock('expo-status-bar', () => ({
 
 jest.mock('react-native-reanimated', () => ({}));
 
+jest.mock('../../components/AnimatedSplash', () => {
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: () => <View testID="animated-splash" />,
+  };
+});
+
 jest.mock('../../contexts/NotificationProvider', () => {
   const { View } = require('react-native');
   return {
@@ -101,7 +109,7 @@ describe('RootLayout', () => {
   });
 
   describe('loading state', () => {
-    it('shows splash view when session isLoading is true', () => {
+    it('shows animated splash overlay without Stack when session isLoading is true', () => {
       mockUseSession.mockReturnValue({
         isLoading: true,
         session: null,
@@ -110,20 +118,20 @@ describe('RootLayout', () => {
 
       const { getByTestId, queryByTestId } = render(<RootLayout />);
 
-      getByTestId('splash-loading');
+      getByTestId('animated-splash');
       expect(queryByTestId('stack-navigator')).toBeNull();
     });
 
-    it('shows splash view when fonts are not yet loaded', () => {
+    it('shows animated splash overlay without Stack when fonts are not yet loaded', () => {
       mockUseFonts.mockReturnValue([false, null]);
 
       const { getByTestId, queryByTestId } = render(<RootLayout />);
 
-      getByTestId('splash-loading');
+      getByTestId('animated-splash');
       expect(queryByTestId('stack-navigator')).toBeNull();
     });
 
-    it('shows splash view when both fonts and session are loading', () => {
+    it('shows animated splash when both fonts and session are loading', () => {
       mockUseSession.mockReturnValue({
         isLoading: true,
         session: null,
@@ -133,7 +141,7 @@ describe('RootLayout', () => {
 
       const { getByTestId, queryByTestId } = render(<RootLayout />);
 
-      getByTestId('splash-loading');
+      getByTestId('animated-splash');
       expect(queryByTestId('stack-navigator')).toBeNull();
     });
 
@@ -151,11 +159,12 @@ describe('RootLayout', () => {
   });
 
   describe('loaded state', () => {
-    it('renders Stack navigator when fonts loaded and session resolved', () => {
-      const { getByTestId, queryByTestId } = render(<RootLayout />);
+    it('renders Stack navigator with overlay still mounted when ready', () => {
+      const { getByTestId } = render(<RootLayout />);
 
       getByTestId('stack-navigator');
-      expect(queryByTestId('splash-loading')).toBeNull();
+      // Overlay stays mounted until its fade-out completes and onComplete fires
+      getByTestId('animated-splash');
     });
 
     it('hides native splash screen once fully loaded', () => {

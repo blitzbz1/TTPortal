@@ -16,8 +16,9 @@ import {
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo } from 'react';
-import { ActivityIndicator, LogBox, Platform, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { LogBox, Platform, StyleSheet, View } from 'react-native';
+import AnimatedSplash from '../components/AnimatedSplash';
 import { SessionProvider } from '../contexts/SessionProvider';
 import { NotificationProvider } from '../contexts/NotificationProvider';
 import { I18nProvider } from '../contexts/I18nProvider';
@@ -84,15 +85,19 @@ function RootNavigator() {
     DMSans_500Medium,
   });
 
+  const [splashDone, setSplashDone] = useState(false);
+  const handleSplashComplete = useCallback(() => setSplashDone(true), []);
+  const appReady = fontsLoaded && !isLoading;
+
   useEffect(() => {
     if (fontError) throw fontError;
   }, [fontError]);
 
   useEffect(() => {
-    if (fontsLoaded && !isLoading) {
+    if (appReady) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, isLoading]);
+  }, [appReady]);
 
   // On web, RN's <Modal> portals to a fixed-position [role="dialog"] outside
   // the phone-frame (webFrame), so sheets stretch across the full viewport.
@@ -114,15 +119,7 @@ function RootNavigator() {
     document.head.appendChild(style);
   }, []);
 
-  if (!fontsLoaded || isLoading) {
-    return (
-      <View style={styles.splash} testID="splash-loading">
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  const nav = (
+  const nav = appReady ? (
     <>
       <Stack screenOptions={{ animation: 'fade' }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -136,14 +133,26 @@ function RootNavigator() {
       </Stack>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </>
-  );
+  ) : null;
 
-  if (Platform.OS !== 'web') return nav;
+  const overlay = !splashDone ? (
+    <AnimatedSplash isReady={appReady} onComplete={handleSplashComplete} />
+  ) : null;
+
+  if (Platform.OS !== 'web') {
+    return (
+      <>
+        {nav}
+        {overlay}
+      </>
+    );
+  }
 
   return (
     <View style={styles.webOuter}>
       <View style={styles.webFrame}>
         {nav}
+        {overlay}
       </View>
     </View>
   );
@@ -151,12 +160,6 @@ function RootNavigator() {
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-    splash: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: colors.bg,
-    },
     webOuter: {
       flex: 1,
       alignItems: 'center',
