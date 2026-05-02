@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { useSession } from '../hooks/useSession';
@@ -11,7 +12,6 @@ import {
   deleteNotification as deleteNotificationService,
   deleteAllNotifications as deleteAllNotificationsService,
 } from '../services/notifications';
-import { useRealtime } from '../hooks/useRealtime';
 import { logger } from '../lib/logger';
 import { sanitizeRoute } from '../lib/auth-utils';
 import { withOptimistic } from '../lib/optimistic';
@@ -181,27 +181,16 @@ export function NotificationProvider({ children }: Props) {
     setHasMore(false);
   }, [userId]);
 
-  useRealtime({
-    channelName: `notifications-${userId ?? 'anon'}`,
-    table: 'notifications',
-    filter: userId ? `recipient_id=eq.${userId}` : undefined,
-    enabled: !!userId,
-    onInsert: useCallback((payload: any) => {
-      const row = payload.new as NotificationRecord;
-      if (notificationsRef.current.some((n) => n.id === row.id)) return;
-      setNotifications((prev) => [row, ...prev]);
-    }, []),
-    onUpdate: useCallback((payload: any) => {
-      const row = payload.new as NotificationRecord;
-      setNotifications((prev) => prev.map((n) => (n.id === row.id ? { ...n, ...row } : n)));
-    }, []),
-    onDelete: useCallback((payload: any) => {
-      const oldRow = payload.old as { id?: number };
-      if (oldRow.id == null) return;
-      setNotifications((prev) => prev.filter((n) => n.id !== oldRow.id));
-    }, []),
-    onReconnect: refresh,
-  });
+  // Refresh on app foreground. Pushes received while the app is foregrounded
+  // already trigger refresh via the expo-notifications listener below; this
+  // covers the user backgrounding then reopening without tapping a push.
+  useEffect(() => {
+    if (!userId) return;
+    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      if (next === 'active') void refresh();
+    });
+    return () => sub.remove();
+  }, [userId, refresh]);
 
   useEffect(() => {
     if (!userId) {

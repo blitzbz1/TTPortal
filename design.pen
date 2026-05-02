@@ -13135,6 +13135,53 @@
           "fontWeight": "500"
         }
       ]
+    },
+    {
+      "type": "frame",
+      "id": "2f5dw",
+      "x": 1090,
+      "y": 0,
+      "name": "00 — Native Splash",
+      "clip": true,
+      "width": 390,
+      "height": 844,
+      "fill": "#0D3B33",
+      "layout": "vertical",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "children": [
+        {
+          "type": "frame",
+          "id": "6EPf5",
+          "name": "splashLockup",
+          "layout": "vertical",
+          "gap": 28,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "path",
+              "id": "BwPbq",
+              "name": "Logo Pin",
+              "geometry": "M68 0c-37.556 0-68 30.444-68 68 0 25.112 13.666 47.056 34 58.834l34 49.166 34-49.166c20.334-11.778 34-33.722 34-58.834 0-37.556-30.444-68-68-68z m0 100c-17.674 0-32-14.326-32-32s14.326-32 32-32 32 14.326 32 32-14.326 32-32 32z",
+              "fillRule": "evenodd",
+              "fill": "#FFFFFF",
+              "width": 136,
+              "height": 176
+            },
+            {
+              "type": "text",
+              "id": "xnmiI",
+              "name": "Wordmark",
+              "fill": "#FFFFFF",
+              "content": "TTPortal",
+              "fontFamily": "Syne",
+              "fontSize": 48,
+              "fontWeight": "800",
+              "letterSpacing": -0.5
+            }
+          ]
+        }
+      ]
     }
   ],
   "variables": {
