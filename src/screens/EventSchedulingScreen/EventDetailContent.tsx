@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native';
-import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking, TextInput } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useRouter } from 'expo-router';
 import { BadgeTrackIcon } from '../../components/BadgeTrackIcon';
@@ -536,7 +535,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
 
       {ev.organizer_id === user?.id && detailParticipants.length > 0 && (
         <View style={ms.updateInline}>
-          <BottomSheetTextInput
+          <TextInput
             style={ms.updateInlineInput}
             placeholder={s('updatePlaceholder')}
             placeholderTextColor={colors.textFaint}
@@ -549,7 +548,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
             disabled={sendingUpdate || !updateText.trim()}
             onPress={async () => {
               setSendingUpdate(true);
-              const { error } = await sendEventUpdate(ev.id, updateText.trim(), user!.id);
+              const { error } = await sendEventUpdate(ev.id, updateText.trim());
               setSendingUpdate(false);
               if (error) {
                 Alert.alert(s('error'), error.message);
@@ -616,18 +615,18 @@ export function EventDetailContent(props: EventDetailContentProps) {
         )}
         {!isPast(ev) && ev.organizer_id === user?.id && (
           <TouchableOpacity
-            style={[ms.actionBtn, ms.actionInvite]}
+            style={[ms.actionBtn, ms.actionSecondary]}
             onPress={() => setInviteModalVisible(true)}
           >
-            <Lucide name="send" size={16} color={colors.purple} />
-            <Text style={[ms.actionText, ms.actionInviteText]}>
+            <Lucide name="send" size={16} color={colors.primary} />
+            <Text style={[ms.actionText, ms.actionSecondaryText]}>
               {s('inviteToEvent')}
             </Text>
           </TouchableOpacity>
         )}
         {!isPast(ev) && ev.organizer_id === user?.id && (
           <TouchableOpacity
-            style={[ms.actionBtn, ms.actionJoin]}
+            style={[ms.actionBtn, ms.actionSecondary]}
             onPress={() => {
               Alert.alert(
                 s('closeEvent'),
@@ -653,13 +652,10 @@ export function EventDetailContent(props: EventDetailContentProps) {
               );
             }}
           >
-            <Lucide name="check-circle" size={16} color={colors.textOnPrimary} />
-            <Text style={[ms.actionText, ms.actionJoinText]}>{s('closeEvent')}</Text>
+            <Lucide name="check-circle" size={16} color={colors.primary} />
+            <Text style={[ms.actionText, ms.actionSecondaryText]}>{s('closeEvent')}</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity style={ms.closeBtn} onPress={closeDetail}>
-          <Text style={ms.closeBtnText}>{s('close')}</Text>
-        </TouchableOpacity>
       </View>
 
       {!isPast(ev) && ev.organizer_id === user?.id && (
@@ -691,7 +687,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
                 );
               }}
             >
-              <Lucide name="repeat" size={14} color={colors.textOnPrimary} />
+              <Lucide name="repeat" size={14} color={colors.red} />
               <Text style={ms.dangerBtnText}>{s('stopRecurrence')}</Text>
             </TouchableOpacity>
           )}
@@ -721,7 +717,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
               );
             }}
           >
-            <Lucide name="x-circle" size={14} color={colors.textOnPrimary} />
+            <Lucide name="x-circle" size={14} color={colors.red} />
             <Text style={ms.dangerBtnText}>{s('cancelEvent')}</Text>
           </TouchableOpacity>
         </View>

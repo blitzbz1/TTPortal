@@ -238,6 +238,62 @@ export function createStyles(colors: ThemeColors) {
     venuePickerText: { fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint },
     venuePickerTextSelected: { color: colors.text, fontWeight: '500' },
 
+    /* visibility selector */
+    visibilityList: { gap: 8 },
+    visibilityRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      borderRadius: Radius.md, borderWidth: 1, borderColor: colors.borderLight,
+      backgroundColor: colors.bg, paddingVertical: 12, paddingHorizontal: 14,
+    },
+    visibilityRowSelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryPale,
+    },
+    visibilityIcon: {
+      width: 32, height: 32, borderRadius: Radius.sm,
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: colors.bgMuted,
+    },
+    visibilityIconSelected: {
+      backgroundColor: colors.bgAlt,
+    },
+    visibilityCopy: { flex: 1, gap: 2 },
+    visibilityTitle: {
+      fontFamily: Fonts.body, fontSize: 14, fontWeight: '700', color: colors.text,
+    },
+    visibilityTitleSelected: { color: colors.primary },
+    visibilityDesc: {
+      fontFamily: Fonts.body, fontSize: 12, color: colors.textMuted, lineHeight: 16,
+    },
+    visibilityCheck: {
+      width: 20, height: 20, borderRadius: 10,
+      alignItems: 'center', justifyContent: 'center',
+      borderWidth: 1, borderColor: colors.borderLight,
+    },
+    visibilityCheckSelected: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    inviteePicker: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      backgroundColor: colors.bgMuted, borderRadius: Radius.md, padding: 14, marginTop: 4,
+      borderWidth: 1, borderColor: colors.borderLight,
+      ...Shadows.sm,
+    },
+    inviteePickerActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryPale,
+    },
+    inviteePickerEmpty: {
+      borderColor: colors.amber,
+    },
+    inviteePickerContent: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+    inviteePickerText: { fontFamily: Fonts.body, fontSize: 14, color: colors.textFaint, flex: 1 },
+    inviteePickerTextSelected: { color: colors.text, fontWeight: '600' },
+    inviteeWarning: {
+      fontFamily: Fonts.body, fontSize: 12, color: colors.amber, marginTop: 6,
+    },
+
     /* buttons */
     btn: { backgroundColor: colors.primaryLight, borderRadius: 12, height: 50, alignItems: 'center', justifyContent: 'center', ...Shadows.md },
     btnText: { fontFamily: Fonts.body, fontSize: 16, fontWeight: '700', color: colors.textOnPrimary },

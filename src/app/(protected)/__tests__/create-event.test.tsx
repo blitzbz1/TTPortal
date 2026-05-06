@@ -461,7 +461,7 @@ describe('CreateEventRoute – friend invites', () => {
     fireEvent.press(confirmButtons[confirmButtons.length - 1]);
     await act(async () => {});
 
-    expect(mockSendEventInvites).toHaveBeenCalledWith(42, ['friend-1'], 'user-123');
+    expect(mockSendEventInvites).toHaveBeenCalledWith(42, ['friend-1']);
     expect(mockBack).toHaveBeenCalled();
   });
 
@@ -474,6 +474,70 @@ describe('CreateEventRoute – friend invites', () => {
 
     fireEvent.press(screen.getByText(/skip/i));
     expect(mockSendEventInvites).not.toHaveBeenCalled();
+    expect(mockBack).toHaveBeenCalled();
+  });
+});
+
+describe('CreateEventRoute – visibility', () => {
+  it('defaults to public — Create works without expanding the section', async () => {
+    render(<CreateEventRoute />);
+    fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
+    // Section is collapsed by default; no visibility interaction needed.
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
+    expect(mockCreateEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ visibility: 'public' }),
+    );
+  });
+
+  it('passes visibility=friends to createEvent when friends-only is selected', async () => {
+    render(<CreateEventRoute />);
+    fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
+    openSection('eventVisibility');
+    fireEvent.press(screen.getByText('eventVisibilityFriends'));
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
+    expect(mockCreateEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ visibility: 'friends' }),
+    );
+  });
+
+  it('blocks Create when private is selected with no invitees', async () => {
+    render(<CreateEventRoute />);
+    fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
+    openSection('eventVisibility');
+    fireEvent.press(screen.getByText('eventVisibilityPrivate'));
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
+    expect(mockCreateEvent).not.toHaveBeenCalled();
+    // The warning copy is rendered (via i18n key, since the test mock
+    // returns the key itself).
+    expect(screen.getByText('eventPrivateNeedsInvite')).toBeTruthy();
+  });
+
+  it('private flow: pre-submit picker grants access and post-create modal is skipped', async () => {
+    render(<CreateEventRoute />);
+    fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
+    openSection('eventVisibility');
+    fireEvent.press(screen.getByText('eventVisibilityPrivate'));
+
+    // Open the pre-submit invitee picker (state: 0 invitees, label =
+    // i18n key 'eventInvitedFriendsZero').
+    fireEvent.press(screen.getByText('eventInvitedFriendsZero'));
+    await act(async () => { jest.runAllTimers(); });
+    await waitFor(() => { expect(screen.getByText('Andrei P.')).toBeTruthy(); });
+
+    // Select a friend and confirm.
+    fireEvent.press(screen.getByText('Andrei P.'));
+    const confirmButtons = screen.getAllByText(/inviteToEvent/);
+    fireEvent.press(confirmButtons[confirmButtons.length - 1]);
+    await act(async () => {});
+
+    // Submit. Private path runs createEvent + sendEventInvites + back in one
+    // shot — no second friend picker modal is shown.
+    await act(async () => { fireEvent.press(screen.getByText('Creează')); });
+
+    expect(mockCreateEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ visibility: 'private' }),
+    );
+    expect(mockSendEventInvites).toHaveBeenCalledWith(42, ['friend-1']);
     expect(mockBack).toHaveBeenCalled();
   });
 });

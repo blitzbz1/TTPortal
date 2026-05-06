@@ -29,6 +29,22 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
       alignItems: 'center',
       gap: Spacing.xs,
     },
+    headerBack: {
+      padding: 4,
+      marginLeft: -4,
+    },
+    headerSpacer: {
+      width: 34,
+    },
+    detailContent: {
+      paddingHorizontal: 20,
+      paddingTop: Spacing.md,
+    },
+    detailLoading: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     fab: {
       position: 'absolute',
       bottom: 24,
@@ -827,13 +843,13 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
       borderWidth: 1,
       borderColor: colors.red,
     },
-    actionInvite: {
-      backgroundColor: colors.purplePale,
+    actionSecondary: {
+      backgroundColor: colors.primaryPale,
       borderWidth: 1,
-      borderColor: colors.purple,
+      borderColor: colors.primary,
     },
-    actionInviteText: {
-      color: colors.purple,
+    actionSecondaryText: {
+      color: colors.primary,
     },
     feedbackSection: {
       marginTop: Spacing.md,
@@ -893,14 +909,16 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
       gap: 6,
       paddingVertical: 10,
       paddingHorizontal: Spacing.md,
-      backgroundColor: colors.red,
+      backgroundColor: colors.redPale,
+      borderWidth: 1,
+      borderColor: colors.red,
       borderRadius: Radius.md,
     },
     dangerBtnText: {
       fontFamily: Fonts.body,
       fontSize: FontSize.base,
       fontWeight: FontWeight.semibold,
-      color: colors.textOnPrimary,
+      color: colors.red,
     },
     actionText: {
       fontFamily: Fonts.body,

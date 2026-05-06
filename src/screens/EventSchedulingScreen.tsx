@@ -13,11 +13,10 @@ import { ErrorState } from '../components/ErrorState';
 import { useTheme } from '../hooks/useTheme';
 import { createStyles } from './EventSchedulingScreen.styles';
 import { AmaturDetailSheet } from './EventSchedulingScreen/AmaturDetailSheet';
-import { EventDetailContent } from './EventSchedulingScreen/EventDetailContent';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getEvents, getEventById, getEventParticipants, joinEvent, leaveEvent, sendEventInvites, PAST_EVENTS_PAGE_SIZE } from '../services/events';
-import { getEventFeedback, getUserEventFeedbackForEvents } from '../services/eventFeedback';
+import { getEvents, joinEvent, leaveEvent, PAST_EVENTS_PAGE_SIZE } from '../services/events';
+import { getUserEventFeedbackForEvents } from '../services/eventFeedback';
 import {
   loadCachedEvents,
   saveCachedEvents,
@@ -25,25 +24,17 @@ import {
   saveCachedFeedbackGiven,
   type EventTabKey,
 } from '../lib/eventsCache';
-import { getFriendIds } from '../services/friends';
-import { FriendPickerModal } from '../components/FriendPickerModal';
 import { WriteEventFeedbackScreen } from './WriteEventFeedbackScreen';
 import { hapticMedium } from '../lib/haptics';
 import { getAmaturEvents, type AmaturEvent } from '../services/amatur';
-import { EventDetailSheet } from '../components/EventDetailSheet';
 import { LogHoursModal } from '../components/LogHoursModal';
-import { BADGE_TRACKS } from '../lib/badgeChallenges';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
 import {
   requiresOtherPlayer,
   resolveChallengeTitle,
-  setCurrentSelectedChallenge,
-  type ChallengeCategory,
   type DbChallenge,
   type EventChallengeSubmission,
   useCurrentSelectedChallenge,
-  useChallengeChoices,
-  useEventChallenges,
 } from '../features/challenges';
 
 type EventTab = 'upcoming' | 'past' | 'mine' | 'amatur';
@@ -83,21 +74,9 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const [events, setEvents] = useState<EventListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [eventsError, setEventsError] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
-  const [detailParticipants, setDetailParticipants] = useState<any[]>([]);
-  const [detailFeedback, setDetailFeedback] = useState<any[]>([]);
-  const [eventChallengeTrackId, setEventChallengeTrackId] = useState(BADGE_TRACKS[0].id);
-  const [showAddChallenge, setShowAddChallenge] = useState(false);
-  const [challengeActionId, setChallengeActionId] = useState<string | null>(null);
-  const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [feedbackEventId, setFeedbackEventId] = useState<number | null>(null);
   const [feedbackGivenIds, setFeedbackGivenIds] = useState<Set<number>>(new Set());
   const [logHoursEvent, setLogHoursEvent] = useState<{ id: number; title: string; initialHours: number } | null>(null);
-  const [updateText, setUpdateText] = useState('');
-  const [sendingUpdate, setSendingUpdate] = useState(false);
-  const [descExpanded, setDescExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pastHasMore, setPastHasMore] = useState(true);
   const [pastLoadingMore, setPastLoadingMore] = useState(false);
@@ -110,23 +89,11 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const { eventId: eventIdParam } = useLocalSearchParams<{ eventId?: string }>();
   const { colors, isDark } = useTheme();
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
-  const { styles, ms } = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const { styles } = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const currentSelectedChallenge = useCurrentSelectedChallenge();
-  const eventChallengeTrack = BADGE_TRACKS.find((badge) => badge.id === eventChallengeTrackId) ?? BADGE_TRACKS[0];
   const currentEventChallenge = currentSelectedChallenge && requiresOtherPlayer(currentSelectedChallenge)
     ? currentSelectedChallenge
     : null;
-  const {
-    choices: eventChallengeChoices,
-  } = useChallengeChoices(eventChallengeTrack.category as ChallengeCategory, {
-    enabled: showAddChallenge && !!selectedEvent && !currentEventChallenge,
-    onlyOtherPlayer: true,
-  });
-  const {
-    addChallenge: addEventChallenge,
-    awardChallenge: awardEventChallenge,
-    challenges: detailChallenges,
-  } = useEventChallenges(selectedEvent?.id, user?.id);
 
   const fetchEvents = useCallback(async (force = false) => {
     if (activeTab === 'amatur') return;
@@ -257,14 +224,6 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     fetchEvents();
   }, [fetchEvents]);
 
-  // Fetch friends list once
-  useEffect(() => {
-    if (!user?.id) return;
-    getFriendIds(user.id).then((ids) => {
-      setFriendIds(new Set(ids));
-    });
-  }, [user?.id]);
-
   useEffect(() => {
     if (activeTab === 'amatur' && amaturEvents.length === 0) {
       fetchAmatur();
@@ -272,33 +231,19 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  const openDetail = useCallback(async (event: EventListItem) => {
-    trackProductEvent(ProductEvents.eventOpened, {
-      eventId: event.id,
-      tab: activeTab,
-      eventType: event.event_type,
-    });
-    setSelectedEvent(event);
-    setDetailLoading(true);
-    setDetailFeedback([]);
-    const [partRes, fbRes] = await Promise.all([
-      getEventParticipants(event.id),
-      isPast(event) && event.status !== 'cancelled' ? getEventFeedback(event.id) : Promise.resolve({ data: [] }),
-    ]);
-    setDetailParticipants(partRes.data ?? []);
-    setDetailFeedback(fbRes.data ?? []);
-    setDetailLoading(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, user?.id]);
+  const openDetail = useCallback((event: EventListItem) => {
+    router.push({ pathname: '/(protected)/event/[eventId]', params: { eventId: String(event.id) } } as any);
+  }, [router]);
 
-  const closeDetail = useCallback(() => {
-    setSelectedEvent(null);
-    setDetailParticipants([]);
-    setDetailFeedback([]);
-    setShowAddChallenge(false);
-    setUpdateText('');
-    setDescExpanded(false);
-  }, []);
+  // Legacy deep-link compatibility: notifications still navigate to
+  // /(tabs)/events?eventId=X. Forward the user straight to the detail
+  // route so they don't land on the list.
+  const handledEventIdRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (!eventIdParam || handledEventIdRef.current === eventIdParam) return;
+    handledEventIdRef.current = eventIdParam;
+    router.replace({ pathname: '/(protected)/event/[eventId]', params: { eventId: eventIdParam } } as any);
+  }, [eventIdParam, router]);
 
   const challengeTitle = useCallback((challenge: {
     challenge_legacy_code?: string | null;
@@ -308,60 +253,6 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     title_key?: string | null;
     title?: string | null;
   }) => resolveChallengeTitle(s, challenge as DbChallenge | EventChallengeSubmission), [s]);
-
-  const handleAddChallengeToEvent = useCallback(async (challenge: DbChallenge) => {
-    if (!user || !selectedEvent) return;
-    setChallengeActionId(challenge.id);
-    const { error } = await addEventChallenge(challenge);
-    setChallengeActionId(null);
-    if (error) {
-      Alert.alert(s('error'), error.message);
-      return;
-    }
-    trackProductEvent(ProductEvents.eventChallengeAttached, {
-      eventId: selectedEvent.id,
-      challengeId: challenge.id,
-      category: challenge.category,
-    });
-    if (currentEventChallenge?.id === challenge.id) {
-      setCurrentSelectedChallenge(null);
-    }
-    setShowAddChallenge(false);
-  }, [addEventChallenge, currentEventChallenge?.id, s, selectedEvent, user]);
-
-  const handleAwardEventChallenge = useCallback(async (submission: EventChallengeSubmission) => {
-    if (!selectedEvent) return;
-    setChallengeActionId(submission.submission_id);
-    const { error } = await awardEventChallenge(submission.submission_id);
-    setChallengeActionId(null);
-    if (error) {
-      Alert.alert(s('error'), error.message);
-      return;
-    }
-    trackProductEvent(ProductEvents.eventChallengeAwarded, {
-      eventId: selectedEvent.id,
-      submissionId: submission.submission_id,
-      category: submission.category,
-    });
-  }, [awardEventChallenge, s, selectedEvent]);
-
-  // Open event detail when navigated with ?eventId=... (e.g. from a notification)
-  const handledEventIdRef = React.useRef<string | null>(null);
-  useEffect(() => {
-    if (!eventIdParam || handledEventIdRef.current === eventIdParam) return;
-    const parsed = Number(eventIdParam);
-    if (!Number.isFinite(parsed)) return;
-    handledEventIdRef.current = eventIdParam;
-    (async () => {
-      const { data } = await getEventById(parsed);
-      if (data) {
-        if (new Date((data as any).starts_at).getTime() < Date.now()) {
-          setActiveTab('past');
-        }
-        await openDetail(data as EventListItem);
-      }
-    })();
-  }, [eventIdParam, openDetail]);
 
   const handleJoin = useCallback(async (event: EventListItem) => {
     if (!user) {
@@ -389,12 +280,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       action: isJoined ? 'leave' : 'join',
     });
     fetchEvents();
-    if (selectedEvent?.id === event.id) {
-      const { data } = await getEventParticipants(event.id);
-      setDetailParticipants(data ?? []);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, fetchEvents, selectedEvent]);
+  }, [user, router, s, fetchEvents]);
 
   const locale = lang === 'en' ? 'en-GB' : 'ro-RO';
 
@@ -798,67 +684,6 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         >
           <Lucide name="plus" size={24} color={colors.textOnPrimary} />
         </TouchableOpacity>
-      )}
-
-      {/* ===== Event Detail Expandable Sheet ===== */}
-      <EventDetailSheet
-        visible={selectedEvent !== null}
-        onClose={closeDetail}
-        colors={colors}
-        ms={ms}
-        insets={insets}
-      >
-            {selectedEvent && (
-              <EventDetailContent
-                event={selectedEvent}
-                user={user ? { id: user.id } : null}
-                friendIds={friendIds}
-                detailParticipants={detailParticipants}
-                detailFeedback={detailFeedback}
-                detailLoading={detailLoading}
-                detailChallenges={detailChallenges}
-                feedbackGivenIds={feedbackGivenIds}
-                showAddChallenge={showAddChallenge}
-                setShowAddChallenge={setShowAddChallenge}
-                eventChallengeTrack={eventChallengeTrack}
-                setEventChallengeTrackId={setEventChallengeTrackId}
-                challengeActionId={challengeActionId}
-                eventChallengeChoices={eventChallengeChoices}
-                currentEventChallenge={currentEventChallenge}
-                descExpanded={descExpanded}
-                setDescExpanded={setDescExpanded}
-                updateText={updateText}
-                setUpdateText={setUpdateText}
-                sendingUpdate={sendingUpdate}
-                setSendingUpdate={setSendingUpdate}
-                formatDate={formatDate}
-                formatTime={formatTime}
-                isEffectivelyOver={isEffectivelyOver}
-                onAddChallenge={handleAddChallengeToEvent}
-                onAwardChallenge={handleAwardEventChallenge}
-                onJoin={handleJoin}
-                challengeTitle={challengeTitle}
-                closeDetail={closeDetail}
-                setFeedbackEventId={setFeedbackEventId}
-                setLogHoursEvent={setLogHoursEvent}
-                setInviteModalVisible={setInviteModalVisible}
-                fetchEvents={fetchEvents}
-              />
-            )}
-      </EventDetailSheet>
-
-      {user && selectedEvent && (
-        <FriendPickerModal
-          visible={inviteModalVisible}
-          userId={user.id}
-          onConfirm={async (ids) => {
-            setInviteModalVisible(false);
-            if (ids.length > 0) {
-              await sendEventInvites(selectedEvent.id, ids, user.id);
-            }
-          }}
-          onClose={() => setInviteModalVisible(false)}
-        />
       )}
 
       <WriteEventFeedbackScreen

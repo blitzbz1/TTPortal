@@ -113,6 +113,7 @@ export interface Friendship {
 export type EventStatus = 'open' | 'confirmed' | 'cancelled' | 'completed';
 export type EventType = 'casual' | 'tournament';
 export type RecurrenceRule = 'daily' | 'weekly' | 'monthly';
+export type EventVisibility = 'public' | 'friends' | 'private';
 
 export interface Event {
   id: number;
@@ -126,6 +127,7 @@ export interface Event {
   max_participants: number | null;
   status: EventStatus;
   event_type: EventType;
+  visibility: EventVisibility;
   created_at: string;
   recurrence_rule: RecurrenceRule | null;
   recurrence_day: number | null;

@@ -7,14 +7,6 @@ jest.mock('react-native-maps', () => {
   return { __esModule: true, default: RN.View, Marker: RN.View };
 });
 
-jest.mock('../../components/EventDetailSheet', () => ({
-  EventDetailSheet: ({ visible, children }: any) => {
-    const { View } = require('react-native');
-    if (!visible) return null;
-    return <View testID="event-detail-sheet">{children}</View>;
-  },
-}));
-
 jest.mock('../../services/amatur', () => ({
   getAmaturEvents: jest.fn().mockResolvedValue({ data: [], error: null }),
 }));
@@ -28,9 +20,10 @@ jest.mock('expo-sqlite', () => ({
 }));
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 const mockSearchParams: { eventId?: string } = {};
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush, back: jest.fn() }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace, back: jest.fn() }),
   useLocalSearchParams: () => mockSearchParams,
   useFocusEffect: (cb: () => void) => {
     const { useEffect } = require('react');
@@ -315,66 +308,59 @@ describe('EventSchedulingScreen — deep link via eventId param', () => {
       session: { user: { id: 'u-1' } },
     });
     mockGetEvents.mockResolvedValue({ data: [], error: null });
-    mockGetEventParticipants.mockResolvedValue({ data: [] });
-    mockGetEventFeedback.mockResolvedValue({ data: [] });
-    mockGetUserEventFeedback.mockResolvedValue({ data: null });
     mockGetUserEventFeedbackForEvents.mockResolvedValue({ data: [], error: null });
   });
 
-  it('fetches and opens the event when eventId param is set', async () => {
+  it('redirects legacy ?eventId=X links to the new /event/[id] route', async () => {
     mockSearchParams.eventId = '42';
-    const event = {
-      id: 42,
-      title: 'Past Tournament',
-      starts_at: '2025-01-01T10:00:00Z',
-      ends_at: '2025-01-01T14:00:00Z',
-      status: 'completed',
-      organizer_id: 'org-1',
-      venue_id: 5,
-      event_type: 'tournament',
-      max_participants: 10,
-      venues: { name: 'Arena X' },
-      event_participants: [],
-    };
-    mockGetEventById.mockResolvedValue({ data: event, error: null });
 
-    const { getByTestId } = render(<EventSchedulingScreen />);
+    render(<EventSchedulingScreen />);
 
     await waitFor(() => {
-      expect(mockGetEventById).toHaveBeenCalledWith(42);
-      expect(getByTestId('event-detail-sheet')).toBeTruthy();
+      expect(mockReplace).toHaveBeenCalledWith({
+        pathname: '/(protected)/event/[eventId]',
+        params: { eventId: '42' },
+      });
     });
   });
 
-  it('does not fetch when eventId param is missing', async () => {
+  it('does not redirect when eventId param is missing', async () => {
     render(<EventSchedulingScreen />);
 
     await waitFor(() => {
       expect(mockGetEvents).toHaveBeenCalled();
     });
-    expect(mockGetEventById).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+});
+
+describe('EventSchedulingScreen — card tap navigation', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete mockSearchParams.eventId;
+    mockS.mockImplementation((key: string) => key);
+    mockUseSession.mockReturnValue({
+      user: { id: 'u-1', user_metadata: { full_name: 'Test' } },
+      session: { user: { id: 'u-1' } },
+    });
+    mockGetUserEventFeedbackForEvents.mockResolvedValue({ data: [], error: null });
   });
 
-  it('ignores non-numeric eventId param', async () => {
-    mockSearchParams.eventId = 'not-a-number';
+  it('tapping an event card pushes to /event/[eventId]', async () => {
+    mockGetEvents.mockResolvedValue({ data: [pastEvent], error: null });
 
-    render(<EventSchedulingScreen />);
+    const { findByText } = render(<EventSchedulingScreen />);
 
-    await waitFor(() => {
-      expect(mockGetEvents).toHaveBeenCalled();
+    const pastTab = await findByText(/past|trecute/i);
+    fireEvent.press(pastTab);
+
+    // Cards render as "venueName — title" (see EventSchedulingScreen.tsx).
+    const card = await findByText(/Arena X .* Past Tournament/);
+    fireEvent.press(card);
+
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(protected)/event/[eventId]',
+      params: { eventId: '1' },
     });
-    expect(mockGetEventById).not.toHaveBeenCalled();
-  });
-
-  it('does not open when getEventById returns no data', async () => {
-    mockSearchParams.eventId = '99';
-    mockGetEventById.mockResolvedValue({ data: null, error: null });
-
-    const { queryByTestId } = render(<EventSchedulingScreen />);
-
-    await waitFor(() => {
-      expect(mockGetEventById).toHaveBeenCalledWith(99);
-    });
-    expect(queryByTestId('event-detail-sheet')).toBeNull();
   });
 });

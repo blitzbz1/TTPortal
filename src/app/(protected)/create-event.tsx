@@ -28,7 +28,7 @@ import { BadgeTrackIcon } from '@/src/components/BadgeTrackIcon';
 import { Lucide } from '@/src/components/Icon';
 import { VenuePickerModal } from '@/src/components/VenuePickerModal';
 import { FriendPickerModal } from '@/src/components/FriendPickerModal';
-import type { EventType, RecurrenceRule } from '@/src/types/database';
+import type { EventType, EventVisibility, RecurrenceRule } from '@/src/types/database';
 
 function getDefaultDate() {
   const d = new Date();
@@ -57,6 +57,12 @@ const RECURRENCE_OPTIONS: { label: string; value: RecurrenceRule | null }[] = [
   { label: 'Zilnic', value: 'daily' },
   { label: 'Săptămânal', value: 'weekly' },
   { label: 'Lunar', value: 'monthly' },
+];
+
+const VISIBILITY_OPTIONS: { value: EventVisibility; icon: string; titleKey: string; descKey: string }[] = [
+  { value: 'public', icon: 'globe', titleKey: 'eventVisibilityPublic', descKey: 'eventVisibilityPublicDesc' },
+  { value: 'friends', icon: 'users', titleKey: 'eventVisibilityFriends', descKey: 'eventVisibilityFriendsDesc' },
+  { value: 'private', icon: 'lock', titleKey: 'eventVisibilityPrivate', descKey: 'eventVisibilityPrivateDesc' },
 ];
 
 const TRACK_ROWS = [
@@ -160,10 +166,15 @@ export default function CreateEventRoute() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
 
+  /* visibility & invites */
+  const [visibility, setVisibility] = useState<EventVisibility>('public');
+  const [invitedFriendIds, setInvitedFriendIds] = useState<string[]>([]);
+
   /* post-creation */
   const [loading, setLoading] = useState(false);
   const [createdEventId, setCreatedEventId] = useState<number | null>(null);
   const [friendPickerVisible, setFriendPickerVisible] = useState(false);
+  const [inviteePickerVisible, setInviteePickerVisible] = useState(false);
 
   const closePickers = useCallback(() => {
     setShowDatePicker(false);
@@ -226,11 +237,17 @@ export default function CreateEventRoute() {
   const fmtDate = (d: Date) => d.toLocaleDateString('ro-RO', { weekday: 'short', day: 'numeric', month: 'short' });
   const fmtTime = (d: Date) => d.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
 
+  const privateInviteMissing = visibility === 'private' && invitedFriendIds.length === 0;
+
   /* -- submit -- */
   const handleCreate = useCallback(async () => {
     if (!title.trim() || !user) return;
     if (date <= new Date()) { Alert.alert('Eroare', 'Data evenimentului trebuie să fie în viitor.'); return; }
     if (eventType === 'tournament' && endDate <= date) { Alert.alert('Eroare', 'Data de final trebuie să fie după data de start.'); return; }
+    if (visibility === 'private' && invitedFriendIds.length === 0) {
+      Alert.alert(t('error'), t('eventPrivateNeedsInvite'));
+      return;
+    }
 
     setLoading(true);
     let endsAt: string | undefined;
@@ -250,6 +267,7 @@ export default function CreateEventRoute() {
       max_participants: maxParticipantsText ? parseInt(maxParticipantsText, 10) || undefined : undefined,
       venue_id: venueId ?? undefined,
       event_type: eventType,
+      visibility,
       recurrence_rule: recurrenceRule ?? undefined,
       recurrence_day: recurrenceDay,
     });
@@ -272,17 +290,44 @@ export default function CreateEventRoute() {
         setCurrentSelectedChallenge(null);
       }
     }
+    // Private events: send invites in the same flow (otherwise the event is
+    // invisible to everyone but the organizer). Public/friends events fall
+    // through to the existing optional post-creation friend picker.
+    if (visibility === 'private') {
+      await sendEventInvites(data.id, invitedFriendIds);
+      router.back();
+      return;
+    }
     setCreatedEventId(data.id);
     setFriendPickerVisible(true);
-  }, [title, description, user, venueId, date, maxParticipantsText, durationHours, eventType, endDate, recurrenceRule, effectiveSelectedChallenge, attachChallenge, currentEventChallenge?.id, t]);
+  }, [title, description, user, venueId, date, maxParticipantsText, durationHours, eventType, endDate, recurrenceRule, effectiveSelectedChallenge, attachChallenge, currentEventChallenge?.id, t, visibility, invitedFriendIds, router]);
 
   const handleInviteConfirm = useCallback(async (selectedIds: string[]) => {
     setFriendPickerVisible(false);
-    if (selectedIds.length > 0 && createdEventId) await sendEventInvites(createdEventId, selectedIds, user!.id);
+    if (selectedIds.length > 0 && createdEventId) await sendEventInvites(createdEventId, selectedIds);
     router.back();
-  }, [createdEventId, router, user]);
+  }, [createdEventId, router]);
 
   const handleInviteSkip = useCallback(() => { setFriendPickerVisible(false); router.back(); }, [router]);
+
+  const handleInviteeSelectConfirm = useCallback((selectedIds: string[]) => {
+    setInvitedFriendIds(selectedIds);
+    setInviteePickerVisible(false);
+  }, []);
+
+  const inviteeLabel = useMemo(() => {
+    if (invitedFriendIds.length === 0) return t('eventInvitedFriendsZero');
+    if (invitedFriendIds.length === 1) return t('eventInvitedFriendsOne');
+    return t('eventInvitedFriendsCount', String(invitedFriendIds.length));
+  }, [invitedFriendIds.length, t]);
+
+  const visibilitySummary = useMemo(() => {
+    const label = t(VISIBILITY_OPTIONS.find((o) => o.value === visibility)?.titleKey ?? 'eventVisibilityPublic');
+    if (visibility === 'private' && invitedFriendIds.length > 0) {
+      return `${label} · ${invitedFriendIds.length}`;
+    }
+    return label;
+  }, [visibility, invitedFriendIds.length, t]);
 
   const themeVariant = isDark ? 'dark' : 'light';
 
@@ -506,6 +551,75 @@ export default function CreateEventRoute() {
         )}
       </Section>
 
+      {/* -- Visibility section (collapsible) -- */}
+      <Section
+        title={t('eventVisibility')}
+        icon="eye"
+        defaultOpen={false}
+        colors={colors}
+        s={s}
+        onToggle={closePickers}
+        summary={visibilitySummary}
+      >
+        <View style={s.visibilityList}>
+          {VISIBILITY_OPTIONS.map((opt) => {
+            const selected = visibility === opt.value;
+            return (
+              <Pressable
+                key={opt.value}
+                style={[s.visibilityRow, selected && s.visibilityRowSelected]}
+                onPress={() => setVisibility(opt.value)}
+              >
+                <View style={[s.visibilityIcon, selected && s.visibilityIconSelected]}>
+                  <Lucide name={opt.icon} size={18} color={selected ? colors.primary : colors.textMuted} />
+                </View>
+                <View style={s.visibilityCopy}>
+                  <Text style={[s.visibilityTitle, selected && s.visibilityTitleSelected]}>
+                    {t(opt.titleKey)}
+                  </Text>
+                  <Text style={s.visibilityDesc}>{t(opt.descKey)}</Text>
+                </View>
+                <View style={[s.visibilityCheck, selected && s.visibilityCheckSelected]}>
+                  {selected && <Lucide name="check" size={12} color={colors.textOnPrimary} />}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {visibility === 'private' && (
+          <>
+            <Pressable
+              style={[
+                s.inviteePicker,
+                invitedFriendIds.length > 0 && s.inviteePickerActive,
+                invitedFriendIds.length === 0 && s.inviteePickerEmpty,
+              ]}
+              onPress={() => { closePickers(); setInviteePickerVisible(true); }}
+            >
+              <View style={s.inviteePickerContent}>
+                <Lucide
+                  name="user-plus"
+                  size={18}
+                  color={invitedFriendIds.length > 0 ? colors.primary : colors.textFaint}
+                />
+                <Text
+                  style={[
+                    s.inviteePickerText,
+                    invitedFriendIds.length > 0 && s.inviteePickerTextSelected,
+                  ]}
+                >
+                  {inviteeLabel}
+                </Text>
+              </View>
+            </Pressable>
+            {invitedFriendIds.length === 0 && (
+              <Text style={s.inviteeWarning}>{t('eventPrivateNeedsInvite')}</Text>
+            )}
+          </>
+        )}
+      </Section>
+
       {/* -- Options section (collapsible) -- */}
       <Section
         title="Opțiuni"
@@ -598,19 +712,28 @@ export default function CreateEventRoute() {
 
       {/* -- Modals -- */}
       {user && (
-        <FriendPickerModal
-          visible={friendPickerVisible}
-          userId={user.id}
-          onConfirm={handleInviteConfirm}
-          onClose={handleInviteSkip}
-        />
+        <>
+          <FriendPickerModal
+            visible={inviteePickerVisible}
+            userId={user.id}
+            initialSelected={invitedFriendIds}
+            onConfirm={handleInviteeSelectConfirm}
+            onClose={() => setInviteePickerVisible(false)}
+          />
+          <FriendPickerModal
+            visible={friendPickerVisible}
+            userId={user.id}
+            onConfirm={handleInviteConfirm}
+            onClose={handleInviteSkip}
+          />
+        </>
       )}
 
       {/* -- Actions -- */}
       <Pressable
-        style={[s.btn, loading && { opacity: 0.6 }]}
+        style={[s.btn, (loading || privateInviteMissing) && { opacity: 0.6 }]}
         onPress={handleCreate}
-        disabled={loading}
+        disabled={loading || privateInviteMissing}
       >
         <Text style={s.btnText}>{loading ? 'Se creează...' : 'Creează'}</Text>
       </Pressable>

@@ -144,7 +144,7 @@ export function PlayerProfileScreen({ userId }: Props) {
   const handlePickEvent = useCallback(async (event: any) => {
     if (!user) return;
     setSendingInviteId(event.id);
-    const { error } = await sendEventInvites(event.id, [userId], user.id);
+    const { error } = await sendEventInvites(event.id, [userId]);
     setSendingInviteId(null);
     if (error) {
       Alert.alert(s('error'), error.message ?? s('genericError'));

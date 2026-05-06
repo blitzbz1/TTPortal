@@ -226,7 +226,7 @@ describe('PlayerProfileScreen', () => {
     fireEvent.press(await findByText('My Match'));
 
     await waitFor(() => {
-      expect(mockSendEventInvites).toHaveBeenCalledWith(11, ['target-1'], 'me-1');
+      expect(mockSendEventInvites).toHaveBeenCalledWith(11, ['target-1']);
     });
   });
 });

@@ -223,18 +223,16 @@ export async function cancelEvent(eventId: number, organizerId: string) {
     .single();
 }
 
-export async function sendEventInvites(eventId: number, friendIds: string[], organizerId: string) {
+export async function sendEventInvites(eventId: number, friendIds: string[]) {
   return supabase.rpc('send_event_invites', {
     p_event_id: eventId,
     p_friend_ids: friendIds,
-    p_organizer_id: organizerId,
   });
 }
 
-export async function sendEventUpdate(eventId: number, message: string, organizerId: string) {
+export async function sendEventUpdate(eventId: number, message: string) {
   return supabase.rpc('send_event_update', {
     p_event_id: eventId,
     p_message: message,
-    p_organizer_id: organizerId,
   });
 }

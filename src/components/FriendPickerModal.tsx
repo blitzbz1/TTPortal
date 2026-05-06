@@ -28,6 +28,7 @@ interface FriendItem {
 interface FriendPickerModalProps {
   visible: boolean;
   userId: string;
+  initialSelected?: string[];
   onConfirm: (selectedIds: string[]) => void;
   onClose: () => void;
 }
@@ -35,6 +36,7 @@ interface FriendPickerModalProps {
 export function FriendPickerModal({
   visible,
   userId,
+  initialSelected,
   onConfirm,
   onClose,
 }: FriendPickerModalProps) {
@@ -69,10 +71,10 @@ export function FriendPickerModal({
     }
 
     fetch();
-    setSelected(new Set());
+    setSelected(new Set(initialSelected ?? []));
     setQuery('');
     return () => { cancelled = true; };
-  }, [visible, userId]);
+  }, [visible, userId, initialSelected]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return friends;
