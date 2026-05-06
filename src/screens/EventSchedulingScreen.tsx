@@ -232,7 +232,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   }, [activeTab]);
 
   const openDetail = useCallback((event: EventListItem) => {
-    router.push({ pathname: '/(protected)/event/[eventId]', params: { eventId: String(event.id) } } as any);
+    router.push(`/(protected)/event/${event.id}` as any);
   }, [router]);
 
   // Legacy deep-link compatibility: notifications still navigate to
@@ -242,7 +242,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   useEffect(() => {
     if (!eventIdParam || handledEventIdRef.current === eventIdParam) return;
     handledEventIdRef.current = eventIdParam;
-    router.replace({ pathname: '/(protected)/event/[eventId]', params: { eventId: eventIdParam } } as any);
+    router.replace(`/(protected)/event/${eventIdParam}` as any);
   }, [eventIdParam, router]);
 
   const challengeTitle = useCallback((challenge: {
