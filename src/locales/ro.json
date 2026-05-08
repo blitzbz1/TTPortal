@@ -51,6 +51,7 @@
   "errorNetwork": "Eroare de conexiune. Încearcă din nou.",
   "logout": "Deconectare",
   "forgotPasswordSuccess": "Verifică inbox-ul și folderul spam. Link-ul expiră în 60 de minute.",
+  "forgotPasswordRateLimited": "Ai cerut prea multe linkuri de resetare. Așteaptă puțin și încearcă din nou.",
   "authFullName": "Nume complet",
   "authEmail": "Email",
   "authPassword": "Parolă",

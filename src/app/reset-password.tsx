@@ -29,6 +29,8 @@ interface RecoveryParams {
   accessToken?: string;
   refreshToken?: string;
   errorDescription?: string;
+  tokenHash?: string;
+  type?: string;
 }
 
 function readRecoveryParams(rawParams: Record<string, string | string[] | undefined>): RecoveryParams {
@@ -42,6 +44,8 @@ function readRecoveryParams(rawParams: Record<string, string | string[] | undefi
     accessToken: getValue('access_token'),
     refreshToken: getValue('refresh_token'),
     errorDescription: getValue('error_description'),
+    tokenHash: getValue('token_hash'),
+    type: getValue('type'),
   };
 }
 
@@ -64,6 +68,14 @@ function readRecoveryParamsFromUrl(url: string): RecoveryParams {
       typeof query.error_description === 'string'
         ? query.error_description
         : (fragment?.get('error_description') ?? undefined),
+    tokenHash:
+      typeof query.token_hash === 'string'
+        ? query.token_hash
+        : (fragment?.get('token_hash') ?? undefined),
+    type:
+      typeof query.type === 'string'
+        ? query.type
+        : (fragment?.get('type') ?? undefined),
   };
 }
 
@@ -126,6 +138,27 @@ export default function ResetPasswordScreen() {
         }
 
         logger.info('reset password session restored from tokens');
+        setTokenStatus('valid');
+        return;
+      }
+
+      if (recovery.tokenHash && recovery.type?.toLowerCase() === 'recovery') {
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: recovery.tokenHash,
+          type: 'recovery',
+        });
+
+        if (cancelled) return;
+
+        if (verifyError) {
+          logger.warn('reset password token verification failed', {
+            error: verifyError.message,
+          });
+          setTokenStatus(isUsedTokenMessage(verifyError.message) ? 'used' : 'expired');
+          return;
+        }
+
+        logger.info('reset password token hash verified');
         setTokenStatus('valid');
         return;
       }

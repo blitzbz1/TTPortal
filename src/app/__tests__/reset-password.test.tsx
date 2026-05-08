@@ -6,6 +6,7 @@ import { render, userEvent, waitFor } from '@testing-library/react-native';
 const mockExchangeCodeForSession = jest.fn();
 const mockUpdateUser = jest.fn();
 const mockSetSession = jest.fn();
+const mockVerifyOtp = jest.fn();
 const mockGetInitialUrl = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
@@ -14,6 +15,7 @@ jest.mock('../../lib/supabase', () => ({
       exchangeCodeForSession: (...a: unknown[]) =>
         mockExchangeCodeForSession(...a),
       setSession: (...a: unknown[]) => mockSetSession(...a),
+      verifyOtp: (...a: unknown[]) => mockVerifyOtp(...a),
       updateUser: (...a: unknown[]) => mockUpdateUser(...a),
     },
   },
@@ -74,6 +76,7 @@ describe('ResetPasswordScreen — T040', () => {
       error: null,
     });
     mockSetSession.mockResolvedValue({ data: { session: null }, error: null });
+    mockVerifyOtp.mockResolvedValue({ data: { session: { access_token: 'token' } }, error: null });
     mockUpdateUser.mockResolvedValue({ data: {}, error: null });
     mockReplace.mockReset();
   });
@@ -175,6 +178,25 @@ describe('ResetPasswordScreen — T040', () => {
     expect(mockSetSession).toHaveBeenCalledWith({
       access_token: 'access-123',
       refresh_token: 'refresh-123',
+    });
+    expect(mockExchangeCodeForSession).not.toHaveBeenCalled();
+  });
+
+  it('accepts Supabase recovery token_hash links', async () => {
+    mockSearchParams = {
+      token_hash: 'recovery-token-hash',
+      type: 'recovery',
+    };
+
+    const { getByTestId } = render(<ResetPasswordScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('input-new-password')).toBeTruthy();
+    });
+
+    expect(mockVerifyOtp).toHaveBeenCalledWith({
+      token_hash: 'recovery-token-hash',
+      type: 'recovery',
     });
     expect(mockExchangeCodeForSession).not.toHaveBeenCalled();
   });

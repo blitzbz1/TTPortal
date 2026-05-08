@@ -125,6 +125,59 @@ describe('AuthCallbackScreen', () => {
     expect(mockReplace).toHaveBeenCalledWith('/onboarding');
   });
 
+  it('routes recovery token_hash callbacks to the reset password screen', async () => {
+    mockSearchParams = {
+      token_hash: 'recovery-token-hash',
+      type: 'recovery',
+      flow: 'recovery',
+    };
+
+    render(<AuthCallbackScreen />);
+
+    await waitFor(() => {
+      expect(mockVerifyOtp).toHaveBeenCalledWith({
+        token_hash: 'recovery-token-hash',
+        type: 'recovery',
+      });
+    });
+    expect(mockReplace).toHaveBeenCalledWith('/reset-password');
+  });
+
+  it('routes recovery access-token callbacks to the reset password screen', async () => {
+    mockSearchParams = {
+      access_token: 'access-123',
+      refresh_token: 'refresh-123',
+      type: 'recovery',
+    };
+
+    render(<AuthCallbackScreen />);
+
+    await waitFor(() => {
+      expect(mockSetSession).toHaveBeenCalledWith({
+        access_token: 'access-123',
+        refresh_token: 'refresh-123',
+      });
+    });
+    expect(mockReplace).toHaveBeenCalledWith('/reset-password');
+  });
+
+  it('treats flow=recovery without type as a recovery token_hash callback', async () => {
+    mockSearchParams = {
+      token_hash: 'recovery-token-hash',
+      flow: 'recovery',
+    };
+
+    render(<AuthCallbackScreen />);
+
+    await waitFor(() => {
+      expect(mockVerifyOtp).toHaveBeenCalledWith({
+        token_hash: 'recovery-token-hash',
+        type: 'recovery',
+      });
+    });
+    expect(mockReplace).toHaveBeenCalledWith('/reset-password');
+  });
+
   it('falls back to sign-in when signup verification succeeds without restoring a session', async () => {
     mockSearchParams = {
       token_hash: 'signup-token-hash',

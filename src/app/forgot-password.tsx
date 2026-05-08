@@ -21,6 +21,21 @@ import { Lucide } from '../components/Icon';
 import { isValidEmail } from '../lib/auth-utils';
 import { logger } from '../lib/logger';
 
+function isResetRequestThrottled(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+
+  const maybeError = error as { code?: string; message?: string; status?: number };
+  const message = maybeError.message?.toLowerCase() ?? '';
+  return (
+    maybeError.status === 429 ||
+    maybeError.code === 'over_email_send_rate_limit' ||
+    maybeError.code === 'rate_limit_exceeded' ||
+    message.includes('rate limit') ||
+    message.includes('too many') ||
+    message.includes('only request this after')
+  );
+}
+
 /**
  * Forgot password screen — allows users to request a password reset email.
  * Shows identical success message for existing and non-existing emails
@@ -40,7 +55,9 @@ export default function ForgotPasswordScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = useCallback(async () => {
-    if (!isValidEmail(email)) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!isValidEmail(normalizedEmail)) {
       setError(s('validationEmailInvalid'));
       return;
     }
@@ -49,12 +66,17 @@ export default function ForgotPasswordScreen() {
     setError(null);
 
     try {
-      logger.track('forgot_password_submit', { email });
-      await resetPassword(email);
-      logger.info('forgot password email sent', { email });
+      logger.track('forgot_password_submit', { email: normalizedEmail });
+      const result = await resetPassword(normalizedEmail);
+      if (isResetRequestThrottled(result.error)) {
+        logger.warn('forgot password request throttled', { email: normalizedEmail });
+        setError(s('forgotPasswordRateLimited'));
+        return;
+      }
+      logger.info('forgot password email sent', { email: normalizedEmail });
       setSent(true);
     } catch {
-      logger.warn('forgot password request failed', { email });
+      logger.warn('forgot password request failed', { email: normalizedEmail });
       setSent(true);
     } finally {
       setLoading(false);

@@ -95,6 +95,38 @@ describe('ForgotPasswordScreen — T027', () => {
     expect(mockResetPassword).toHaveBeenCalledWith('user@example.com');
   });
 
+  it('normalizes email before requesting a reset link', async () => {
+    const { getByTestId } = render(<ForgotPasswordScreen />);
+
+    await user.type(getByTestId('input-email'), ' User@Example.COM ');
+    await user.press(getByTestId('submit-button'));
+
+    await waitFor(() => {
+      expect(mockResetPassword).toHaveBeenCalledWith('user@example.com');
+    });
+  });
+
+  it('shows a retry-later message when Supabase throttles reset emails', async () => {
+    mockResetPassword.mockResolvedValueOnce({
+      error: {
+        status: 429,
+        message: 'For security purposes, you can only request this after 60 seconds',
+      },
+    });
+
+    const { getByTestId, getByText, queryByTestId } = render(<ForgotPasswordScreen />);
+
+    await user.type(getByTestId('input-email'), 'user@example.com');
+    await user.press(getByTestId('submit-button'));
+
+    await waitFor(() => {
+      expect(
+        getByText('Ai cerut prea multe linkuri de resetare. Așteaptă puțin și încearcă din nou.'),
+      ).toBeTruthy();
+    });
+    expect(queryByTestId('success-message')).toBeNull();
+  });
+
   it('shows same success message for non-existent email (enumeration protection)', async () => {
     mockResetPassword.mockRejectedValueOnce(new Error('User not found'));
 

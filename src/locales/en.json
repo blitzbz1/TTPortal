@@ -51,6 +51,7 @@
   "errorNetwork": "Connection error. Try again.",
   "logout": "Sign out",
   "forgotPasswordSuccess": "Check your inbox and spam folder. The link expires in 60 minutes.",
+  "forgotPasswordRateLimited": "Too many reset links were requested. Please wait a bit and try again.",
   "authFullName": "Full name",
   "authEmail": "Email",
   "authPassword": "Password",

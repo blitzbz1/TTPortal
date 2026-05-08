@@ -78,6 +78,6 @@ export function sanitizeAppRoute(route?: string): string {
   if (!route) return '/(tabs)';
   if (!route.startsWith('/') || route.startsWith('//')) return '/(tabs)';
 
-  const allowed = ['/(tabs)', '/(protected)', '/venue/', '/onboarding', '/sign-in'];
+  const allowed = ['/(tabs)', '/(protected)', '/venue/', '/onboarding', '/sign-in', '/reset-password'];
   return allowed.some((prefix) => route.startsWith(prefix)) ? route : '/(tabs)';
 }

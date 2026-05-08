@@ -29,7 +29,9 @@ const EMAIL_OTP_TYPES: ReadonlySet<EmailOtpType> = new Set([
 ]);
 
 function getDefaultRoute(flow?: string) {
-  return flow === 'signup' ? '/onboarding' : '/(tabs)';
+  if (flow === 'signup') return '/onboarding';
+  if (flow === 'recovery') return '/reset-password';
+  return '/(tabs)';
 }
 
 function getParamValue(value?: string | string[]) {
@@ -38,7 +40,9 @@ function getParamValue(value?: string | string[]) {
 
 function getEmailOtpType(rawType?: string, flow?: string): EmailOtpType | null {
   if (!rawType) {
-    return flow === 'signup' ? 'signup' : null;
+    if (flow === 'signup') return 'signup';
+    if (flow === 'recovery') return 'recovery';
+    return null;
   }
 
   const normalized = rawType.toLowerCase() as EmailOtpType;
@@ -149,7 +153,10 @@ export default function AuthCallbackScreen() {
         ),
       };
       const flow = callback.flow;
-      const next = sanitizeAppRoute(callback.next ?? getDefaultRoute(flow));
+      const isRecoveryFlow = callback.type?.toLowerCase() === 'recovery' || flow === 'recovery';
+      const next = isRecoveryFlow
+        ? '/reset-password'
+        : sanitizeAppRoute(callback.next ?? getDefaultRoute(flow));
       const code = callback.code;
       const tokenHash = callback.tokenHash;
       const accessToken = callback.accessToken;
