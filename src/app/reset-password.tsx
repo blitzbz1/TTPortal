@@ -83,6 +83,40 @@ function isUsedTokenMessage(message?: string): boolean {
   return message?.toLowerCase().includes('already') === true;
 }
 
+function resetPasswordUpdateErrorKey(error: { code?: string; message?: string; status?: number }): string {
+  const code = error.code?.toLowerCase() ?? '';
+  const message = error.message?.toLowerCase() ?? '';
+
+  if (
+    code.includes('same_password') ||
+    message.includes('same password') ||
+    message.includes('different from the old password')
+  ) {
+    return 'resetPasswordSamePassword';
+  }
+
+  if (
+    error.status === 401 ||
+    code.includes('session') ||
+    code.includes('jwt') ||
+    message.includes('session') ||
+    message.includes('jwt') ||
+    message.includes('not authenticated')
+  ) {
+    return 'resetPasswordSessionExpired';
+  }
+
+  if (
+    code.includes('weak_password') ||
+    message.includes('weak password') ||
+    message.includes('password should')
+  ) {
+    return 'validationPasswordStrength';
+  }
+
+  return 'errorNetwork';
+}
+
 /**
  * Reset password screen — allows users to set a new password after
  * clicking the reset link from their email. Handles expired and
@@ -172,6 +206,15 @@ export default function ResetPasswordScreen() {
           return;
         }
 
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (cancelled) return;
+
+        if (!sessionData.session) {
+          logger.warn('reset password token hash verified without session');
+          setTokenStatus('expired');
+          return;
+        }
+
         logger.info('reset password token hash verified');
         setTokenStatus('valid');
         return;
@@ -221,8 +264,12 @@ export default function ResetPasswordScreen() {
       });
 
       if (updateError) {
-        logger.error('reset password failed', updateError);
-        setError(s('errorNetwork'));
+        logger.error('reset password failed', {
+          code: updateError.code,
+          message: updateError.message,
+          status: updateError.status,
+        });
+        setError(s(resetPasswordUpdateErrorKey(updateError)));
         return;
       }
 

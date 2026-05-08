@@ -80,6 +80,8 @@
   "resetPasswordExpired": "The link has expired or is invalid.",
   "resetPasswordUsed": "This link has already been used.",
   "resetPasswordRequestNew": "Request a new link",
+  "resetPasswordSamePassword": "Your new password must be different from your old password.",
+  "resetPasswordSessionExpired": "Your reset session expired. Request a new link and try again.",
   "brandSubtitle": "Table Tennis Romania",
   "comingSoonTitle": "Coming soon",
   "comingSoonMsg": "This feature will be available soon.",

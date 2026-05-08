@@ -7,6 +7,7 @@ const mockExchangeCodeForSession = jest.fn();
 const mockUpdateUser = jest.fn();
 const mockSetSession = jest.fn();
 const mockVerifyOtp = jest.fn();
+const mockGetSession = jest.fn();
 const mockGetInitialUrl = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
@@ -16,6 +17,7 @@ jest.mock('../../lib/supabase', () => ({
         mockExchangeCodeForSession(...a),
       setSession: (...a: unknown[]) => mockSetSession(...a),
       verifyOtp: (...a: unknown[]) => mockVerifyOtp(...a),
+      getSession: (...a: unknown[]) => mockGetSession(...a),
       updateUser: (...a: unknown[]) => mockUpdateUser(...a),
     },
   },
@@ -77,6 +79,7 @@ describe('ResetPasswordScreen — T040', () => {
     });
     mockSetSession.mockResolvedValue({ data: { session: null }, error: null });
     mockVerifyOtp.mockResolvedValue({ data: { session: { access_token: 'token' } }, error: null });
+    mockGetSession.mockResolvedValue({ data: { session: { access_token: 'token' } }, error: null });
     mockUpdateUser.mockResolvedValue({ data: {}, error: null });
     mockReplace.mockReset();
   });
@@ -125,6 +128,55 @@ describe('ResetPasswordScreen — T040', () => {
     expect(mockReplace).toHaveBeenCalledWith({
       pathname: '/sign-in',
       params: { initialTab: 'login' },
+    });
+  });
+
+  it('shows a friendly message when Supabase rejects reusing the old password', async () => {
+    mockUpdateUser.mockResolvedValueOnce({
+      data: {},
+      error: {
+        code: 'same_password',
+        message: 'New password should be different from the old password',
+        status: 422,
+      },
+    });
+
+    const { getByTestId, getByText } = render(<ResetPasswordScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('input-new-password')).toBeTruthy();
+    });
+
+    await user.type(getByTestId('input-new-password'), 'newPassword123');
+    await user.press(getByTestId('submit-button'));
+
+    await waitFor(() => {
+      expect(getByText('Parola nouă trebuie să fie diferită de parola veche.')).toBeTruthy();
+    });
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('shows a friendly message when the reset session expires before update', async () => {
+    mockUpdateUser.mockResolvedValueOnce({
+      data: {},
+      error: {
+        code: 'session_not_found',
+        message: 'Auth session missing',
+        status: 401,
+      },
+    });
+
+    const { getByTestId, getByText } = render(<ResetPasswordScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('input-new-password')).toBeTruthy();
+    });
+
+    await user.type(getByTestId('input-new-password'), 'newPassword123');
+    await user.press(getByTestId('submit-button'));
+
+    await waitFor(() => {
+      expect(getByText('Sesiunea de resetare a expirat. Solicită un link nou și încearcă din nou.')).toBeTruthy();
     });
   });
 
@@ -198,7 +250,22 @@ describe('ResetPasswordScreen — T040', () => {
       token_hash: 'recovery-token-hash',
       type: 'recovery',
     });
+    expect(mockGetSession).toHaveBeenCalled();
     expect(mockExchangeCodeForSession).not.toHaveBeenCalled();
+  });
+
+  it('shows expired state when token_hash verification returns no session', async () => {
+    mockSearchParams = {
+      token_hash: 'recovery-token-hash',
+      type: 'recovery',
+    };
+    mockGetSession.mockResolvedValueOnce({ data: { session: null }, error: null });
+
+    const { getByTestId } = render(<ResetPasswordScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('token-expired')).toBeTruthy();
+    });
   });
 
   it('does not verify the same one-time recovery token twice across rerenders', async () => {
