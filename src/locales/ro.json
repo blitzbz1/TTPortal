@@ -82,6 +82,8 @@
   "resetPasswordRequestNew": "Solicită un link nou",
   "resetPasswordSamePassword": "Parola nouă trebuie să fie diferită de parola veche.",
   "resetPasswordSessionExpired": "Sesiunea de resetare a expirat. Solicită un link nou și încearcă din nou.",
+  "resetPasswordSecurityEmailSent": "Ți-am trimis și un email de confirmare pentru această schimbare.",
+  "resetPasswordContinueToLogin": "Înapoi la conectare",
   "brandSubtitle": "Mese Tenis România",
   "comingSoonTitle": "În curând",
   "comingSoonMsg": "Această funcție va fi disponibilă în curând.",

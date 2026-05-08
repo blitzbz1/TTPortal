@@ -82,6 +82,8 @@
   "resetPasswordRequestNew": "Request a new link",
   "resetPasswordSamePassword": "Your new password must be different from your old password.",
   "resetPasswordSessionExpired": "Your reset session expired. Request a new link and try again.",
+  "resetPasswordSecurityEmailSent": "We also sent you a confirmation email for this change.",
+  "resetPasswordContinueToLogin": "Back to sign in",
   "brandSubtitle": "Table Tennis Romania",
   "comingSoonTitle": "Coming soon",
   "comingSoonMsg": "This feature will be available soon.",

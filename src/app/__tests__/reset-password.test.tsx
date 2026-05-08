@@ -9,6 +9,7 @@ const mockSetSession = jest.fn();
 const mockVerifyOtp = jest.fn();
 const mockGetSession = jest.fn();
 const mockGetInitialUrl = jest.fn();
+const mockSendPasswordChangedEmail = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
@@ -63,6 +64,10 @@ jest.mock('../../hooks/useTheme', () => ({
   }),
 }));
 
+jest.mock('../../services/securityEmails', () => ({
+  sendPasswordChangedEmail: (...a: unknown[]) => mockSendPasswordChangedEmail(...a),
+}));
+
  
 import ResetPasswordScreen from '../reset-password';
 
@@ -81,6 +86,7 @@ describe('ResetPasswordScreen — T040', () => {
     mockVerifyOtp.mockResolvedValue({ data: { session: { access_token: 'token' } }, error: null });
     mockGetSession.mockResolvedValue({ data: { session: { access_token: 'token' } }, error: null });
     mockUpdateUser.mockResolvedValue({ data: {}, error: null });
+    mockSendPasswordChangedEmail.mockResolvedValue({ data: { success: true }, error: null });
     mockReplace.mockReset();
   });
 
@@ -109,7 +115,7 @@ describe('ResetPasswordScreen — T040', () => {
     expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
-  it('successful password update shows success message and navigates to /sign-in', async () => {
+  it('successful password update shows success and security email messages before login', async () => {
     const { getByTestId, getByText } = render(<ResetPasswordScreen />);
 
     await waitFor(() => {
@@ -122,13 +128,40 @@ describe('ResetPasswordScreen — T040', () => {
     await waitFor(() => {
       expect(getByText('Parola a fost actualizată cu succes.')).toBeTruthy();
     });
+    expect(getByText('Ți-am trimis și un email de confirmare pentru această schimbare.')).toBeTruthy();
     expect(mockUpdateUser).toHaveBeenCalledWith({
       password: 'newPassword123',
     });
+    expect(mockSendPasswordChangedEmail).toHaveBeenCalledTimes(1);
+    expect(mockReplace).not.toHaveBeenCalled();
+
+    await user.press(getByTestId('continue-to-login'));
+
     expect(mockReplace).toHaveBeenCalledWith({
       pathname: '/sign-in',
       params: { initialTab: 'login' },
     });
+  });
+
+  it('still shows password reset success if the security email cannot be sent', async () => {
+    mockSendPasswordChangedEmail.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'Email failed', code: 'email_failed', status: 500 },
+    });
+
+    const { getByTestId, getByText, queryByTestId } = render(<ResetPasswordScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('input-new-password')).toBeTruthy();
+    });
+
+    await user.type(getByTestId('input-new-password'), 'newPassword123');
+    await user.press(getByTestId('submit-button'));
+
+    await waitFor(() => {
+      expect(getByText('Parola a fost actualizată cu succes.')).toBeTruthy();
+    });
+    expect(queryByTestId('security-email-message')).toBeNull();
   });
 
   it('shows a friendly message when Supabase rejects reusing the old password', async () => {

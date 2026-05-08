@@ -21,6 +21,7 @@ import { Lucide } from '../components/Icon';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 import { isStrongPassword } from '../lib/auth-utils';
+import { sendPasswordChangedEmail } from '../services/securityEmails';
 
 type TokenStatus = 'loading' | 'valid' | 'expired' | 'used';
 
@@ -135,6 +136,7 @@ export default function ResetPasswordScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [securityEmailSent, setSecurityEmailSent] = useState(false);
   const processedRecoveryKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -274,8 +276,16 @@ export default function ResetPasswordScreen() {
       }
 
       logger.info('password reset successful');
+      const emailResult = await sendPasswordChangedEmail();
+      if (emailResult.error) {
+        logger.warn('password changed confirmation email failed', {
+          code: emailResult.error.code,
+          status: emailResult.error.status,
+        });
+      } else {
+        setSecurityEmailSent(true);
+      }
       setSuccess(true);
-      router.replace({ pathname: '/sign-in', params: { initialTab: 'login' } });
     } catch (err) {
       logger.error('reset password exception', err);
       setError(s('errorNetwork'));
@@ -286,6 +296,10 @@ export default function ResetPasswordScreen() {
 
   const handleRequestNewLink = useCallback(() => {
     router.replace('/forgot-password');
+  }, [router]);
+
+  const handleContinueToLogin = useCallback(() => {
+    router.replace({ pathname: '/sign-in', params: { initialTab: 'login' } });
   }, [router]);
 
   if (tokenStatus === 'loading') {
@@ -351,9 +365,26 @@ export default function ResetPasswordScreen() {
           <Text style={styles.title}>{s('authResetPasswordTitle')}</Text>
 
           {success ? (
-            <Text style={styles.successText} testID="success-message">
-              {s('resetPasswordSuccess')}
-            </Text>
+            <View style={styles.form}>
+              <Text style={styles.successText} testID="success-message">
+                {s('resetPasswordSuccess')}
+              </Text>
+              {securityEmailSent && (
+                <Text style={styles.successText} testID="security-email-message">
+                  {s('resetPasswordSecurityEmailSent')}
+                </Text>
+              )}
+              <Pressable
+                onPress={handleContinueToLogin}
+                accessibilityRole="button"
+                testID="continue-to-login"
+                style={styles.submitBtn}
+              >
+                <Text style={styles.submitText}>
+                  {s('resetPasswordContinueToLogin')}
+                </Text>
+              </Pressable>
+            </View>
           ) : (
             <View style={styles.form}>
               <View style={styles.inputRow}>
