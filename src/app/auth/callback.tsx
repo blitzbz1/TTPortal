@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
@@ -138,6 +138,7 @@ export default function AuthCallbackScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [state, setState] = useState<CallbackState>('processing');
+  const processedCallbackKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,6 +153,22 @@ export default function AuthCallbackScreen() {
           Object.entries(directParams).filter(([, value]) => value !== undefined),
         ),
       };
+      const callbackKey = [
+        callback.errorCode,
+        callback.errorDescription,
+        callback.accessToken,
+        callback.refreshToken,
+        callback.code,
+        callback.tokenHash,
+        callback.type,
+        callback.flow,
+        callback.next,
+      ].join('|');
+
+      if (processedCallbackKeyRef.current === callbackKey) {
+        return;
+      }
+      processedCallbackKeyRef.current = callbackKey;
       const flow = callback.flow;
       const isRecoveryFlow = callback.type?.toLowerCase() === 'recovery' || flow === 'recovery';
       const next = isRecoveryFlow

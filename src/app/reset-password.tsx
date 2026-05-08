@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -101,6 +101,7 @@ export default function ResetPasswordScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const processedRecoveryKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,6 +116,19 @@ export default function ResetPasswordScreen() {
           Object.entries(directParams).filter(([, value]) => value !== undefined),
         ),
       };
+      const recoveryKey = [
+        recovery.errorDescription,
+        recovery.accessToken,
+        recovery.refreshToken,
+        recovery.code,
+        recovery.tokenHash,
+        recovery.type,
+      ].join('|');
+
+      if (processedRecoveryKeyRef.current === recoveryKey) {
+        return;
+      }
+      processedRecoveryKeyRef.current = recoveryKey;
 
       if (recovery.errorDescription) {
         setTokenStatus(isUsedTokenMessage(recovery.errorDescription) ? 'used' : 'expired');

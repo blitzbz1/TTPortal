@@ -16,7 +16,7 @@ const mockGetInitialUrl = jest.fn();
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: (...args: unknown[]) => mockReplace(...args) }),
-  useLocalSearchParams: () => mockSearchParams,
+  useLocalSearchParams: () => ({ ...mockSearchParams }),
 }));
 
 jest.mock('../../hooks/useI18n', () => ({
@@ -176,6 +176,26 @@ describe('AuthCallbackScreen', () => {
       });
     });
     expect(mockReplace).toHaveBeenCalledWith('/reset-password');
+  });
+
+  it('does not verify the same callback token twice across rerenders', async () => {
+    mockSearchParams = {
+      token_hash: 'recovery-token-hash',
+      type: 'recovery',
+      flow: 'recovery',
+    };
+
+    const { rerender } = render(<AuthCallbackScreen />);
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith('/reset-password');
+    });
+
+    rerender(<AuthCallbackScreen />);
+
+    await waitFor(() => {
+      expect(mockVerifyOtp).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('falls back to sign-in when signup verification succeeds without restoring a session', async () => {

@@ -48,7 +48,7 @@ let mockSearchParams: Record<string, string> = { code: 'valid-code-123' };
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: (...a: unknown[]) => mockReplace(...a) }),
-  useLocalSearchParams: () => mockSearchParams,
+  useLocalSearchParams: () => ({ ...mockSearchParams }),
 }));
 
 jest.mock('../../hooks/useTheme', () => ({
@@ -199,5 +199,24 @@ describe('ResetPasswordScreen — T040', () => {
       type: 'recovery',
     });
     expect(mockExchangeCodeForSession).not.toHaveBeenCalled();
+  });
+
+  it('does not verify the same one-time recovery token twice across rerenders', async () => {
+    mockSearchParams = {
+      token_hash: 'recovery-token-hash',
+      type: 'recovery',
+    };
+
+    const { getByTestId, rerender } = render(<ResetPasswordScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('input-new-password')).toBeTruthy();
+    });
+
+    rerender(<ResetPasswordScreen />);
+
+    await waitFor(() => {
+      expect(mockVerifyOtp).toHaveBeenCalledTimes(1);
+    });
   });
 });
