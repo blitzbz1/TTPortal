@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS public.events (
   starts_at TIMESTAMPTZ NOT NULL,
   ends_at TIMESTAMPTZ,
   max_participants INT DEFAULT 6,
-  status TEXT DEFAULT 'open' CHECK (status IN ('open', 'confirmed', 'cancelled', 'completed')),
+  status TEXT DEFAULT 'open' CHECK (status IN ('open', 'confirmed', 'closed', 'cancelled', 'completed')),
   event_type TEXT DEFAULT 'casual' CHECK (event_type IN ('casual', 'tournament')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

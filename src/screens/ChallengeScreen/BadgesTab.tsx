@@ -56,14 +56,12 @@ export function BadgesTab({
     const segmentStart = index * 5;
     const segmentCompleted = Math.max(0, Math.min(5, completedCount - segmentStart));
     const tierPalette = getBadgeTierPalette(tier);
-    const isCurrentTier = completedCount >= segmentStart && completedCount < segmentStart + 5;
     const isCompletedTier = completedCount >= segmentStart + 5;
     return {
       tier,
       tierPalette,
       completed: segmentCompleted,
       progressWidth: `${(segmentCompleted / 5) * 100}%` as `${number}%`,
-      isCurrentTier,
       isCompletedTier,
     };
   });
@@ -97,7 +95,7 @@ export function BadgesTab({
           </View>
         </View>
         <View style={styles.badgeTierProgressPanel}>
-          {tierSegments.map(({ tier, tierPalette, completed, progressWidth, isCurrentTier, isCompletedTier }) => (
+          {tierSegments.map(({ tier, tierPalette, completed, progressWidth, isCompletedTier }) => (
             <View
               key={tier}
               style={[
@@ -123,7 +121,7 @@ export function BadgesTab({
                       {
                         width: progressWidth,
                         backgroundColor: tierPalette.iconSurface,
-                        opacity: isCurrentTier || isCompletedTier ? 1 : 0.88,
+                        opacity: isCompletedTier ? 1 : 0.88,
                       },
                     ]}
                   />

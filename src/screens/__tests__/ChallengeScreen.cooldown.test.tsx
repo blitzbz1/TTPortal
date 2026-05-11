@@ -117,34 +117,17 @@ describe('ChallengeScreen cooldown flows', () => {
     jest.useRealTimers();
   });
 
-  it('locks, forfeits, shows the bouncing-ball cooldown, then returns to challenge options', async () => {
+  it('selects an event challenge and routes to events for adding it', async () => {
     mockChoices = [otherChallenge];
 
     render(<ChallengeScreen hideTabBar />);
 
     fireEvent.press(screen.getByTestId('challenge-card-challenge-other'));
-    expect(screen.getByText('Lock-in')).toBeTruthy();
-    expect(screen.getByText('Create event')).toBeTruthy();
-
-    fireEvent.press(screen.getByText('Lock-in'));
     expect(mockSetCurrentSelectedChallenge).toHaveBeenLastCalledWith(otherChallenge);
-    expect(screen.getByText('Forfeit')).toBeTruthy();
+    expect(screen.getByText('Add to event')).toBeTruthy();
 
-    fireEvent.press(screen.getByText('Forfeit'));
-    expect(mockSetCurrentSelectedChallenge).toHaveBeenLastCalledWith(null);
-    expect(screen.getByTestId('challenge-cooldown-panel')).toBeTruthy();
-    expect(screen.getByText('Breathe.')).toBeTruthy();
-    expect(screen.getByText('When the ball stops bouncing new options will appear.')).toBeTruthy();
-    expect(screen.getByText('1:00')).toBeTruthy();
-
-    act(() => {
-      jest.advanceTimersByTime(60000);
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('challenge-cooldown-panel')).toBeNull();
-      expect(screen.getByTestId('challenge-card-challenge-other')).toBeTruthy();
-    });
+    fireEvent.press(screen.getByText('Add to event'));
+    expect(mockPush).toHaveBeenCalledWith('/(tabs)/events');
   });
 
   it('shows the same one-minute cooldown after solo challenge completion', async () => {

@@ -271,7 +271,7 @@ CREATE TABLE IF NOT EXISTS public.events (
   starts_at TIMESTAMPTZ NOT NULL,
   ends_at TIMESTAMPTZ,
   max_participants INT DEFAULT 6,
-  status TEXT DEFAULT 'open' CHECK (status IN ('open', 'confirmed', 'cancelled', 'completed')),
+  status TEXT DEFAULT 'open' CHECK (status IN ('open', 'confirmed', 'closed', 'cancelled', 'completed')),
   event_type TEXT DEFAULT 'casual' CHECK (event_type IN ('casual', 'tournament')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -418,7 +418,15 @@ DROP POLICY IF EXISTS "Event participants are publicly readable" ON public.event
 CREATE POLICY "Event participants are publicly readable" ON public.event_participants FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Users can join events" ON public.event_participants;
 CREATE POLICY "Users can join events" ON public.event_participants FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (
+    auth.uid() = user_id
+    AND EXISTS (
+      SELECT 1
+      FROM public.events e
+      WHERE e.id = event_id
+        AND e.status IN ('open', 'confirmed')
+    )
+  );
 DROP POLICY IF EXISTS "Users can leave events" ON public.event_participants;
 CREATE POLICY "Users can leave events" ON public.event_participants FOR DELETE TO authenticated
   USING (auth.uid() = user_id);

@@ -113,8 +113,15 @@ DROP POLICY IF EXISTS "Event participants are publicly readable" ON public.event
 CREATE POLICY "Event participants are publicly readable" ON public.event_participants FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Users can join events" ON public.event_participants;
 CREATE POLICY "Users can join events" ON public.event_participants FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (
+    auth.uid() = user_id
+    AND EXISTS (
+      SELECT 1
+      FROM public.events e
+      WHERE e.id = event_id
+        AND e.status IN ('open', 'confirmed')
+    )
+  );
 DROP POLICY IF EXISTS "Users can leave events" ON public.event_participants;
 CREATE POLICY "Users can leave events" ON public.event_participants FOR DELETE TO authenticated
   USING (auth.uid() = user_id);
-

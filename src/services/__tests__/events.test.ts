@@ -102,7 +102,7 @@ describe('getEventParticipants', () => {
 describe('getEvents', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('filters upcoming events to "not yet ended" and excludes cancelled/completed', async () => {
+  it('filters upcoming events to "not yet ended" and excludes closed/cancelled/completed', async () => {
     mockFrom.mockReturnValue(createQueryChain([]));
 
     await getEvents('upcoming');
@@ -113,7 +113,7 @@ describe('getEvents', () => {
     expect(orArg).toContain('starts_at.gte.');
     expect(orArg).toContain('ends_at.gte.');
     expect(orArg).toContain('and(ends_at.is.null,starts_at.gte.');
-    expect(chain.not).toHaveBeenCalledWith('status', 'in', '(cancelled,completed)');
+    expect(chain.not).toHaveBeenCalledWith('status', 'in', '(closed,cancelled,completed)');
     expect(chain.order).toHaveBeenCalledWith('starts_at', { ascending: true });
   });
 

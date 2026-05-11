@@ -110,7 +110,7 @@ export interface Friendship {
   created_at: string;
 }
 
-export type EventStatus = 'open' | 'confirmed' | 'cancelled' | 'completed';
+export type EventStatus = 'open' | 'confirmed' | 'closed' | 'cancelled' | 'completed';
 export type EventType = 'casual' | 'tournament';
 export type RecurrenceRule = 'daily' | 'weekly' | 'monthly';
 export type EventVisibility = 'public' | 'friends' | 'private';

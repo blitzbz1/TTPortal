@@ -23,15 +23,12 @@ import { LogHoursModal } from '../components/LogHoursModal';
 import { WriteEventFeedbackScreen } from './WriteEventFeedbackScreen';
 import { createStyles } from './EventSchedulingScreen.styles';
 import { EventDetailContent } from './EventSchedulingScreen/EventDetailContent';
-import { BADGE_TRACKS } from '../lib/badgeChallenges';
 import {
   requiresOtherPlayer,
   resolveChallengeTitle,
   setCurrentSelectedChallenge,
-  type ChallengeCategory,
   type DbChallenge,
   type EventChallengeSubmission,
-  useChallengeChoices,
   useCurrentSelectedChallenge,
   useEventChallenges,
 } from '../features/challenges';
@@ -56,8 +53,6 @@ export function EventDetailScreen() {
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
   const [feedbackGivenIds, setFeedbackGivenIds] = useState<Set<number>>(new Set());
 
-  const [eventChallengeTrackId, setEventChallengeTrackId] = useState(BADGE_TRACKS[0].id);
-  const [showAddChallenge, setShowAddChallenge] = useState(false);
   const [challengeActionId, setChallengeActionId] = useState<string | null>(null);
   const [descExpanded, setDescExpanded] = useState(false);
   const [updateText, setUpdateText] = useState('');
@@ -68,17 +63,9 @@ export function EventDetailScreen() {
   const [logHoursEvent, setLogHoursEvent] = useState<{ id: number; title: string; initialHours: number } | null>(null);
 
   const currentSelectedChallenge = useCurrentSelectedChallenge();
-  const eventChallengeTrack = BADGE_TRACKS.find((b) => b.id === eventChallengeTrackId) ?? BADGE_TRACKS[0];
   const currentEventChallenge = currentSelectedChallenge && requiresOtherPlayer(currentSelectedChallenge)
     ? currentSelectedChallenge
     : null;
-  const { choices: eventChallengeChoices } = useChallengeChoices(
-    eventChallengeTrack.category as ChallengeCategory,
-    {
-      enabled: showAddChallenge && !!event && !currentEventChallenge,
-      onlyOtherPlayer: true,
-    },
-  );
   const {
     addChallenge: addEventChallenge,
     awardChallenge: awardEventChallenge,
@@ -170,7 +157,6 @@ export function EventDetailScreen() {
     if (currentEventChallenge?.id === challenge.id) {
       setCurrentSelectedChallenge(null);
     }
-    setShowAddChallenge(false);
   }, [addEventChallenge, currentEventChallenge?.id, s, event, user]);
 
   const handleAwardEventChallenge = useCallback(async (submission: EventChallengeSubmission) => {
@@ -192,6 +178,10 @@ export function EventDetailScreen() {
   const handleJoin = useCallback(async (ev: any) => {
     if (!user) {
       router.push('/sign-in');
+      return;
+    }
+    if (ev.status === 'closed') {
+      Alert.alert(s('closed'), s('eventClosedJoinError'));
       return;
     }
     const isJoined = ev.event_participants?.some((p: any) => p.user_id === user.id);
@@ -289,12 +279,7 @@ export function EventDetailScreen() {
           detailLoading={detailLoading}
           detailChallenges={detailChallenges}
           feedbackGivenIds={feedbackGivenIds}
-          showAddChallenge={showAddChallenge}
-          setShowAddChallenge={setShowAddChallenge}
-          eventChallengeTrack={eventChallengeTrack}
-          setEventChallengeTrackId={setEventChallengeTrackId}
           challengeActionId={challengeActionId}
-          eventChallengeChoices={eventChallengeChoices}
           currentEventChallenge={currentEventChallenge}
           descExpanded={descExpanded}
           setDescExpanded={setDescExpanded}

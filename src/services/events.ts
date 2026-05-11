@@ -32,7 +32,7 @@ export async function getEvents(
     // In-progress events surface here so they don't slip between tabs.
     query = query
       .or(`starts_at.gte.${now},ends_at.gte.${now},and(ends_at.is.null,starts_at.gte.${fourHoursAgo})`)
-      .not('status', 'in', '(cancelled,completed)');
+      .not('status', 'in', '(closed,cancelled,completed)');
   } else if (filter === 'past') {
     // Complement of upcoming: events that have actually ended.
     //   - ended explicitly  (ends_at < now)
@@ -66,7 +66,7 @@ export async function getUpcomingEventsByVenue(venueId: number) {
     )
     .eq('venue_id', venueId)
     .or(`starts_at.gte.${now},ends_at.gte.${now},and(ends_at.is.null,starts_at.gte.${fourHoursAgo})`)
-    .not('status', 'in', '(cancelled,completed)')
+    .not('status', 'in', '(closed,cancelled,completed)')
     .order('starts_at', { ascending: true })
     .limit(50);
 }
@@ -85,7 +85,7 @@ export async function getUpcomingEventCountByVenue(venueId: number) {
     .select('id', { count: 'exact', head: true })
     .eq('venue_id', venueId)
     .or(`starts_at.gte.${now},ends_at.gte.${now},and(ends_at.is.null,starts_at.gte.${fourHoursAgo})`)
-    .not('status', 'in', '(cancelled,completed)');
+    .not('status', 'in', '(closed,cancelled,completed)');
   return { data: count ?? 0, error };
 }
 
@@ -119,7 +119,7 @@ export type ActiveFriendEventRow = {
  * "In progress" =
  *   - `starts_at <= now()` AND
  *   - (`ends_at >= now()` OR (`ends_at IS NULL` AND `starts_at >= now() - 4h`))
- *   - status not in (cancelled, completed)
+ *   - status not in (closed, cancelled, completed)
  *
  * The 4-hour fallback for null `ends_at` matters: many historical events
  * have no end time stored, and treating them as forever-in-progress would
@@ -142,7 +142,7 @@ export async function getActiveFriendEvents(friendIds: string[]) {
     )
     .lte('starts_at', now)
     .or(`ends_at.gte.${now},and(ends_at.is.null,starts_at.gte.${fourHoursAgo})`)
-    .not('status', 'in', '(cancelled,completed)')
+    .not('status', 'in', '(closed,cancelled,completed)')
     .in('event_participants.user_id', friendIds)
     .returns<ActiveFriendEventRow[]>();
 }
@@ -162,6 +162,23 @@ export async function createEvent(data: EventInsert) {
 }
 
 export async function joinEvent(eventId: number, userId: string) {
+  const { data: event, error: eventError } = await supabase
+    .from('events')
+    .select('status')
+    .eq('id', eventId)
+    .single();
+
+  if (eventError) {
+    return { data: null, error: eventError };
+  }
+
+  if (!event || !['open', 'confirmed'].includes(event.status)) {
+    return {
+      data: null,
+      error: { message: 'Event is closed for new joins.' },
+    };
+  }
+
   return supabase
     .from('event_participants')
     .insert({ event_id: eventId, user_id: userId })
@@ -206,7 +223,7 @@ export async function stopRecurrence(eventId: number, organizerId: string) {
 export async function closeEvent(eventId: number, organizerId: string) {
   return supabase
     .from('events')
-    .update({ status: 'completed', ends_at: new Date().toISOString() })
+    .update({ status: 'closed' })
     .eq('id', eventId)
     .eq('organizer_id', organizerId)
     .select()

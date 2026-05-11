@@ -2,20 +2,14 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking, TextInput } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useRouter } from 'expo-router';
-import { BadgeTrackIcon } from '../../components/BadgeTrackIcon';
 import { Lucide } from '../../components/Icon';
 import { useTheme } from '../../hooks/useTheme';
 import { useI18n } from '../../hooks/useI18n';
 import { cancelEvent, closeEvent, stopRecurrence, sendEventUpdate } from '../../services/events';
+import { sendRequest } from '../../services/friends';
 import { invalidateEventsCache } from '../../lib/eventsCache';
-import { BADGE_TRACKS } from '../../lib/badgeChallenges';
 import type { DbChallenge, EventChallengeSubmission } from '../../features/challenges';
 import { createStyles } from '../EventSchedulingScreen.styles';
-
-const TRACK_ROWS = [
-  [BADGE_TRACKS[0], BADGE_TRACKS[1], BADGE_TRACKS[2]],
-  [BADGE_TRACKS[3], BADGE_TRACKS[4], BADGE_TRACKS[5]],
-] as const;
 
 type BadgeInfo = { text: string; bg: string; color: string };
 
@@ -54,12 +48,7 @@ export interface EventDetailContentProps {
   detailLoading: boolean;
   detailChallenges: EventChallengeSubmission[];
   feedbackGivenIds: Set<number>;
-  showAddChallenge: boolean;
-  setShowAddChallenge: React.Dispatch<React.SetStateAction<boolean>>;
-  eventChallengeTrack: (typeof BADGE_TRACKS)[number];
-  setEventChallengeTrackId: React.Dispatch<React.SetStateAction<string>>;
   challengeActionId: string | null;
-  eventChallengeChoices: DbChallenge[];
   currentEventChallenge: DbChallenge | null;
   descExpanded: boolean;
   setDescExpanded: React.Dispatch<React.SetStateAction<boolean>>;
@@ -85,9 +74,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
   const {
     event: ev, user, friendIds,
     detailParticipants, detailFeedback, detailLoading, detailChallenges, feedbackGivenIds,
-    showAddChallenge, setShowAddChallenge,
-    eventChallengeTrack, setEventChallengeTrackId,
-    challengeActionId, eventChallengeChoices, currentEventChallenge,
+    challengeActionId, currentEventChallenge,
     descExpanded, setDescExpanded,
     updateText, setUpdateText, sendingUpdate, setSendingUpdate,
     formatDate, formatTime, isEffectivelyOver,
@@ -109,6 +96,9 @@ export function EventDetailContent(props: EventDetailContentProps) {
     if (e.status === 'cancelled') {
       return { text: s('cancelled'), bg: colors.cancelledBadgeBg, color: colors.red };
     }
+    if (e.status === 'closed') {
+      return { text: s('closed'), bg: colors.borderLight, color: colors.textMuted };
+    }
     if (e.status === 'confirmed') {
       return { text: s('confirmed'), bg: colors.primaryPale, color: colors.primaryMid };
     }
@@ -126,10 +116,50 @@ export function EventDetailContent(props: EventDetailContentProps) {
   const isJoined = ev.event_participants?.some((p: any) => p.user_id === user?.id);
   const duration = getDuration(ev.starts_at, ev.ends_at);
   const friendParticipants = detailParticipants.filter((p) => friendIds.has(p.user_id));
+  const description = typeof ev.description === 'string' ? ev.description.trim() : '';
+  const participantCount = detailParticipants.length || ev.event_participants?.length || 0;
+  const participantLimit = ev.max_participants ?? '∞';
+  const heroParticipants = detailParticipants.length > 0
+    ? detailParticipants
+    : (ev.event_participants ?? []);
   const userEventChallenge = detailChallenges.find((submission) => (
     submission.submitter_user_id === user?.id
     && ['pending', 'approved', 'auto_approved'].includes(submission.status)
   ));
+
+  const handleParticipantPress = (participant: any) => {
+    const participantId = participant.user_id;
+    if (!participantId || !user?.id) return;
+    const profile = participant.profiles;
+    const fullName = profile?.full_name ?? s('player');
+    const isMe = participantId === user.id;
+    const isFriend = friendIds.has(participantId);
+
+    if (isMe || isFriend) {
+      closeDetail();
+      router.push(`/(protected)/player/${participantId}` as any);
+      return;
+    }
+
+    Alert.alert(
+      fullName,
+      s('addFriend'),
+      [
+        { text: s('cancel'), style: 'cancel' },
+        {
+          text: s('addFriend'),
+          onPress: async () => {
+            const { error } = await sendRequest(user.id, participantId);
+            if (error) {
+              Alert.alert(s('error'), error.message);
+            } else {
+              Alert.alert(s('friendRequestSent'));
+            }
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <>
@@ -138,6 +168,78 @@ export function EventDetailContent(props: EventDetailContentProps) {
         <View style={[styles.eventBadge, { backgroundColor: badge.bg }]}>
           <Text style={[styles.eventBadgeText, { color: badge.color }]}>{badge.text}</Text>
         </View>
+      </View>
+
+      {description ? (
+        <View style={ms.heroDescription}>
+          <Text style={ms.heroDescriptionText} numberOfLines={descExpanded ? undefined : 4}>
+            {description}
+          </Text>
+          {description.length > 120 && !descExpanded && (
+            <TouchableOpacity onPress={() => setDescExpanded(true)}>
+              <Text style={ms.showMoreText}>...{lang === 'ro' ? 'mai mult' : 'more'}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : null}
+
+      <View style={ms.heroParticipants}>
+        <View style={ms.heroParticipantsHeader}>
+          <View>
+            <Text style={ms.heroParticipantsLabel}>{s('participants')}</Text>
+            <Text style={ms.heroParticipantsValue}>{participantCount}/{participantLimit} {s('spots')}</Text>
+          </View>
+          {friendParticipants.length > 0 && (
+            <View style={ms.heroFriendChip}>
+              <Lucide name="users" size={12} color={colors.primary} />
+              <Text style={ms.heroFriendChipText}>{friendParticipants.length}</Text>
+            </View>
+          )}
+        </View>
+        {detailLoading ? (
+          <ActivityIndicator size="small" color={colors.accentBright} style={ms.heroParticipantsLoading} />
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ms.heroAvatarRail}>
+            {heroParticipants.slice(0, 30).map((p: any, index: number) => {
+              const profile = p.profiles;
+              const fullName = profile?.full_name ?? s('player');
+              const nameParts = fullName.split(' ').filter(Boolean);
+              const shortName = p.user_id === user?.id
+                ? s('you')
+                : nameParts.length >= 2
+                  ? `${nameParts[0]} ${nameParts[nameParts.length - 1][0]}.`
+                  : nameParts[0] ?? s('player');
+              const isOrganizer = p.user_id === ev.organizer_id;
+              const isFriend = friendIds.has(p.user_id) || p.user_id === user?.id;
+              return (
+                <TouchableOpacity
+                  key={p.user_id ?? index}
+                  style={ms.heroParticipantItem}
+                  activeOpacity={0.78}
+                  onPress={() => handleParticipantPress(p)}
+                  accessibilityRole="button"
+                  accessibilityLabel={isFriend ? fullName : `${s('addFriend')} ${fullName}`}
+                >
+                  <View
+                    style={[
+                      ms.heroAvatar,
+                      isFriend && ms.heroAvatarFriend,
+                      { backgroundColor: getAvatarColor(p.user_id ?? String(index)) },
+                    ]}
+                  >
+                    <Text style={ms.heroAvatarText}>{getInitials(fullName)}</Text>
+                    {isOrganizer && (
+                      <View style={ms.pOrgBadge}>
+                        <Lucide name="star" size={8} color={colors.amber} />
+                      </View>
+                    )}
+                  </View>
+                  <Text style={ms.heroParticipantName} numberOfLines={1}>{shortName}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
       </View>
 
       <View style={ms.infoBlock}>
@@ -187,125 +289,6 @@ export function EventDetailContent(props: EventDetailContentProps) {
         )}
       </View>
 
-      <View style={ms.section}>
-        <Text style={ms.sectionTitle}>{s('description')}</Text>
-        <Text style={ms.descText} numberOfLines={descExpanded ? undefined : 4}>
-          {ev.description || s('noDescription')}
-        </Text>
-        {ev.description && ev.description.length > 120 && !descExpanded && (
-          <TouchableOpacity onPress={() => setDescExpanded(true)}>
-            <Text style={ms.showMoreText}>...{lang === 'ro' ? 'mai mult' : 'more'}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {venueLat != null && venueLng != null && (
-        <>
-          <View style={styles.amaturMapWrap}>
-            <MapView
-              style={styles.amaturMap}
-              initialRegion={{
-                latitude: venueLat,
-                longitude: venueLng,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              }}
-              scrollEnabled={false}
-              zoomEnabled={false}
-              rotateEnabled={false}
-              pitchEnabled={false}
-            >
-              <Marker
-                coordinate={{ latitude: venueLat, longitude: venueLng }}
-                title={venueName}
-                description={venueCity || undefined}
-              />
-            </MapView>
-          </View>
-          <View style={styles.amaturNavSection}>
-            <View style={styles.amaturNavRow}>
-              <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://maps.google.com/?q=${venueLat},${venueLng}`)}>
-                <Lucide name="navigation" size={14} color={colors.textMuted} />
-                <Text style={styles.amaturNavBtnText}>Google</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://maps.apple.com/?q=${venueLat},${venueLng}`)}>
-                <Lucide name="navigation" size={14} color={colors.textMuted} />
-                <Text style={styles.amaturNavBtnText}>Apple</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://waze.com/ul?ll=${venueLat},${venueLng}&navigate=yes`)}>
-                <Lucide name="navigation" size={14} color={colors.textMuted} />
-                <Text style={styles.amaturNavBtnText}>Waze</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </>
-      )}
-
-      <View style={ms.section}>
-        <View style={ms.sectionHeader}>
-          <Text style={ms.sectionTitle}>
-            {s('participants')}
-            {friendParticipants.length > 0
-              ? ` (${friendParticipants.length} ${friendParticipants.length === 1 ? (lang === 'ro' ? 'prieten' : 'friend') : (lang === 'ro' ? 'prieteni' : 'friends')})`
-              : ''}
-          </Text>
-          <Text style={ms.countBadge}>
-            {detailParticipants.length}/{ev.max_participants ?? '\u221E'}
-          </Text>
-        </View>
-
-        {detailLoading ? (
-          <ActivityIndicator size="small" color={colors.accentBright} style={{ marginVertical: 12 }} />
-        ) : detailParticipants.length === 0 ? (
-          <Text style={ms.emptyText}>{s('noEvents')}</Text>
-        ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={ms.pHScroll} contentContainerStyle={ms.pHScrollContent}>
-            {detailParticipants.slice(0, 30).map((p) => {
-              const profile = p.profiles;
-              const fullName = profile?.full_name ?? '??';
-              const nameParts = fullName.split(' ').filter(Boolean);
-              const shortName = nameParts.length >= 2
-                ? `${nameParts[0]} ${nameParts[nameParts.length - 1][0]}.`
-                : nameParts[0] ?? '??';
-              const isOrganizer = p.user_id === ev.organizer_id;
-              const isMe = p.user_id === user?.id;
-              return (
-                <TouchableOpacity
-                  key={p.user_id}
-                  style={ms.pHItem}
-                  activeOpacity={0.78}
-                  onPress={() => {
-                    closeDetail();
-                    router.push(`/(protected)/player/${p.user_id}` as any);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={fullName}
-                >
-                  <View style={[ms.pAvatar, { backgroundColor: getAvatarColor(p.user_id) }]}>
-                    <Text style={ms.pInitials}>{getInitials(fullName)}</Text>
-                    {isOrganizer && (
-                      <View style={ms.pOrgBadge}>
-                        <Lucide name="star" size={8} color={colors.amber} />
-                      </View>
-                    )}
-                  </View>
-                  <Text style={ms.pHName} numberOfLines={1}>
-                    {isMe ? s('you') : shortName}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-            {detailParticipants.length > 30 && (
-              <View style={ms.pHItem}>
-                <View style={[ms.pAvatar, { backgroundColor: colors.bgMuted }]}>
-                  <Text style={[ms.pInitials, { color: colors.textMuted }]}>+{detailParticipants.length - 30}</Text>
-                </View>
-              </View>
-            )}
-          </ScrollView>
-        )}
-      </View>
-
       {user && isJoined && ev.status !== 'cancelled' && (
         <View style={ms.section}>
           <View style={styles.challengeSectionHeader}>
@@ -318,133 +301,41 @@ export function EventDetailContent(props: EventDetailContentProps) {
               )}
             </View>
             <TouchableOpacity
-              style={[styles.challengeAddIconBtn, userEventChallenge && styles.disabledChallenge]}
-              disabled={!!userEventChallenge}
-              onPress={() => setShowAddChallenge((value) => !value)}
+              style={[
+                styles.challengeAddPill,
+                userEventChallenge && styles.disabledChallenge,
+                currentEventChallenge && !userEventChallenge && challengeActionId === currentEventChallenge.id && styles.disabledChallenge,
+              ]}
+              disabled={!!userEventChallenge || !!challengeActionId}
+              onPress={() => {
+                if (currentEventChallenge) {
+                  onAddChallenge(currentEventChallenge);
+                } else {
+                  router.push('/(tabs)/challenges?tab=challenges' as any);
+                }
+              }}
               accessibilityLabel={userEventChallenge
                 ? s('eventChallengeAlreadyAdded')
-                : showAddChallenge
-                  ? s('cancel')
-                  : s('eventAddChallenge')}
+                : currentEventChallenge
+                  ? s('eventAddToEventShort')
+                  : s('challengeSelect')}
             >
-              <Lucide name={showAddChallenge ? 'x' : 'plus'} size={18} color={colors.primary} />
+              <Lucide
+                name={userEventChallenge ? 'check' : currentEventChallenge ? 'plus' : 'target'}
+                size={15}
+                color={colors.primary}
+              />
+              <Text style={styles.challengeAddPillText}>
+                {userEventChallenge
+                  ? s('eventChallengeAlreadyAdded')
+                  : currentEventChallenge
+                    ? (challengeActionId === currentEventChallenge.id ? s('loading') : s('eventAddToEventShort'))
+                    : s('challengeSelect')}
+              </Text>
             </TouchableOpacity>
           </View>
           {detailChallenges.length === 0 && (
             <Text style={styles.challengeSectionHint}>{s('eventChallengesDesc')}</Text>
-          )}
-
-          {showAddChallenge && (
-            <View style={styles.eventChallengePicker}>
-              {currentEventChallenge ? (
-                <View style={styles.eventChallengeCurrentWrap}>
-                  <View style={styles.eventChallengePickerIntro}>
-                    <View style={styles.eventChallengeIntroIcon}>
-                      <Lucide name="target" size={15} color={colors.primary} />
-                    </View>
-                    <View style={styles.eventChallengeIntroCopy}>
-                      <Text style={styles.eventChallengeIntroTitle}>{s('eventCurrentChallengeFromTab')}</Text>
-                      <Text style={styles.eventChallengeIntroText}>{s('eventCurrentChallengeFromTabDesc')}</Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    style={[
-                      styles.eventChallengeChoice,
-                      styles.eventChallengeChoiceFeatured,
-                      challengeActionId === currentEventChallenge.id && styles.disabledChallenge,
-                    ]}
-                    disabled={!!challengeActionId}
-                    onPress={() => onAddChallenge(currentEventChallenge)}
-                  >
-                    <View style={styles.eventChallengeChoiceTop}>
-                      <Text style={styles.eventChallengeChoiceTitle}>{challengeTitle(currentEventChallenge)}</Text>
-                      <View style={styles.eventChallengeChoiceBadge}>
-                        <Text style={styles.eventChallengeChoiceBadgeText}>
-                          {s('challengeVerificationOther')}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.eventChallengeChoiceCta}>
-                      {challengeActionId === currentEventChallenge.id ? s('loading') : s('eventAttachChallenge')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <>
-                  <View style={styles.eventChallengePickerIntro}>
-                    <View style={styles.eventChallengeIntroIcon}>
-                      <Lucide name="sparkles" size={15} color={colors.primary} />
-                    </View>
-                    <View style={styles.eventChallengeIntroCopy}>
-                      <Text style={styles.eventChallengeIntroTitle}>{s('eventChooseChallengeTrack')}</Text>
-                      <Text style={styles.eventChallengeIntroText}>{s('eventChooseChallengeTrackDesc')}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.eventChallengeTrackGrid}>
-                    {TRACK_ROWS.map((row, rowIndex) => (
-                      <View key={rowIndex} style={styles.eventChallengeTrackRow}>
-                        {row.map((track) => {
-                          const active = track.id === eventChallengeTrack.id;
-                          return (
-                            <TouchableOpacity
-                              key={track.id}
-                              style={[
-                                styles.eventChallengeTrack,
-                                { borderColor: active ? track.color : track.paleColor, backgroundColor: active ? track.paleColor : colors.bg },
-                              ]}
-                              onPress={() => setEventChallengeTrackId(track.id)}
-                            >
-                              <View style={[styles.eventChallengeTrackIcon, { backgroundColor: track.paleColor }]}>
-                                <BadgeTrackIcon
-                                  badge={track}
-                                  size={32}
-                                  variant="picker"
-                                  fallbackColor={track.color}
-                                />
-                              </View>
-                              <Text
-                                style={[styles.eventChallengeTrackText, { color: active ? track.color : colors.text }]}
-                                adjustsFontSizeToFit
-                                minimumFontScale={0.82}
-                              >
-                                {s(`badgeTrack_${track.id}_short`)}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    ))}
-                  </View>
-
-                  {eventChallengeChoices.length > 0 ? (
-                    <View style={styles.eventChallengeChoiceList}>
-                      {eventChallengeChoices.map((challenge) => (
-                        <TouchableOpacity
-                          key={challenge.id}
-                          style={[styles.eventChallengeChoice, challengeActionId === challenge.id && styles.disabledChallenge]}
-                          disabled={!!challengeActionId}
-                          onPress={() => onAddChallenge(challenge)}
-                        >
-                          <View style={styles.eventChallengeChoiceTop}>
-                            <Text style={styles.eventChallengeChoiceTitle}>{challengeTitle(challenge)}</Text>
-                            <View style={styles.eventChallengeChoiceBadge}>
-                              <Text style={styles.eventChallengeChoiceBadgeText}>
-                                {s('challengeVerificationOther')}
-                              </Text>
-                            </View>
-                          </View>
-                          <Text style={styles.eventChallengeChoiceCta}>
-                            {challengeActionId === challenge.id ? s('loading') : s('eventAttachChallenge')}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  ) : (
-                    <Text style={ms.emptyText}>{s('eventNoOtherChallenges')}</Text>
-                  )}
-                </>
-              )}
-            </View>
           )}
 
           {detailChallenges.length > 0 ? (
@@ -494,23 +385,75 @@ export function EventDetailContent(props: EventDetailContentProps) {
                 );
               })}
             </View>
-          ) : !showAddChallenge && (
+          ) : (
             <TouchableOpacity
               style={[styles.challengeEmptyState, userEventChallenge && styles.disabledChallenge]}
-              disabled={!!userEventChallenge}
-              onPress={() => setShowAddChallenge(true)}
+              disabled={!!userEventChallenge || !!challengeActionId}
+              onPress={() => {
+                if (currentEventChallenge) {
+                  onAddChallenge(currentEventChallenge);
+                } else {
+                  router.push('/(tabs)/challenges?tab=challenges' as any);
+                }
+              }}
               activeOpacity={0.85}
             >
               <View style={styles.challengeEmptyIcon}>
-                <Lucide name="award" size={20} color={colors.primary} />
+                <Lucide name={currentEventChallenge ? 'plus' : 'target'} size={20} color={colors.primary} />
               </View>
               <Text style={styles.challengeEmptyTitle}>{s('eventNoChallenges')}</Text>
               {!userEventChallenge && (
-                <Text style={styles.challengeEmptyCta}>{s('eventAddChallenge')}</Text>
+                <Text style={styles.challengeEmptyCta}>
+                  {currentEventChallenge
+                    ? (challengeActionId === currentEventChallenge.id ? s('loading') : s('eventAddToEventShort'))
+                    : s('challengeSelect')}
+                </Text>
               )}
             </TouchableOpacity>
           )}
         </View>
+      )}
+
+      {venueLat != null && venueLng != null && (
+        <>
+          <View style={styles.amaturMapWrap}>
+            <MapView
+              style={styles.amaturMap}
+              initialRegion={{
+                latitude: venueLat,
+                longitude: venueLng,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }}
+              scrollEnabled={false}
+              zoomEnabled={false}
+              rotateEnabled={false}
+              pitchEnabled={false}
+            >
+              <Marker
+                coordinate={{ latitude: venueLat, longitude: venueLng }}
+                title={venueName}
+                description={venueCity || undefined}
+              />
+            </MapView>
+          </View>
+          <View style={styles.amaturNavSection}>
+            <View style={styles.amaturNavRow}>
+              <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://maps.google.com/?q=${venueLat},${venueLng}`)}>
+                <Lucide name="navigation" size={14} color={colors.textMuted} />
+                <Text style={styles.amaturNavBtnText}>Google</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://maps.apple.com/?q=${venueLat},${venueLng}`)}>
+                <Lucide name="navigation" size={14} color={colors.textMuted} />
+                <Text style={styles.amaturNavBtnText}>Apple</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://waze.com/ul?ll=${venueLat},${venueLng}&navigate=yes`)}>
+                <Lucide name="navigation" size={14} color={colors.textMuted} />
+                <Text style={styles.amaturNavBtnText}>Waze</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </>
       )}
 
       {isPast(ev) && ev.status !== 'cancelled' && detailFeedback.length > 0 && (
@@ -598,7 +541,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
             </>
           );
         })()}
-        {!isPast(ev) && ev.organizer_id !== user?.id && (
+        {!isPast(ev) && ev.status !== 'closed' && ev.organizer_id !== user?.id && (
           <TouchableOpacity
             style={[ms.actionBtn, isJoined ? ms.actionLeave : ms.actionJoin]}
             onPress={() => onJoin(ev)}
@@ -613,7 +556,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
             </Text>
           </TouchableOpacity>
         )}
-        {!isPast(ev) && ev.organizer_id === user?.id && (
+        {!isPast(ev) && ev.status !== 'closed' && ev.organizer_id === user?.id && (
           <TouchableOpacity
             style={[ms.actionBtn, ms.actionSecondary]}
             onPress={() => setInviteModalVisible(true)}
@@ -624,7 +567,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
             </Text>
           </TouchableOpacity>
         )}
-        {!isPast(ev) && ev.organizer_id === user?.id && (
+        {!isPast(ev) && ev.status !== 'closed' && ev.organizer_id === user?.id && (
           <TouchableOpacity
             style={[ms.actionBtn, ms.actionSecondary]}
             onPress={() => {
@@ -640,10 +583,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
                       if (error) {
                         Alert.alert(s('error'), error.message);
                       } else {
-                        // Closing moves the event from upcoming → past and
-                        // updates its status on the organizer's "mine" view.
-                        invalidateEventsCache(user!.id, ['upcoming', 'past', 'mine']);
-                        closeDetail();
+                        invalidateEventsCache(user!.id, ['upcoming', 'mine']);
                         fetchEvents();
                       }
                     },

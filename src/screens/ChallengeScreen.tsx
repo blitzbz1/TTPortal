@@ -120,12 +120,12 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const [topTab, setTopTab] = useState<TopTab>('challenges');
   const [activeBadgeId, setActiveBadgeId] = useState(BADGE_TRACKS[0].id);
   const [selectedChallenge, setSelectedChallenge] = useState<DbChallenge | null>(null);
-  const [lockedChallengeId, setLockedChallengeId] = useState<string | null>(null);
   const [challengeCooldown, setChallengeCooldown] = useState<{ challengeId: string; endsAt: number; reason: ChallengeCooldownReason } | null>(null);
   const [actionChallengeId, setActionChallengeId] = useState<string | null>(null);
   const [completedSessionChallengeIds, setCompletedSessionChallengeIds] = useState<Set<string>>(new Set());
   const [earnedBadgeModal, setEarnedBadgeModal] = useState<{ badge: BadgeTrack; tier: BadgeTier } | null>(null);
   const ballBounce = useRef(new Animated.Value(0)).current;
+  const challengesScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (params.tab === 'badges') {
@@ -140,7 +140,6 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const handleCooldownElapsed = React.useCallback(() => {
     setChallengeCooldown(null);
     setSelectedChallenge(null);
-    setLockedChallengeId(null);
     setCurrentSelectedChallenge(null);
   }, []);
 
@@ -212,7 +211,6 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const currentProgress = Math.min(completedCount, currentTarget);
   const progressWidth = `${Math.min(100, (currentProgress / currentTarget) * 100)}%` as `${number}%`;
   const tierLabel = (tier: BadgeTier) => s(`challengeTier${tier[0].toUpperCase()}${tier.slice(1)}`);
-  const badgeLevelLabel = (count: number) => s(`challengeLevel${getBadgeLevel(count)}`);
   const trackName = (badge = activeBadge) => s(`badgeTrack_${badge.id}_name`);
   const trackShortName = (badge = activeBadge) => s(`badgeTrack_${badge.id}_short`);
   const trackDescription = (badge = activeBadge) => s(`badgeTrack_${badge.id}_desc`);
@@ -265,7 +263,6 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     });
     return latestKey;
   }, [earnedAtByBadgeTier]);
-  const selectedChallengeLocked = !!selectedChallenge && lockedChallengeId === selectedChallenge.id;
   const selectedChallengeCoolingDown = !!selectedChallenge && challengeCooldown?.challengeId === selectedChallenge.id;
   // cooldownTimerLabel / cooldownProgressWidth now live inside <CooldownTimer/>.
   const ballTranslateX = ballBounce.interpolate({
@@ -296,20 +293,14 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const handleSelectBadge = (badgeId: string) => {
     setActiveBadgeId(badgeId);
     setSelectedChallenge(null);
-    setLockedChallengeId(null);
     setChallengeCooldown(null);
     setCurrentSelectedChallenge(null);
   };
 
   const handleSelectChallenge = (challenge: DbChallenge) => {
     setSelectedChallenge(challenge);
-    setLockedChallengeId(null);
     setChallengeCooldown(null);
-    if (requiresOtherPlayer(challenge)) {
-      setCurrentSelectedChallenge(null);
-    } else {
-      setCurrentSelectedChallenge(challenge);
-    }
+    setCurrentSelectedChallenge(challenge);
     trackProductEvent(ProductEvents.challengeSelected, {
       challengeId: challenge.id,
       category: challenge.category,
@@ -319,27 +310,8 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
 
   const handleSwitchChallenge = () => {
     setSelectedChallenge(null);
-    setLockedChallengeId(null);
     setChallengeCooldown(null);
     setCurrentSelectedChallenge(null);
-  };
-
-  const handleLockInChallenge = () => {
-    if (!selectedChallenge) return;
-    setLockedChallengeId(selectedChallenge.id);
-    setChallengeCooldown(null);
-    setCurrentSelectedChallenge(selectedChallenge);
-  };
-
-  const handleForfeitChallenge = () => {
-    if (!selectedChallenge) return;
-    setLockedChallengeId(null);
-    setCurrentSelectedChallenge(null);
-    setChallengeCooldown({
-      challengeId: selectedChallenge.id,
-      endsAt: Date.now() + CHALLENGE_COOLDOWN_MS,
-      reason: 'forfeit',
-    });
   };
 
   const handleComplete = async () => {
@@ -392,20 +364,24 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
 
   const handleInviteVerification = async () => {
     if (!selectedChallenge || !user) return;
-    setLockedChallengeId(selectedChallenge.id);
     setChallengeCooldown(null);
     setCurrentSelectedChallenge(selectedChallenge);
     trackProductEvent(ProductEvents.challengeInviteStarted, {
       challengeId: selectedChallenge.id,
       category: activeBadge.category,
     });
-    router.push({
-      pathname: '/(protected)/create-event',
-      params: {
-        challengeId: selectedChallenge.id,
-        challengeTrackId: activeBadge.id,
-      },
-    } as any);
+    router.push('/(tabs)/events' as any);
+  };
+
+  const handleKeepSelected = () => {
+    if (!selectedChallenge) return;
+    setCurrentSelectedChallenge(selectedChallenge);
+  };
+
+  const handleCreateEventWithChallenge = () => {
+    if (!selectedChallenge) return;
+    setCurrentSelectedChallenge(selectedChallenge);
+    router.push(`/(protected)/create-event?challengeId=${selectedChallenge.id}` as any);
   };
 
   const renderTrackPicker = () => (
@@ -510,34 +486,48 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     </View>
   );
 
-  const renderMonthlyMastery = () => (
-    <View style={styles.masteryPanel}>
-      <View style={styles.masteryTop}>
-        <View style={styles.masteryTitleCol}>
-          <Text style={styles.eyebrow}>{s('challengeSeasonTitle')}</Text>
-          <Text style={styles.masteryTitle}>{s('challengeSeasonSubtitle')}</Text>
+  const renderMonthlyMastery = () => {
+    const strongestBadge = monthlyMastery.strongest.badge;
+    const strongestProgress = Math.min(15, monthlyMastery.strongest.completedCount);
+    const monthLabel = new Date().toLocaleDateString(lang === 'en' ? 'en-US' : 'ro-RO', {
+      month: 'long',
+      year: 'numeric',
+    });
+
+    return (
+      <View style={styles.masteryPanel}>
+        <View style={styles.masteryAccent} />
+        <View style={styles.masteryTop}>
+          <View style={styles.masteryTitleCol}>
+            <View style={styles.masteryKickerRow}>
+              <Text style={styles.eyebrow}>{s('challengeSeasonTitle')}</Text>
+              <Text style={styles.masteryMonth}>{monthLabel}</Text>
+            </View>
+            <Text style={styles.masteryTitle}>{s('challengeSeasonSubtitle')}</Text>
+          </View>
+          <View style={styles.masteryScore}>
+            <Text style={styles.masteryScoreValue}>{monthlyMastery.completed}</Text>
+            <Text style={styles.masteryScoreLabel}>{s('challengeSeasonCompletions')}</Text>
+          </View>
         </View>
-        <View style={styles.masteryScore}>
-          <Text style={styles.masteryScoreValue}>{monthlyMastery.completed}</Text>
-          <Text style={styles.masteryScoreLabel}>{s('challengeSeasonCompletions')}</Text>
+
+        <View style={styles.masteryStats}>
+          <View style={styles.masteryStat}>
+            <Text style={styles.masteryStatValue}>{monthlyMastery.earnedThisMonth}</Text>
+            <Text style={styles.masteryStatLabel}>{s('challengeSeasonBadges')}</Text>
+          </View>
+          <View style={styles.masteryStat}>
+            <Text style={styles.masteryStatValue}>{monthlyMastery.tracksWithProgress}</Text>
+            <Text style={styles.masteryStatLabel}>{s('challengeSeasonTracks')}</Text>
+          </View>
+          <View style={[styles.masteryStat, styles.masteryStatFeatured]}>
+            <Text style={styles.masteryStatValue}>{strongestProgress}/15</Text>
+            <Text style={styles.masteryStatLabel}>{s(`badgeTrack_${strongestBadge.id}_short`)}</Text>
+          </View>
         </View>
       </View>
-      <View style={styles.masteryStats}>
-        <View style={styles.masteryStat}>
-          <Text style={styles.masteryStatValue}>{monthlyMastery.earnedThisMonth}</Text>
-          <Text style={styles.masteryStatLabel}>{s('challengeSeasonBadges')}</Text>
-        </View>
-        <View style={styles.masteryStat}>
-          <Text style={styles.masteryStatValue}>{monthlyMastery.tracksWithProgress}</Text>
-          <Text style={styles.masteryStatLabel}>{s('challengeSeasonTracks')}</Text>
-        </View>
-        <View style={styles.masteryStat}>
-          <Text style={styles.masteryStatValue}>{monthlyMastery.strongest.completedCount}/15</Text>
-          <Text style={styles.masteryStatLabel}>{s(`badgeTrack_${monthlyMastery.strongest.badge.id}_short`)}</Text>
-        </View>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const renderCooldownPanel = () => (
     <View style={styles.cooldownPanel} testID="challenge-cooldown-panel">
@@ -596,7 +586,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   );
 
   const renderChallengesTab = () => (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+    <ScrollView ref={challengesScrollRef} style={styles.scroll} contentContainerStyle={styles.scrollContent}>
       <View style={[styles.sectionHeader, styles.centeredHeader]}>
         <Text style={styles.sectionTitle}>{s('challengeChooseTrack')}</Text>
       </View>
@@ -622,9 +612,6 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
         <View style={styles.heroCopy}>
           <Text style={styles.heroTitle}>{trackName()}</Text>
           <Text style={styles.heroDesc}>{trackDescription()}</Text>
-        </View>
-        <View style={styles.statusPill}>
-          <Text style={styles.statusPillText}>{badgeLevelLabel(completedCount)}</Text>
         </View>
       </View>
 
@@ -655,45 +642,33 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
           {selectedChallengeCoolingDown ? (
             renderCooldownPanel()
           ) : requiresOtherPlayer(selectedChallenge) ? (
-            <View style={styles.actions}>
-              {selectedChallengeLocked ? (
-                <TouchableOpacity style={styles.secondaryButton} onPress={handleForfeitChallenge} activeOpacity={0.86}>
-                  <Lucide name="flag-off" size={16} color={colors.text} />
-                  <Text style={styles.secondaryButtonText}>{s('challengeForfeit')}</Text>
-                </TouchableOpacity>
-              ) : (
-                <>
-                  <TouchableOpacity style={styles.compactButton} onPress={handleSwitchChallenge} activeOpacity={0.86}>
-                    <Lucide name="refresh-cw" size={15} color={colors.text} />
-                    <Text style={styles.compactButtonText}>{s('challengeSwitch')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.compactButton, styles.lockButton, pendingChallengeIds.has(selectedChallenge.id) && styles.disabledButton]}
-                    onPress={handleLockInChallenge}
-                    disabled={pendingChallengeIds.has(selectedChallenge.id)}
-                    activeOpacity={0.86}
-                  >
-                    <Lucide name="lock-keyhole" size={15} color={activeBadge.color} />
-                    <Text style={[styles.compactButtonText, { color: activeBadge.color }]}>
-                      {pendingChallengeIds.has(selectedChallenge.id) ? s('challengeAwaitingApproval') : s('challengeLockIn')}
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              )}
+            <View style={styles.actionGrid}>
               <TouchableOpacity
-                style={[styles.primaryButton, { backgroundColor: activeBadge.color }, actionChallengeId && styles.disabledButton]}
+                style={[styles.actionTile, styles.actionTilePrimary, { backgroundColor: activeBadge.color }, actionChallengeId && styles.disabledButton]}
                 onPress={handleInviteVerification}
                 disabled={!!actionChallengeId || pendingChallengeIds.has(selectedChallenge.id)}
                 activeOpacity={0.88}
               >
                 <Lucide name="calendar-plus" size={17} color={colors.textOnPrimary} />
-                <Text style={styles.primaryButtonText}>
+                <Text style={styles.actionTilePrimaryText}>
                   {pendingChallengeIds.has(selectedChallenge.id)
                     ? s('challengeAwaitingApproval')
                     : actionChallengeId === selectedChallenge.id
                       ? s('loading')
-                      : s('challengeCreateEvent')}
+                      : s('eventAddToEventShort')}
                 </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionTile} onPress={handleCreateEventWithChallenge} activeOpacity={0.86}>
+                <Lucide name="plus-circle" size={16} color={colors.text} />
+                <Text style={styles.actionTileText}>{s('challengeCreateEvent')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionTile} onPress={handleKeepSelected} activeOpacity={0.86}>
+                <Lucide name="check-circle" size={16} color={colors.text} />
+                <Text style={styles.actionTileText}>{s('challengeSelect')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionTile} onPress={handleSwitchChallenge} activeOpacity={0.86}>
+                <Lucide name="refresh-cw" size={16} color={colors.text} />
+                <Text style={styles.actionTileText}>{s('challengeSwitch')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -768,6 +743,16 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
           )}
         </View>
       )}
+      <TouchableOpacity
+        style={[styles.switchTierButton, { borderColor: activeBadge.color, backgroundColor: activeBadge.paleColor }]}
+        onPress={() => challengesScrollRef.current?.scrollTo({ y: 0, animated: true })}
+        activeOpacity={0.88}
+      >
+        <Lucide name="arrow-up" size={17} color={activeBadge.color} />
+        <Text style={[styles.switchTierButtonText, { color: activeBadge.color }]}>
+          {s('challengeSwitchTier')}
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 

@@ -17,14 +17,10 @@ import {
   getChallengeById,
   requiresOtherPlayer,
   resolveChallengeTitle,
-  type ChallengeCategory,
   type DbChallenge,
   setCurrentSelectedChallenge,
-  useChallengeChoices,
   useCurrentSelectedChallenge,
 } from '@/src/features/challenges';
-import { BADGE_TRACKS } from '@/src/lib/badgeChallenges';
-import { BadgeTrackIcon } from '@/src/components/BadgeTrackIcon';
 import { Lucide } from '@/src/components/Icon';
 import { VenuePickerModal } from '@/src/components/VenuePickerModal';
 import { FriendPickerModal } from '@/src/components/FriendPickerModal';
@@ -63,11 +59,6 @@ const VISIBILITY_OPTIONS: { value: EventVisibility; icon: string; titleKey: stri
   { value: 'public', icon: 'globe', titleKey: 'eventVisibilityPublic', descKey: 'eventVisibilityPublicDesc' },
   { value: 'friends', icon: 'users', titleKey: 'eventVisibilityFriends', descKey: 'eventVisibilityFriendsDesc' },
   { value: 'private', icon: 'lock', titleKey: 'eventVisibilityPrivate', descKey: 'eventVisibilityPrivateDesc' },
-];
-
-const TRACK_ROWS = [
-  BADGE_TRACKS.slice(0, 4),
-  BADGE_TRACKS.slice(4, 8),
 ];
 
 /* -- Collapsible section -- */
@@ -158,8 +149,6 @@ export default function CreateEventRoute() {
   const [maxParticipantsText, setMaxParticipantsText] = useState('');
   const [selectedChallenge, setSelectedChallenge] = useState<DbChallenge | null>(null);
   const [attachChallenge, setAttachChallenge] = useState(false);
-  const [eventChallengeTrackId, setEventChallengeTrackId] = useState(BADGE_TRACKS[0].id);
-  const [challengeFieldOpen, setChallengeFieldOpen] = useState(false);
 
   /* picker visibility (tap-to-toggle on all platforms) */
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -185,20 +174,11 @@ export default function CreateEventRoute() {
   const challengeTitle = useCallback((challenge: DbChallenge) => (
     resolveChallengeTitle(t, challenge)
   ), [t]);
-  const eventChallengeTrack = BADGE_TRACKS.find((badge) => badge.id === eventChallengeTrackId) ?? BADGE_TRACKS[0];
   const currentEventChallenge = currentSelectedChallenge && requiresOtherPlayer(currentSelectedChallenge)
     ? currentSelectedChallenge
     : null;
   const effectiveSelectedChallenge = selectedChallenge ?? currentEventChallenge;
-  const {
-    choices: eventChallengeChoices,
-    isLoading: challengeChoicesLoading,
-  } = useChallengeChoices(eventChallengeTrack.category as ChallengeCategory, {
-    enabled: challengeFieldOpen && !effectiveSelectedChallenge,
-    onlyOtherPlayer: true,
-    visibleCount: 4,
-  });
-  const challengeSectionSummary = attachChallenge && effectiveSelectedChallenge
+  const challengeSectionSummary = effectiveSelectedChallenge
     ? challengeTitle(effectiveSelectedChallenge)
     : t('eventChallengeOnCreateDesc');
 
@@ -440,7 +420,6 @@ export default function CreateEventRoute() {
         colors={colors}
         s={s}
         onToggle={closePickers}
-        onOpenChange={setChallengeFieldOpen}
         summary={challengeSectionSummary}
       >
         {params.challengeId && !effectiveSelectedChallenge ? (
@@ -467,7 +446,7 @@ export default function CreateEventRoute() {
             </View>
             <Pressable
               style={[s.challengeAttachBtn, attachChallenge && s.challengeAttachBtnActive]}
-              onPress={() => setAttachChallenge((value) => !value)}
+              onPress={() => setAttachChallenge(true)}
             >
               <Lucide name={attachChallenge ? 'check' : 'plus'} size={16} color={attachChallenge ? colors.textOnPrimary : colors.primary} />
               <Text style={[s.challengeAttachText, attachChallenge && s.challengeAttachTextActive]}>
@@ -483,70 +462,16 @@ export default function CreateEventRoute() {
               </View>
               <View style={s.challengeModeCopy}>
                 <Text style={s.challengeModeTitle}>{t('eventChooseChallengeTrack')}</Text>
-                <Text style={s.challengeModeText}>{t('eventChooseChallengeTrackDesc')}</Text>
+                <Text style={s.challengeModeText}>{t('eventChooseChallengeFromCreateDesc')}</Text>
               </View>
             </View>
-            <View style={s.challengeTrackGrid}>
-              {TRACK_ROWS.map((row, rowIndex) => (
-                <View key={rowIndex} style={s.challengeTrackRow}>
-                  {row.map((track) => {
-                    const active = track.id === eventChallengeTrack.id;
-                    return (
-                      <Pressable
-                        key={track.id}
-                        style={[
-                          s.challengeTrackChip,
-                          { borderColor: active ? track.color : track.paleColor, backgroundColor: active ? track.paleColor : colors.bg },
-                        ]}
-                        onPress={() => {
-                          setEventChallengeTrackId(track.id);
-                          setSelectedChallenge(null);
-                          setAttachChallenge(false);
-                        }}
-                        >
-                          <View style={[s.challengeTrackIcon, { backgroundColor: track.paleColor }]}>
-                            <BadgeTrackIcon
-                              badge={track}
-                              size={32}
-                              variant="picker"
-                              fallbackColor={track.color}
-                            />
-                          </View>
-                          <Text style={[s.challengeTrackText, { color: active ? track.color : colors.text }]} adjustsFontSizeToFit minimumFontScale={0.82}>
-                            {t(`badgeTrack_${track.id}_short`)}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ))}
-            </View>
-            {challengeChoicesLoading ? (
-              <Text style={s.hint}>{t('loading')}</Text>
-            ) : eventChallengeChoices.length > 0 ? (
-              <View style={s.challengeChoiceList}>
-                {eventChallengeChoices.map((challenge) => (
-                  <Pressable
-                    key={challenge.id}
-                    style={s.challengeChoiceCard}
-                    onPress={() => {
-                      setSelectedChallenge(challenge);
-                      setAttachChallenge(true);
-                    }}
-                  >
-                    <View style={s.challengeChoiceTop}>
-                      <Text style={s.challengeChoiceTitle}>{challengeTitle(challenge)}</Text>
-                      <View style={s.challengeChoiceBadge}>
-                        <Text style={s.challengeChoiceBadgeText}>{t('challengeVerificationOther')}</Text>
-                      </View>
-                    </View>
-                    <Text style={s.challengeChoiceCta}>{t('eventAttachChallenge')}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : (
-              <Text style={s.hint}>{t('eventNoOtherChallenges')}</Text>
-            )}
+            <Pressable
+              style={s.challengeAttachBtn}
+              onPress={() => router.push('/(tabs)/challenges?tab=challenges' as any)}
+            >
+              <Lucide name="target" size={16} color={colors.primary} />
+              <Text style={s.challengeAttachText}>{t('challengeSelect')}</Text>
+            </Pressable>
           </>
         )}
       </Section>

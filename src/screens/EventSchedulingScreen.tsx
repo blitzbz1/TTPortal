@@ -6,6 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { NotificationBellButton } from '../components/NotificationBellButton';
 import { FeedbackHeaderButton } from '../components/FeedbackHeaderButton';
+import { BadgeTrackIcon } from '../components/BadgeTrackIcon';
 import { Card } from '../components/Card';
 import { EventCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
@@ -29,6 +30,7 @@ import { hapticMedium } from '../lib/haptics';
 import { getAmaturEvents, type AmaturEvent } from '../services/amatur';
 import { LogHoursModal } from '../components/LogHoursModal';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
+import { BADGE_TRACKS } from '../lib/badgeChallenges';
 import {
   requiresOtherPlayer,
   resolveChallengeTitle,
@@ -93,6 +95,9 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const currentSelectedChallenge = useCurrentSelectedChallenge();
   const currentEventChallenge = currentSelectedChallenge && requiresOtherPlayer(currentSelectedChallenge)
     ? currentSelectedChallenge
+    : null;
+  const currentChallengeTrack = currentEventChallenge
+    ? BADGE_TRACKS.find((track) => track.category === currentEventChallenge.category)
     : null;
 
   const fetchEvents = useCallback(async (force = false) => {
@@ -259,6 +264,10 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       router.push('/sign-in');
       return;
     }
+    if (event.status === 'closed') {
+      Alert.alert(s('closed'), s('eventClosedJoinError'));
+      return;
+    }
     const isJoined = event.event_participants?.some(
       (p: any) => p.user_id === user.id,
     );
@@ -310,7 +319,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   // True when the event has started but hasn't ended yet — used by the
   // upcoming-tab cards to show a "live" timer icon.
   const isInProgress = useCallback((event: any) => {
-    if (event.status === 'cancelled' || event.status === 'completed') return false;
+    if (event.status === 'closed' || event.status === 'cancelled' || event.status === 'completed') return false;
     const now = Date.now();
     const start = new Date(event.starts_at).getTime();
     if (start > now) return false;
@@ -323,6 +332,9 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     }
     if (event.status === 'cancelled') {
       return { text: s('cancelled'), bg: colors.cancelledBadgeBg, color: colors.red, icon: undefined as string | undefined };
+    }
+    if (event.status === 'closed') {
+      return { text: s('closed'), bg: colors.borderLight, color: colors.textMuted, icon: 'lock' as string | undefined };
     }
     if (isInProgress(event)) {
       return { text: s('inProgress'), bg: colors.primaryPale, color: colors.primaryLight, icon: 'timer' as string | undefined };
@@ -399,23 +411,32 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
           ))}
         </View>
 
-        {activeTab !== 'amatur' && currentEventChallenge && (
-          <TouchableOpacity
-            style={styles.readyChallengeBanner}
-            activeOpacity={0.86}
-            onPress={() => setActiveTab('upcoming')}
+        {activeTab === 'upcoming' && currentEventChallenge && currentChallengeTrack && (
+          <View
+            style={[
+              styles.readyChallengeBanner,
+              {
+                borderColor: currentChallengeTrack.color,
+              },
+            ]}
           >
             <View style={styles.readyChallengeIcon}>
-              <Lucide name="target" size={17} color={colors.textOnPrimary} />
+              <BadgeTrackIcon
+                badge={currentChallengeTrack}
+                size={32}
+                variant="picker"
+                fallbackColor={currentChallengeTrack.color}
+              />
             </View>
             <View style={styles.readyChallengeCopy}>
-              <Text style={styles.readyChallengeTitle}>{s('eventReadyChallengeTitle')}</Text>
+              <Text style={styles.readyChallengeTitle}>
+                {s('eventReadyChallengeTitle')}
+              </Text>
               <Text style={styles.readyChallengeText} numberOfLines={2}>
                 {challengeTitle(currentEventChallenge)}
               </Text>
             </View>
-            <Text style={styles.readyChallengeCta}>{s('eventReadyChallengeCta')}</Text>
-          </TouchableOpacity>
+          </View>
         )}
 
         {/* Event Cards — regular tabs */}
@@ -504,7 +525,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                             {participants.length}/{event.max_participants ?? '\u221E'} {s('spots')}
                           </Text>
                         </View>
-                        {activeTab !== 'past' && !isPast(event) && event.organizer_id !== user?.id && (
+                        {activeTab !== 'past' && !isPast(event) && event.status !== 'closed' && event.organizer_id !== user?.id && (
                           <TouchableOpacity
                             style={[styles.joinBtn, isJoined ? styles.joinedBtn : styles.notJoinedBtn]}
                             onPress={(e) => { e.stopPropagation(); hapticMedium(); handleJoin(event); }}

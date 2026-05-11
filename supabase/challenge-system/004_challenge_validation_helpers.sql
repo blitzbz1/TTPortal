@@ -83,8 +83,8 @@ begin
     raise exception 'event not found';
   end if;
 
-  if v_event.status = 'cancelled' then
-    raise exception 'cannot add a challenge to a cancelled event';
+  if v_event.status in ('cancelled', 'completed') then
+    raise exception 'cannot add a challenge to a finished event';
   end if;
 
   if not exists (
