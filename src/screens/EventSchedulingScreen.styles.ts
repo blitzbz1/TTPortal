@@ -659,9 +659,7 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
       backgroundColor: colors.border,
     },
     titleRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       gap: Spacing.sm,
       marginBottom: Spacing.md,
     },
@@ -670,7 +668,11 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
       fontSize: FontSize.xxxl,
       fontWeight: FontWeight.bold,
       color: colors.text,
-      flex: 1,
+      textAlign: 'center',
+      alignSelf: 'stretch',
+    },
+    titleBadge: {
+      alignSelf: 'center',
     },
     heroDescription: {
       borderRadius: Radius.md,
@@ -754,21 +756,6 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
       fontSize: FontSize.lg,
       fontWeight: FontWeight.bold,
       color: colors.text,
-    },
-    heroFriendChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      borderRadius: 999,
-      backgroundColor: colors.primaryPale,
-      paddingHorizontal: 8,
-      paddingVertical: 5,
-    },
-    heroFriendChipText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.sm,
-      fontWeight: FontWeight.bold,
-      color: colors.primary,
     },
     infoBlock: {
       gap: 10,

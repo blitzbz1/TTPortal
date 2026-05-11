@@ -67,7 +67,7 @@ export interface EventDetailContentProps {
   setFeedbackEventId: (id: number) => void;
   setLogHoursEvent: (v: { id: number; title: string; initialHours: number } | null) => void;
   setInviteModalVisible: (v: boolean) => void;
-  fetchEvents: () => void;
+  fetchEvents: () => void | Promise<void>;
 }
 
 export function EventDetailContent(props: EventDetailContentProps) {
@@ -97,7 +97,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
       return { text: s('cancelled'), bg: colors.cancelledBadgeBg, color: colors.red };
     }
     if (e.status === 'closed') {
-      return { text: s('closed'), bg: colors.borderLight, color: colors.textMuted };
+      return { text: s('closed'), bg: colors.redPale, color: colors.red };
     }
     if (e.status === 'confirmed') {
       return { text: s('confirmed'), bg: colors.primaryPale, color: colors.primaryMid };
@@ -105,7 +105,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
     if (e.event_type === 'tournament') {
       return { text: s('tournament'), bg: colors.bluePale, color: colors.blue };
     }
-    return { text: s('open'), bg: colors.amberPale, color: colors.accent };
+    return { text: s('open'), bg: colors.primaryPale, color: colors.greenDeep };
   };
 
   const badge = getBadgeInfo(ev);
@@ -115,7 +115,6 @@ export function EventDetailContent(props: EventDetailContentProps) {
   const venueLng = ev.venues?.lng as number | null;
   const isJoined = ev.event_participants?.some((p: any) => p.user_id === user?.id);
   const duration = getDuration(ev.starts_at, ev.ends_at);
-  const friendParticipants = detailParticipants.filter((p) => friendIds.has(p.user_id));
   const description = typeof ev.description === 'string' ? ev.description.trim() : '';
   const participantCount = detailParticipants.length || ev.event_participants?.length || 0;
   const participantLimit = ev.max_participants ?? '∞';
@@ -136,7 +135,6 @@ export function EventDetailContent(props: EventDetailContentProps) {
     const isFriend = friendIds.has(participantId);
 
     if (isMe || isFriend) {
-      closeDetail();
       router.push(`/(protected)/player/${participantId}` as any);
       return;
     }
@@ -165,7 +163,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
     <>
       <View style={ms.titleRow}>
         <Text style={ms.title} numberOfLines={2}>{ev.title || venueName}</Text>
-        <View style={[styles.eventBadge, { backgroundColor: badge.bg }]}>
+        <View style={[styles.eventBadge, ms.titleBadge, { backgroundColor: badge.bg }]}>
           <Text style={[styles.eventBadgeText, { color: badge.color }]}>{badge.text}</Text>
         </View>
       </View>
@@ -189,12 +187,6 @@ export function EventDetailContent(props: EventDetailContentProps) {
             <Text style={ms.heroParticipantsLabel}>{s('participants')}</Text>
             <Text style={ms.heroParticipantsValue}>{participantCount}/{participantLimit} {s('spots')}</Text>
           </View>
-          {friendParticipants.length > 0 && (
-            <View style={ms.heroFriendChip}>
-              <Lucide name="users" size={12} color={colors.primary} />
-              <Text style={ms.heroFriendChipText}>{friendParticipants.length}</Text>
-            </View>
-          )}
         </View>
         {detailLoading ? (
           <ActivityIndicator size="small" color={colors.accentBright} style={ms.heroParticipantsLoading} />
@@ -584,7 +576,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
                         Alert.alert(s('error'), error.message);
                       } else {
                         invalidateEventsCache(user!.id, ['upcoming', 'mine']);
-                        fetchEvents();
+                        await fetchEvents();
                       }
                     },
                   },
@@ -648,8 +640,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
                         Alert.alert(s('error'), error.message);
                       } else {
                         invalidateEventsCache(user!.id, ['upcoming', 'mine']);
-                        closeDetail();
-                        fetchEvents();
+                        await fetchEvents();
                       }
                     },
                   },

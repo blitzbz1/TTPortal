@@ -213,11 +213,15 @@ export function EventDetailScreen() {
     if (refreshed) setEvent(refreshed);
   }, [user, router, s]);
 
-  // After cancel/close, EventDetailContent calls fetchEvents(); on this
-  // screen that translates to popping back, since the list reloads on focus.
-  const fetchEvents = useCallback(() => {
-    router.back();
-  }, [router]);
+  const fetchEvents = useCallback(async () => {
+    if (!Number.isFinite(eventId)) return;
+    const [{ data: partData }, { data: refreshed }] = await Promise.all([
+      getEventParticipants(eventId),
+      getEventById(eventId),
+    ]);
+    if (partData) setDetailParticipants(partData);
+    if (refreshed) setEvent(refreshed);
+  }, [eventId]);
 
   if (eventLoading) {
     return (

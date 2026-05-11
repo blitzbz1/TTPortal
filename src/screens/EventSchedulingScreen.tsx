@@ -334,7 +334,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       return { text: s('cancelled'), bg: colors.cancelledBadgeBg, color: colors.red, icon: undefined as string | undefined };
     }
     if (event.status === 'closed') {
-      return { text: s('closed'), bg: colors.borderLight, color: colors.textMuted, icon: 'lock' as string | undefined };
+      return { text: s('closed'), bg: colors.redPale, color: colors.red, icon: 'lock' as string | undefined };
     }
     if (isInProgress(event)) {
       return { text: s('inProgress'), bg: colors.primaryPale, color: colors.primaryLight, icon: 'timer' as string | undefined };
@@ -345,7 +345,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     if (event.event_type === 'tournament') {
       return { text: s('tournament'), bg: colors.bluePale, color: colors.blue, icon: undefined as string | undefined };
     }
-    return { text: s('open'), bg: colors.amberPale, color: colors.accent, icon: undefined as string | undefined };
+    return { text: s('open'), bg: colors.primaryPale, color: colors.greenDeep, icon: undefined as string | undefined };
   }, [colors, s, isEffectivelyOver, isInProgress]);
 
   const getInitials = (name?: string) => {
