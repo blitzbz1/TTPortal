@@ -34,10 +34,13 @@ export async function getEvents(
       .or(`starts_at.gte.${now},ends_at.gte.${now},and(ends_at.is.null,starts_at.gte.${fourHoursAgo})`)
       .not('status', 'in', '(closed,cancelled,completed)');
   } else if (filter === 'past') {
-    // Complement of upcoming: events that have actually ended.
+    // Past also owns terminal-status events, even if the organizer closed or
+    // cancelled them before their scheduled start time. Otherwise they fall
+    // out of Upcoming but never appear in Past.
     //   - ended explicitly  (ends_at < now)
     //   - no end, started > 4h ago
-    query = query.or(`ends_at.lt.${now},and(ends_at.is.null,starts_at.lt.${fourHoursAgo})`);
+    //   - terminal status   (closed/cancelled/completed)
+    query = query.or(`ends_at.lt.${now},and(ends_at.is.null,starts_at.lt.${fourHoursAgo}),status.in.(closed,cancelled,completed)`);
     if (userId) query = query.eq('ep_filter.user_id', userId);
   } else if (filter === 'mine' && userId) {
     query = query.eq('organizer_id', userId);

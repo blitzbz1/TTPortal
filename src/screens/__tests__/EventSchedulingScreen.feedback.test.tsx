@@ -21,7 +21,7 @@ jest.mock('expo-sqlite', () => ({
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
-const mockSearchParams: { eventId?: string } = {};
+const mockSearchParams: { eventId?: string; tab?: string; refreshEvents?: string } = {};
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace, back: jest.fn() }),
   useLocalSearchParams: () => mockSearchParams,
@@ -191,6 +191,8 @@ describe('EventSchedulingScreen — feedback integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete mockSearchParams.eventId;
+    delete mockSearchParams.tab;
+    delete mockSearchParams.refreshEvents;
     mockS.mockImplementation((key: string) => key);
     mockUseSession.mockReturnValue({
       user: { id: 'u-1', user_metadata: { full_name: 'Test' } },
@@ -302,6 +304,8 @@ describe('EventSchedulingScreen — deep link via eventId param', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete mockSearchParams.eventId;
+    delete mockSearchParams.tab;
+    delete mockSearchParams.refreshEvents;
     mockS.mockImplementation((key: string) => key);
     mockUseSession.mockReturnValue({
       user: { id: 'u-1', user_metadata: { full_name: 'Test' } },
@@ -335,6 +339,8 @@ describe('EventSchedulingScreen — card tap navigation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete mockSearchParams.eventId;
+    delete mockSearchParams.tab;
+    delete mockSearchParams.refreshEvents;
     mockS.mockImplementation((key: string) => key);
     mockUseSession.mockReturnValue({
       user: { id: 'u-1', user_metadata: { full_name: 'Test' } },
@@ -356,5 +362,38 @@ describe('EventSchedulingScreen — card tap navigation', () => {
     fireEvent.press(card);
 
     expect(mockPush).toHaveBeenCalledWith('/(protected)/event/1');
+  });
+});
+
+describe('EventSchedulingScreen — create-event refresh params', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete mockSearchParams.eventId;
+    delete mockSearchParams.tab;
+    delete mockSearchParams.refreshEvents;
+    mockS.mockImplementation((key: string) => key);
+    mockUseSession.mockReturnValue({
+      user: { id: 'u-1', user_metadata: { full_name: 'Test' } },
+      session: { user: { id: 'u-1' } },
+    });
+    mockGetEvents.mockResolvedValue({ data: [], error: null });
+    mockGetUserEventFeedbackForEvents.mockResolvedValue({ data: [], error: null });
+  });
+
+  it('uses the create-event refresh param once and then allows normal tab switching', async () => {
+    mockSearchParams.tab = 'upcoming';
+    mockSearchParams.refreshEvents = 'create-42';
+
+    const { findByText } = render(<EventSchedulingScreen />);
+
+    await waitFor(() => {
+      expect(mockGetEvents).toHaveBeenCalledWith('upcoming', undefined, { limit: 50, offset: 0 });
+    });
+
+    fireEvent.press(await findByText(/past|trecute/i));
+
+    await waitFor(() => {
+      expect(mockGetEvents).toHaveBeenCalledWith('past', 'u-1', { limit: 20, offset: 0 });
+    });
   });
 });

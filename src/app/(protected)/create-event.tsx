@@ -218,6 +218,9 @@ export default function CreateEventRoute() {
   const fmtTime = (d: Date) => d.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
 
   const privateInviteMissing = visibility === 'private' && invitedFriendIds.length === 0;
+  const returnToFutureEvents = useCallback(() => {
+    router.replace(`/(tabs)/events?tab=upcoming&refreshEvents=${Date.now()}` as any);
+  }, [router]);
 
   /* -- submit -- */
   const handleCreate = useCallback(async () => {
@@ -275,20 +278,23 @@ export default function CreateEventRoute() {
     // through to the existing optional post-creation friend picker.
     if (visibility === 'private') {
       await sendEventInvites(data.id, invitedFriendIds);
-      router.back();
+      returnToFutureEvents();
       return;
     }
     setCreatedEventId(data.id);
     setFriendPickerVisible(true);
-  }, [title, description, user, venueId, date, maxParticipantsText, durationHours, eventType, endDate, recurrenceRule, effectiveSelectedChallenge, attachChallenge, currentEventChallenge?.id, t, visibility, invitedFriendIds, router]);
+  }, [title, description, user, venueId, date, maxParticipantsText, durationHours, eventType, endDate, recurrenceRule, effectiveSelectedChallenge, attachChallenge, currentEventChallenge?.id, t, visibility, invitedFriendIds, returnToFutureEvents]);
 
   const handleInviteConfirm = useCallback(async (selectedIds: string[]) => {
     setFriendPickerVisible(false);
     if (selectedIds.length > 0 && createdEventId) await sendEventInvites(createdEventId, selectedIds);
-    router.back();
-  }, [createdEventId, router]);
+    returnToFutureEvents();
+  }, [createdEventId, returnToFutureEvents]);
 
-  const handleInviteSkip = useCallback(() => { setFriendPickerVisible(false); router.back(); }, [router]);
+  const handleInviteSkip = useCallback(() => {
+    setFriendPickerVisible(false);
+    returnToFutureEvents();
+  }, [returnToFutureEvents]);
 
   const handleInviteeSelectConfirm = useCallback((selectedIds: string[]) => {
     setInvitedFriendIds(selectedIds);

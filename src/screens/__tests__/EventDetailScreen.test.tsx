@@ -3,9 +3,10 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
 const mockBack = jest.fn();
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 const mockSearchParams: { eventId?: string } = {};
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ back: mockBack, push: mockPush, replace: jest.fn() }),
+  useRouter: () => ({ back: mockBack, push: mockPush, replace: mockReplace }),
   useLocalSearchParams: () => mockSearchParams,
 }));
 
@@ -32,11 +33,15 @@ jest.mock('../../hooks/useSession', () => ({
 
 const mockGetEventById = jest.fn();
 const mockGetEventParticipants = jest.fn();
+const mockCloseEvent = jest.fn();
+const mockCancelEvent = jest.fn();
 jest.mock('../../services/events', () => ({
   getEventById: (...args: any[]) => mockGetEventById(...args),
   getEventParticipants: (...args: any[]) => mockGetEventParticipants(...args),
   joinEvent: jest.fn().mockResolvedValue({ error: null }),
   leaveEvent: jest.fn().mockResolvedValue({ error: null }),
+  closeEvent: (...args: any[]) => mockCloseEvent(...args),
+  cancelEvent: (...args: any[]) => mockCancelEvent(...args),
   sendEventInvites: jest.fn().mockResolvedValue({ error: null }),
 }));
 
@@ -87,11 +92,18 @@ jest.mock('../../lib/badgeChallenges', () => ({
 // are the header, the back button, and the getEventById call — not the
 // internals of the body, which has its own coverage path.
 jest.mock('../EventSchedulingScreen/EventDetailContent', () => ({
-  EventDetailContent: ({ event }: any) => {
-    const { View, Text } = require('react-native');
+  EventDetailContent: ({ event, onCloseEvent, onCancelEvent }: any) => {
+    const { View, Text, TouchableOpacity } = require('react-native');
     return (
       <View testID="event-detail-content">
         <Text testID="event-title">{event?.title}</Text>
+        <Text testID="event-status">{event?.status}</Text>
+        <TouchableOpacity testID="close-event-action" onPress={onCloseEvent}>
+          <Text>close</Text>
+        </TouchableOpacity>
+        <TouchableOpacity testID="cancel-event-action" onPress={onCancelEvent}>
+          <Text>cancel</Text>
+        </TouchableOpacity>
       </View>
     );
   },
@@ -131,6 +143,18 @@ const sampleEvent = {
   event_participants: [],
 };
 
+const inProgressEvent = {
+  ...sampleEvent,
+  starts_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+  ends_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+};
+
+const upcomingEvent = {
+  ...sampleEvent,
+  starts_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+  ends_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+};
+
 describe('EventDetailScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -139,6 +163,8 @@ describe('EventDetailScreen', () => {
     mockSearchParams.eventId = '42';
     mockGetEventById.mockResolvedValue({ data: sampleEvent, error: null });
     mockGetEventParticipants.mockResolvedValue({ data: [] });
+    mockCloseEvent.mockResolvedValue({ data: { id: 42, status: 'closed' }, error: null });
+    mockCancelEvent.mockResolvedValue({ data: { id: 42, status: 'cancelled' }, error: null });
   });
 
   it('fetches the event by id from the route param', async () => {
@@ -180,5 +206,48 @@ describe('EventDetailScreen', () => {
     const { findByTestId } = render(<EventDetailScreen />);
     const titleNode = await findByTestId('event-title');
     expect(titleNode.props.children).toBe('Friday Match');
+  });
+
+  it('closes the event through the detail screen owner flow', async () => {
+    mockUseSession.mockReturnValue({ user: { id: 'org-1' }, session: { user: { id: 'org-1' } } });
+    mockGetEventById.mockResolvedValue({ data: inProgressEvent, error: null });
+    const { findByTestId } = render(<EventDetailScreen />);
+    fireEvent.press(await findByTestId('close-event-action'));
+
+    await waitFor(() => {
+      expect(mockCloseEvent).toHaveBeenCalledWith(42, 'org-1');
+    });
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(mockReplace).toHaveBeenCalledWith(expect.stringMatching(/^\/\(tabs\)\/events\?tab=upcoming&refreshEvents=\d+$/));
+  });
+
+  it('does not close an event before it has started', async () => {
+    mockUseSession.mockReturnValue({ user: { id: 'org-1' }, session: { user: { id: 'org-1' } } });
+    mockGetEventById.mockResolvedValue({ data: upcomingEvent, error: null });
+    const { findByTestId } = render(<EventDetailScreen />);
+    fireEvent.press(await findByTestId('close-event-action'));
+
+    expect(mockCloseEvent).not.toHaveBeenCalled();
+  });
+
+  it('cancels the event through the detail screen owner flow', async () => {
+    mockUseSession.mockReturnValue({ user: { id: 'org-1' }, session: { user: { id: 'org-1' } } });
+    const { findByTestId } = render(<EventDetailScreen />);
+    fireEvent.press(await findByTestId('cancel-event-action'));
+
+    await waitFor(() => {
+      expect(mockCancelEvent).toHaveBeenCalledWith(42, 'org-1');
+    });
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  it('does not let a non-organizer close or cancel the event', async () => {
+    const { findByTestId } = render(<EventDetailScreen />);
+
+    fireEvent.press(await findByTestId('close-event-action'));
+    fireEvent.press(await findByTestId('cancel-event-action'));
+
+    expect(mockCloseEvent).not.toHaveBeenCalled();
+    expect(mockCancelEvent).not.toHaveBeenCalled();
   });
 });

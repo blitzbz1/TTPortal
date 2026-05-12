@@ -11,6 +11,8 @@ import {
   getEventParticipants,
   joinEvent,
   leaveEvent,
+  closeEvent,
+  cancelEvent,
   sendEventInvites,
 } from '../services/events';
 import { getEventFeedback } from '../services/eventFeedback';
@@ -54,6 +56,7 @@ export function EventDetailScreen() {
   const [feedbackGivenIds, setFeedbackGivenIds] = useState<Set<number>>(new Set());
 
   const [challengeActionId, setChallengeActionId] = useState<string | null>(null);
+  const [eventStatusAction, setEventStatusAction] = useState<'closing' | 'cancelling' | null>(null);
   const [descExpanded, setDescExpanded] = useState(false);
   const [updateText, setUpdateText] = useState('');
   const [sendingUpdate, setSendingUpdate] = useState(false);
@@ -89,6 +92,9 @@ export function EventDetailScreen() {
     (challenge: any) => resolveChallengeTitle(s, challenge as DbChallenge | EventChallengeSubmission),
     [s],
   );
+  const returnToFutureEvents = useCallback(() => {
+    router.replace(`/(tabs)/events?tab=upcoming&refreshEvents=${Date.now()}` as any);
+  }, [router]);
 
   // Initial data fetch — event + participants + (if past) feedback.
   useEffect(() => {
@@ -175,6 +181,20 @@ export function EventDetailScreen() {
     });
   }, [awardEventChallenge, s, event]);
 
+  const refreshEvent = useCallback(async (statusOverride?: 'closed' | 'cancelled') => {
+    if (!Number.isFinite(eventId)) return;
+    const [{ data: partData }, { data: refreshed }] = await Promise.all([
+      getEventParticipants(eventId),
+      getEventById(eventId),
+    ]);
+    if (partData) setDetailParticipants(partData);
+    if (refreshed) {
+      setEvent(statusOverride ? { ...refreshed, status: statusOverride } : refreshed);
+    } else if (statusOverride) {
+      setEvent((prev: any) => (prev ? { ...prev, status: statusOverride } : prev));
+    }
+  }, [eventId]);
+
   const handleJoin = useCallback(async (ev: any) => {
     if (!user) {
       router.push('/sign-in');
@@ -204,24 +224,51 @@ export function EventDetailScreen() {
       action: isJoined ? 'leave' : 'join',
     });
     invalidateEventsCache(user.id, ['upcoming', 'mine']);
-    // Refresh local state: participants and the underlying event row.
-    const [{ data: partData }, { data: refreshed }] = await Promise.all([
-      getEventParticipants(ev.id),
-      getEventById(ev.id),
-    ]);
-    if (partData) setDetailParticipants(partData);
-    if (refreshed) setEvent(refreshed);
-  }, [user, router, s]);
+    await refreshEvent();
+  }, [user, router, s, refreshEvent]);
 
-  const fetchEvents = useCallback(async () => {
-    if (!Number.isFinite(eventId)) return;
-    const [{ data: partData }, { data: refreshed }] = await Promise.all([
-      getEventParticipants(eventId),
-      getEventById(eventId),
-    ]);
-    if (partData) setDetailParticipants(partData);
-    if (refreshed) setEvent(refreshed);
-  }, [eventId]);
+  const handleCloseEvent = useCallback(async () => {
+    if (!user || !event) return;
+    if (eventStatusAction) return;
+    if (event.organizer_id !== user.id) return;
+    if (event.status === 'closed' || event.status === 'cancelled' || event.status === 'completed') return;
+    if (new Date(event.starts_at).getTime() > Date.now() || isEffectivelyOver(event)) return;
+
+    setEventStatusAction('closing');
+    try {
+      const { data, error } = await closeEvent(event.id, user.id);
+      if (error) {
+        Alert.alert(s('error'), error.message);
+        return;
+      }
+      invalidateEventsCache(user.id, ['upcoming', 'mine', 'past']);
+      setEvent((prev: any) => ({ ...prev, ...(data ?? {}), status: 'closed' }));
+      returnToFutureEvents();
+    } finally {
+      setEventStatusAction(null);
+    }
+  }, [event, eventStatusAction, isEffectivelyOver, returnToFutureEvents, s, user]);
+
+  const handleCancelEvent = useCallback(async () => {
+    if (!user || !event) return;
+    if (eventStatusAction) return;
+    if (event.organizer_id !== user.id) return;
+    if (event.status === 'cancelled' || event.status === 'completed') return;
+
+    setEventStatusAction('cancelling');
+    try {
+      const { data, error } = await cancelEvent(event.id, user.id);
+      if (error) {
+        Alert.alert(s('error'), error.message);
+        return;
+      }
+      invalidateEventsCache(user.id, ['upcoming', 'mine', 'past']);
+      setEvent((prev: any) => ({ ...prev, ...(data ?? {}), status: 'cancelled' }));
+      await refreshEvent('cancelled');
+    } finally {
+      setEventStatusAction(null);
+    }
+  }, [event, eventStatusAction, refreshEvent, s, user]);
 
   if (eventLoading) {
     return (
@@ -284,6 +331,7 @@ export function EventDetailScreen() {
           detailChallenges={detailChallenges}
           feedbackGivenIds={feedbackGivenIds}
           challengeActionId={challengeActionId}
+          eventStatusAction={eventStatusAction}
           currentEventChallenge={currentEventChallenge}
           descExpanded={descExpanded}
           setDescExpanded={setDescExpanded}
@@ -297,12 +345,14 @@ export function EventDetailScreen() {
           onAddChallenge={handleAddChallengeToEvent}
           onAwardChallenge={handleAwardEventChallenge}
           onJoin={handleJoin}
+          onCloseEvent={handleCloseEvent}
+          onCancelEvent={handleCancelEvent}
           challengeTitle={challengeTitle}
           closeDetail={() => router.back()}
           setFeedbackEventId={setFeedbackEventId}
           setLogHoursEvent={setLogHoursEvent}
           setInviteModalVisible={setInviteModalVisible}
-          fetchEvents={fetchEvents}
+          fetchEvents={refreshEvent}
         />
       </ScrollView>
 

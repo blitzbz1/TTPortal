@@ -61,6 +61,43 @@ jest.mock('expo-haptics', () => ({
   NotificationFeedbackType: { Success: 'success', Error: 'error', Warning: 'warning' },
 }));
 
+jest.mock('expo-notifications', () => ({
+  AndroidImportance: { MAX: 'max' },
+  setNotificationHandler: jest.fn(),
+  getPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  requestPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  getExpoPushTokenAsync: jest.fn(() => Promise.resolve({ data: 'ExponentPushToken[test]' })),
+  setNotificationChannelAsync: jest.fn(() => Promise.resolve()),
+  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+}));
+
+jest.mock('expo-device', () => ({
+  isDevice: true,
+}));
+
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    expoConfig: {
+      extra: {
+        eas: {
+          projectId: 'test-project-id',
+        },
+      },
+    },
+  },
+}));
+
+jest.mock('expo-image', () => {
+  const React = require('react');
+  const { Image } = require('react-native');
+  return {
+    __esModule: true,
+    Image: (props) => React.createElement(Image, props),
+  };
+});
+
 jest.mock('expo-apple-authentication', () => ({
   AppleAuthenticationButton: () => null,
   AppleAuthenticationButtonStyle: { BLACK: 'BLACK', WHITE: 'WHITE', WHITE_OUTLINE: 'WHITE_OUTLINE' },

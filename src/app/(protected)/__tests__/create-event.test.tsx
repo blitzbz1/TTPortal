@@ -7,8 +7,9 @@ jest.mock('expo-sqlite', () => ({
 }));
 
 const mockBack = jest.fn();
+const mockReplace = jest.fn();
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ back: mockBack }),
+  useRouter: () => ({ back: mockBack, replace: mockReplace }),
   useLocalSearchParams: () => ({}),
 }));
 
@@ -462,7 +463,7 @@ describe('CreateEventRoute – friend invites', () => {
     await act(async () => {});
 
     expect(mockSendEventInvites).toHaveBeenCalledWith(42, ['friend-1']);
-    expect(mockBack).toHaveBeenCalled();
+    expect(mockReplace).toHaveBeenCalledWith(expect.stringMatching(/^\/\(tabs\)\/events\?tab=upcoming&refreshEvents=\d+$/));
   });
 
   it('skips invites and navigates back when skip is pressed', async () => {
@@ -474,7 +475,7 @@ describe('CreateEventRoute – friend invites', () => {
 
     fireEvent.press(screen.getByText(/skip/i));
     expect(mockSendEventInvites).not.toHaveBeenCalled();
-    expect(mockBack).toHaveBeenCalled();
+    expect(mockReplace).toHaveBeenCalledWith(expect.stringMatching(/^\/\(tabs\)\/events\?tab=upcoming&refreshEvents=\d+$/));
   });
 });
 
@@ -538,6 +539,6 @@ describe('CreateEventRoute – visibility', () => {
       expect.objectContaining({ visibility: 'private' }),
     );
     expect(mockSendEventInvites).toHaveBeenCalledWith(42, ['friend-1']);
-    expect(mockBack).toHaveBeenCalled();
+    expect(mockReplace).toHaveBeenCalledWith(expect.stringMatching(/^\/\(tabs\)\/events\?tab=upcoming&refreshEvents=\d+$/));
   });
 });

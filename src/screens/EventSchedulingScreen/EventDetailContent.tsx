@@ -1,13 +1,15 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking, Modal, Pressable, TextInput } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useRouter } from 'expo-router';
+import { BadgeTrackIcon } from '../../components/BadgeTrackIcon';
 import { Lucide } from '../../components/Icon';
 import { useTheme } from '../../hooks/useTheme';
 import { useI18n } from '../../hooks/useI18n';
-import { cancelEvent, closeEvent, stopRecurrence, sendEventUpdate } from '../../services/events';
+import { stopRecurrence, sendEventUpdate } from '../../services/events';
 import { sendRequest } from '../../services/friends';
 import { invalidateEventsCache } from '../../lib/eventsCache';
+import { BADGE_TRACKS } from '../../lib/badgeChallenges';
 import type { DbChallenge, EventChallengeSubmission } from '../../features/challenges';
 import { createStyles } from '../EventSchedulingScreen.styles';
 
@@ -49,6 +51,7 @@ export interface EventDetailContentProps {
   detailChallenges: EventChallengeSubmission[];
   feedbackGivenIds: Set<number>;
   challengeActionId: string | null;
+  eventStatusAction: 'closing' | 'cancelling' | null;
   currentEventChallenge: DbChallenge | null;
   descExpanded: boolean;
   setDescExpanded: React.Dispatch<React.SetStateAction<boolean>>;
@@ -62,6 +65,8 @@ export interface EventDetailContentProps {
   onAddChallenge: (challenge: DbChallenge) => void;
   onAwardChallenge: (submission: EventChallengeSubmission) => void;
   onJoin: (event: any) => void;
+  onCloseEvent: () => void | Promise<void>;
+  onCancelEvent: () => void | Promise<void>;
   challengeTitle: (challenge: any) => string;
   closeDetail: () => void;
   setFeedbackEventId: (id: number) => void;
@@ -74,20 +79,46 @@ export function EventDetailContent(props: EventDetailContentProps) {
   const {
     event: ev, user, friendIds,
     detailParticipants, detailFeedback, detailLoading, detailChallenges, feedbackGivenIds,
-    challengeActionId, currentEventChallenge,
+    challengeActionId, eventStatusAction, currentEventChallenge,
     descExpanded, setDescExpanded,
     updateText, setUpdateText, sendingUpdate, setSendingUpdate,
     formatDate, formatTime, isEffectivelyOver,
-    onAddChallenge, onAwardChallenge, onJoin, challengeTitle,
+    onAddChallenge, onAwardChallenge, onJoin, onCloseEvent, onCancelEvent, challengeTitle,
     closeDetail, setFeedbackEventId, setLogHoursEvent, setInviteModalVisible, fetchEvents,
   } = props;
   const { s, lang } = useI18n();
   const { colors, isDark } = useTheme();
   const router = useRouter();
   const { styles, ms } = React.useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const [confirmTarget, setConfirmTarget] = React.useState<'close' | 'cancel' | null>(null);
 
   const isPast = (e: any) =>
     e.status === 'completed' || e.status === 'cancelled' || isEffectivelyOver(e);
+  const isOwner = !!user?.id && ev.organizer_id === user.id;
+  const hasStarted = new Date(ev.starts_at).getTime() <= Date.now();
+  const canCloseEvent = hasStarted && !isPast(ev) && ev.status !== 'closed' && isOwner && !eventStatusAction;
+  const canCancelEvent = !isPast(ev) && isOwner && !eventStatusAction;
+  const confirmConfig = confirmTarget === 'close'
+    ? {
+      title: s('closeEvent'),
+      message: s('closeEventConfirm'),
+      confirmLabel: s('closeEvent'),
+      icon: 'check-circle',
+      destructive: false,
+      onConfirm: onCloseEvent,
+      busy: eventStatusAction === 'closing',
+    }
+    : confirmTarget === 'cancel'
+      ? {
+        title: s('cancelEvent'),
+        message: s('cancelEventConfirm'),
+        confirmLabel: s('cancelEvent'),
+        icon: 'x-circle',
+        destructive: true,
+        onConfirm: onCancelEvent,
+        busy: eventStatusAction === 'cancelling',
+      }
+      : null;
 
   const getBadgeInfo = (e: any): BadgeInfo => {
     if (e.status === 'completed' || (e.status !== 'cancelled' && isEffectivelyOver(e))) {
@@ -336,21 +367,53 @@ export function EventDetailContent(props: EventDetailContentProps) {
                 const isMine = submission.submitter_user_id === user.id;
                 const isPending = submission.status === 'pending';
                 const canAward = !isMine && isPending;
+                const challengeTrack = BADGE_TRACKS.find((track) => track.category === submission.category);
                 return (
-                  <View key={submission.submission_id} style={styles.eventChallengeCard}>
+                  <View
+                    key={submission.submission_id}
+                    style={[
+                      styles.eventChallengeCard,
+                      challengeTrack && { borderColor: challengeTrack.color },
+                    ]}
+                  >
                     <View style={styles.eventChallengeCardTop}>
-                      <View style={styles.eventChallengeIcon}>
-                        <Lucide name={isPending ? 'award' : 'check'} size={16} color={colors.textOnPrimary} />
+                      <View
+                        style={[
+                          styles.eventChallengeIcon,
+                          challengeTrack && { backgroundColor: challengeTrack.paleColor },
+                        ]}
+                      >
+                        {challengeTrack ? (
+                          <BadgeTrackIcon
+                            badge={challengeTrack}
+                            size={42}
+                            variant="feature"
+                            fallbackColor={challengeTrack.color}
+                          />
+                        ) : (
+                          <Lucide name={isPending ? 'award' : 'check'} size={16} color={colors.textOnPrimary} />
+                        )}
                       </View>
                       <View style={styles.eventChallengeCardCopy}>
-                        <Text style={styles.eventChallengeCardTitle}>{challengeTitle(submission)}</Text>
-                        <Text style={styles.eventChallengeCardMeta}>
-                          {isMine
-                            ? s('eventChallengeMine')
-                            : s('eventChallengeBy', submission.submitter_name)}
+                        <View style={styles.eventChallengeCardTitleRow}>
+                          <Text style={styles.eventChallengeCardTitle}>{challengeTitle(submission)}</Text>
+                          <View style={[
+                            styles.eventChallengeTrackPill,
+                            challengeTrack && { backgroundColor: challengeTrack.paleColor },
+                          ]}>
+                            <Text style={[
+                              styles.eventChallengeTrackPillText,
+                              challengeTrack && { color: challengeTrack.color },
+                            ]}>
+                              {challengeTrack ? s(`badgeTrack_${challengeTrack.id}_short`) : s('eventChallenges')}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={styles.eventChallengeCardMeta} numberOfLines={1}>
+                          {isMine ? s('eventChallengeMine') : s('eventChallengeBy', submission.submitter_name)}
                         </Text>
                         {!isPending && (
-                          <Text style={styles.eventChallengeCardMeta}>
+                          <Text style={styles.eventChallengeCardMeta} numberOfLines={1}>
                             {s('eventChallengeAwardedBy', submission.reviewer_name ?? s('player'))}
                           </Text>
                         )}
@@ -548,10 +611,11 @@ export function EventDetailContent(props: EventDetailContentProps) {
             </Text>
           </TouchableOpacity>
         )}
-        {!isPast(ev) && ev.status !== 'closed' && ev.organizer_id === user?.id && (
+        {!isPast(ev) && ev.status !== 'closed' && isOwner && (
           <TouchableOpacity
             style={[ms.actionBtn, ms.actionSecondary]}
             onPress={() => setInviteModalVisible(true)}
+            disabled={!!eventStatusAction}
           >
             <Lucide name="send" size={16} color={colors.primary} />
             <Text style={[ms.actionText, ms.actionSecondaryText]}>
@@ -559,38 +623,25 @@ export function EventDetailContent(props: EventDetailContentProps) {
             </Text>
           </TouchableOpacity>
         )}
-        {!isPast(ev) && ev.status !== 'closed' && ev.organizer_id === user?.id && (
+        {hasStarted && !isPast(ev) && ev.status !== 'closed' && isOwner && (
           <TouchableOpacity
-            style={[ms.actionBtn, ms.actionSecondary]}
-            onPress={() => {
-              Alert.alert(
-                s('closeEvent'),
-                s('closeEventConfirm'),
-                [
-                  { text: s('cancel'), style: 'cancel' },
-                  {
-                    text: s('closeEvent'),
-                    onPress: async () => {
-                      const { error } = await closeEvent(ev.id, user!.id);
-                      if (error) {
-                        Alert.alert(s('error'), error.message);
-                      } else {
-                        invalidateEventsCache(user!.id, ['upcoming', 'mine']);
-                        await fetchEvents();
-                      }
-                    },
-                  },
-                ],
-              );
-            }}
+            style={[ms.actionBtn, ms.actionSecondary, !canCloseEvent && styles.disabledChallenge]}
+            disabled={!canCloseEvent}
+            onPress={() => setConfirmTarget('close')}
           >
-            <Lucide name="check-circle" size={16} color={colors.primary} />
-            <Text style={[ms.actionText, ms.actionSecondaryText]}>{s('closeEvent')}</Text>
+            {eventStatusAction === 'closing' ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Lucide name="check-circle" size={16} color={colors.primary} />
+            )}
+            <Text style={[ms.actionText, ms.actionSecondaryText]}>
+              {eventStatusAction === 'closing' ? s('loading') : s('closeEvent')}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {!isPast(ev) && ev.organizer_id === user?.id && (
+      {!isPast(ev) && isOwner && (
         <View style={ms.dangerZone}>
           {ev.recurrence_rule && (
             <TouchableOpacity
@@ -624,35 +675,85 @@ export function EventDetailContent(props: EventDetailContentProps) {
             </TouchableOpacity>
           )}
           <TouchableOpacity
-            style={ms.dangerBtn}
-            onPress={() => {
-              Alert.alert(
-                s('cancelEvent'),
-                s('cancelEventConfirm'),
-                [
-                  { text: s('cancel'), style: 'cancel' },
-                  {
-                    text: s('cancelEvent'),
-                    style: 'destructive',
-                    onPress: async () => {
-                      const { error } = await cancelEvent(ev.id, user!.id);
-                      if (error) {
-                        Alert.alert(s('error'), error.message);
-                      } else {
-                        invalidateEventsCache(user!.id, ['upcoming', 'mine']);
-                        await fetchEvents();
-                      }
-                    },
-                  },
-                ],
-              );
-            }}
+            style={[ms.dangerBtn, !canCancelEvent && styles.disabledChallenge]}
+            disabled={!canCancelEvent}
+            onPress={() => setConfirmTarget('cancel')}
           >
-            <Lucide name="x-circle" size={14} color={colors.red} />
-            <Text style={ms.dangerBtnText}>{s('cancelEvent')}</Text>
+            {eventStatusAction === 'cancelling' ? (
+              <ActivityIndicator size="small" color={colors.red} />
+            ) : (
+              <Lucide name="x-circle" size={14} color={colors.red} />
+            )}
+            <Text style={ms.dangerBtnText}>
+              {eventStatusAction === 'cancelling' ? s('loading') : s('cancelEvent')}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
+
+      <Modal
+        visible={!!confirmConfig}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!eventStatusAction) setConfirmTarget(null);
+        }}
+      >
+        <Pressable
+          style={ms.confirmOverlay}
+          onPress={() => {
+            if (!eventStatusAction) setConfirmTarget(null);
+          }}
+        >
+          <Pressable style={ms.confirmCard} onPress={(event) => event.stopPropagation()}>
+            {confirmConfig && (
+              <>
+                <View style={[
+                  ms.confirmIcon,
+                  confirmConfig.destructive ? ms.confirmIconDanger : ms.confirmIconSafe,
+                ]}>
+                  <Lucide
+                    name={confirmConfig.icon}
+                    size={22}
+                    color={confirmConfig.destructive ? colors.red : colors.primary}
+                  />
+                </View>
+                <Text style={ms.confirmTitle}>{confirmConfig.title}</Text>
+                <Text style={ms.confirmText}>{confirmConfig.message}</Text>
+                <View style={ms.confirmActions}>
+                  <TouchableOpacity
+                    style={[ms.confirmBtn, ms.confirmCancelBtn]}
+                    disabled={!!eventStatusAction}
+                    onPress={() => setConfirmTarget(null)}
+                    activeOpacity={0.86}
+                  >
+                    <Text style={ms.confirmCancelText}>{s('cancel')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      ms.confirmBtn,
+                      confirmConfig.destructive ? ms.confirmDangerBtn : ms.confirmPrimaryBtn,
+                      confirmConfig.busy && styles.disabledChallenge,
+                    ]}
+                    disabled={!!eventStatusAction}
+                    onPress={async () => {
+                      await confirmConfig.onConfirm();
+                      setConfirmTarget(null);
+                    }}
+                    activeOpacity={0.86}
+                  >
+                    {confirmConfig.busy ? (
+                      <ActivityIndicator size="small" color={colors.textOnPrimary} />
+                    ) : (
+                      <Text style={ms.confirmPrimaryText}>{confirmConfig.confirmLabel}</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </>
   );
 }

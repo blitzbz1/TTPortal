@@ -1,5 +1,14 @@
 // Mock expo-sqlite before any imports
-import { getEventById, getEventParticipants, getEvents, sendEventInvites, sendEventUpdate, stopRecurrence } from '../events';
+import {
+  cancelEvent,
+  closeEvent,
+  getEventById,
+  getEventParticipants,
+  getEvents,
+  sendEventInvites,
+  sendEventUpdate,
+  stopRecurrence,
+} from '../events';
 
 jest.mock('expo-sqlite', () => ({
   openDatabaseSync: () => ({
@@ -117,7 +126,7 @@ describe('getEvents', () => {
     expect(chain.order).toHaveBeenCalledWith('starts_at', { ascending: true });
   });
 
-  it('filters past events to "ended" and user participation', async () => {
+  it('filters past events to ended or terminal status and user participation', async () => {
     mockFrom.mockReturnValue(createQueryChain([]));
 
     await getEvents('past', 'user-1');
@@ -126,6 +135,7 @@ describe('getEvents', () => {
     const orArg = chain.or.mock.calls[0][0] as string;
     expect(orArg).toContain('ends_at.lt.');
     expect(orArg).toContain('and(ends_at.is.null,starts_at.lt.');
+    expect(orArg).toContain('status.in.(closed,cancelled,completed)');
     expect(chain.eq).toHaveBeenCalledWith('ep_filter.user_id', 'user-1');
     expect(chain.order).toHaveBeenCalledWith('starts_at', { ascending: false });
   });
@@ -254,5 +264,35 @@ describe('stopRecurrence', () => {
     const { error } = await stopRecurrence(99, 'org-1');
 
     expect(error).toEqual({ message: 'fail' });
+  });
+});
+
+describe('event organizer status actions', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('marks an organizer event as closed', async () => {
+    const chain = createQueryChain({ id: 5, status: 'closed' });
+    mockFrom.mockReturnValue(chain);
+
+    await closeEvent(5, 'org-1');
+
+    expect(mockFrom).toHaveBeenCalledWith('events');
+    expect(chain.update).toHaveBeenCalledWith({ status: 'closed' });
+    expect(chain.eq).toHaveBeenCalledWith('id', 5);
+    expect(chain.eq).toHaveBeenCalledWith('organizer_id', 'org-1');
+    expect(chain.single).toHaveBeenCalled();
+  });
+
+  it('marks an organizer event as cancelled', async () => {
+    const chain = createQueryChain({ id: 7, status: 'cancelled' });
+    mockFrom.mockReturnValue(chain);
+
+    await cancelEvent(7, 'org-2');
+
+    expect(mockFrom).toHaveBeenCalledWith('events');
+    expect(chain.update).toHaveBeenCalledWith({ status: 'cancelled' });
+    expect(chain.eq).toHaveBeenCalledWith('id', 7);
+    expect(chain.eq).toHaveBeenCalledWith('organizer_id', 'org-2');
+    expect(chain.single).toHaveBeenCalled();
   });
 });

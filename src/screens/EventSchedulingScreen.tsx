@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ActivityIndicator, View, Text, TouchableOpacity, ScrollView, Alert, RefreshControl, Linking } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { NotificationBellButton } from '../components/NotificationBellButton';
 import { FeedbackHeaderButton } from '../components/FeedbackHeaderButton';
@@ -88,7 +88,11 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const { user } = useSession();
   const { s, lang } = useI18n();
   const router = useRouter();
-  const { eventId: eventIdParam } = useLocalSearchParams<{ eventId?: string }>();
+  const {
+    eventId: eventIdParam,
+    tab: tabParam,
+    refreshEvents: refreshEventsParam,
+  } = useLocalSearchParams<{ eventId?: string; tab?: string; refreshEvents?: string }>();
   const { colors, isDark } = useTheme();
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const { styles } = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
@@ -99,11 +103,22 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const currentChallengeTrack = currentEventChallenge
     ? BADGE_TRACKS.find((track) => track.category === currentEventChallenge.category)
     : null;
+  const eventFetchSeqRef = React.useRef(0);
+  const handledRefreshRef = React.useRef<string | null>(null);
+  const hasFocusedOnceRef = React.useRef(false);
+
+  const requestedTab = useMemo<EventTab | null>(() => {
+    if (tabParam === 'upcoming' || tabParam === 'past' || tabParam === 'mine' || tabParam === 'amatur') {
+      return tabParam;
+    }
+    return null;
+  }, [tabParam]);
 
   const fetchEvents = useCallback(async (force = false) => {
     if (activeTab === 'amatur') return;
     const tab = activeTab as EventTabKey;
     const userId = user?.id;
+    const fetchSeq = ++eventFetchSeqRef.current;
 
     // Cache-first for "mine" and "past": these tabs change rarely and benefit
     // from instant render. We only show the spinner if there's no cached data
@@ -142,6 +157,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         (tab === 'mine' || tab === 'past') ? userId : undefined,
         { limit, offset: 0 },
       );
+      if (fetchSeq !== eventFetchSeqRef.current) return;
       if (error) {
         setEventsError(true);
       } else {
@@ -153,21 +169,24 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         if (tab === 'past' && userId && list.length) {
           const eventIds = list.map((ev) => ev.id);
           const { data: feedbackEventIds } = await getUserEventFeedbackForEvents(userId, eventIds);
+          if (fetchSeq !== eventFetchSeqRef.current) return;
           const ids = feedbackEventIds ?? [];
           setFeedbackGivenIds(new Set(ids));
           saveCachedFeedbackGiven(userId, ids);
         }
       }
     } catch {
+      if (fetchSeq !== eventFetchSeqRef.current) return;
       setEventsError(true);
     } finally {
-      setLoading(false);
+      if (fetchSeq === eventFetchSeqRef.current) setLoading(false);
     }
   }, [activeTab, user?.id]);
 
   const loadMorePastEvents = useCallback(async () => {
     if (activeTab !== 'past' || !user?.id) return;
     if (pastLoadingMore || !pastHasMore || loading) return;
+    const fetchSeq = eventFetchSeqRef.current;
     setPastLoadingMore(true);
     try {
       const offset = events.length;
@@ -175,6 +194,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         limit: PAST_EVENTS_PAGE_SIZE,
         offset,
       });
+      if (activeTab !== 'past' || fetchSeq !== eventFetchSeqRef.current) return;
       if (error) return;
       const more = (data ?? []) as unknown as EventListItem[];
       if (more.length === 0) {
@@ -188,6 +208,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       // Augment feedback-given set with the new page.
       const newIds = more.map((ev) => ev.id);
       const { data: fb } = await getUserEventFeedbackForEvents(user.id, newIds);
+      if (activeTab !== 'past' || fetchSeq !== eventFetchSeqRef.current) return;
       if (fb && fb.length) {
         setFeedbackGivenIds((prev) => {
           const next = new Set(prev);
@@ -221,6 +242,37 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     }
     setRefreshing(false);
   }, [fetchEvents, fetchAmatur, activeTab]);
+
+  useEffect(() => {
+    if (!requestedTab || !refreshEventsParam) return;
+    if (handledRefreshRef.current === refreshEventsParam) return;
+    if (requestedTab !== activeTab) setActiveTab(requestedTab);
+  }, [requestedTab, refreshEventsParam, activeTab]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFocusedOnceRef.current) {
+        hasFocusedOnceRef.current = true;
+        return;
+      }
+      if (activeTab === 'amatur') {
+        fetchAmatur();
+      } else {
+        fetchEvents(true);
+      }
+    }, [activeTab, fetchAmatur, fetchEvents]),
+  );
+
+  useEffect(() => {
+    if (!refreshEventsParam || handledRefreshRef.current === refreshEventsParam) return;
+    if (requestedTab && requestedTab !== activeTab) return;
+    handledRefreshRef.current = refreshEventsParam;
+    if (activeTab === 'amatur') {
+      fetchAmatur();
+    } else {
+      fetchEvents(true);
+    }
+  }, [refreshEventsParam, requestedTab, activeTab, fetchEvents, fetchAmatur]);
 
   useEffect(() => {
     // Reset pagination when leaving or entering the past tab so a fresh
