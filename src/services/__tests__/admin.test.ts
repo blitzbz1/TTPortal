@@ -46,6 +46,8 @@ describe('searchVenuesAdmin', () => {
     const venues = [
       { id: 1, name: 'Parc Tineretului', address: 'Str. Principala', city: 'Bucureș­ti',
         type: 'parc_exterior', tables_count: 4, lat: 44.42, lng: 26.10,
+        condition: 'buna', night_lighting: true, nets: false, verified: true,
+        photos: ['https://example.com/one.jpg'],
         description: null, approved: true, extra: 'ignored' },
     ];
     mockRpc.mockResolvedValue({ data: venues, error: null });
@@ -57,6 +59,8 @@ describe('searchVenuesAdmin', () => {
     expect(data).toEqual([
       { id: 1, name: 'Parc Tineretului', city: 'Bucureș­ti', address: 'Str. Principala',
         type: 'parc_exterior', tables_count: 4, lat: 44.42, lng: 26.10,
+        condition: 'buna', night_lighting: true, nets: false, verified: true,
+        photos: ['https://example.com/one.jpg'],
         description: null, approved: true },
     ]);
   });
@@ -142,6 +146,32 @@ describe('updateVenue', () => {
       city: 'Cluj',
       lat: 46.77,
       lng: 23.6,
+    });
+  });
+
+  it('forwards condition, lighting, nets, verified, and photos when included in the update', async () => {
+    const profilesChain = createQueryChain({ is_admin: true });
+    const venuesChain = createQueryChain({ id: 1 });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') return profilesChain;
+      if (table === 'venues') return venuesChain;
+      return createQueryChain();
+    });
+
+    await updateVenue(1, 'admin-1', {
+      condition: 'deteriorata',
+      night_lighting: true,
+      nets: false,
+      verified: true,
+      photos: ['https://example.com/two.jpg'],
+    });
+
+    expect(venuesChain.update).toHaveBeenCalledWith({
+      condition: 'deteriorata',
+      night_lighting: true,
+      nets: false,
+      verified: true,
+      photos: ['https://example.com/two.jpg'],
     });
   });
 });

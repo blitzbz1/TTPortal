@@ -9,10 +9,10 @@ import {
 
 // Slim column lists for the admin moderation lists. The admin UI renders
 // pending-venue cards with name/city/address/created_at/submitter, and the
-// edit modal touches name/address/city/type/tables_count/description/lat/lng
+// edit modal touches name/address/city/type/tables_count/condition/night_lighting/nets/verified/photos/description/lat/lng
 // — fetching the full row roughly halves egress on this endpoint.
 const PENDING_VENUE_COLS =
-  'id, name, type, city, address, lat, lng, tables_count, description, submitted_by, created_at';
+  'id, name, type, city, address, lat, lng, tables_count, condition, night_lighting, nets, verified, photos, description, submitted_by, created_at';
 // Flagged-review cards render author, venue name, flag count and date — the
 // review body itself is not shown in the list.
 const FLAGGED_REVIEW_COLS =
@@ -107,6 +107,8 @@ export async function searchVenuesAdmin(query: string) {
   const slim = (data as any[]).map((v) => ({
     id: v.id, name: v.name, city: v.city, address: v.address, type: v.type,
     tables_count: v.tables_count, lat: v.lat, lng: v.lng,
+    condition: v.condition, night_lighting: v.night_lighting, nets: v.nets, verified: v.verified,
+    photos: v.photos,
     description: v.description, approved: v.approved,
   }));
   return { data: slim, error: null };
@@ -122,6 +124,11 @@ export async function updateVenue(
     city_id?: number;
     type?: string;
     tables_count?: number | null;
+    condition?: string | null;
+    night_lighting?: boolean | null;
+    nets?: boolean | null;
+    verified?: boolean;
+    photos?: string[] | null;
     description?: string | null;
     lat?: number | null;
     lng?: number | null;

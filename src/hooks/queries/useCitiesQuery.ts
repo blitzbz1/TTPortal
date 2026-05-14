@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { applyCitiesDelta, readCities, type PersistedCity } from '../../lib/citiesPersistentCache';
+import { cleanCityCatalog } from '../../lib/cityCatalog';
 import { getCitiesDelta } from '../../services/citiesDelta';
 
 export const citiesQueryKey = ['cities', 'delta'] as const;
@@ -18,7 +19,7 @@ export function useCitiesQuery() {
       const since = cached?.syncedAt ?? null;
       const { data, error } = await getCitiesDelta(since);
       if (error || !data) {
-        if (cached) return cached.cities;
+        if (cached) return cleanCityCatalog(cached.cities);
         throw error ?? new Error('cities delta failed and no cache');
       }
       const next = applyCitiesDelta(
@@ -26,9 +27,12 @@ export function useCitiesQuery() {
         data.tombstone_ids ?? [],
         data.synced_at,
       );
-      return next.cities;
+      return cleanCityCatalog(next.cities);
     },
-    initialData: () => readCities()?.cities,
+    initialData: () => {
+      const cached = readCities();
+      return cached ? cleanCityCatalog(cached.cities) : undefined;
+    },
     staleTime: 60 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
   });

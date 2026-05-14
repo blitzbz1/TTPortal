@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { canonicalizeCityName } from '../lib/cityCatalog';
 
 // The "list cities" path is intentionally not in this file anymore —
 // callers should use useCitiesQuery (delta-synced via citiesDelta +
@@ -12,6 +13,8 @@ import { supabase } from '../lib/supabase';
  * Otherwise inserts a new row with the given name.
  */
 export async function upsertCity(name: string): Promise<{ id: number | null; error: string | null }> {
+  const canonicalName = canonicalizeCityName(name);
+
   // Use Postgres ON CONFLICT to be race-safe: a select-then-insert pattern can
   // double-insert when two clients submit the same new city simultaneously,
   // surfacing as an opaque 409 from the unique constraint on `cities.name`.
@@ -19,7 +22,7 @@ export async function upsertCity(name: string): Promise<{ id: number | null; err
   // there's a name match, so we always get an `id` back.
   const { data: upserted, error: upsertError } = await supabase
     .from('cities')
-    .upsert({ name, active: true }, { onConflict: 'name', ignoreDuplicates: false })
+    .upsert({ name: canonicalName, active: true }, { onConflict: 'name', ignoreDuplicates: false })
     .select('id')
     .single();
 

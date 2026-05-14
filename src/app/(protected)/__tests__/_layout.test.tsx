@@ -10,13 +10,17 @@ jest.mock('../../../hooks/useSession', () => ({
 
 const mockReplace = jest.fn();
 const mockPathname = jest.fn();
+const mockStackScreenNames: string[] = [];
 
 jest.mock('expo-router', () => {
   const { View } = require('react-native');
   const StackComponent = ({ children }: { children?: React.ReactNode }) => (
     <View testID="stack-navigator">{children}</View>
   );
-  const MockScreen = () => null;
+  const MockScreen = ({ name }: { name: string }) => {
+    mockStackScreenNames.push(name);
+    return null;
+  };
   StackComponent.Screen = MockScreen;
   return {
     Stack: StackComponent,
@@ -45,6 +49,7 @@ import { logger } from '../../../lib/logger';
 describe('ProtectedLayout', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockStackScreenNames.length = 0;
     mockPathname.mockReturnValue('/add-venue');
   });
 
@@ -122,6 +127,12 @@ describe('ProtectedLayout', () => {
       const { getByTestId } = render(<ProtectedLayout />);
 
       getByTestId('stack-navigator');
+    });
+
+    it('registers event detail route for restored /event/:id navigation state', () => {
+      render(<ProtectedLayout />);
+
+      expect(mockStackScreenNames).toContain('event/[eventId]');
     });
 
     it('does not log a redirect', () => {

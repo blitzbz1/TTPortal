@@ -10,6 +10,7 @@ import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme'
 import { useI18n } from '../hooks/useI18n';
 import { createVenue } from '../services/venues';
 import { upsertCity } from '../services/cities';
+import { canonicalizeCityName } from '../lib/cityCatalog';
 import { useCitiesQuery } from '../hooks/queries/useCitiesQuery';
 import { safeErrorMessage } from '../lib/auth-utils';
 import { rateLimitMessageFor } from '../lib/rateLimit';
@@ -144,13 +145,14 @@ export function AddVenueScreen() {
     setLoading(true);
 
     // Upsert city to get its id (city name extracted from Nominatim)
-    const { id: cityId, error: cityError } = await upsertCity(city);
+    const canonicalCity = canonicalizeCityName(city);
+    const { id: cityId, error: cityError } = await upsertCity(canonicalCity);
     if (cityError || !cityId) { setLoading(false); Alert.alert(s('error'), safeErrorMessage(cityError ?? 'genericError', 'genericError', s)); return; }
 
     const { error } = await createVenue({
       name: name.trim(),
       type,
-      city,
+      city: canonicalCity,
       city_id: cityId,
       county: null,
       sector: null,

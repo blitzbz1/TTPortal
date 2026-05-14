@@ -48,6 +48,23 @@ describe('upsertCity', () => {
     const result = await upsertCity('Sibiu');
 
     expect(result).toEqual({ id: 99, error: null });
+    expect(chain.upsert).toHaveBeenCalledWith(
+      { name: 'Sibiu', active: true },
+      expect.objectContaining({ onConflict: 'name', ignoreDuplicates: false }),
+    );
+  });
+
+  it('canonicalizes Piatra Neamt variants before upsert', async () => {
+    const chain = createQueryChain({ id: 100 });
+    mockFrom.mockReturnValue(chain);
+
+    const result = await upsertCity('Piatra-Neamt');
+
+    expect(result).toEqual({ id: 100, error: null });
+    expect(chain.upsert).toHaveBeenCalledWith(
+      { name: 'Piatra Neamț', active: true },
+      expect.objectContaining({ onConflict: 'name', ignoreDuplicates: false }),
+    );
   });
 
   it('returns error when upsert fails', async () => {

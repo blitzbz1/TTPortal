@@ -9,6 +9,7 @@ jest.mock('react-native-gesture-handler', () => {
 });
 
 const mockUseSession = jest.fn();
+const mockStackScreenNames: string[] = [];
 
 jest.mock('../../hooks/useSession', () => ({
   useSession: () => mockUseSession(),
@@ -47,7 +48,10 @@ jest.mock('expo-router', () => {
   const StackComponent = ({ children }: { children?: React.ReactNode }) => (
     <View testID="stack-navigator">{children}</View>
   );
-  function MockScreen() { return null; }
+  function MockScreen({ name }: { name: string }) {
+    mockStackScreenNames.push(name);
+    return null;
+  }
   StackComponent.Screen = MockScreen;
   return {
     Stack: StackComponent,
@@ -100,6 +104,7 @@ import * as SplashScreen from 'expo-splash-screen';
 describe('RootLayout', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockStackScreenNames.length = 0;
     mockUseSession.mockReturnValue({
       isLoading: false,
       session: null,
@@ -165,6 +170,12 @@ describe('RootLayout', () => {
       getByTestId('stack-navigator');
       // Overlay stays mounted until its fade-out completes and onComplete fires
       getByTestId('animated-splash');
+    });
+
+    it('registers venue detail route for restored /venue/:id navigation state', () => {
+      render(<RootLayout />);
+
+      expect(mockStackScreenNames).toContain('venue/[id]');
     });
 
     it('hides native splash screen once fully loaded', () => {

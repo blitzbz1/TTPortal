@@ -1,17 +1,19 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput, Modal, Pressable } from 'react-native';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput, Modal, Pressable, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { FeedbackReplyModal } from '../components/FeedbackReplyModal';
 import { AddressPickerField } from '../components/AddressPickerField';
 import { upsertCity } from '../services/cities';
+import { canonicalizeCityName } from '../lib/cityCatalog';
 import { useCitiesQuery } from '../hooks/queries/useCitiesQuery';
 import { useTheme } from '../hooks/useTheme';
 import { Fonts } from '../theme';
 import { createStyles } from './AdminModerationScreen.styles';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
+import type { VenueCondition } from '../types/database';
 import {
   getPendingVenues,
   searchVenuesAdmin,
@@ -52,6 +54,25 @@ function formatLocalizedDateTime(iso: string) {
   }
   return _localizedDateTimeFmt.current.format(new Date(iso));
 }
+
+const CONDITION_OPTIONS: { value: VenueCondition; labelKey: string }[] = [
+  { value: 'buna', labelKey: 'conditionGood' },
+  { value: 'acceptabila', labelKey: 'conditionAcceptable' },
+  { value: 'deteriorata', labelKey: 'conditionDegraded' },
+  { value: 'profesionala', labelKey: 'conditionPro' },
+  { value: 'necunoscuta', labelKey: 'conditionUnknown' },
+];
+
+const BOOLEAN_OPTIONS: { value: boolean | null; labelKey: string }[] = [
+  { value: true, labelKey: 'yes' },
+  { value: false, labelKey: 'no' },
+  { value: null, labelKey: 'conditionUnknown' },
+];
+
+const REQUIRED_BOOLEAN_OPTIONS: { value: boolean; labelKey: string }[] = [
+  { value: true, labelKey: 'yes' },
+  { value: false, labelKey: 'no' },
+];
 
 interface PendingVenueCardProps {
   venue: any;
@@ -213,6 +234,11 @@ export function AdminModerationScreen() {
   const [editLng, setEditLng] = useState<number | null>(null);
   const [editType, setEditType] = useState('');
   const [editTables, setEditTables] = useState('');
+  const [editCondition, setEditCondition] = useState<VenueCondition>('necunoscuta');
+  const [editNightLighting, setEditNightLighting] = useState<boolean | null>(null);
+  const [editNets, setEditNets] = useState<boolean | null>(null);
+  const [editVerified, setEditVerified] = useState(false);
+  const [editPhotos, setEditPhotos] = useState<string[]>([]);
   const [editDescription, setEditDescription] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [knownCities, setKnownCities] = useState<string[]>([]);
@@ -233,7 +259,7 @@ export function AdminModerationScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!user) return;
     getProfile(user.id).then(({ data }) => {
       setIsAdmin(data?.is_admin === true);
@@ -354,7 +380,16 @@ export function AdminModerationScreen() {
     setEditLng(typeof venue.lng === 'number' ? venue.lng : null);
     setEditType(venue.type ?? 'parc_exterior');
     setEditTables(venue.tables_count != null ? String(venue.tables_count) : '');
+    setEditCondition(venue.condition ?? 'necunoscuta');
+    setEditNightLighting(typeof venue.night_lighting === 'boolean' ? venue.night_lighting : null);
+    setEditNets(typeof venue.nets === 'boolean' ? venue.nets : null);
+    setEditVerified(venue.verified === true);
+    setEditPhotos(Array.isArray(venue.photos) ? venue.photos.filter((url: unknown): url is string => typeof url === 'string' && url.length > 0) : []);
     setEditDescription(venue.description ?? '');
+  }, []);
+
+  const handleRemoveEditPhoto = useCallback((photoUrl: string) => {
+    setEditPhotos((prev) => prev.filter((url) => url !== photoUrl));
   }, []);
 
   const handleEditAddressPatch = useCallback((patch: { address?: string; city?: string; lat?: number | null; lng?: number | null }) => {
@@ -369,9 +404,10 @@ export function AdminModerationScreen() {
     setEditSaving(true);
 
     const trimmedCity = editCity.trim();
+    const canonicalCity = canonicalizeCityName(trimmedCity);
     let cityIdUpdate: number | undefined;
-    if (trimmedCity && trimmedCity !== (editVenue.city ?? '').trim()) {
-      const { id: upsertedId, error: cityError } = await upsertCity(trimmedCity);
+    if (canonicalCity && canonicalCity !== (editVenue.city ?? '').trim()) {
+      const { id: upsertedId, error: cityError } = await upsertCity(canonicalCity);
       if (cityError || !upsertedId) {
         setEditSaving(false);
         Alert.alert(s('error'), s('genericError'));
@@ -383,10 +419,15 @@ export function AdminModerationScreen() {
     const { data, error } = await updateVenue(editVenue.id, user!.id, {
       name: editName.trim(),
       address: editAddress.trim(),
-      city: trimmedCity,
+      city: canonicalCity,
       ...(cityIdUpdate !== undefined ? { city_id: cityIdUpdate } : {}),
       type: editType,
       tables_count: editTables ? Number(editTables) : null,
+      condition: editCondition,
+      night_lighting: editNightLighting,
+      nets: editNets,
+      verified: editVerified,
+      photos: editPhotos,
       description: editDescription.trim() || null,
       lat: editLat,
       lng: editLng,
@@ -398,7 +439,7 @@ export function AdminModerationScreen() {
     // Update in pending list too
     setPendingVenues((prev) => prev.map((v) => v.id === editVenue.id ? { ...v, ...data } : v));
     setEditVenue(null);
-  }, [editVenue, editName, editAddress, editCity, editLat, editLng, editType, editTables, editDescription, user, s]);
+  }, [editVenue, editName, editAddress, editCity, editLat, editLng, editType, editTables, editCondition, editNightLighting, editNets, editVerified, editPhotos, editDescription, user, s]);
 
   const handleKeep = useCallback(async (id: number) => {
     const { error } = await keepReview(id, user!.id);
@@ -630,7 +671,11 @@ export function AdminModerationScreen() {
                     </Text>
                   </View>
                   <View style={styles.venueActions}>
-                    <TouchableOpacity style={styles.venueEditBtn} onPress={() => openEditModal(venue)}>
+                    <TouchableOpacity
+                      style={styles.venueEditBtn}
+                      onPress={() => openEditModal(venue)}
+                      testID={`venue-edit-${venue.id}`}
+                    >
                       <Lucide name="pencil" size={14} color={colors.textMuted} />
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.venueDeleteBtn} onPress={() => handleDeleteVenue(venue)}>
@@ -745,6 +790,115 @@ export function AdminModerationScreen() {
                   <TextInput style={styles.modalInput} value={editTables} onChangeText={setEditTables} keyboardType="numeric" />
                 </View>
 
+                {/* Condition */}
+                <View style={styles.modalField}>
+                  <Text style={styles.modalLabel}>{s('fieldCondition')}</Text>
+                  <View style={styles.modalChoiceGrid}>
+                    {CONDITION_OPTIONS.map((option) => {
+                      const active = editCondition === option.value;
+                      return (
+                        <TouchableOpacity
+                          key={option.value}
+                          style={[styles.modalChoiceBtn, active && styles.modalChoiceBtnActive]}
+                          onPress={() => setEditCondition(option.value)}
+                          testID={`condition-${option.value}`}
+                        >
+                          <Text style={[styles.modalChoiceText, active && styles.modalChoiceTextActive]}>
+                            {s(option.labelKey)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Lighting and nets */}
+                <View style={styles.modalField}>
+                  <Text style={styles.modalLabel}>{s('fieldLighting')}</Text>
+                  <View style={styles.modalChoiceGrid}>
+                    {BOOLEAN_OPTIONS.map((option) => {
+                      const active = editNightLighting === option.value;
+                      return (
+                        <TouchableOpacity
+                          key={`lighting-${String(option.value)}`}
+                          style={[styles.modalChoiceBtn, active && styles.modalChoiceBtnActive]}
+                          onPress={() => setEditNightLighting(option.value)}
+                          testID={`lighting-${String(option.value)}`}
+                        >
+                          <Text style={[styles.modalChoiceText, active && styles.modalChoiceTextActive]}>
+                            {s(option.labelKey)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <View style={styles.modalField}>
+                  <Text style={styles.modalLabel}>{s('fieldNets')}</Text>
+                  <View style={styles.modalChoiceGrid}>
+                    {BOOLEAN_OPTIONS.map((option) => {
+                      const active = editNets === option.value;
+                      return (
+                        <TouchableOpacity
+                          key={`nets-${String(option.value)}`}
+                          style={[styles.modalChoiceBtn, active && styles.modalChoiceBtnActive]}
+                          onPress={() => setEditNets(option.value)}
+                          testID={`nets-${String(option.value)}`}
+                        >
+                          <Text style={[styles.modalChoiceText, active && styles.modalChoiceTextActive]}>
+                            {s(option.labelKey)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <View style={styles.modalField}>
+                  <Text style={styles.modalLabel}>{s('verified').toUpperCase()}</Text>
+                  <View style={styles.modalChoiceGrid}>
+                    {REQUIRED_BOOLEAN_OPTIONS.map((option) => {
+                      const active = editVerified === option.value;
+                      return (
+                        <TouchableOpacity
+                          key={`verified-${String(option.value)}`}
+                          style={[styles.modalChoiceBtn, active && styles.modalChoiceBtnActive]}
+                          onPress={() => setEditVerified(option.value)}
+                          testID={`verified-${String(option.value)}`}
+                        >
+                          <Text style={[styles.modalChoiceText, active && styles.modalChoiceTextActive]}>
+                            {s(option.labelKey)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <View style={styles.modalField}>
+                  <Text style={styles.modalLabel}>{s('photos').toUpperCase()}</Text>
+                  {editPhotos.length === 0 ? (
+                    <Text style={styles.modalEmptyText}>{s('noPhotosYet')}</Text>
+                  ) : (
+                    <View style={styles.modalPhotoGrid}>
+                      {editPhotos.map((photoUrl, index) => (
+                        <View key={photoUrl} style={styles.modalPhotoItem}>
+                          <Image source={{ uri: photoUrl }} style={styles.modalPhotoImage} />
+                          <TouchableOpacity
+                            style={styles.modalPhotoRemoveBtn}
+                            onPress={() => handleRemoveEditPhoto(photoUrl)}
+                            testID={`remove-photo-${index}`}
+                          >
+                            <Lucide name="trash-2" size={14} color={colors.textOnPrimary} />
+                            <Text style={styles.modalPhotoRemoveText}>{s('deleteBtn')}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
                 {/* Description */}
                 <View style={styles.modalField}>
                   <Text style={styles.modalLabel}>{s('fieldNotes')}</Text>
@@ -752,6 +906,7 @@ export function AdminModerationScreen() {
                     style={[styles.modalInput, { height: 70, textAlignVertical: 'top' }]}
                     value={editDescription}
                     onChangeText={setEditDescription}
+                    testID="edit-description"
                     multiline
                     maxLength={500}
                   />

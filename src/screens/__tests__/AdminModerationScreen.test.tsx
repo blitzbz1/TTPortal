@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, act } from '@testing-library/react-native';
+import { render, fireEvent, act, waitFor } from '@testing-library/react-native';
 import { AdminModerationScreen } from '../AdminModerationScreen';
 
 // Mock dependencies
@@ -23,6 +23,11 @@ jest.mock('../../hooks/useTheme', () => ({
     colors: require('../../theme').lightColors,
     isDark: false,
   }),
+}));
+
+const mockCitiesList: any[] = [];
+jest.mock('../../hooks/queries/useCitiesQuery', () => ({
+  useCitiesQuery: () => ({ data: mockCitiesList }),
 }));
 
 jest.mock('../../components/Icon', () => ({
@@ -67,8 +72,12 @@ jest.mock('../../services/admin', () => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
-  jest.useFakeTimers();
-  mockGetProfile.mockResolvedValue({ data: { is_admin: true } });
+  mockGetProfile.mockImplementation(() => ({
+    then: (resolve: (value: { data: { is_admin: boolean } }) => void) => {
+      resolve({ data: { is_admin: true } });
+      return Promise.resolve({ data: { is_admin: true } });
+    },
+  }));
   mockGetPendingVenues.mockResolvedValue({ data: [] });
   mockGetFlaggedReviews.mockResolvedValue({ data: [] });
   mockSearchVenuesAdmin.mockResolvedValue({ data: [] });
@@ -80,10 +89,15 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
+async function renderAdmin() {
+  const utils = render(<AdminModerationScreen />);
+  await waitFor(() => expect(utils.getByText('tabReviews')).toBeTruthy());
+  return utils;
+}
+
 describe('AdminModerationScreen — tabs', () => {
   it('renders both tab buttons', async () => {
-    const { getByText } = render(<AdminModerationScreen />);
-    await act(async () => {});
+    const { getByText } = await renderAdmin();
 
     expect(getByText('tabReviews')).toBeTruthy();
     expect(getByText('tabVenues')).toBeTruthy();
@@ -91,16 +105,14 @@ describe('AdminModerationScreen — tabs', () => {
   });
 
   it('shows reviews tab content by default', async () => {
-    const { getByText } = render(<AdminModerationScreen />);
-    await act(async () => {});
+    const { getByText } = await renderAdmin();
 
     expect(getByText('pendingVenues')).toBeTruthy();
     expect(getByText('reportedReviews')).toBeTruthy();
   });
 
   it('switches to venues tab on press', async () => {
-    const { getByText } = render(<AdminModerationScreen />);
-    await act(async () => {});
+    const { getByText } = await renderAdmin();
 
     fireEvent.press(getByText('tabVenues'));
 
@@ -110,8 +122,7 @@ describe('AdminModerationScreen — tabs', () => {
 
 describe('AdminModerationScreen — venue search', () => {
   it('shows hint when query is less than 3 chars', async () => {
-    const { getByText, getByPlaceholderText } = render(<AdminModerationScreen />);
-    await act(async () => {});
+    const { getByText, getByPlaceholderText } = await renderAdmin();
 
     fireEvent.press(getByText('tabVenues'));
     fireEvent.changeText(getByPlaceholderText('searchVenues'), 'Pa');
@@ -121,11 +132,11 @@ describe('AdminModerationScreen — venue search', () => {
   });
 
   it('triggers search after debounce with 3+ chars', async () => {
+    jest.useFakeTimers();
     const venues = [{ id: 1, name: 'Parc Tineretului', city: 'București', address: 'Str. X' }];
     mockSearchVenuesAdmin.mockResolvedValue({ data: venues });
 
-    const { getByText, getByPlaceholderText } = render(<AdminModerationScreen />);
-    await act(async () => {});
+    const { getByText, getByPlaceholderText } = await renderAdmin();
 
     fireEvent.press(getByText('tabVenues'));
     fireEvent.changeText(getByPlaceholderText('searchVenues'), 'Parc');
@@ -140,11 +151,11 @@ describe('AdminModerationScreen — venue search', () => {
 
 describe('AdminModerationScreen — edit modal', () => {
   it('opens edit modal when pencil button is pressed on a search result', async () => {
+    jest.useFakeTimers();
     const venues = [{ id: 1, name: 'Parc Test', city: 'București', address: 'Str. Test', type: 'parc_exterior', tables_count: 2, description: '' }];
     mockSearchVenuesAdmin.mockResolvedValue({ data: venues });
 
-    const { getByText, getByPlaceholderText } = render(<AdminModerationScreen />);
-    await act(async () => {});
+    const { getByText, getByPlaceholderText } = await renderAdmin();
 
     // Switch to venues tab and search
     fireEvent.press(getByText('tabVenues'));
@@ -155,12 +166,12 @@ describe('AdminModerationScreen — edit modal', () => {
   });
 
   it('saves venue edits and updates search results', async () => {
+    jest.useFakeTimers();
     const venues = [{ id: 1, name: 'Parc Test', city: 'București', address: 'Str. Test', type: 'parc_exterior', tables_count: 2, description: '' }];
     mockSearchVenuesAdmin.mockResolvedValue({ data: venues });
     mockUpdateVenue.mockResolvedValue({ data: { ...venues[0], name: 'Parc Updated' }, error: null });
 
-    const { getByText, getByPlaceholderText } = render(<AdminModerationScreen />);
-    await act(async () => {});
+    const { getByText, getByPlaceholderText } = await renderAdmin();
 
     // Navigate to venues tab and search
     fireEvent.press(getByText('tabVenues'));
@@ -169,6 +180,63 @@ describe('AdminModerationScreen — edit modal', () => {
 
     // Verify venue appeared
     expect(getByText('Parc Test')).toBeTruthy();
+  });
+
+  it('saves table condition, lighting, nets, description, and photo removals', async () => {
+    jest.useFakeTimers();
+    const venues = [{
+      id: 1,
+      name: 'Parc Test',
+      city: 'Bucharest',
+      address: 'Str. Test',
+      type: 'parc_exterior',
+      tables_count: 2,
+      condition: 'buna',
+      night_lighting: false,
+      nets: true,
+      verified: false,
+      photos: ['https://example.com/one.jpg', 'https://example.com/two.jpg'],
+      description: 'Old description',
+      lat: 44.4,
+      lng: 26.1,
+    }];
+    mockSearchVenuesAdmin.mockResolvedValue({ data: venues });
+    mockUpdateVenue.mockResolvedValue({
+      data: {
+        ...venues[0],
+        condition: 'deteriorata',
+        night_lighting: true,
+        nets: false,
+        verified: true,
+        photos: ['https://example.com/two.jpg'],
+        description: 'Updated description',
+      },
+      error: null,
+    });
+
+    const { getByText, getByPlaceholderText, getByTestId } = await renderAdmin();
+
+    fireEvent.press(getByText('tabVenues'));
+    fireEvent.changeText(getByPlaceholderText('searchVenues'), 'Parc');
+    await act(async () => { jest.advanceTimersByTime(500); });
+
+    await act(async () => { fireEvent.press(getByTestId('venue-edit-1')); });
+    await act(async () => { fireEvent.press(getByTestId('condition-deteriorata')); });
+    await act(async () => { fireEvent.press(getByTestId('lighting-true')); });
+    await act(async () => { fireEvent.press(getByTestId('nets-false')); });
+    await act(async () => { fireEvent.press(getByTestId('verified-true')); });
+    await act(async () => { fireEvent.press(getByTestId('remove-photo-0')); });
+    await act(async () => { fireEvent.changeText(getByTestId('edit-description'), 'Updated description'); });
+    await act(async () => { fireEvent.press(getByText('save')); });
+
+    expect(mockUpdateVenue).toHaveBeenCalledWith(1, 'admin-1', expect.objectContaining({
+      condition: 'deteriorata',
+      night_lighting: true,
+      nets: false,
+      verified: true,
+      photos: ['https://example.com/two.jpg'],
+      description: 'Updated description',
+    }));
   });
 });
 
@@ -179,8 +247,7 @@ describe('AdminModerationScreen — pending venues', () => {
     ];
     mockGetPendingVenues.mockResolvedValue({ data: pending });
 
-    const { getByText } = render(<AdminModerationScreen />);
-    await act(async () => {});
+    const { getByText } = await renderAdmin();
 
     expect(getByText('New Venue')).toBeTruthy();
     expect(getByText('approve')).toBeTruthy();
@@ -194,8 +261,7 @@ describe('AdminModerationScreen — pending venues', () => {
     mockGetPendingVenues.mockResolvedValue({ data: pending });
     mockApproveVenue.mockResolvedValue({ data: { id: 10, approved: true }, error: null });
 
-    const { getByText, queryByText } = render(<AdminModerationScreen />);
-    await act(async () => {});
+    const { getByText, queryByText } = await renderAdmin();
 
     expect(getByText('Pending Venue')).toBeTruthy();
 
@@ -208,8 +274,7 @@ describe('AdminModerationScreen — pending venues', () => {
 
 describe('AdminModerationScreen — feedback tab', () => {
   it('does not fetch feedback until the Feedback tab is opened', async () => {
-    const { getByText } = render(<AdminModerationScreen />);
-    await act(async () => {});
+    const { getByText } = await renderAdmin();
     expect(mockGetUserFeedback).not.toHaveBeenCalled();
 
     await act(async () => { fireEvent.press(getByText('tabFeedback')); });
@@ -232,8 +297,7 @@ describe('AdminModerationScreen — feedback tab', () => {
       ],
     });
 
-    const { getByText, getByTestId } = render(<AdminModerationScreen />);
-    await act(async () => {});
+    const { getByText, getByTestId } = await renderAdmin();
     await act(async () => { fireEvent.press(getByText('tabFeedback')); });
 
     expect(getByTestId('feedback-row-f-1')).toBeTruthy();
@@ -243,8 +307,7 @@ describe('AdminModerationScreen — feedback tab', () => {
   });
 
   it('shows empty state when there is no feedback', async () => {
-    const { getByText } = render(<AdminModerationScreen />);
-    await act(async () => {});
+    const { getByText } = await renderAdmin();
     await act(async () => { fireEvent.press(getByText('tabFeedback')); });
 
     expect(getByText('noUserFeedback')).toBeTruthy();
@@ -265,8 +328,7 @@ describe('AdminModerationScreen — feedback tab', () => {
       ],
     });
 
-    const { getByText, getByTestId } = render(<AdminModerationScreen />);
-    await act(async () => {});
+    const { getByText, getByTestId } = await renderAdmin();
     await act(async () => { fireEvent.press(getByText('tabFeedback')); });
     await act(async () => { fireEvent.press(getByTestId('feedback-reply-f-3')); });
 
@@ -288,8 +350,7 @@ describe('AdminModerationScreen — feedback tab', () => {
       ],
     });
 
-    const { getByText } = render(<AdminModerationScreen />);
-    await act(async () => {});
+    const { getByText } = await renderAdmin();
     await act(async () => { fireEvent.press(getByText('tabFeedback')); });
 
     expect(getByText('anon@x.com')).toBeTruthy();

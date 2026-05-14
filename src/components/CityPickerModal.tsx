@@ -66,26 +66,6 @@ export function CityPickerModal({
             </View>
           ) : (
             <ScrollView bounces={false}>
-              {/* "All" option */}
-              <TouchableOpacity
-                style={styles.row}
-                onPress={() => onSelect(null)}
-                activeOpacity={0.6}
-              >
-                <Text
-                  style={[
-                    styles.rowText,
-                    selectedCity === null && styles.rowTextSelected,
-                  ]}
-                >
-                  {s('allRomania')}
-                </Text>
-                {selectedCity === null && (
-                  <Lucide name="check" size={20} color={colors.primaryLight} />
-                )}
-              </TouchableOpacity>
-
-              {/* City rows */}
               {cities.map((city) => (
                 <TouchableOpacity
                   key={city}

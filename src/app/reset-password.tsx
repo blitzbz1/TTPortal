@@ -292,7 +292,7 @@ export default function ResetPasswordScreen() {
     } finally {
       setLoading(false);
     }
-  }, [newPassword, s, router]);
+  }, [newPassword, s]);
 
   const handleRequestNewLink = useCallback(() => {
     router.replace('/forgot-password');
