@@ -15,17 +15,35 @@ import { canonicalizeCityName } from '../lib/cityCatalog';
 export async function upsertCity(name: string): Promise<{ id: number | null; error: string | null }> {
   const canonicalName = canonicalizeCityName(name);
 
-  // Use Postgres ON CONFLICT to be race-safe: a select-then-insert pattern can
-  // double-insert when two clients submit the same new city simultaneously,
-  // surfacing as an opaque 409 from the unique constraint on `cities.name`.
-  // `ignoreDuplicates: false` makes the upsert return the existing row when
-  // there's a name match, so we always get an `id` back.
-  const { data: upserted, error: upsertError } = await supabase
+  const { data: existing, error: selectError } = await supabase
     .from('cities')
-    .upsert({ name: canonicalName, active: true }, { onConflict: 'name', ignoreDuplicates: false })
+    .select('id')
+    .eq('name', canonicalName)
+    .maybeSingle();
+
+  if (selectError) return { id: null, error: selectError.message };
+  if (existing?.id) return { id: existing.id, error: null };
+
+  const { data: inserted, error: insertError } = await supabase
+    .from('cities')
+    .insert({ name: canonicalName, active: true })
     .select('id')
     .single();
 
-  if (upsertError) return { id: null, error: upsertError.message };
-  return { id: upserted.id, error: null };
+  if (!insertError) return { id: inserted.id, error: null };
+
+  // If another browser created the city between our SELECT and INSERT, recover
+  // by reading the existing row instead of surfacing the unique violation.
+  if (insertError.code === '23505') {
+    const { data: raced, error: raceSelectError } = await supabase
+      .from('cities')
+      .select('id')
+      .eq('name', canonicalName)
+      .maybeSingle();
+
+    if (raceSelectError) return { id: null, error: raceSelectError.message };
+    if (raced?.id) return { id: raced.id, error: null };
+  }
+
+  return { id: null, error: insertError.message };
 }

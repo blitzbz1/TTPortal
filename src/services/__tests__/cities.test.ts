@@ -28,48 +28,65 @@ beforeEach(() => jest.clearAllMocks());
 
 describe('upsertCity', () => {
   it('returns existing city id when name matches', async () => {
-    // ON CONFLICT (name) DO UPDATE returns the existing row.
     const chain = createQueryChain({ id: 42 });
     mockFrom.mockReturnValue(chain);
 
     const result = await upsertCity('București');
 
     expect(result).toEqual({ id: 42, error: null });
-    expect(chain.upsert).toHaveBeenCalledWith(
-      { name: 'București', active: true },
-      expect.objectContaining({ onConflict: 'name', ignoreDuplicates: false }),
-    );
+    expect(chain.select).toHaveBeenCalledWith('id');
+    expect(chain.eq).toHaveBeenCalledWith('name', 'București');
+    expect(chain.maybeSingle).toHaveBeenCalled();
+    expect(chain.insert).not.toHaveBeenCalled();
   });
 
   it('returns new city id when no row exists yet', async () => {
-    const chain = createQueryChain({ id: 99 });
-    mockFrom.mockReturnValue(chain);
+    const selectChain = createQueryChain(null);
+    const insertChain = createQueryChain({ id: 99 });
+    mockFrom.mockReturnValueOnce(selectChain).mockReturnValueOnce(insertChain);
 
     const result = await upsertCity('Sibiu');
 
     expect(result).toEqual({ id: 99, error: null });
-    expect(chain.upsert).toHaveBeenCalledWith(
+    expect(insertChain.insert).toHaveBeenCalledWith(
       { name: 'Sibiu', active: true },
-      expect.objectContaining({ onConflict: 'name', ignoreDuplicates: false }),
     );
+    expect(insertChain.select).toHaveBeenCalledWith('id');
+    expect(insertChain.single).toHaveBeenCalled();
   });
 
   it('canonicalizes Piatra Neamt variants before upsert', async () => {
-    const chain = createQueryChain({ id: 100 });
-    mockFrom.mockReturnValue(chain);
+    const selectChain = createQueryChain(null);
+    const insertChain = createQueryChain({ id: 100 });
+    mockFrom.mockReturnValueOnce(selectChain).mockReturnValueOnce(insertChain);
 
     const result = await upsertCity('Piatra-Neamt');
 
     expect(result).toEqual({ id: 100, error: null });
-    expect(chain.upsert).toHaveBeenCalledWith(
+    expect(insertChain.insert).toHaveBeenCalledWith(
       { name: 'Piatra Neamț', active: true },
-      expect.objectContaining({ onConflict: 'name', ignoreDuplicates: false }),
     );
   });
 
-  it('returns error when upsert fails', async () => {
-    const chain = createQueryChain(null, { message: 'DB error' });
-    mockFrom.mockReturnValue(chain);
+  it('recovers when another browser inserts the city first', async () => {
+    const selectChain = createQueryChain(null);
+    const insertChain = createQueryChain(null, { code: '23505', message: 'duplicate key value' });
+    const raceSelectChain = createQueryChain({ id: 123 });
+    mockFrom
+      .mockReturnValueOnce(selectChain)
+      .mockReturnValueOnce(insertChain)
+      .mockReturnValueOnce(raceSelectChain);
+
+    const result = await upsertCity('Sibiu');
+
+    expect(result).toEqual({ id: 123, error: null });
+    expect(raceSelectChain.eq).toHaveBeenCalledWith('name', 'Sibiu');
+  });
+
+  it('returns error when insert fails', async () => {
+    const selectChain = createQueryChain(null);
+    const insertChain = createQueryChain(null, { message: 'DB error' });
+    mockFrom.mockReturnValueOnce(selectChain).mockReturnValueOnce(insertChain);
 
     const result = await upsertCity('Brașov');
 

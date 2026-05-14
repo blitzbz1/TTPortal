@@ -40,7 +40,7 @@ export async function getVenueById(id: number) {
 }
 
 export async function createVenue(data: VenueInsert) {
-  const result = await supabase.from('venues').insert(data).select().single();
+  const result = await supabase.from('venues').insert(data);
   if (!result.error) invalidateMapVenuesCache();
   return result;
 }
