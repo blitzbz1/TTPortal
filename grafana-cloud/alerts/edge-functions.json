@@ -2,7 +2,7 @@
   {
     "title": "TTPortal — Edge Function 5xx errors",
     "ruleGroup": "TTPortal Edge Functions",
-    "folderUID": "ttportal-alerts",
+    "folderUID": "ttportalinfo-alerts",
     "condition": "threshold",
     "for": "5m",
     "annotations": {
@@ -11,7 +11,7 @@
     },
     "labels": {
       "severity": "critical",
-      "service": "ttportal-edge"
+      "service": "ttportalinfo-edge"
     },
     "data": [
       {
@@ -51,7 +51,7 @@
   {
     "title": "TTPortal — Edge Function high latency (p95 > 5s)",
     "ruleGroup": "TTPortal Edge Functions",
-    "folderUID": "ttportal-alerts",
+    "folderUID": "ttportalinfo-alerts",
     "condition": "threshold",
     "for": "10m",
     "annotations": {
@@ -60,7 +60,7 @@
     },
     "labels": {
       "severity": "warning",
-      "service": "ttportal-edge"
+      "service": "ttportalinfo-edge"
     },
     "data": [
       {
@@ -100,7 +100,7 @@
   {
     "title": "TTPortal — Edge Function p95 regression (per-function)",
     "ruleGroup": "TTPortal Edge Functions",
-    "folderUID": "ttportal-alerts",
+    "folderUID": "ttportalinfo-alerts",
     "condition": "threshold",
     "for": "15m",
     "annotations": {
@@ -109,7 +109,7 @@
     },
     "labels": {
       "severity": "warning",
-      "service": "ttportal-edge"
+      "service": "ttportalinfo-edge"
     },
     "data": [
       {
@@ -149,7 +149,7 @@
   {
     "title": "TTPortal — Observability pipeline failure",
     "ruleGroup": "TTPortal Edge Functions",
-    "folderUID": "ttportal-alerts",
+    "folderUID": "ttportalinfo-alerts",
     "condition": "threshold",
     "for": "10m",
     "annotations": {
@@ -158,7 +158,7 @@
     },
     "labels": {
       "severity": "warning",
-      "service": "ttportal-edge"
+      "service": "ttportalinfo-edge"
     },
     "data": [
       {

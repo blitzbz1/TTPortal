@@ -2,7 +2,7 @@
   {
     "title": "TTPortal — Synthetic check failed (uptime)",
     "ruleGroup": "TTPortal Synthetics",
-    "folderUID": "ttportal-alerts",
+    "folderUID": "ttportalinfo-alerts",
     "condition": "threshold",
     "for": "3m",
     "annotations": {
@@ -11,7 +11,7 @@
     },
     "labels": {
       "severity": "critical",
-      "service": "ttportal-uptime"
+      "service": "ttportalinfo-uptime"
     },
     "data": [
       {
@@ -21,7 +21,7 @@
         "datasourceUid": "grafanacloud-prom",
         "model": {
           "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-          "expr": "min by (job, instance) (probe_success{job=~\"ttportal-.*\"})",
+          "expr": "min by (job, instance) (probe_success{job=~\"ttportalinfo-.*\"})",
           "intervalMs": 1000,
           "maxDataPoints": 43200,
           "refId": "A"
@@ -50,7 +50,7 @@
   {
     "title": "TTPortal — Synthetic check slow (>3s)",
     "ruleGroup": "TTPortal Synthetics",
-    "folderUID": "ttportal-alerts",
+    "folderUID": "ttportalinfo-alerts",
     "condition": "threshold",
     "for": "10m",
     "annotations": {
@@ -59,7 +59,7 @@
     },
     "labels": {
       "severity": "warning",
-      "service": "ttportal-uptime"
+      "service": "ttportalinfo-uptime"
     },
     "data": [
       {
@@ -69,7 +69,7 @@
         "datasourceUid": "grafanacloud-prom",
         "model": {
           "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-          "expr": "max by (job) (probe_duration_seconds{job=~\"ttportal-.*\"})",
+          "expr": "max by (job) (probe_duration_seconds{job=~\"ttportalinfo-.*\"})",
           "intervalMs": 1000,
           "maxDataPoints": 43200,
           "refId": "A"
