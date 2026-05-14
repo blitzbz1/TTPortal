@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { withTiming } from '../_shared/logger.ts';
 
 const DEFAULT_INVITE_REDIRECT_TO = 'ttportal://auth/callback?flow=signup&next=%2Fsign-in';
 
@@ -46,7 +47,7 @@ async function findAuthUserByEmail(adminClient: ReturnType<typeof createClient>,
   }
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withTiming('send-app-invite', async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -158,4 +159,4 @@ Deno.serve(async (req) => {
     console.error('send-app-invite: unexpected error', { error });
     return jsonResponse({ error: (error as Error).message, code: 'unexpected_error' }, 500);
   }
-});
+}));

@@ -1,0 +1,98 @@
+[
+  {
+    "title": "TTPortal — Synthetic check failed (uptime)",
+    "ruleGroup": "TTPortal Synthetics",
+    "folderUID": "ttportal-alerts",
+    "condition": "threshold",
+    "for": "3m",
+    "annotations": {
+      "description": "A Grafana Cloud Synthetic check has been failing for 3+ minutes. Verify which target is down: Edge Functions /healthz, Supabase REST, Supabase Auth, or the web app URL. Check the Synthetic Monitoring page for the failing probe + recent assertion errors.",
+      "summary": "TTPortal — synthetic uptime check failing"
+    },
+    "labels": {
+      "severity": "critical",
+      "service": "ttportal-uptime"
+    },
+    "data": [
+      {
+        "refId": "A",
+        "queryType": "",
+        "relativeTimeRange": { "from": 300, "to": 0 },
+        "datasourceUid": "grafanacloud-prom",
+        "model": {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "min by (job, instance) (probe_success{job=~\"ttportal-.*\"})",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "refId": "A"
+        }
+      },
+      {
+        "refId": "threshold",
+        "queryType": "",
+        "relativeTimeRange": { "from": 0, "to": 0 },
+        "datasourceUid": "__expr__",
+        "model": {
+          "conditions": [
+            { "evaluator": { "params": [1], "type": "lt" } }
+          ],
+          "expression": "A",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "refId": "threshold",
+          "type": "threshold"
+        }
+      }
+    ],
+    "noDataState": "Alerting",
+    "execErrState": "Error"
+  },
+  {
+    "title": "TTPortal — Synthetic check slow (>3s)",
+    "ruleGroup": "TTPortal Synthetics",
+    "folderUID": "ttportal-alerts",
+    "condition": "threshold",
+    "for": "10m",
+    "annotations": {
+      "description": "A synthetic check's response time has been above 3 seconds for 10+ minutes. Often an upstream regression — confirm by hitting the same endpoint manually.",
+      "summary": "TTPortal — synthetic check responding slowly"
+    },
+    "labels": {
+      "severity": "warning",
+      "service": "ttportal-uptime"
+    },
+    "data": [
+      {
+        "refId": "A",
+        "queryType": "",
+        "relativeTimeRange": { "from": 600, "to": 0 },
+        "datasourceUid": "grafanacloud-prom",
+        "model": {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "max by (job) (probe_duration_seconds{job=~\"ttportal-.*\"})",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "refId": "A"
+        }
+      },
+      {
+        "refId": "threshold",
+        "queryType": "",
+        "relativeTimeRange": { "from": 0, "to": 0 },
+        "datasourceUid": "__expr__",
+        "model": {
+          "conditions": [
+            { "evaluator": { "params": [3], "type": "gt" } }
+          ],
+          "expression": "A",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "refId": "threshold",
+          "type": "threshold"
+        }
+      }
+    ],
+    "noDataState": "OK",
+    "execErrState": "Error"
+  }
+]

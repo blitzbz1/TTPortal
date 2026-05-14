@@ -16,3 +16,6 @@ refresh_token_reuse_interval = 10
 
 [auth.email]
 enable_signup = true
+
+[functions.healthz]
+verify_jwt = false

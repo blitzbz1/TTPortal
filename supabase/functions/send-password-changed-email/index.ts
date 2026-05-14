@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { withTiming } from '../_shared/logger.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,7 +23,7 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#39;');
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withTiming('send-password-changed-email', async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -107,4 +108,4 @@ Deno.serve(async (req) => {
     console.error('send-password-changed-email: unexpected error', { error });
     return jsonResponse({ error: (error as Error).message, code: 'unexpected_error' }, 500);
   }
-});
+}));
