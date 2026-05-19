@@ -13,20 +13,39 @@ import {
   DMSans_400Regular,
   DMSans_500Medium,
 } from '@expo-google-fonts/dm-sans';
-import { Stack } from 'expo-router';
+import { Stack, useGlobalSearchParams } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LogBox, Platform, StyleSheet, View } from 'react-native';
 import AnimatedSplash from '../components/AnimatedSplash';
+import { InitialLocationSetupModal } from '../components/InitialLocationSetupModal';
 import { SessionProvider } from '../contexts/SessionProvider';
 import { NotificationProvider } from '../contexts/NotificationProvider';
 import { I18nProvider } from '../contexts/I18nProvider';
+import { LocationProvider } from '../contexts/LocationProvider';
 import { ThemeProvider } from '../contexts/ThemeProvider';
 import { OfflineQueueProvider } from '../contexts/OfflineQueueProvider';
 import { useSession } from '../hooks/useSession';
+import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
+
+function readInitialLocationParamFromUrl(name: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const location = window.location;
+  if (!location) return false;
+  const href = location.href ?? '';
+  const search = location.search ?? '';
+  const hash = location.hash ?? '';
+  return (
+    new URLSearchParams(search).has(name) ||
+    new URLSearchParams(hash.includes('?') ? hash.slice(hash.indexOf('?')) : '').has(name) ||
+    href.includes(`?${name}`) ||
+    href.includes(`&${name}`) ||
+    href.includes(`#${name}`)
+  );
+}
 
 // Suppress LogBox in development to prevent overlay from blocking tab bar during E2E tests
 if (__DEV__) {
@@ -54,13 +73,15 @@ export default function RootLayout() {
           <OfflineQueueProvider>
             <SessionProvider>
               <I18nProvider>
-                <ThemeProvider>
-                  <NotificationProvider>
-                    <BottomSheetModalProvider>
-                      <RootNavigator />
-                    </BottomSheetModalProvider>
-                  </NotificationProvider>
-                </ThemeProvider>
+                <LocationProvider>
+                  <ThemeProvider>
+                    <NotificationProvider>
+                      <BottomSheetModalProvider>
+                        <RootNavigator />
+                      </BottomSheetModalProvider>
+                    </NotificationProvider>
+                  </ThemeProvider>
+                </LocationProvider>
               </I18nProvider>
             </SessionProvider>
           </OfflineQueueProvider>
@@ -76,8 +97,25 @@ export default function RootLayout() {
  */
 function RootNavigator() {
   const { isLoading } = useSession();
+  const {
+    hasCompletedInitialLocationSetup,
+    resetInitialLocationSetup,
+  } = useSelectedLocation();
+  const searchParams = useGlobalSearchParams();
   const { isDark, colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const [urlForcesInitialLocation, setUrlForcesInitialLocation] = useState(
+    () => readInitialLocationParamFromUrl('previewInitialLocation') || readInitialLocationParamFromUrl('resetInitialLocation'),
+  );
+  const hasInitialLocationParam = useCallback((name: string) => {
+    if (Object.prototype.hasOwnProperty.call(searchParams, name)) return true;
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      return readInitialLocationParamFromUrl(name);
+    }
+    return false;
+  }, [searchParams]);
+  const forceInitialLocationPreview =
+    urlForcesInitialLocation || hasInitialLocationParam('previewInitialLocation') || hasInitialLocationParam('resetInitialLocation');
   const [fontsLoaded, fontError] = useFonts({
     Syne_400Regular,
     Syne_700Bold,
@@ -99,6 +137,17 @@ function RootNavigator() {
     }
   }, [appReady]);
 
+  useEffect(() => {
+    if (
+      Platform.OS === 'web' &&
+      typeof window !== 'undefined' &&
+      hasInitialLocationParam('resetInitialLocation')
+    ) {
+      resetInitialLocationSetup();
+      setUrlForcesInitialLocation(true);
+    }
+  }, [hasInitialLocationParam, resetInitialLocationSetup]);
+
   // On web, RN's <Modal> portals to a fixed-position [role="dialog"] outside
   // the phone-frame (webFrame), so sheets stretch across the full viewport.
   // Cap the sheet to the same width and center it, while keeping the dim
@@ -119,20 +168,30 @@ function RootNavigator() {
     document.head.appendChild(style);
   }, []);
 
+  const initialLocationGateReady = forceInitialLocationPreview || splashDone;
+  const showInitialLocation = initialLocationGateReady && (!hasCompletedInitialLocationSetup || forceInitialLocationPreview);
+
   const nav = appReady ? (
-    <>
-      <Stack screenOptions={{ animation: 'fade' }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="sign-in" options={{ headerShown: false, animation: 'fade' }} />
-        <Stack.Screen name="auth/callback" options={{ headerShown: false, animation: 'fade' }} />
-        <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
-        <Stack.Screen name="forgot-password" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="reset-password" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="venue/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="(protected)" options={{ headerShown: false, animation: 'slide_from_right' }} />
-      </Stack>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-    </>
+    showInitialLocation ? (
+      <>
+        <InitialLocationSetupModal visible />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+      </>
+    ) : (
+      <>
+        <Stack screenOptions={{ animation: 'fade' }}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="sign-in" options={{ headerShown: false, animation: 'fade' }} />
+          <Stack.Screen name="auth/callback" options={{ headerShown: false, animation: 'fade' }} />
+          <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
+          <Stack.Screen name="forgot-password" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="reset-password" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="venue/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
+          <Stack.Screen name="(protected)" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        </Stack>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+      </>
+    )
   ) : null;
 
   const overlay = !splashDone ? (

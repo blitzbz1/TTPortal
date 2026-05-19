@@ -407,7 +407,11 @@ export function AdminModerationScreen() {
     const canonicalCity = canonicalizeCityName(trimmedCity);
     let cityIdUpdate: number | undefined;
     if (canonicalCity && canonicalCity !== (editVenue.city ?? '').trim()) {
-      const { id: upsertedId, error: cityError } = await upsertCity(canonicalCity);
+      const { id: upsertedId, error: cityError } = await upsertCity(canonicalCity, {
+        lat: editLat,
+        lng: editLng,
+        zoom: 12,
+      });
       if (cityError || !upsertedId) {
         setEditSaving(false);
         Alert.alert(s('error'), s('genericError'));

@@ -6,9 +6,9 @@ import { invalidateProfileStatsCache } from '../lib/profileCache';
 export async function getEvents(
   filter: 'upcoming' | 'past' | 'mine',
   userId?: string,
-  options: { limit?: number; offset?: number } = {},
+  options: { limit?: number; offset?: number; city?: string | null } = {},
 ) {
-  const { limit = 50, offset = 0 } = options;
+  const { limit = 50, offset = 0, city = null } = options;
   const now = new Date().toISOString();
   const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
   const needsParticipantFilter = filter === 'past' && !!userId;
@@ -16,13 +16,16 @@ export async function getEvents(
   // — single round trip, no manual merge.
   const participantsEmbed =
     'event_participants(user_id, hours_played, profiles!event_participants_user_profiles_fk(id, full_name))';
+  const venueEmbed = city ? 'venues!inner(name, city, lat, lng)' : 'venues(name, city, lat, lng)';
   let query = supabase
     .from('events')
     .select(
       needsParticipantFilter
-        ? `*, venues(name, city, lat, lng), ${participantsEmbed}, ep_filter:event_participants!inner(user_id)`
-        : `*, venues(name, city, lat, lng), ${participantsEmbed}`,
+        ? `*, ${venueEmbed}, ${participantsEmbed}, ep_filter:event_participants!inner(user_id)`
+        : `*, ${venueEmbed}, ${participantsEmbed}`,
     );
+
+  if (city) query = query.eq('venues.city', city);
 
   if (filter === 'upcoming') {
     // "Upcoming" = anything that hasn't ended yet:

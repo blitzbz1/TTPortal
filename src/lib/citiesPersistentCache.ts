@@ -7,11 +7,16 @@ export interface PersistedCity {
   id: number;
   name: string;
   county: string | null;
+  country_code?: string | null;
+  country_name?: string | null;
+  admin_area?: string | null;
+  local_area?: string | null;
   lat: number | null;
   lng: number | null;
   zoom: number | null;
   venue_count: number | null;
   active: boolean | null;
+  expansion_status?: string | null;
   updated_at: string;
 }
 

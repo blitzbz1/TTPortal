@@ -1,0 +1,117 @@
+-- Keep the expanded location catalog display-safe for existing data.
+--
+-- This migration makes older Romania-only rows compatible with the country/city
+-- selector and recomputes venue counts from approved venues so recommended-city
+-- ordering is accurate.
+--
+-- Run after 063, 064, and 065. It intentionally repeats the launch country/city
+-- upserts from 064 as an idempotent safety net for SQL-editor installs, but it
+-- does not replace 065's RPC/index changes.
+
+INSERT INTO public.countries (code, name, active)
+VALUES ('RO', 'Romania', true)
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name, active = EXCLUDED.active, updated_at = now();
+
+INSERT INTO public.countries (code, name, active)
+VALUES ('AT', 'Austria', true)
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name, active = EXCLUDED.active, updated_at = now();
+
+INSERT INTO public.countries (code, name, active)
+VALUES ('DE', 'Germany', true)
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name, active = EXCLUDED.active, updated_at = now();
+
+INSERT INTO public.countries (code, name, active)
+VALUES ('ES', 'Spain', true)
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name, active = EXCLUDED.active, updated_at = now();
+
+INSERT INTO public.countries (code, name, active)
+VALUES ('CZ', 'Czechia', true)
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name, active = EXCLUDED.active, updated_at = now();
+
+INSERT INTO public.countries (code, name, active)
+VALUES ('PL', 'Poland', true)
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name, active = EXCLUDED.active, updated_at = now();
+
+INSERT INTO public.countries (code, name, active)
+VALUES ('GB', 'United Kingdom', true)
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name, active = EXCLUDED.active, updated_at = now();
+
+INSERT INTO public.countries (code, name, active)
+VALUES ('FR', 'France', true)
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name, active = EXCLUDED.active, updated_at = now();
+
+INSERT INTO public.countries (code, name, active)
+VALUES ('IT', 'Italy', true)
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name, active = EXCLUDED.active, updated_at = now();
+
+ALTER TABLE public.cities
+  ADD COLUMN IF NOT EXISTS country_code TEXT,
+  ADD COLUMN IF NOT EXISTS country_name TEXT,
+  ADD COLUMN IF NOT EXISTS admin_area TEXT,
+  ADD COLUMN IF NOT EXISTS local_area TEXT,
+  ADD COLUMN IF NOT EXISTS expansion_status TEXT NOT NULL DEFAULT 'active';
+
+UPDATE public.cities c
+SET country_code = COALESCE(c.country_code, 'RO'),
+    country_name = COALESCE(c.country_name, 'Romania'),
+    admin_area = COALESCE(c.admin_area, c.county),
+    expansion_status = CASE
+      WHEN c.active = false THEN 'hidden'
+      WHEN c.expansion_status IS NULL THEN 'active'
+      ELSE c.expansion_status
+    END,
+    updated_at = now()
+WHERE c.country_code IS NULL
+   OR c.country_name IS NULL
+   OR c.admin_area IS DISTINCT FROM COALESCE(c.admin_area, c.county)
+   OR c.expansion_status IS NULL;
+
+ALTER TABLE public.cities
+  ALTER COLUMN country_code SET DEFAULT 'RO',
+  ALTER COLUMN country_code SET NOT NULL,
+  ALTER COLUMN country_name SET DEFAULT 'Romania',
+  ALTER COLUMN country_name SET NOT NULL;
+
+ALTER TABLE public.cities
+  DROP CONSTRAINT IF EXISTS cities_country_code_fkey;
+
+ALTER TABLE public.cities
+  ADD CONSTRAINT cities_country_code_fkey
+  FOREIGN KEY (country_code) REFERENCES public.countries(code)
+  ON UPDATE CASCADE ON DELETE RESTRICT;
+
+ALTER TABLE public.cities
+  DROP CONSTRAINT IF EXISTS cities_expansion_status_check;
+
+ALTER TABLE public.cities
+  ADD CONSTRAINT cities_expansion_status_check CHECK (
+    expansion_status IN (
+      'active',
+      'launch_ready',
+      'community_review',
+      'researching',
+      'coming_soon',
+      'hidden'
+    )
+  );
+
+CREATE UNIQUE INDEX IF NOT EXISTS cities_country_code_name_key
+  ON public.cities(country_code, name);
+
+ALTER TABLE public.cities
+  DROP CONSTRAINT IF EXISTS cities_name_key;
+
+ALTER TABLE public.cities
+  DROP CONSTRAINT IF EXISTS cities_name_key1;
+
+DROP INDEX IF EXISTS cities_name_key;
+DROP INDEX IF EXISTS cities_name_key1;

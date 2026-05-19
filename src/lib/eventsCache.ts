@@ -17,22 +17,24 @@ const TTL_MS: Record<EventTabKey, number> = {
   past: 12 * 60 * 60 * 1000,
 };
 
-const eventsKey = (userId: string, tab: EventTabKey) => `events:${userId}:${tab}`;
+const eventsKey = (userId: string, tab: EventTabKey, city?: string | null) =>
+  `events:${userId}:${tab}:${city ?? 'all'}`;
 const feedbackGivenKey = (userId: string) => `events:${userId}:feedbackGiven`;
 
 export function loadCachedEvents<T>(
   userId: string,
   tab: EventTabKey,
+  city?: string | null,
 ): { data: T[]; fresh: boolean } | null {
-  const key = eventsKey(userId, tab);
+  const key = eventsKey(userId, tab, city);
   const data = getCacheItem<T[]>(key);
   if (!data) return null;
   const age = getCacheAge(key);
   return { data, fresh: age != null && age < TTL_MS[tab] };
 }
 
-export function saveCachedEvents<T>(userId: string, tab: EventTabKey, data: T[]): void {
-  setCacheItem(eventsKey(userId, tab), data);
+export function saveCachedEvents<T>(userId: string, tab: EventTabKey, data: T[], city?: string | null): void {
+  setCacheItem(eventsKey(userId, tab, city), data);
 }
 
 export function loadCachedFeedbackGiven(userId: string): number[] | null {
@@ -44,7 +46,7 @@ export function saveCachedFeedbackGiven(userId: string, ids: number[]): void {
 }
 
 export function invalidateEventsCache(userId: string, tabs: EventTabKey[]): void {
-  for (const tab of tabs) removeCacheItem(eventsKey(userId, tab));
+  for (const tab of tabs) removeCacheItemsByPrefix(`events:${userId}:${tab}:`);
 }
 
 export function invalidateFeedbackGivenCache(userId: string): void {

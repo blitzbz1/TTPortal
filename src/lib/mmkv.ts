@@ -46,3 +46,7 @@ export function getStringSync(key: string): string | null {
 export function setString(key: string, value: string): void {
   storage.set(key, value);
 }
+
+export function removeString(key: string): void {
+  storage.remove(key);
+}

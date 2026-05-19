@@ -8,6 +8,7 @@ import { NotificationBellButton } from '../components/NotificationBellButton';
 import { FeedbackHeaderButton } from '../components/FeedbackHeaderButton';
 import { BadgeTrackIcon } from '../components/BadgeTrackIcon';
 import { Card } from '../components/Card';
+import { LocationSelector, SelectedCityPill } from '../components/LocationSelector';
 import { EventCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
@@ -16,6 +17,7 @@ import { createStyles } from './EventSchedulingScreen.styles';
 import { AmaturDetailSheet } from './EventSchedulingScreen/AmaturDetailSheet';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
+import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { getEvents, joinEvent, leaveEvent, PAST_EVENTS_PAGE_SIZE } from '../services/events';
 import { getUserEventFeedbackForEvents } from '../services/eventFeedback';
 import {
@@ -31,6 +33,7 @@ import { getAmaturEvents, type AmaturEvent } from '../services/amatur';
 import { LogHoursModal } from '../components/LogHoursModal';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
 import { BADGE_TRACKS } from '../lib/badgeChallenges';
+import { getCityDisplayName } from '../lib/locationHelpers';
 import {
   requiresOtherPlayer,
   resolveChallengeTitle,
@@ -85,7 +88,9 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const [amaturEvents, setAmaturEvents] = useState<AmaturEvent[]>([]);
   const [amaturLoading, setAmaturLoading] = useState(false);
   const [selectedAmatur, setSelectedAmatur] = useState<AmaturEvent | null>(null);
+  const [cityModalVisible, setCityModalVisible] = useState(false);
   const { user } = useSession();
+  const { selectedCity } = useSelectedLocation();
   const { s, lang } = useI18n();
   const router = useRouter();
   const {
@@ -106,6 +111,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const eventFetchSeqRef = React.useRef(0);
   const handledRefreshRef = React.useRef<string | null>(null);
   const hasFocusedOnceRef = React.useRef(false);
+  const selectedCityName = getCityDisplayName(selectedCity);
 
   const requestedTab = useMemo<EventTab | null>(() => {
     if (tabParam === 'upcoming' || tabParam === 'past' || tabParam === 'mine' || tabParam === 'amatur') {
@@ -125,7 +131,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     // to display. "upcoming" still hits the network on entry but takes the
     // cache fast-path if it's fresh (60s TTL) to handle quick tab toggles.
     if (!force && userId && (tab === 'mine' || tab === 'past' || tab === 'upcoming')) {
-      const cached = loadCachedEvents<EventListItem>(userId, tab);
+      const cached = loadCachedEvents<EventListItem>(userId, tab, selectedCityName);
       if (cached) {
         setEvents(cached.data);
         setEventsError(false);
@@ -155,7 +161,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       const { data, error } = await getEvents(
         tab,
         (tab === 'mine' || tab === 'past') ? userId : undefined,
-        { limit, offset: 0 },
+        { limit, offset: 0, city: selectedCityName },
       );
       if (fetchSeq !== eventFetchSeqRef.current) return;
       if (error) {
@@ -164,7 +170,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         const list = (data ?? []) as unknown as EventListItem[];
         setEvents(list);
         if (tab === 'past') setPastHasMore(list.length === PAST_EVENTS_PAGE_SIZE);
-        if (userId) saveCachedEvents(userId, tab, list);
+        if (userId) saveCachedEvents(userId, tab, list, selectedCityName);
         // Check which past events already have user feedback (single round trip).
         if (tab === 'past' && userId && list.length) {
           const eventIds = list.map((ev) => ev.id);
@@ -181,7 +187,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     } finally {
       if (fetchSeq === eventFetchSeqRef.current) setLoading(false);
     }
-  }, [activeTab, user?.id]);
+  }, [activeTab, selectedCityName, user?.id]);
 
   const loadMorePastEvents = useCallback(async () => {
     if (activeTab !== 'past' || !user?.id) return;
@@ -193,6 +199,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       const { data, error } = await getEvents('past', user.id, {
         limit: PAST_EVENTS_PAGE_SIZE,
         offset,
+        city: selectedCityName,
       });
       if (activeTab !== 'past' || fetchSeq !== eventFetchSeqRef.current) return;
       if (error) return;
@@ -204,7 +211,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       const merged = [...events, ...more];
       setEvents(merged);
       setPastHasMore(more.length === PAST_EVENTS_PAGE_SIZE);
-      if (user.id) saveCachedEvents(user.id, 'past', merged);
+      if (user.id) saveCachedEvents(user.id, 'past', merged, selectedCityName);
       // Augment feedback-given set with the new page.
       const newIds = more.map((ev) => ev.id);
       const { data: fb } = await getUserEventFeedbackForEvents(user.id, newIds);
@@ -220,7 +227,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     } finally {
       setPastLoadingMore(false);
     }
-  }, [activeTab, user, events, pastLoadingMore, pastHasMore, loading]);
+  }, [activeTab, user, events, pastLoadingMore, pastHasMore, loading, selectedCityName]);
 
   // Fetch AmaTur events
   const fetchAmatur = useCallback(async () => {
@@ -426,6 +433,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={styles.headerTitle}>{s('events')}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <SelectedCityPill city={selectedCity} onPress={() => setCityModalVisible(true)} compact />
           <FeedbackHeaderButton color={headerFg} />
           <NotificationBellButton color={headerFg} />
         </View>
@@ -444,6 +452,17 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         }}
       >
         {/* Tabs */}
+        <View style={styles.cityContextCard}>
+          <View style={styles.cityContextIcon}>
+            <Lucide name="calendar-days" size={18} color={colors.textOnPrimary} />
+          </View>
+          <View style={styles.cityContextCopy}>
+            <Text style={styles.cityContextTitle} numberOfLines={1}>
+              {s('eventsInCity', selectedCityName)}
+            </Text>
+          </View>
+        </View>
+
         <View style={styles.tabs}>
           {[
             { key: 'upcoming' as EventTab, label: `${s('upcoming')} (${activeTab === 'upcoming' ? events.length : ''})`.replace('()', '').trim() },
@@ -507,8 +526,8 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
           ) : events.length === 0 ? (
             <EmptyState
               icon="calendar"
-              title={s('emptyEventsTitle')}
-              description={s('emptyEventsDesc')}
+              title={s('emptyEventsCityTitle', selectedCityName)}
+              description={s('emptyEventsCityDesc', selectedCityName)}
               ctaLabel={user ? s('emptyEventsCta') : undefined}
               onCtaPress={user ? () => router.push('/(protected)/create-event' as any) : undefined}
               iconColor={colors.accentBright}
@@ -784,6 +803,11 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         event={selectedAmatur}
         bottomInset={insets.bottom}
         onClose={() => setSelectedAmatur(null)}
+      />
+      <LocationSelector
+        visible={cityModalVisible}
+        mode="switcher"
+        onClose={() => setCityModalVisible(false)}
       />
     </View>
   );

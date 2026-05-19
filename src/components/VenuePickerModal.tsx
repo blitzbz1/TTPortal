@@ -14,10 +14,12 @@ import {
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
+import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useVenuesQuery } from '../hooks/queries/useVenuesQuery';
 import { matchesQuery } from '../lib/textSearch';
+import { getCityDisplayName } from '../lib/locationHelpers';
 
 interface VenueOption {
   id: number;
@@ -41,14 +43,16 @@ export function VenuePickerModal({
 }: VenuePickerModalProps) {
   const { colors } = useTheme();
   const { s } = useI18n();
+  const { selectedCity } = useSelectedLocation();
   const styles = useMemo(() => createStyles(colors), [colors]);
   // Browse + search both read from the delta-synced venues cache —
   // one source, zero network calls per keystroke. The cache holds every
   // approved venue (the get_venues_delta RPC has no row cap), so a
   // client-side `name.includes(query)` filter is strictly a subset of
   // what searchVenues used to return on each ilike round-trip.
+  const selectedCityName = getCityDisplayName(selectedCity);
   const { data: cachedVenues, isFetching: cacheFetching } =
-    useVenuesQuery(null, null, visible);
+    useVenuesQuery(selectedCityName, null, visible, selectedCity?.id ?? null);
   const [query, setQuery] = useState('');
 
   const venues: VenueOption[] = useMemo(() => {
@@ -70,7 +74,10 @@ export function VenuePickerModal({
         <TouchableOpacity style={styles.backdropTouchable} activeOpacity={1} onPress={onClose} />
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.title}>{s('venuePickerTitle')}</Text>
+            <View>
+              <Text style={styles.title}>{s('venuePickerTitle')}</Text>
+              <Text style={styles.subtitle}>{selectedCityName}</Text>
+            </View>
             <TouchableOpacity onPress={onClose} hitSlop={8}>
               <Lucide name="x" size={22} color={colors.textMuted} />
             </TouchableOpacity>
@@ -164,6 +171,12 @@ function createStyles(colors: ThemeColors) {
       fontWeight: FontWeight.bold,
       fontFamily: Fonts.heading,
       color: colors.text,
+    },
+    subtitle: {
+      marginTop: 2,
+      fontSize: FontSize.sm,
+      fontFamily: Fonts.body,
+      color: colors.textFaint,
     },
     searchRow: {
       flexDirection: 'row',

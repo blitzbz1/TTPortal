@@ -22,6 +22,8 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { CityPickerModal } from '../components/CityPickerModal';
 import { Lucide } from '../components/Icon';
+import { useSelectedLocation } from '../hooks/useSelectedLocation';
+import { getCityDisplayName } from '../lib/locationHelpers';
 
 const INTEREST_KEYS = [
   'onboardingInterest1',
@@ -37,10 +39,10 @@ export function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { s } = useI18n();
   const { colors } = useTheme();
+  const { selectedCity, setSelectedCity } = useSelectedLocation();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [step, setStep] = useState(0);
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [cityPickerVisible, setCityPickerVisible] = useState(false);
   const [selectedInterests, setSelectedInterests] = useState<Set<string>>(
     new Set(),
@@ -97,7 +99,7 @@ export function OnboardingScreen() {
         >
           <Lucide name="map-pin" size={18} color={colors.primary} />
           <Text style={styles.cityButtonText}>
-            {selectedCity || s('onboardingSelectCity')}
+            {selectedCity ? getCityDisplayName(selectedCity) : s('onboardingSelectCity')}
           </Text>
           <Lucide name="chevron-down" size={18} color={colors.textMuted} />
         </Pressable>
@@ -105,11 +107,10 @@ export function OnboardingScreen() {
 
       <CityPickerModal
         visible={cityPickerVisible}
-        selectedCity={selectedCity}
-        onSelect={(city) => {
-          setSelectedCity(city);
-          setCityPickerVisible(false);
-        }}
+        selectedCity={getCityDisplayName(selectedCity)}
+        selectedCityId={selectedCity?.id ?? null}
+        onSelect={() => setCityPickerVisible(false)}
+        onSelectCity={(city) => { if (city) setSelectedCity(city); }}
         onClose={() => setCityPickerVisible(false)}
       />
     </View>

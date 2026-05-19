@@ -12,9 +12,11 @@ import { createVenue } from '../services/venues';
 import { upsertCity } from '../services/cities';
 import { canonicalizeCityName } from '../lib/cityCatalog';
 import { useCitiesQuery } from '../hooks/queries/useCitiesQuery';
+import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { safeErrorMessage } from '../lib/auth-utils';
 import { rateLimitMessageFor } from '../lib/rateLimit';
 import type { VenueType } from '../types/database';
+import { getCityDisplayName } from '../lib/locationHelpers';
 
 /** Strip diacritics and lowercase for fuzzy city matching. */
 export function normalize(s: string): string {
@@ -101,6 +103,7 @@ export function AddVenueScreen() {
   const router = useRouter();
   const { s } = useI18n();
   const { colors } = useTheme();
+  const { selectedCity } = useSelectedLocation();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [name, setName] = useState('');
@@ -124,6 +127,13 @@ export function AddVenueScreen() {
     if (citiesList) setKnownCities(citiesList.map((c) => c.name));
   }, [citiesList]);
 
+  useEffect(() => {
+    if (!selectedCity || city) return;
+    setCity(getCityDisplayName(selectedCity));
+    if (geoLat == null && selectedCity.lat != null) setGeoLat(selectedCity.lat);
+    if (geoLng == null && selectedCity.lng != null) setGeoLng(selectedCity.lng);
+  }, [city, geoLat, geoLng, selectedCity]);
+
   const handleAddressPatch = useCallback((patch: { address?: string; city?: string; lat?: number | null; lng?: number | null }) => {
     if (patch.address !== undefined) setAddress(patch.address);
     if (patch.city !== undefined) setCity(patch.city);
@@ -146,7 +156,16 @@ export function AddVenueScreen() {
 
     // Upsert city to get its id (city name extracted from Nominatim)
     const canonicalCity = canonicalizeCityName(city);
-    const { id: cityId, error: cityError } = await upsertCity(canonicalCity);
+    const { id: cityId, error: cityError } = await upsertCity(
+      canonicalCity,
+      {
+        countryCode: selectedCity?.country_code,
+        countryName: selectedCity?.country_name,
+        lat: getCityCenterLat(canonicalCity, selectedCity, geoLat),
+        lng: getCityCenterLng(canonicalCity, selectedCity, geoLng),
+        zoom: selectedCity?.name === canonicalCity ? selectedCity.zoom : 12,
+      },
+    );
     if (cityError || !cityId) { setLoading(false); Alert.alert(s('error'), safeErrorMessage(cityError ?? 'genericError', 'genericError', s)); return; }
 
     const { error } = await createVenue({
@@ -157,8 +176,8 @@ export function AddVenueScreen() {
       county: null,
       sector: null,
       address: address.trim(),
-      lat: geoLat ?? 44.43,
-      lng: geoLng ?? 26.10,
+      lat: geoLat ?? selectedCity?.lat ?? 44.43,
+      lng: geoLng ?? selectedCity?.lng ?? 26.10,
       tables_count: tablesCount ? Number(tablesCount) : null,
       condition: null,
       hours: null,
@@ -186,7 +205,7 @@ export function AddVenueScreen() {
     }
     Alert.alert(s('success'), s('venueSubmitted'));
     router.back();
-  }, [name, address, type, city, tablesCount, notes, router, geoLat, geoLng, s]);
+  }, [name, address, type, city, tablesCount, notes, router, geoLat, geoLng, selectedCity, s]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -293,6 +312,24 @@ export function AddVenueScreen() {
 
     </SafeAreaView>
   );
+}
+
+function getCityCenterLat(
+  canonicalCity: string,
+  selectedCity: { name: string; lat: number | null; lng: number | null } | null,
+  venueLat: number | null,
+): number | null {
+  if (selectedCity?.name === canonicalCity && selectedCity.lat != null) return selectedCity.lat;
+  return venueLat;
+}
+
+function getCityCenterLng(
+  canonicalCity: string,
+  selectedCity: { name: string; lat: number | null; lng: number | null } | null,
+  venueLng: number | null,
+): number | null {
+  if (selectedCity?.name === canonicalCity && selectedCity.lng != null) return selectedCity.lng;
+  return venueLng;
 }
 
 function createStyles(colors: ThemeColors) {

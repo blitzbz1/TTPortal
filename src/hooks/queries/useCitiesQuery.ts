@@ -33,7 +33,8 @@ export function useCitiesQuery() {
       const cached = readCities();
       return cached ? cleanCityCatalog(cached.cities) : undefined;
     },
-    staleTime: 60 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: true,
     gcTime: 24 * 60 * 60 * 1000,
   });
 }

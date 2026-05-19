@@ -8,8 +8,9 @@ import * as Location from 'expo-location';
 import { Lucide } from '../components/Icon';
 import { NotificationBellButton } from '../components/NotificationBellButton';
 import { FeedbackHeaderButton } from '../components/FeedbackHeaderButton';
+import { BrandLockup } from '../components/BrandLockup';
 import { Card } from '../components/Card';
-import { CityPickerModal } from '../components/CityPickerModal';
+import { LocationSelector, SelectedCityPill } from '../components/LocationSelector';
 import { VenueCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
@@ -20,14 +21,15 @@ import { useTheme } from '../hooks/useTheme';
 import { Radius, Spacing } from '../theme';
 import { createStyles } from './MapViewScreen.styles';
 import { useVenuesQuery } from '../hooks/queries/useVenuesQuery';
-import { useCitiesQuery } from '../hooks/queries/useCitiesQuery';
 import { useFriendPresenceQuery } from '../hooks/queries/useFriendPresenceQuery';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import type { Venue, VenueCondition } from '../types/database';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
 import { getDistanceKm, formatDistance } from '../lib/geo';
+import { getCityDisplayName, getMapRegionForCity } from '../lib/locationHelpers';
 
 type VenueWithStats = Venue & {
   venue_stats: {
@@ -54,15 +56,15 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const insets = useSafeAreaInsets();
   const { s } = useI18n();
   const { user } = useSession();
+  const { selectedCity } = useSelectedLocation();
   const { colors, isDark } = useTheme();
-  const headerFg = isDark ? colors.text : colors.textOnPrimary;
+  const headerFg = colors.textOnPrimary;
   const { styles, pinStyles } = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedQuery = useDebouncedValue(searchQuery, 150);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('toate');
   const [cityModalVisible, setCityModalVisible] = useState(false);
-  const [selectedCity, setSelectedCity] = useState<string>('București');
   const [friendCheckinVenueIds, setFriendCheckinVenueIds] = useState<Set<number>>(new Set());
   const [activeFriendsCount, setActiveFriendsCount] = useState(0);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -71,7 +73,14 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const [refreshing, setRefreshing] = useState(false);
   const mapRef = useRef<MapView>(null);
 
-  const { data: venuesRaw, isLoading, isError, refetch } = useVenuesQuery(selectedCity);
+  const selectedCityName = getCityDisplayName(selectedCity);
+  const selectedMapRegion = useMemo(() => getMapRegionForCity(selectedCity), [selectedCity]);
+  const { data: venuesRaw, isLoading, isError, refetch } = useVenuesQuery(
+    selectedCityName,
+    null,
+    true,
+    selectedCity?.id ?? null,
+  );
   const venues = useMemo(
     () => (venuesRaw ?? []) as unknown as VenueWithStats[],
     [venuesRaw],
@@ -117,22 +126,11 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     setRefreshing(false);
   }, [refetch]);
 
-  // Look up the city row for camera positioning. Pulled from the
-  // delta-synced cities cache (instant after first sync) instead of a
-  // fresh network round-trip on every city switch.
-  const { data: citiesForCamera } = useCitiesQuery();
   useEffect(() => {
-    if (!selectedCity || !citiesForCamera) return;
-    const city = citiesForCamera.find((c) => c.name === selectedCity);
-    if (city && city.lat != null && city.lng != null && mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: city.lat,
-        longitude: city.lng,
-        latitudeDelta: city.zoom ? 360 / Math.pow(2, city.zoom) : 0.08,
-        longitudeDelta: city.zoom ? 360 / Math.pow(2, city.zoom) : 0.08,
-      }, 500);
+    if (selectedCity && mapRef.current) {
+      mapRef.current.animateToRegion(getMapRegionForCity(selectedCity), 500);
     }
-  }, [selectedCity, citiesForCamera]);
+  }, [selectedCity]);
 
   // Friend presence overlay (which venues currently host a friend) is
   // cached via React Query — see useFriendPresenceQuery. Tab switches no
@@ -243,13 +241,9 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     <View style={styles.container}>
       {/* App Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
-        <Text style={styles.headerTitle}>TT Portal</Text>
+        <BrandLockup color={headerFg} pinWidth={16} wordmarkSize={16} gap={5} style={styles.headerBrand} />
         <View style={styles.headerCenter}>
-          <TouchableOpacity style={styles.cityPicker} onPress={() => setCityModalVisible(true)}>
-            <Lucide name="map-pin" size={14} color={headerFg} />
-            <Text style={styles.cityText}>{selectedCity}</Text>
-            <Lucide name="chevron-down" size={12} color={isDark ? colors.textFaint : '#ffffffaa'} />
-          </TouchableOpacity>
+          <SelectedCityPill city={selectedCity} onPress={() => setCityModalVisible(true)} />
         </View>
         {user ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -267,15 +261,11 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
       {/* Map + Draggable Sheet */}
       <View style={styles.mapContainer}>
         <MapView
+          key={`map-${selectedCity?.id ?? 'fallback'}`}
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
           showsUserLocation
-          initialRegion={{
-            latitude: 44.4268,
-            longitude: 26.1025,
-            latitudeDelta: 0.08,
-            longitudeDelta: 0.08,
-          }}
+          initialRegion={selectedMapRegion}
         >
           {filteredVenues.map((venue) => {
             if (!venue.lat || !venue.lng) return null;
@@ -432,8 +422,10 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
           ) : filteredVenues.length === 0 ? (
             <EmptyState
               icon="search"
-              title={s('emptyVenuesTitle')}
-              description={s('emptyVenuesDesc')}
+              title={selectedCity ? s('emptyCityVenuesTitle', selectedCity.name) : s('emptyVenuesTitle')}
+              description={selectedCity ? s('emptyCityVenuesDesc') : s('emptyVenuesDesc')}
+              ctaLabel={user ? s('emptyCityVenuesCta') : undefined}
+              onCtaPress={user ? () => router.push('/(protected)/add-venue' as any) : undefined}
             />
           ) : (
             <FlatList
@@ -500,10 +492,9 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
       </View>
 
 
-      <CityPickerModal
+      <LocationSelector
         visible={cityModalVisible}
-        selectedCity={selectedCity}
-        onSelect={(c) => { if (c) setSelectedCity(c); setCityModalVisible(false); }}
+        mode="switcher"
         onClose={() => setCityModalVisible(false)}
       />
     </View>

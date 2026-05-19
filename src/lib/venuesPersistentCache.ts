@@ -10,6 +10,7 @@ export interface PersistedVenue {
   name: string;
   type: string;
   city: string;
+  city_id: number;
   address: string;
   lat: number;
   lng: number;

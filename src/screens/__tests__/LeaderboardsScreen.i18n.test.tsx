@@ -33,10 +33,10 @@ import { LeaderboardsScreen } from '../LeaderboardsScreen';
 describe('LeaderboardsScreen — i18n', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('shows "All Romania" when no city is selected', async () => {
+  it('shows "All cities" when no city is selected', async () => {
     const { getByText } = render(<LeaderboardsScreen hideTabBar />);
     await waitFor(() => {
-      expect(getByText('All Romania')).toBeTruthy();
+      expect(getByText('All cities')).toBeTruthy();
     });
   });
 });

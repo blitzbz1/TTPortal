@@ -216,7 +216,7 @@ describe('EventSchedulingScreen — feedback integration', () => {
     fireEvent.press(pastTab);
 
     await waitFor(() => {
-      expect(mockGetEvents).toHaveBeenCalledWith('past', 'u-1', { limit: 20, offset: 0 });
+      expect(mockGetEvents).toHaveBeenCalledWith('past', 'u-1', { limit: 20, offset: 0, city: 'Bucure\u0219ti' });
     });
   });
 
@@ -387,13 +387,13 @@ describe('EventSchedulingScreen — create-event refresh params', () => {
     const { findByText } = render(<EventSchedulingScreen />);
 
     await waitFor(() => {
-      expect(mockGetEvents).toHaveBeenCalledWith('upcoming', undefined, { limit: 50, offset: 0 });
+      expect(mockGetEvents).toHaveBeenCalledWith('upcoming', undefined, { limit: 50, offset: 0, city: 'Bucure\u0219ti' });
     });
 
     fireEvent.press(await findByText(/past|trecute/i));
 
     await waitFor(() => {
-      expect(mockGetEvents).toHaveBeenCalledWith('past', 'u-1', { limit: 20, offset: 0 });
+      expect(mockGetEvents).toHaveBeenCalledWith('past', 'u-1', { limit: 20, offset: 0, city: 'Bucure\u0219ti' });
     });
   });
 });

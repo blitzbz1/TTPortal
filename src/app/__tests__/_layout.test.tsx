@@ -10,6 +10,7 @@ jest.mock('react-native-gesture-handler', () => {
 
 const mockUseSession = jest.fn();
 const mockStackScreenNames: string[] = [];
+let mockGlobalSearchParams: Record<string, string> = {};
 
 jest.mock('../../hooks/useSession', () => ({
   useSession: () => mockUseSession(),
@@ -33,6 +34,22 @@ jest.mock('../../contexts/I18nProvider', () => {
   };
 });
 
+jest.mock('../../contexts/LocationProvider', () => {
+  const { View } = require('react-native');
+  return {
+    LocationProvider: ({ children }: { children: React.ReactNode }) => (
+      <View testID="location-provider">{children}</View>
+    ),
+  };
+});
+
+jest.mock('../../hooks/useSelectedLocation', () => ({
+  useSelectedLocation: () => ({
+    hasCompletedInitialLocationSetup: true,
+    resetInitialLocationSetup: jest.fn(),
+  }),
+}));
+
 const mockUseFonts = jest.fn<[boolean, Error | null], []>();
 jest.mock('expo-font', () => ({
   useFonts: (...a: unknown[]) => mockUseFonts(...(a as [])),
@@ -55,6 +72,7 @@ jest.mock('expo-router', () => {
   StackComponent.Screen = MockScreen;
   return {
     Stack: StackComponent,
+    useGlobalSearchParams: () => mockGlobalSearchParams,
     ErrorBoundary: () => null,
   };
 });
@@ -70,6 +88,15 @@ jest.mock('../../components/AnimatedSplash', () => {
   return {
     __esModule: true,
     default: () => <View testID="animated-splash" />,
+  };
+});
+
+jest.mock('../../components/InitialLocationSetupModal', () => {
+  const { View } = require('react-native');
+  return {
+    InitialLocationSetupModal: ({ visible }: { visible: boolean }) => (
+      visible ? <View testID="initial-location-setup-modal" /> : null
+    ),
   };
 });
 
@@ -111,6 +138,7 @@ describe('RootLayout', () => {
       user: null,
     });
     mockUseFonts.mockReturnValue([true, null]);
+    mockGlobalSearchParams = {};
   });
 
   describe('loading state', () => {
@@ -182,6 +210,15 @@ describe('RootLayout', () => {
       render(<RootLayout />);
 
       expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders initial location welcome instead of Stack when reset param is present', () => {
+      mockGlobalSearchParams = { resetInitialLocation: '' };
+
+      const { getByTestId, queryByTestId } = render(<RootLayout />);
+
+      getByTestId('initial-location-setup-modal');
+      expect(queryByTestId('stack-navigator')).toBeNull();
     });
   });
 

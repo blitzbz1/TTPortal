@@ -26,13 +26,21 @@ export const venuesQueryKey = (city?: string | null, type?: VenueType | null) =>
  * If the network call fails we fall back to whatever the cache already
  * holds — the screen never blocks on a flaky connection.
  */
-export function useVenuesQuery(city?: string | null, type?: VenueType | null, enabled = true) {
+export function useVenuesQuery(
+  city?: string | null,
+  type?: VenueType | null,
+  enabled = true,
+  cityId?: number | null,
+) {
+  const stableCityId = cityId != null && cityId > 0 ? cityId : null;
+
   return useQuery<PersistedVenue[]>({
-    queryKey: venuesQueryKey(city, type),
+    queryKey: ['venues', stableCityId ?? city ?? 'all', type ?? 'all'] as const,
     queryFn: async () => {
-      const cached = readVenueScope(city, type);
+      const scope = stableCityId != null ? `id:${stableCityId}` : city;
+      const cached = readVenueScope(scope, type);
       const since = cached?.syncedAt ?? null;
-      const { data, error } = await getVenuesDelta(since, city, type);
+      const { data, error } = await getVenuesDelta(since, city, type, stableCityId);
 
       if (error || !data) {
         if (cached) return cached.venues;
@@ -40,7 +48,7 @@ export function useVenuesQuery(city?: string | null, type?: VenueType | null, en
       }
 
       const next = applyVenuesDelta(
-        city,
+        scope,
         type,
         data.upserts ?? [],
         data.tombstone_ids ?? [],
@@ -48,7 +56,7 @@ export function useVenuesQuery(city?: string | null, type?: VenueType | null, en
       );
       return next.venues;
     },
-    initialData: () => readVenueScope(city, type)?.venues,
+    initialData: () => readVenueScope(stableCityId != null ? `id:${stableCityId}` : city, type)?.venues,
     enabled,
     staleTime: 30 * 1000,
     gcTime: 60 * 60 * 1000,
