@@ -15,6 +15,7 @@ import type { Country, CountryCode, LocationCity } from '../lib/locationTypes';
 const COUNTRY_KEY = 'last_selected_country_code';
 const CITY_KEY = 'last_selected_city_id';
 const CITY_VISIT_COUNTS_KEY = 'location_city_visit_counts';
+const SETUP_DONE_KEY = 'initial_location_setup_completed';
 
 function hasInitialLocationResetParam(): boolean {
   if (typeof window === 'undefined') return false;
@@ -64,7 +65,8 @@ function loadCityId(): number | null {
 }
 
 function loadInitialSetupCompleted(): boolean {
-  return false;
+  if (hasInitialLocationResetParam()) return false;
+  return getStringSync(SETUP_DONE_KEY) === 'true';
 }
 
 function incrementCityVisitCount(cityId: number): void {
@@ -145,12 +147,14 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
 
   const completeInitialLocationSetup = useCallback(() => {
     setHasCompletedInitialLocationSetup(true);
+    setString(SETUP_DONE_KEY, 'true');
   }, []);
 
   const resetInitialLocationSetup = useCallback(() => {
     setHasCompletedInitialLocationSetup(false);
     setSelectedCityId(null);
     removeString(CITY_KEY);
+    removeString(SETUP_DONE_KEY);
   }, []);
 
   const value = useMemo<LocationContextValue>(
