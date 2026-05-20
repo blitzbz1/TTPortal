@@ -10,6 +10,7 @@ import { createStyles } from './VenueDetailScreen.styles';
 import { CheckinDurationModal } from './VenueDetailScreen/CheckinDurationModal';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
+import { getDateLocale } from '../contexts/I18nProvider';
 import { uploadVenuePhoto, addPhotoToVenue } from '../services/venues';
 import { venueImageUrl } from '../lib/imageTransforms';
 import { prepareImageForUpload, ImageProcessingUnavailableError } from '../lib/imageUpload';
@@ -45,7 +46,7 @@ export function VenueDetailScreen({ venueId }: Props) {
   const { user } = useSession();
   const { s, lang } = useI18n();
   const { colors } = useTheme();
-  const dateLocale = lang === 'en' ? 'en-GB' : 'ro-RO';
+  const dateLocale = getDateLocale(lang);
   const { styles } = useMemo(() => createStyles(colors), [colors]);
 
   const vIdNum = venueId && !isNaN(Number(venueId)) ? Number(venueId) : undefined;
@@ -211,10 +212,10 @@ export function VenueDetailScreen({ venueId }: Props) {
       return;
     }
     if (vIdNum) invalidateVenueDetail(vIdNum);
-    const endTimeStr = endedAt.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+    const endTimeStr = endedAt.toLocaleTimeString(getDateLocale(lang), { hour: '2-digit', minute: '2-digit' });
     setLastCheckinEndTime(endTimeStr);
     setSuccessSheetVisible(true);
-  }, [user, venueId, vIdNum, invalidateVenueDetail, showAlert, s]);
+  }, [user, venueId, vIdNum, invalidateVenueDetail, showAlert, s, lang]);
 
   const handleCustomConfirm = useCallback(() => {
     if (customMode === 'minutes') {
@@ -582,7 +583,7 @@ export function VenueDetailScreen({ venueId }: Props) {
                 <Lucide name="check-circle" size={16} color={colors.primaryLight} />
                 <Text style={styles.activeCheckinText}>
                   {s('checkinSuccess').replace('!', '')} {activeCheckin.ended_at
-                    ? `· ${s('untilTime')} ${new Date(activeCheckin.ended_at).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}`
+                    ? `· ${s('untilTime')} ${new Date(activeCheckin.ended_at).toLocaleTimeString(getDateLocale(lang), { hour: '2-digit', minute: '2-digit' })}`
                     : ''}
                 </Text>
               </View>

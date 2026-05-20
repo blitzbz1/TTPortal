@@ -14,6 +14,7 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
+import { getDateLocale } from '../contexts/I18nProvider';
 import { useFavoritesQuery, useToggleFavoriteMutation } from '../hooks/queries/useFavoritesQuery';
 
 type SortMode = 'recent' | 'name';
@@ -27,7 +28,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
   const [sortMode] = useState<SortMode>('name');
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useSession();
-  const { s } = useI18n();
+  const { s, lang } = useI18n();
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
@@ -144,7 +145,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
             const typeInfo = getVenueTypeInfo(venue);
             const condInfo = getConditionInfo(venue);
             const rating = venue?.venue_stats?.[0]?.avg_rating ?? venue?.venue_stats?.avg_rating;
-            const savedDate = new Date(fav.created_at).toLocaleDateString('ro-RO');
+            const savedDate = new Date(fav.created_at).toLocaleDateString(getDateLocale(lang));
 
             return (
               <Animated.View key={fav.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>

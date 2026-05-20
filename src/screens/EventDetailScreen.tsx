@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
+import { getDateLocale } from '../contexts/I18nProvider';
 import { useSession } from '../hooks/useSession';
 import {
   getEventById,
@@ -82,7 +83,7 @@ export function EventDetailScreen() {
     return endOfDay < new Date();
   }, []);
 
-  const locale = lang === 'en' ? 'en-GB' : 'ro-RO';
+  const locale = getDateLocale(lang);
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short' });
   const formatTime = (iso: string) =>

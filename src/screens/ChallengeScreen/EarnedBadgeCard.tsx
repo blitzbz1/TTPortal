@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Text, View } from 'react-native';
 import { BadgeTrackIcon } from '../../components/BadgeTrackIcon';
 import { Lucide } from '../../components/Icon';
+import { getDateLocale } from '../../contexts/I18nProvider';
 import type { ThemeColors } from '../../theme';
 import type { BadgeTier, BadgeTrack } from '../../lib/badgeChallenges';
 import { TIER_TARGETS, getBadgeTierPalette } from '../../lib/badgeChallenges';
@@ -9,7 +10,7 @@ import type { createStyles } from '../ChallengeScreen.styles';
 
 export function formatEarnedMonth(value: string | null | undefined, lang: string) {
   if (!value) return '';
-  return new Date(value).toLocaleDateString(lang === 'ro' ? 'ro-RO' : 'en-US', {
+  return new Date(value).toLocaleDateString(getDateLocale(lang), {
     month: 'short',
     year: 'numeric',
   });

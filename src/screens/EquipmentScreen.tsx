@@ -24,6 +24,7 @@ import { Lucide } from '../components/Icon';
 import { useSession } from '../hooks/useSession';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
+import { getDateLocale } from '../contexts/I18nProvider';
 import { getEquipmentHistory, saveEquipmentSelection } from '../services/equipment';
 import { useEquipmentCatalogQuery } from '../hooks/queries/useEquipmentCatalogQuery';
 import { loadCachedEquipmentHistory, saveCachedEquipmentHistory } from '../lib/equipmentCache';
@@ -384,7 +385,7 @@ export function EquipmentScreen() {
   const { colors } = useTheme();
   const { s, lang } = useI18n();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const dateLocale = lang === 'ro' ? 'ro-RO' : 'en-US';
+  const dateLocale = getDateLocale(lang);
   const colorLabel = useCallback((color: RubberColor) => s(`equipmentColor_${color}`), [s]);
 
   const [activeTab, setActiveTab] = useState<TabKey>('edit');

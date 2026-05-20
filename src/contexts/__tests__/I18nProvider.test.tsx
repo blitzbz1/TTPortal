@@ -135,7 +135,7 @@ describe('I18nProvider', () => {
   });
 
   it('falls back to ro when stored value is invalid', () => {
-    mockGetSync.mockReturnValueOnce('fr');
+    mockGetSync.mockReturnValueOnce('xx');
 
     render(
       <I18nProvider>

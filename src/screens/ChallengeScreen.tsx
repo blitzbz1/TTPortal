@@ -9,6 +9,7 @@ import { Lucide } from '../components/Icon';
 import { ErrorState } from '../components/ErrorState';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
+import { getDateLocale } from '../contexts/I18nProvider';
 import { useSession } from '../hooks/useSession';
 import { createStyles } from './ChallengeScreen.styles';
 import { EarnedBadgeModal } from './ChallengeScreen/EarnedBadgeModal';
@@ -489,7 +490,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const renderMonthlyMastery = () => {
     const strongestBadge = monthlyMastery.strongest.badge;
     const strongestProgress = Math.min(15, monthlyMastery.strongest.completedCount);
-    const monthLabel = new Date().toLocaleDateString(lang === 'en' ? 'en-US' : 'ro-RO', {
+    const monthLabel = new Date().toLocaleDateString(getDateLocale(lang), {
       month: 'long',
       year: 'numeric',
     });

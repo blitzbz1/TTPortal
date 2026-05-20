@@ -14,6 +14,7 @@ import { useTheme } from '../hooks/useTheme';
 import { createStyles } from './PlayHistoryScreen.styles';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
+import { getDateLocale } from '../contexts/I18nProvider';
 import { getPlayHistory } from '../services/checkins';
 import { supabase } from '../lib/supabase';
 import { loadCachedPlayHistory, saveCachedPlayHistory } from '../lib/playHistoryCache';
@@ -65,7 +66,7 @@ export function PlayHistoryScreen() {
   const [eventVenues, setEventVenues] = useState<{ venue_id: number; venue_name: string; event_title: string; starts_at: string; hours_played: number | null }[]>([]);
   const { user } = useSession();
   const router = useRouter();
-  const { s } = useI18n();
+  const { s, lang } = useI18n();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -219,11 +220,11 @@ export function PlayHistoryScreen() {
       if (!group) {
         let dayLabel: string;
         if (dateStr === today) {
-          dayLabel = `${s('today')} \u2014 ${date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' })}`;
+          dayLabel = `${s('today')} \u2014 ${date.toLocaleDateString(getDateLocale(lang), { day: 'numeric', month: 'long' })}`;
         } else if (dateStr === yesterday) {
-          dayLabel = `${s('yesterday')} \u2014 ${date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' })}`;
+          dayLabel = `${s('yesterday')} \u2014 ${date.toLocaleDateString(getDateLocale(lang), { day: 'numeric', month: 'long' })}`;
         } else {
-          dayLabel = date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' });
+          dayLabel = date.toLocaleDateString(getDateLocale(lang), { day: 'numeric', month: 'long' });
         }
         group = { dayLabel, dateKey: dateStr, entries: [] };
         map.set(dateStr, group);
@@ -235,7 +236,7 @@ export function PlayHistoryScreen() {
   };
 
   const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleTimeString('ro-RO', {
+    return new Date(dateStr).toLocaleTimeString(getDateLocale(lang), {
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -375,14 +376,14 @@ export function PlayHistoryScreen() {
         if (c.ended_at) {
           hours = (new Date(c.ended_at).getTime() - new Date(c.started_at).getTime()) / 3600000;
         }
-        const time = new Date(c.started_at).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+        const time = new Date(c.started_at).toLocaleTimeString(getDateLocale(lang), { hour: '2-digit', minute: '2-digit' });
         activities.push({ type: 'checkin', title: c.venue_name || s('venue'), hours, time });
       }
     }
 
     for (const ev of eventVenues) {
       if (new Date(ev.starts_at).toDateString() === selectedDay) {
-        const time = new Date(ev.starts_at).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+        const time = new Date(ev.starts_at).toLocaleTimeString(getDateLocale(lang), { hour: '2-digit', minute: '2-digit' });
         activities.push({ type: 'event', title: ev.event_title, hours: ev.hours_played, time });
       }
     }
@@ -391,7 +392,7 @@ export function PlayHistoryScreen() {
 
     const totalHours = activities.reduce((sum, a) => sum + (a.hours ?? 0), 0);
     return { activities, totalHours };
-  }, [selectedDay, allCheckins, eventVenues, s]);
+  }, [selectedDay, allCheckins, eventVenues, s, lang]);
 
   const summaryStats = [
     { value: String(filteredCheckins.length), label: s('checkins'), bg: colors.primaryPale, color: colors.primary },
@@ -461,7 +462,7 @@ export function PlayHistoryScreen() {
                 <Lucide name="chevron-left" size={20} color={calMonthOffset <= -12 ? colors.borderLight : colors.text} />
               </TouchableOpacity>
               <Text style={styles.calMonthTitle}>
-                {calMonth.toLocaleDateString('ro-RO', { month: 'long', year: 'numeric' })}
+                {calMonth.toLocaleDateString(getDateLocale(lang), { month: 'long', year: 'numeric' })}
               </Text>
               <TouchableOpacity
                 onPress={() => setCalMonthOffset((o) => Math.min(o + 1, 12))}
@@ -527,7 +528,7 @@ export function PlayHistoryScreen() {
             <View style={styles.dayDetail}>
               <View style={styles.dayDetailHeader}>
                 <Text style={styles.dayDetailTitle}>
-                  {new Date(selectedDay!).toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  {new Date(selectedDay!).toLocaleDateString(getDateLocale(lang), { weekday: 'long', day: 'numeric', month: 'long' })}
                 </Text>
                 {selectedDayActivities.totalHours > 0 && (
                   <Text style={styles.dayDetailTotal}>

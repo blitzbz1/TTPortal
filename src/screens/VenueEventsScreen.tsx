@@ -8,6 +8,7 @@ import { Card } from '../components/Card';
 import { EmptyState } from '../components/EmptyState';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
+import { getDateLocale } from '../contexts/I18nProvider';
 import { getUpcomingEventsByVenue } from '../services/events';
 import { getVenueById } from '../services/venues';
 import { Fonts, FontSize, FontWeight, Radius, Shadows, Spacing } from '../theme';
@@ -34,7 +35,7 @@ export function VenueEventsScreen({ venueId }: Props) {
   const { colors } = useTheme();
   const { s, lang } = useI18n();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const locale = lang === 'en' ? 'en-GB' : 'ro-RO';
+  const locale = getDateLocale(lang);
 
   const [events, setEvents] = useState<EventItem[]>([]);
   const [venueName, setVenueName] = useState<string>('');

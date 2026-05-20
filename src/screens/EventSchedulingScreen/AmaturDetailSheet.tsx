@@ -4,6 +4,7 @@ import MapView, { Marker } from 'react-native-maps';
 import { Lucide } from '../../components/Icon';
 import { useTheme } from '../../hooks/useTheme';
 import { useI18n } from '../../hooks/useI18n';
+import { getDateLocale } from '../../contexts/I18nProvider';
 import type { AmaturEvent } from '../../services/amatur';
 import { createStyles } from '../EventSchedulingScreen.styles';
 
@@ -17,7 +18,7 @@ export function AmaturDetailSheet({ event, bottomInset, onClose }: Props) {
   const { s, lang } = useI18n();
   const { colors, isDark } = useTheme();
   const { styles, ms } = React.useMemo(() => createStyles(colors, isDark), [colors, isDark]);
-  const locale = lang === 'en' ? 'en-GB' : 'ro-RO';
+  const locale = getDateLocale(lang);
 
   return (
     <Modal

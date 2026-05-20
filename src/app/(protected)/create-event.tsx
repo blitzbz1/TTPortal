@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSession } from '@/src/hooks/useSession';
 import { useTheme } from '@/src/hooks/useTheme';
 import { useI18n } from '@/src/hooks/useI18n';
+import { getDateLocale } from '@/src/contexts/I18nProvider';
 import type { ThemeColors } from '@/src/theme';
 import { Fonts } from '@/src/theme';
 import { createStyles } from './create-event.styles';
@@ -131,7 +132,7 @@ export default function CreateEventRoute() {
   const params = useLocalSearchParams<{ challengeId?: string }>();
   const { user } = useSession();
   const { colors, isDark } = useTheme();
-  const { s: t } = useI18n();
+  const { s: t, lang } = useI18n();
   const s = useMemo(() => createStyles(colors), [colors]);
   const currentSelectedChallenge = useCurrentSelectedChallenge();
 
@@ -214,8 +215,8 @@ export default function CreateEventRoute() {
     if (sel) setEndDate(sel);
   }, []);
 
-  const fmtDate = (d: Date) => d.toLocaleDateString('ro-RO', { weekday: 'short', day: 'numeric', month: 'short' });
-  const fmtTime = (d: Date) => d.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+  const fmtDate = (d: Date) => d.toLocaleDateString(getDateLocale(lang), { weekday: 'short', day: 'numeric', month: 'short' });
+  const fmtTime = (d: Date) => d.toLocaleTimeString(getDateLocale(lang), { hour: '2-digit', minute: '2-digit' });
 
   const privateInviteMissing = visibility === 'private' && invitedFriendIds.length === 0;
   const returnToFutureEvents = useCallback(() => {

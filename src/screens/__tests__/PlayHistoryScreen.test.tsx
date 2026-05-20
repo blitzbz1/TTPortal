@@ -16,7 +16,7 @@ jest.mock('expo-router', () => ({
 
 const mockS = jest.fn((key: string) => key);
 jest.mock('../../hooks/useI18n', () => ({
-  useI18n: () => ({ s: mockS }),
+  useI18n: () => ({ s: mockS, lang: 'ro' }),
 }));
 
 jest.mock('../../hooks/useTheme', () => ({

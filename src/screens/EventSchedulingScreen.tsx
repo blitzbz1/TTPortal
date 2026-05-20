@@ -17,6 +17,7 @@ import { createStyles } from './EventSchedulingScreen.styles';
 import { AmaturDetailSheet } from './EventSchedulingScreen/AmaturDetailSheet';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
+import { getDateLocale } from '../contexts/I18nProvider';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { getEvents, joinEvent, leaveEvent, PAST_EVENTS_PAGE_SIZE } from '../services/events';
 import { getUserEventFeedbackForEvents } from '../services/eventFeedback';
@@ -350,7 +351,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     fetchEvents();
   }, [user, router, s, fetchEvents]);
 
-  const locale = lang === 'en' ? 'en-GB' : 'ro-RO';
+  const locale = getDateLocale(lang);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString(locale, {

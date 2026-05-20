@@ -10,11 +10,12 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getProfile, updateProfile } from '../services/profiles';
 import { NotificationInboxModal, type NotificationInboxModalRef } from '../components/NotificationInboxModal';
+import { LanguagePicker } from '../components/LanguagePicker';
 
 export function SettingsScreen() {
   const router = useRouter();
   const { user } = useSession();
-  const { lang, setLang, s } = useI18n();
+  const { s } = useI18n();
   const { colors, mode, setMode, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -79,19 +80,7 @@ export function SettingsScreen() {
             <Lucide name="globe" size={18} color={colors.blue} />
           </View>
           <Text style={styles.rowLabel}>{s('language')}</Text>
-          <View style={styles.toggle}>
-            {(['ro', 'en'] as const).map((l) => (
-              <TouchableOpacity
-                key={l}
-                style={[styles.toggleOption, lang === l && styles.toggleOptionActive]}
-                onPress={() => setLang(l)}
-              >
-                <Text style={[styles.toggleText, lang === l && styles.toggleTextActive]}>
-                  {l.toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <LanguagePicker />
         </View>
 
         {/* Theme */}
@@ -199,16 +188,6 @@ function createStyles(colors: ThemeColors) {
     },
     toggleOptionActive: {
       backgroundColor: colors.bgAlt,
-    },
-    toggleText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.sm,
-      fontWeight: FontWeight.medium,
-      color: colors.textFaint,
-    },
-    toggleTextActive: {
-      color: colors.text,
-      fontWeight: FontWeight.semibold,
     },
   });
 }

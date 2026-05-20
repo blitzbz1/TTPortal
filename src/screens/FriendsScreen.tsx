@@ -8,6 +8,7 @@ import { useTheme } from '../hooks/useTheme';
 import { createStyles } from './FriendsScreen.styles';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
+import { getDateLocale } from '../contexts/I18nProvider';
 import { useFocusRefresh } from '../hooks/useFocusRefresh';
 import { getFriends, getPendingRequests, acceptRequest, declineRequest, findUserByUsername, getFriendshipBetweenUsers, sendRequest } from '../services/friends';
 import { loadCachedFriends, saveCachedFriends, loadCachedPending, saveCachedPending } from '../lib/friendsCache';
@@ -39,7 +40,7 @@ export function FriendsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useSession();
   const router = useRouter();
-  const { s } = useI18n();
+  const { s, lang } = useI18n();
   const { colors } = useTheme();
   const { styles, im } = useMemo(() => createStyles(colors), [colors]);
 
@@ -50,11 +51,11 @@ export function FriendsScreen() {
       playingFriends.map((f: any) => {
         const startedAt = f?.checkin?.started_at;
         const timeStr = startedAt
-          ? new Date(startedAt).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
+          ? new Date(startedAt).toLocaleTimeString(getDateLocale(lang), { hour: '2-digit', minute: '2-digit' })
           : '';
         return { ...f, _timeStr: timeStr };
       }),
-    [playingFriends],
+    [playingFriends, lang],
   );
 
   const fetchData = useCallback(async (force = false) => {
