@@ -219,8 +219,10 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
     },
     eventBot: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       justifyContent: 'space-between',
       alignItems: 'center',
+      rowGap: 8,
     },
     avatarStack: {
       flexDirection: 'row',

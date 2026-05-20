@@ -621,7 +621,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                           const hasLoggedHours = loggedHours > 0;
                           const hasGivenFeedback = feedbackGivenIds.has(event.id);
                           return (
-                            <View style={{ flexDirection: 'row', gap: 6 }}>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', flexGrow: 1, flexShrink: 1, justifyContent: 'flex-end', gap: 6 }}>
                               {!hasLoggedHours && (
                                 <TouchableOpacity
                                   style={[styles.joinBtn, styles.notJoinedBtn]}
