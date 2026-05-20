@@ -179,7 +179,7 @@ export interface EquipmentSelection {
   backhand_rubber_manufacturer_id: string;
   backhand_rubber_manufacturer: string;
   backhand_rubber_model: string;
-  backhand_rubber_color: Extract<RubberColor, 'red' | 'black'>;
+  backhand_rubber_color: RubberColor;
   dominant_hand: DominantHand;
   playing_style: PlayingStyle;
   grip: Grip;

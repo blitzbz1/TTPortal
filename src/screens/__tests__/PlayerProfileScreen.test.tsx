@@ -202,8 +202,12 @@ describe('PlayerProfileScreen', () => {
     const { findByText } = render(<PlayerProfileScreen userId="target-1" />);
     expect(await findByText('Butterfly Viscaria')).toBeTruthy();
     expect(await findByText(/Tenergy 05/)).toBeTruthy();
+    expect(await findByText('equipmentColor_red')).toBeTruthy();
     expect(await findByText(/Dignics 09c/)).toBeTruthy();
+    expect(await findByText('equipmentColor_black')).toBeTruthy();
     expect(await findByText('equipmentStyleAttacker')).toBeTruthy();
+    expect(await findByText('equipmentHandRight')).toBeTruthy();
+    expect(await findByText('equipmentGripShakehand')).toBeTruthy();
   });
 
   it('shows an equipment empty state when the player has no setup saved', async () => {

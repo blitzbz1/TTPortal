@@ -385,7 +385,7 @@
   "fieldAddress": "DIRECCIÓN *",
   "addressPlaceholder": "Calle, número…",
   "pinOnMap": "Marcar en el mapa",
-  "dragPinHint": "Toca o mueve el mapa para colocar el marcador",
+  "dragPinHint": "Toca o mueve el mapa para colocar el marcador en la ubicación exacta.",
   "searching": "Buscando...",
   "fieldNotes": "NOTAS",
   "notesPlaceholder": "Detalles adicionales...",
@@ -1078,13 +1078,11 @@
   "badgeChallenge_EXP019": "Dejar que el público decida tus tácticas",
   "badgeChallenge_EXP020": "Jugar dobles con un desconocido",
   "badgeChallenge_EXP021": "Vencer a dos adversarios diferentes en la misma sesión",
-
   "playerProfile": "Perfil de jugador",
   "hoursInEvents": "Horas en eventos",
   "noUpcomingEvents": "No tienes eventos próximos como organizador",
   "pickEventToInvite": "Elige un evento",
   "inviteSent": "¡Invitación enviada!",
-
   "feedbackHeaderButton": "Enviar opinión",
   "feedbackTitle": "Enviar opinión",
   "feedbackDescription": "Cuéntanos un error, solicita una función o comparte lo que quieras.",
@@ -1101,7 +1099,6 @@
   "feedbackErrorMessageRequired": "Escribe un mensaje breve.",
   "feedbackErrorFeatureTitleRequired": "Dale un título breve a tu idea.",
   "feedbackErrorGeneric": "No se pudo enviar tu opinión. Inténtalo de nuevo.",
-
   "tabFeedback": "Opinión",
   "userFeedbackSection": "Opiniones de usuarios",
   "noUserFeedback": "Sin opiniones aún",
@@ -1110,8 +1107,20 @@
   "feedbackReplyTitle": "Responder a la opinión",
   "feedbackReplyPlaceholder": "Escribe una respuesta al usuario…",
   "feedbackReplyError": "No se pudo enviar la respuesta. Inténtalo de nuevo.",
-
-  "pinOnMap": "Marcar en el mapa",
-  "dragPinHint": "Toca o mueve el mapa para colocar el marcador en la ubicación exacta.",
-  "updatingAddress": "Actualizando dirección…"
+  "updatingAddress": "Actualizando dirección…",
+  "equipmentEditShort": "Editar setup",
+  "equipmentCurrentTabShort": "Mi setup",
+  "equipmentReset": "Restablecer",
+  "equipmentUnset": "No seleccionado",
+  "equipmentPreviewEyebrow": "Mi setup",
+  "equipmentPreviewTitle": "Vista previa del setup",
+  "equipmentUnsavedTitle": "Tienes cambios sin guardar",
+  "equipmentSavedTitle": "Mi setup está actualizado",
+  "equipmentIncompleteHint": "Completa la madera y ambas gomas antes de guardar.",
+  "equipmentSaveHint": "Guarda el setup cuando todo esté correcto.",
+  "equipmentSavedHint": "Mi último setup está guardado.",
+  "equipmentColorWarning": "En competición, los dos lados deberían usar colores diferentes.",
+  "equipmentYourSetup": "Mi setup",
+  "equipmentPreviousSubtitle": "Setups guardados anteriormente",
+  "equipmentConfigure": "Configurar setup"
 }

@@ -385,7 +385,7 @@
   "fieldAddress": "ADRESSE *",
   "addressPlaceholder": "Rue, n°…",
   "pinOnMap": "Épingler sur la carte",
-  "dragPinHint": "Appuyez ou déplacez la carte pour positionner l'épingle",
+  "dragPinHint": "Appuyez ou déplacez la carte pour positionner l'épingle à l'emplacement exact.",
   "searching": "Recherche...",
   "fieldNotes": "NOTES",
   "notesPlaceholder": "Informations complémentaires...",
@@ -1078,14 +1078,11 @@
   "badgeChallenge_EXP019": "Laisser le public décider de vos tactiques",
   "badgeChallenge_EXP020": "Jouer en double avec un inconnu",
   "badgeChallenge_EXP021": "Battre deux adversaires différents lors de la même session",
-
   "playerProfile": "Profil joueur",
-  "eventsJoined": "Événements",
   "hoursInEvents": "Heures en événements",
   "noUpcomingEvents": "Vous n'avez aucun événement à venir en tant qu'organisateur",
   "pickEventToInvite": "Choisir un événement",
   "inviteSent": "Invitation envoyée !",
-
   "feedbackHeaderButton": "Envoyer un retour",
   "feedbackTitle": "Envoyer un retour",
   "feedbackDescription": "Signalez un bug, demandez une fonctionnalité ou partagez ce que vous avez en tête.",
@@ -1102,7 +1099,6 @@
   "feedbackErrorMessageRequired": "Veuillez écrire un court message.",
   "feedbackErrorFeatureTitleRequired": "Veuillez donner un court titre à votre idée.",
   "feedbackErrorGeneric": "Impossible d'envoyer votre retour. Veuillez réessayer.",
-
   "tabFeedback": "Retours",
   "userFeedbackSection": "Retours utilisateurs",
   "noUserFeedback": "Aucun retour pour l'instant",
@@ -1111,8 +1107,20 @@
   "feedbackReplyTitle": "Répondre au retour",
   "feedbackReplyPlaceholder": "Écrire une réponse à l'utilisateur…",
   "feedbackReplyError": "Impossible d'envoyer la réponse. Veuillez réessayer.",
-
-  "pinOnMap": "Épingler sur la carte",
-  "dragPinHint": "Appuyez ou déplacez la carte pour positionner l'épingle à l'emplacement exact.",
-  "updatingAddress": "Mise à jour de l'adresse…"
+  "updatingAddress": "Mise à jour de l'adresse…",
+  "equipmentEditShort": "Modifier setup",
+  "equipmentCurrentTabShort": "Mon setup",
+  "equipmentReset": "Réinitialiser",
+  "equipmentUnset": "Non sélectionné",
+  "equipmentPreviewEyebrow": "Mon setup",
+  "equipmentPreviewTitle": "Aperçu du setup",
+  "equipmentUnsavedTitle": "Vous avez des modifications non enregistrées",
+  "equipmentSavedTitle": "Mon setup est à jour",
+  "equipmentIncompleteHint": "Complétez le bois et les deux revêtements avant d’enregistrer.",
+  "equipmentSaveHint": "Enregistrez le setup quand tout est prêt.",
+  "equipmentSavedHint": "Mon dernier setup est enregistré.",
+  "equipmentColorWarning": "En compétition, les deux côtés devraient utiliser des couleurs différentes.",
+  "equipmentYourSetup": "Mon setup",
+  "equipmentPreviousSubtitle": "Setups enregistrés précédemment",
+  "equipmentConfigure": "Configurer le setup"
 }

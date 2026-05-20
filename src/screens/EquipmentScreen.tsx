@@ -20,6 +20,7 @@ import {
 } from '@gorhom/bottom-sheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { EquipmentSummaryCard } from '../components/EquipmentSummaryCard';
 import { Lucide } from '../components/Icon';
 import { useSession } from '../hooks/useSession';
 import { useTheme } from '../hooks/useTheme';
@@ -51,7 +52,7 @@ interface PickedEquipment {
 const EMPTY_PICK: PickedEquipment = { manufacturerId: '', manufacturer: '', model: '' };
 
 const FOREHAND_COLORS: RubberColor[] = ['red', 'black', 'pink', 'blue', 'purple', 'green'];
-const BACKHAND_COLORS: Extract<RubberColor, 'red' | 'black'>[] = ['red', 'black'];
+const BACKHAND_COLORS: RubberColor[] = FOREHAND_COLORS;
 
 const COLOR_SWATCHES: Record<RubberColor, string> = {
   red: '#dc2626',
@@ -95,19 +96,73 @@ function formatDate(value: string, locale: string) {
   return fmt.format(new Date(value));
 }
 
-function labelFromValue<T extends string>(
-  options: { labelKey: string; value: T }[],
-  value: T,
-  translate: (key: string) => string,
-) {
-  const option = options.find((item) => item.value === value);
-  return option ? translate(option.labelKey) : value;
+function initialsFromName(value?: string | null) {
+  const fallback = '?';
+  const name = (value ?? '').trim();
+  if (!name) return fallback;
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+  return (parts[0]?.[0] ?? fallback).toUpperCase();
 }
 
-function playingStyleIcon(value: PlayingStyle) {
-  if (value === 'attacker') return 'swords';
-  if (value === 'defender') return 'shield';
-  return null;
+function pickLabel(pick: PickedEquipment, fallback: string) {
+  return pick.model ? `${pick.manufacturer} ${pick.model}` : fallback;
+}
+
+function equipmentSnapshot(
+  blade: PickedEquipment,
+  forehand: PickedEquipment,
+  backhand: PickedEquipment,
+  forehandColor: RubberColor,
+  backhandColor: RubberColor,
+  dominantHand: DominantHand,
+  playingStyle: PlayingStyle,
+  grip: Grip,
+) {
+  return JSON.stringify({
+    bladeManufacturerId: blade.manufacturerId,
+    bladeManufacturer: blade.manufacturer,
+    bladeModel: blade.model,
+    forehandManufacturerId: forehand.manufacturerId,
+    forehandManufacturer: forehand.manufacturer,
+    forehandModel: forehand.model,
+    forehandColor,
+    backhandManufacturerId: backhand.manufacturerId,
+    backhandManufacturer: backhand.manufacturer,
+    backhandModel: backhand.model,
+    backhandColor,
+    dominantHand,
+    playingStyle,
+    grip,
+  });
+}
+
+function snapshotFromSelection(selection: EquipmentSelection | undefined | null) {
+  if (!selection) return null;
+  return equipmentSnapshot(
+    {
+      manufacturerId: selection.blade_manufacturer_id,
+      manufacturer: selection.blade_manufacturer,
+      model: selection.blade_model,
+    },
+    {
+      manufacturerId: selection.forehand_rubber_manufacturer_id,
+      manufacturer: selection.forehand_rubber_manufacturer,
+      model: selection.forehand_rubber_model,
+    },
+    {
+      manufacturerId: selection.backhand_rubber_manufacturer_id,
+      manufacturer: selection.backhand_rubber_manufacturer,
+      model: selection.backhand_rubber_model,
+    },
+    selection.forehand_rubber_color,
+    selection.backhand_rubber_color,
+    selection.dominant_hand,
+    selection.playing_style,
+    selection.grip,
+  );
 }
 
 function gripIcon(value: Grip) {
@@ -158,58 +213,52 @@ interface ColorSelectProps {
 }
 
 function ColorSelect({ value, options, onSelect, getLabel, colors }: ColorSelectProps) {
-  const anchorRef = useRef<View>(null);
   const [open, setOpen] = useState(false);
-  const [anchor, setAnchor] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const styles = useMemo(() => createSelectStyles(colors), [colors]);
-
-  const openDropdown = () => {
-    anchorRef.current?.measureInWindow((x, y, width, height) => {
-      setAnchor({ x, y, width, height });
-      setOpen(true);
-    });
-  };
 
   return (
     <>
-      <Pressable ref={anchorRef} style={styles.colorSelect} onPress={openDropdown}>
+      <Pressable style={styles.colorSelect} onPress={() => setOpen(true)}>
         <View style={[styles.colorSelectDot, { backgroundColor: COLOR_SWATCHES[value] }]} />
         <Text style={styles.colorSelectText}>{getLabel(value)}</Text>
         <Lucide name="chevron-down" size={14} color={colors.textFaint} />
       </Pressable>
 
-      <Modal visible={open} transparent animationType="none" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.dropdownBackdrop} onPress={() => setOpen(false)} />
-        <View
-          style={[
-            styles.colorDropdown,
-            {
-              left: anchor.x,
-              top: anchor.y + anchor.height + 6,
-              minWidth: Math.max(anchor.width, 132),
-            },
-          ]}
-        >
-          {options.map((color) => (
-            <Pressable
-              key={color}
-              style={({ pressed }) => [
-                styles.colorOption,
-                pressed && styles.optionRowPressed,
-                value === color && styles.colorOptionActive,
-              ]}
-              onPress={() => {
-                onSelect(color);
-                setOpen(false);
-              }}
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.colorPickerBackdrop} onPress={() => setOpen(false)}>
+          <Pressable style={styles.colorPickerPanel} onPress={(event) => event.stopPropagation()}>
+            <ScrollView
+              style={styles.colorPickerScroll}
+              contentContainerStyle={styles.colorPickerGrid}
+              keyboardShouldPersistTaps="always"
             >
-              <View style={[styles.colorSelectDot, { backgroundColor: COLOR_SWATCHES[color] }]} />
-              <Text style={[styles.colorOptionText, value === color && styles.colorOptionTextActive]}>
-                {getLabel(color)}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+              {options.map((color) => {
+                const active = value === color;
+                return (
+                  <Pressable
+                    key={color}
+                    style={({ pressed }) => [
+                      styles.colorChip,
+                      pressed && styles.optionRowPressed,
+                      active && styles.colorChipActive,
+                    ]}
+                    onPress={() => {
+                      onSelect(color);
+                      setOpen(false);
+                    }}
+                  >
+                    <View style={[styles.colorChipSwatch, { backgroundColor: COLOR_SWATCHES[color] }]}>
+                      {active ? <Lucide name="check" size={13} color="#FFFFFF" /> : null}
+                    </View>
+                    <Text style={[styles.colorChipText, active && styles.colorChipTextActive]} numberOfLines={1}>
+                      {getLabel(color)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
       </Modal>
     </>
   );
@@ -324,10 +373,11 @@ function SearchableSelect({
                 />
               </View>
               <FlatList
+                style={styles.optionList}
                 data={suggestions}
                 keyExtractor={(option: { id: string }) => option.id}
                 keyboardShouldPersistTaps="always"
-                contentContainerStyle={{ paddingBottom: 24 }}
+                contentContainerStyle={styles.optionListContent}
                 ListEmptyComponent={<Text style={styles.emptyOption}>{emptyText}</Text>}
                 renderItem={renderOption}
               />
@@ -365,10 +415,11 @@ function SearchableSelect({
               />
             </View>
             <FlatList
+              style={styles.optionList}
               data={suggestions}
               keyExtractor={(option: { id: string }) => option.id}
               keyboardShouldPersistTaps="always"
-              contentContainerStyle={{ paddingBottom: 24 }}
+              contentContainerStyle={styles.optionListContent}
               ListEmptyComponent={<Text style={styles.emptyOption}>{emptyText}</Text>}
               renderItem={renderOption}
             />
@@ -402,10 +453,14 @@ export function EquipmentScreen() {
   const [forehand, setForehand] = useState<PickedEquipment>(EMPTY_PICK);
   const [backhand, setBackhand] = useState<PickedEquipment>(EMPTY_PICK);
   const [forehandColor, setForehandColor] = useState<RubberColor>('red');
-  const [backhandColor, setBackhandColor] = useState<Extract<RubberColor, 'red' | 'black'>>('black');
+  const [backhandColor, setBackhandColor] = useState<RubberColor>('black');
   const [dominantHand, setDominantHand] = useState<DominantHand>('right');
   const [playingStyle, setPlayingStyle] = useState<PlayingStyle>('attacker');
   const [grip, setGrip] = useState<Grip>('shakehand');
+  const latest = history[0];
+  const previous = history.slice(1, 4);
+  const userDisplayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || '';
+  const userInitials = useMemo(() => initialsFromName(userDisplayName), [userDisplayName]);
 
   const bladeModelOptions = useMemo(() => {
     const manufacturer = bladeCatalog.find((item) => item.id === blade.manufacturerId);
@@ -445,31 +500,44 @@ export function EquipmentScreen() {
     loadHistory();
   }, [loadHistory]);
 
-  useEffect(() => {
-    const latest = history[0];
-    if (!latest) return;
+  const applySelectionToForm = useCallback((selection: EquipmentSelection | null | undefined) => {
+    if (!selection) {
+      setBlade(EMPTY_PICK);
+      setForehand(EMPTY_PICK);
+      setBackhand(EMPTY_PICK);
+      setForehandColor('red');
+      setBackhandColor('black');
+      setDominantHand('right');
+      setPlayingStyle('attacker');
+      setGrip('shakehand');
+      return;
+    }
 
     setBlade({
-      manufacturerId: latest.blade_manufacturer_id,
-      manufacturer: latest.blade_manufacturer,
-      model: latest.blade_model,
+      manufacturerId: selection.blade_manufacturer_id,
+      manufacturer: selection.blade_manufacturer,
+      model: selection.blade_model,
     });
     setForehand({
-      manufacturerId: latest.forehand_rubber_manufacturer_id,
-      manufacturer: latest.forehand_rubber_manufacturer,
-      model: latest.forehand_rubber_model,
+      manufacturerId: selection.forehand_rubber_manufacturer_id,
+      manufacturer: selection.forehand_rubber_manufacturer,
+      model: selection.forehand_rubber_model,
     });
     setBackhand({
-      manufacturerId: latest.backhand_rubber_manufacturer_id,
-      manufacturer: latest.backhand_rubber_manufacturer,
-      model: latest.backhand_rubber_model,
+      manufacturerId: selection.backhand_rubber_manufacturer_id,
+      manufacturer: selection.backhand_rubber_manufacturer,
+      model: selection.backhand_rubber_model,
     });
-    setForehandColor(latest.forehand_rubber_color);
-    setBackhandColor(latest.backhand_rubber_color);
-    setDominantHand(latest.dominant_hand);
-    setPlayingStyle(latest.playing_style);
-    setGrip(latest.grip);
-  }, [history]);
+    setForehandColor(selection.forehand_rubber_color);
+    setBackhandColor(selection.backhand_rubber_color);
+    setDominantHand(selection.dominant_hand);
+    setPlayingStyle(selection.playing_style);
+    setGrip(selection.grip);
+  }, []);
+
+  useEffect(() => {
+    if (latest) applySelectionToForm(latest);
+  }, [applySelectionToForm, latest]);
 
   const selectManufacturer = (type: 'blade' | EquipmentSide, manufacturer: Pick<EquipmentManufacturer, 'id' | 'name'>) => {
     const next = {
@@ -489,14 +557,18 @@ export function EquipmentScreen() {
     if (type === 'backhand') setBackhand((prev) => ({ ...prev, model }));
   };
 
-  const canSave =
+  const canSave = Boolean(
     blade.manufacturer &&
     blade.model &&
     forehand.manufacturer &&
     forehand.model &&
     backhand.manufacturer &&
-    backhand.model;
-
+    backhand.model,
+  );
+  const currentSnapshot = equipmentSnapshot(blade, forehand, backhand, forehandColor, backhandColor, dominantHand, playingStyle, grip);
+  const savedSnapshot = snapshotFromSelection(latest);
+  const defaultSnapshot = equipmentSnapshot(EMPTY_PICK, EMPTY_PICK, EMPTY_PICK, 'red', 'black', 'right', 'attacker', 'shakehand');
+  const isDirty = latest ? currentSnapshot !== savedSnapshot : currentSnapshot !== defaultSnapshot;
   const handleSave = async () => {
     if (!user || !canSave) {
       Alert.alert(s('equipment'), s('equipmentCompleteRequired'));
@@ -532,6 +604,10 @@ export function EquipmentScreen() {
     setActiveTab('current');
   };
 
+  const handleResetChanges = () => {
+    applySelectionToForm(latest);
+  };
+
   const renderPickGroup = (
     title: string,
     type: 'blade' | EquipmentSide,
@@ -554,7 +630,7 @@ export function EquipmentScreen() {
         <View style={styles.groupTitleWrap}>
           <Text style={styles.groupTitle}>{title}</Text>
           <Text style={styles.groupSubtitle}>
-            {pick.model ? `${pick.manufacturer} ${pick.model}` : s('equipmentSearchGlobal')}
+            {pickLabel(pick, s('equipmentSearchGlobal'))}
           </Text>
         </View>
         {colorPicker ? (
@@ -594,109 +670,84 @@ export function EquipmentScreen() {
     options: { labelKey: string; value: T }[],
     selected: T,
     onSelect: (value: T) => void,
-  ) => (
-    <View style={styles.segmentGroup}>
-      <View style={styles.inlineHeader}>
-        <Lucide
-          name={label === s('equipmentHand') ? 'hand' : label === s('equipmentPlayingStyle') ? 'activity' : 'badge'}
-          size={16}
-          color={colors.textMuted}
-        />
-        <Text style={styles.inputLabel}>{label}</Text>
+  ) => {
+    const iconName =
+      label === s('equipmentHand')
+        ? 'hand'
+        : label === s('equipmentPlayingStyle')
+          ? 'activity'
+          : gripIcon(grip);
+
+    return (
+      <View style={styles.segmentGroup}>
+        <View style={styles.inlineHeader}>
+          <Lucide name={iconName} size={16} color={colors.textMuted} />
+          <Text style={styles.inputLabel}>{label}</Text>
+        </View>
+        <View style={styles.segmentRow}>
+          {options.map((option) => (
+            <TouchableOpacity
+              key={option.value}
+              style={[styles.segment, selected === option.value && styles.segmentActive]}
+              onPress={() => onSelect(option.value)}
+            >
+              <Text style={[styles.segmentText, selected === option.value && styles.segmentTextActive]}>
+                {s(option.labelKey)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
-      <View style={styles.segmentRow}>
-        {options.map((option) => (
-          <TouchableOpacity
-            key={option.value}
-            style={[styles.segment, selected === option.value && styles.segmentActive]}
-            onPress={() => onSelect(option.value)}
-          >
-            <Text style={[styles.segmentText, selected === option.value && styles.segmentTextActive]}>
-              {s(option.labelKey)}
-            </Text>
+    );
+  };
+
+  const renderSavePanel = (dock = false) => (
+    <View style={[styles.savePanel, dock && styles.savePanelDock]}>
+      <View style={styles.savePanelCopy}>
+        <Text style={styles.savePanelTitle}>
+          {isDirty ? s('equipmentUnsavedTitle') : s('equipmentSavedTitle')}
+        </Text>
+        <Text style={styles.savePanelText}>
+          {canSave ? s(isDirty ? 'equipmentSaveHint' : 'equipmentSavedHint') : s('equipmentIncompleteHint')}
+        </Text>
+      </View>
+      <View style={styles.savePanelActions}>
+        {isDirty ? (
+          <TouchableOpacity style={styles.resetButton} onPress={handleResetChanges} disabled={saving}>
+            <Text style={styles.resetButtonText}>{s('equipmentReset')}</Text>
           </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-
-  const renderEquipmentCard = (item: EquipmentSelection, index: number) => (
-    <View key={item.id} style={[styles.equipmentCard, index === 0 && styles.currentCard]}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardTitleBlock}>
-          <Text style={styles.cardEyebrow}>
-            {index === 0 ? s('equipmentLatestSetup') : s('equipmentPreviousSetup', formatDate(item.created_at, dateLocale))}
-          </Text>
-        </View>
-        {index === 0 && (
-          <View style={styles.latestPill}>
-            <Text style={styles.latestText}>{s('equipmentCurrent')}</Text>
-          </View>
-        )}
-      </View>
-      <View style={styles.bladeStrip}>
-        <View style={styles.bladeIcon}>
-          <Lucide name="scan-line" size={18} color={colors.primary} />
-        </View>
-        <View style={styles.bladeTextWrap}>
-          <Text style={styles.bladeLabel}>{s('equipmentBlade')}</Text>
-          <Text style={styles.bladeValue}>{item.blade_manufacturer} {item.blade_model}</Text>
-        </View>
-      </View>
-      <View style={styles.detailGrid}>
-        <View style={styles.detailTile}>
-          <View style={styles.detailTileHeader}>
-            <View style={[styles.tinyColorDot, { backgroundColor: COLOR_SWATCHES[item.forehand_rubber_color] }]} />
-            <Text style={styles.detailLabel}>{s('equipmentForehand')}</Text>
-          </View>
-          <Text style={styles.detailValue}>{item.forehand_rubber_manufacturer} {item.forehand_rubber_model}</Text>
-        </View>
-        <View style={styles.detailTile}>
-          <View style={styles.detailTileHeader}>
-            <View style={[styles.tinyColorDot, { backgroundColor: COLOR_SWATCHES[item.backhand_rubber_color] }]} />
-            <Text style={styles.detailLabel}>{s('equipmentBackhand')}</Text>
-          </View>
-          <Text style={styles.detailValue}>{item.backhand_rubber_manufacturer} {item.backhand_rubber_model}</Text>
-        </View>
-      </View>
-      <View style={styles.metaRow}>
-        <View style={styles.metaPill}>
-          <Lucide name="hand" size={13} color={colors.primaryMid} />
-          <Text style={styles.metaPillText}>{labelFromValue(HAND_OPTIONS, item.dominant_hand, s)}</Text>
-        </View>
-        <View style={styles.metaPill}>
-          {playingStyleIcon(item.playing_style) ? (
-            <Lucide name={playingStyleIcon(item.playing_style) as string} size={13} color={colors.primaryMid} />
+        ) : null}
+        <TouchableOpacity
+          style={[styles.saveButton, (!canSave || saving || !isDirty) && styles.saveButtonDisabled]}
+          onPress={handleSave}
+          disabled={!canSave || saving || !isDirty}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color={colors.textOnPrimary} />
           ) : (
-            <Text style={styles.metaPillIconText}>A+</Text>
+            <Text style={styles.saveButtonText}>{s('equipmentSave')}</Text>
           )}
-          <Text style={styles.metaPillText}>{labelFromValue(STYLE_OPTIONS, item.playing_style, s)}</Text>
-        </View>
-        <View style={styles.metaPill}>
-          <Lucide name={gripIcon(item.grip)} size={13} color={colors.primaryMid} />
-          <Text style={styles.metaPillText}>{labelFromValue(GRIP_OPTIONS, item.grip, s)}</Text>
-        </View>
+        </TouchableOpacity>
       </View>
     </View>
   );
-
-  const latest = history[0];
-  const previous = history.slice(1, 4);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={s('back')}>
           <Lucide name="arrow-left" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{s('equipment')}</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerTitle}>{s('equipment')}</Text>
+        </View>
+        <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.tabs}>
         {([
-          ['edit', s('equipmentEdit')],
-          ['current', s('equipmentCurrentTab')],
+          ['edit', s('equipmentEditShort')],
+          ['current', s('equipmentCurrentTabShort')],
         ] as const).map(([key, label]) => (
           <TouchableOpacity
             key={key}
@@ -729,48 +780,50 @@ export function EquipmentScreen() {
               {renderPickGroup(s('equipmentBackhandRubber'), 'backhand', rubberCatalog, backhand, backhandModelOptions, 'shield', colors.black, {
                 value: backhandColor,
                 options: BACKHAND_COLORS,
-                onSelect: (color) => {
-                  if (color === 'red' || color === 'black') setBackhandColor(color);
-                },
+                onSelect: setBackhandColor,
               })}
 
-              <View style={styles.group}>
-                <View style={styles.groupHeader}>
-                  <View style={[styles.groupIcon, { backgroundColor: colors.accent }]}>
-                    <Lucide name="user-round" size={18} color={colors.textOnPrimary} />
+              <View style={[styles.group, styles.playerProfileGroup]}>
+                <View style={[styles.groupHeader, styles.playerProfileHeader]}>
+                  <View style={styles.playerProfileAvatar}>
+                    <Text style={styles.playerProfileAvatarText}>{userInitials}</Text>
                   </View>
                   <View style={styles.groupTitleWrap}>
                     <Text style={styles.groupTitle}>{s('equipmentPlayerProfile')}</Text>
                     <Text style={styles.groupSubtitle}>{s('equipmentPlayerProfileDesc')}</Text>
                   </View>
                 </View>
-                {renderSegmented(s('equipmentHand'), HAND_OPTIONS, dominantHand, setDominantHand)}
-                {renderSegmented(s('equipmentPlayingStyle'), STYLE_OPTIONS, playingStyle, setPlayingStyle)}
-                {renderSegmented(s('equipmentGrip'), GRIP_OPTIONS, grip, setGrip)}
+                <View style={styles.playerProfileControls}>
+                  {renderSegmented(s('equipmentHand'), HAND_OPTIONS, dominantHand, setDominantHand)}
+                  {renderSegmented(s('equipmentPlayingStyle'), STYLE_OPTIONS, playingStyle, setPlayingStyle)}
+                  {renderSegmented(s('equipmentGrip'), GRIP_OPTIONS, grip, setGrip)}
+                </View>
               </View>
 
-              <TouchableOpacity
-                style={[styles.saveButton, (!canSave || saving) && styles.saveButtonDisabled]}
-                onPress={handleSave}
-                disabled={!canSave || saving}
-              >
-                {saving ? (
-                  <ActivityIndicator size="small" color={colors.textOnPrimary} />
-                ) : (
-                  <Text style={styles.saveButtonText}>{s('equipmentSave')}</Text>
-                )}
-              </TouchableOpacity>
+              {renderSavePanel(true)}
             </View>
           ) : (
             <View style={styles.content}>
               {latest ? (
                 <>
-                  {renderEquipmentCard(latest, 0)}
-                  <Text style={styles.sectionTitle}>{s('equipmentPrevious')}</Text>
+                  <EquipmentSummaryCard equipment={latest} title={s('equipmentYourSetup')} variant="owner" />
+                  <View style={styles.historyHeader}>
+                    <Text style={styles.sectionTitle}>{s('equipmentPrevious')}</Text>
+                  </View>
                   {previous.length > 0 ? (
-                    previous.map((item, index) => renderEquipmentCard(item, index + 1))
+                    previous.map((item) => (
+                      <EquipmentSummaryCard
+                        key={item.id}
+                        equipment={item}
+                        title={formatDate(item.created_at, dateLocale)}
+                        variant="history"
+                        savedAt={s('equipmentPreviousSetup', formatDate(item.created_at, dateLocale))}
+                      />
+                    ))
                   ) : (
-                    <Text style={styles.emptyText}>{s('equipmentPreviousEmpty')}</Text>
+                    <View style={styles.historyEmpty}>
+                      <Text style={styles.emptyText}>{s('equipmentPreviousEmpty')}</Text>
+                    </View>
                   )}
                 </>
               ) : (
@@ -779,7 +832,7 @@ export function EquipmentScreen() {
                   <Text style={styles.emptyTitle}>{s('equipmentEmptyTitle')}</Text>
                   <Text style={styles.emptyText}>{s('equipmentEmptyDesc')}</Text>
                   <TouchableOpacity style={styles.secondaryButton} onPress={() => setActiveTab('edit')}>
-                    <Text style={styles.secondaryButtonText}>{s('equipment')}</Text>
+                    <Text style={styles.secondaryButtonText}>{s('equipmentConfigure')}</Text>
                   </TouchableOpacity>
                 </View>
               )}

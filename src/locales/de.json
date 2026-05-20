@@ -385,7 +385,7 @@
   "fieldAddress": "ADRESSE *",
   "addressPlaceholder": "Straße, Nr…",
   "pinOnMap": "Pin auf Karte",
-  "dragPinHint": "Tippen oder Karte verschieben, um den Pin zu setzen",
+  "dragPinHint": "Tippen oder Karte verschieben, um den Pin auf die genaue Position zu setzen.",
   "searching": "Suche läuft...",
   "fieldNotes": "HINWEISE",
   "notesPlaceholder": "Weitere Details...",
@@ -1078,13 +1078,11 @@
   "badgeChallenge_EXP019": "Das Publikum über deine Taktik entscheiden lassen",
   "badgeChallenge_EXP020": "Doppel mit einem Fremden spielen",
   "badgeChallenge_EXP021": "Zwei verschiedene Gegner in derselben Einheit schlagen",
-
   "playerProfile": "Spielerprofil",
   "hoursInEvents": "Stunden in Events",
   "noUpcomingEvents": "Du hast keine bevorstehenden Events als Veranstalter",
   "pickEventToInvite": "Event auswählen",
   "inviteSent": "Einladung gesendet!",
-
   "feedbackHeaderButton": "Feedback senden",
   "feedbackTitle": "Feedback senden",
   "feedbackDescription": "Einen Bug melden, eine Funktion anfragen oder sonstiges mitteilen.",
@@ -1101,7 +1099,6 @@
   "feedbackErrorMessageRequired": "Bitte eine kurze Nachricht schreiben.",
   "feedbackErrorFeatureTitleRequired": "Bitte einen kurzen Titel für deine Idee eingeben.",
   "feedbackErrorGeneric": "Feedback konnte nicht gesendet werden. Bitte erneut versuchen.",
-
   "tabFeedback": "Feedback",
   "userFeedbackSection": "Nutzerfeedback",
   "noUserFeedback": "Noch kein Feedback",
@@ -1110,8 +1107,20 @@
   "feedbackReplyTitle": "Auf Feedback antworten",
   "feedbackReplyPlaceholder": "Antwort an den Nutzer schreiben…",
   "feedbackReplyError": "Antwort konnte nicht gesendet werden. Bitte erneut versuchen.",
-
-  "pinOnMap": "Pin auf Karte",
-  "dragPinHint": "Tippen oder Karte verschieben, um den Pin auf die genaue Position zu setzen.",
-  "updatingAddress": "Adresse wird aktualisiert…"
+  "updatingAddress": "Adresse wird aktualisiert…",
+  "equipmentEditShort": "Setup bearbeiten",
+  "equipmentCurrentTabShort": "Mein Setup",
+  "equipmentReset": "Zurücksetzen",
+  "equipmentUnset": "Nicht ausgewählt",
+  "equipmentPreviewEyebrow": "Mein Setup",
+  "equipmentPreviewTitle": "Setup-Vorschau",
+  "equipmentUnsavedTitle": "Du hast ungespeicherte Änderungen",
+  "equipmentSavedTitle": "Mein Setup ist aktuell",
+  "equipmentIncompleteHint": "Vervollständige Holz und beide Beläge vor dem Speichern.",
+  "equipmentSaveHint": "Speichere das Setup, wenn alles passt.",
+  "equipmentSavedHint": "Mein letztes Setup ist gespeichert.",
+  "equipmentColorWarning": "Im Wettkampf sollten beide Seiten unterschiedliche Farben haben.",
+  "equipmentYourSetup": "Mein Setup",
+  "equipmentPreviousSubtitle": "Zuvor gespeicherte Setups",
+  "equipmentConfigure": "Setup konfigurieren"
 }

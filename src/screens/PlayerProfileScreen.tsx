@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { EquipmentSummaryCard } from '../components/EquipmentSummaryCard';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
@@ -78,33 +79,6 @@ export function PlayerProfileScreen({ userId }: Props) {
     load();
     return () => { cancelled = true; };
   }, [userId]);
-
-  const handLabel = useCallback((value?: string | null) => {
-    if (value === 'right') return s('equipmentHandRight');
-    if (value === 'left') return s('equipmentHandLeft');
-    return '-';
-  }, [s]);
-
-  const styleLabel = useCallback((value?: string | null) => {
-    if (value === 'attacker') return s('equipmentStyleAttacker');
-    if (value === 'defender') return s('equipmentStyleDefender');
-    if (value === 'all_rounder') return s('equipmentStyleAllRounder');
-    return '-';
-  }, [s]);
-
-  const gripLabel = useCallback((value?: string | null) => {
-    if (value === 'shakehand') return s('equipmentGripShakehand');
-    if (value === 'penhold') return s('equipmentGripPenhold');
-    if (value === 'other') return s('equipmentGripOther');
-    return '-';
-  }, [s]);
-
-  const renderEquipmentLine = (label: string, value: string) => (
-    <View key={label} style={styles.equipmentLine}>
-      <Text style={styles.equipmentLineLabel}>{label}</Text>
-      <Text style={styles.equipmentLineValue}>{value}</Text>
-    </View>
-  );
 
   const fullName = profile?.full_name || s('user');
   const nameParts = fullName.trim().split(/\s+/);
@@ -196,29 +170,14 @@ export function PlayerProfileScreen({ userId }: Props) {
           )}
 
           <View style={styles.equipmentSection}>
-            <Text style={styles.equipmentHeading}>
-              {s('equipmentFriendTitle', profile?.full_name ?? s('user'))}
-            </Text>
             {equipmentLoading ? (
               <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: Spacing.md }} />
             ) : equipment ? (
-              <View style={styles.equipmentPreview}>
-                {renderEquipmentLine(
-                  s('equipmentBlade'),
-                  `${equipment.blade_manufacturer} ${equipment.blade_model}`,
-                )}
-                {renderEquipmentLine(
-                  s('equipmentForehand'),
-                  `${equipment.forehand_rubber_manufacturer} ${equipment.forehand_rubber_model} \u00B7 ${s(`equipmentColor_${equipment.forehand_rubber_color}`)}`,
-                )}
-                {renderEquipmentLine(
-                  s('equipmentBackhand'),
-                  `${equipment.backhand_rubber_manufacturer} ${equipment.backhand_rubber_model} \u00B7 ${s(`equipmentColor_${equipment.backhand_rubber_color}`)}`,
-                )}
-                {renderEquipmentLine(s('equipmentHand'), handLabel(equipment.dominant_hand))}
-                {renderEquipmentLine(s('equipmentPlayingStyle'), styleLabel(equipment.playing_style))}
-                {renderEquipmentLine(s('equipmentGrip'), gripLabel(equipment.grip))}
-              </View>
+              <EquipmentSummaryCard
+                equipment={equipment}
+                title={s('equipmentFriendTitle', profile?.full_name ?? s('user'))}
+                variant="profile"
+              />
             ) : (
               <View style={styles.equipmentEmpty}>
                 <Lucide name="badge-info" size={22} color={colors.textFaint} />

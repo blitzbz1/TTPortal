@@ -432,9 +432,13 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
-        <Text style={styles.headerTitle}>{s('events')}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={styles.headerTitleWrap}>
+          <Text style={styles.headerTitle}>{s('events')}</Text>
+        </View>
+        <View style={styles.headerCenter} pointerEvents="box-none">
           <SelectedCityPill city={selectedCity} onPress={() => setCityModalVisible(true)} compact />
+        </View>
+        <View style={styles.headerActions}>
           <FeedbackHeaderButton color={headerFg} />
           <NotificationBellButton color={headerFg} />
         </View>
@@ -452,18 +456,6 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
           if (distanceFromBottom < 400) loadMorePastEvents();
         }}
       >
-        {/* Tabs */}
-        <View style={styles.cityContextCard}>
-          <View style={styles.cityContextIcon}>
-            <Lucide name="calendar-days" size={18} color={colors.textOnPrimary} />
-          </View>
-          <View style={styles.cityContextCopy}>
-            <Text style={styles.cityContextTitle} numberOfLines={1}>
-              {s('eventsInCity', selectedCityName)}
-            </Text>
-          </View>
-        </View>
-
         <View style={styles.tabs}>
           {[
             { key: 'upcoming' as EventTab, label: `${s('upcoming')} (${activeTab === 'upcoming' ? events.length : ''})`.replace('()', '').trim() },
