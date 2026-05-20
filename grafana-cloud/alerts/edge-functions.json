@@ -3,7 +3,7 @@
     "title": "TTPortal — Edge Function 5xx errors",
     "ruleGroup": "TTPortal Edge Functions",
     "folderUID": "ttportalinfo-alerts",
-    "condition": "threshold",
+    "condition": "C",
     "for": "5m",
     "annotations": {
       "description": "One or more TTPortal Edge Functions have been returning 5xx errors for 5+ minutes. Check the Edge Functions Overview dashboard, click into the function row in 'Recent errors' for detail.",
@@ -17,10 +17,16 @@
       {
         "refId": "A",
         "queryType": "range",
-        "relativeTimeRange": { "from": 300, "to": 0 },
+        "relativeTimeRange": {
+          "from": 300,
+          "to": 0
+        },
         "datasourceUid": "grafanacloud-logs",
         "model": {
-          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "datasource": {
+            "type": "loki",
+            "uid": "grafanacloud-logs"
+          },
           "expr": "sum(rate({job=\"supabase_edge_functions\", type=\"request\"} | json | data_status >= 500 [5m]))",
           "intervalMs": 1000,
           "maxDataPoints": 43200,
@@ -29,19 +35,50 @@
         }
       },
       {
-        "refId": "threshold",
+        "refId": "B",
         "queryType": "",
-        "relativeTimeRange": { "from": 0, "to": 0 },
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
         "datasourceUid": "__expr__",
         "model": {
-          "conditions": [
-            { "evaluator": { "params": [0], "type": "gt" } }
-          ],
+          "type": "reduce",
+          "reducer": "last",
           "expression": "A",
-          "intervalMs": 1000,
-          "maxDataPoints": 43200,
-          "refId": "threshold",
-          "type": "threshold"
+          "refId": "B",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          }
+        }
+      },
+      {
+        "refId": "C",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "type": "threshold",
+          "expression": "B",
+          "refId": "C",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [
+                  0
+                ],
+                "type": "gt"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          }
         }
       }
     ],
@@ -52,7 +89,7 @@
     "title": "TTPortal — Edge Function high latency (p95 > 5s)",
     "ruleGroup": "TTPortal Edge Functions",
     "folderUID": "ttportalinfo-alerts",
-    "condition": "threshold",
+    "condition": "C",
     "for": "10m",
     "annotations": {
       "description": "p95 latency across all Edge Functions has been above 5 seconds for 10+ minutes. Likely upstream slowness (Amatur or Supabase) or a regression after deploy.",
@@ -66,10 +103,16 @@
       {
         "refId": "A",
         "queryType": "range",
-        "relativeTimeRange": { "from": 600, "to": 0 },
+        "relativeTimeRange": {
+          "from": 600,
+          "to": 0
+        },
         "datasourceUid": "grafanacloud-logs",
         "model": {
-          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "datasource": {
+            "type": "loki",
+            "uid": "grafanacloud-logs"
+          },
           "expr": "quantile_over_time(0.95, {job=\"supabase_edge_functions\", type=\"request\"} | json | unwrap data_duration_ms [5m])",
           "intervalMs": 1000,
           "maxDataPoints": 43200,
@@ -78,19 +121,50 @@
         }
       },
       {
-        "refId": "threshold",
+        "refId": "B",
         "queryType": "",
-        "relativeTimeRange": { "from": 0, "to": 0 },
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
         "datasourceUid": "__expr__",
         "model": {
-          "conditions": [
-            { "evaluator": { "params": [5000], "type": "gt" } }
-          ],
+          "type": "reduce",
+          "reducer": "last",
           "expression": "A",
-          "intervalMs": 1000,
-          "maxDataPoints": 43200,
-          "refId": "threshold",
-          "type": "threshold"
+          "refId": "B",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          }
+        }
+      },
+      {
+        "refId": "C",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "type": "threshold",
+          "expression": "B",
+          "refId": "C",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [
+                  5000
+                ],
+                "type": "gt"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          }
         }
       }
     ],
@@ -101,7 +175,7 @@
     "title": "TTPortal — Edge Function p95 regression (per-function)",
     "ruleGroup": "TTPortal Edge Functions",
     "folderUID": "ttportalinfo-alerts",
-    "condition": "threshold",
+    "condition": "C",
     "for": "15m",
     "annotations": {
       "description": "A specific Edge Function's p95 latency exceeded 3 seconds for 15+ minutes. Open Edge Functions Overview → 'p95 latency by route' to identify the function.",
@@ -115,10 +189,16 @@
       {
         "refId": "A",
         "queryType": "range",
-        "relativeTimeRange": { "from": 900, "to": 0 },
+        "relativeTimeRange": {
+          "from": 900,
+          "to": 0
+        },
         "datasourceUid": "grafanacloud-logs",
         "model": {
-          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "datasource": {
+            "type": "loki",
+            "uid": "grafanacloud-logs"
+          },
           "expr": "max(quantile_over_time(0.95, {job=\"supabase_edge_functions\", type=\"request\"} | json | unwrap data_duration_ms [5m]) by (function))",
           "intervalMs": 1000,
           "maxDataPoints": 43200,
@@ -127,19 +207,50 @@
         }
       },
       {
-        "refId": "threshold",
+        "refId": "B",
         "queryType": "",
-        "relativeTimeRange": { "from": 0, "to": 0 },
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
         "datasourceUid": "__expr__",
         "model": {
-          "conditions": [
-            { "evaluator": { "params": [3000], "type": "gt" } }
-          ],
+          "type": "reduce",
+          "reducer": "last",
           "expression": "A",
-          "intervalMs": 1000,
-          "maxDataPoints": 43200,
-          "refId": "threshold",
-          "type": "threshold"
+          "refId": "B",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          }
+        }
+      },
+      {
+        "refId": "C",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "type": "threshold",
+          "expression": "B",
+          "refId": "C",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [
+                  3000
+                ],
+                "type": "gt"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          }
         }
       }
     ],
@@ -150,7 +261,7 @@
     "title": "TTPortal — Observability pipeline failure",
     "ruleGroup": "TTPortal Edge Functions",
     "folderUID": "ttportalinfo-alerts",
-    "condition": "threshold",
+    "condition": "C",
     "for": "10m",
     "annotations": {
       "description": "The observability pipeline (Loki push or OTLP export) has been failing for 10+ minutes. Logs and/or traces from Edge Functions may be missing — Grafana Cloud credentials may be wrong or the network path is broken.",
@@ -164,10 +275,16 @@
       {
         "refId": "A",
         "queryType": "range",
-        "relativeTimeRange": { "from": 600, "to": 0 },
+        "relativeTimeRange": {
+          "from": 600,
+          "to": 0
+        },
         "datasourceUid": "grafanacloud-logs",
         "model": {
-          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "datasource": {
+            "type": "loki",
+            "uid": "grafanacloud-logs"
+          },
           "expr": "count_over_time({job=\"supabase_edge_functions\"} |~ \"\\\\[(loki|otel)\\\\] (push|OTLP export) (non-2xx|failed)\" [10m])",
           "intervalMs": 1000,
           "maxDataPoints": 43200,
@@ -176,19 +293,50 @@
         }
       },
       {
-        "refId": "threshold",
+        "refId": "B",
         "queryType": "",
-        "relativeTimeRange": { "from": 0, "to": 0 },
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
         "datasourceUid": "__expr__",
         "model": {
-          "conditions": [
-            { "evaluator": { "params": [0], "type": "gt" } }
-          ],
+          "type": "reduce",
+          "reducer": "last",
           "expression": "A",
-          "intervalMs": 1000,
-          "maxDataPoints": 43200,
-          "refId": "threshold",
-          "type": "threshold"
+          "refId": "B",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          }
+        }
+      },
+      {
+        "refId": "C",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "type": "threshold",
+          "expression": "B",
+          "refId": "C",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [
+                  0
+                ],
+                "type": "gt"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          }
         }
       }
     ],

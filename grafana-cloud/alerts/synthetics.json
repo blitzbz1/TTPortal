@@ -3,7 +3,7 @@
     "title": "TTPortal — Synthetic check failed (uptime)",
     "ruleGroup": "TTPortal Synthetics",
     "folderUID": "ttportalinfo-alerts",
-    "condition": "threshold",
+    "condition": "C",
     "for": "3m",
     "annotations": {
       "description": "A Grafana Cloud Synthetic check has been failing for 3+ minutes. Verify which target is down: Edge Functions /healthz, Supabase REST, Supabase Auth, or the web app URL. Check the Synthetic Monitoring page for the failing probe + recent assertion errors.",
@@ -17,10 +17,16 @@
       {
         "refId": "A",
         "queryType": "",
-        "relativeTimeRange": { "from": 300, "to": 0 },
+        "relativeTimeRange": {
+          "from": 300,
+          "to": 0
+        },
         "datasourceUid": "grafanacloud-prom",
         "model": {
-          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "grafanacloud-prom"
+          },
           "expr": "min by (job, instance) (probe_success{job=~\"ttportalinfo-.*\"})",
           "intervalMs": 1000,
           "maxDataPoints": 43200,
@@ -28,19 +34,50 @@
         }
       },
       {
-        "refId": "threshold",
+        "refId": "B",
         "queryType": "",
-        "relativeTimeRange": { "from": 0, "to": 0 },
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
         "datasourceUid": "__expr__",
         "model": {
-          "conditions": [
-            { "evaluator": { "params": [1], "type": "lt" } }
-          ],
+          "type": "reduce",
+          "reducer": "last",
           "expression": "A",
-          "intervalMs": 1000,
-          "maxDataPoints": 43200,
-          "refId": "threshold",
-          "type": "threshold"
+          "refId": "B",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          }
+        }
+      },
+      {
+        "refId": "C",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "type": "threshold",
+          "expression": "B",
+          "refId": "C",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [
+                  1
+                ],
+                "type": "lt"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          }
         }
       }
     ],
@@ -51,7 +88,7 @@
     "title": "TTPortal — Synthetic check slow (>3s)",
     "ruleGroup": "TTPortal Synthetics",
     "folderUID": "ttportalinfo-alerts",
-    "condition": "threshold",
+    "condition": "C",
     "for": "10m",
     "annotations": {
       "description": "A synthetic check's response time has been above 3 seconds for 10+ minutes. Often an upstream regression — confirm by hitting the same endpoint manually.",
@@ -65,10 +102,16 @@
       {
         "refId": "A",
         "queryType": "",
-        "relativeTimeRange": { "from": 600, "to": 0 },
+        "relativeTimeRange": {
+          "from": 600,
+          "to": 0
+        },
         "datasourceUid": "grafanacloud-prom",
         "model": {
-          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "grafanacloud-prom"
+          },
           "expr": "max by (job) (probe_duration_seconds{job=~\"ttportalinfo-.*\"})",
           "intervalMs": 1000,
           "maxDataPoints": 43200,
@@ -76,19 +119,50 @@
         }
       },
       {
-        "refId": "threshold",
+        "refId": "B",
         "queryType": "",
-        "relativeTimeRange": { "from": 0, "to": 0 },
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
         "datasourceUid": "__expr__",
         "model": {
-          "conditions": [
-            { "evaluator": { "params": [3], "type": "gt" } }
-          ],
+          "type": "reduce",
+          "reducer": "last",
           "expression": "A",
-          "intervalMs": 1000,
-          "maxDataPoints": 43200,
-          "refId": "threshold",
-          "type": "threshold"
+          "refId": "B",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          }
+        }
+      },
+      {
+        "refId": "C",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "type": "threshold",
+          "expression": "B",
+          "refId": "C",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [
+                  3
+                ],
+                "type": "gt"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          }
         }
       }
     ],
