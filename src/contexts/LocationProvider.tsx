@@ -19,6 +19,7 @@ const CITY_VISIT_COUNTS_KEY = 'location_city_visit_counts';
 function hasInitialLocationResetParam(): boolean {
   if (typeof window === 'undefined') return false;
   const location = window.location;
+  if (!location) return false;
   const href = location.href ?? '';
   const search = location.search ?? '';
   const hash = location.hash ?? '';
