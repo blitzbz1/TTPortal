@@ -10,9 +10,10 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets, type EdgeInsets } from 'react-native-safe-area-context';
 import { BrandLockup } from './BrandLockup';
+import { LanguagePicker } from './LanguagePicker';
 import { Lucide } from './Icon';
-import type { Lang } from '../contexts/I18nProvider';
 import { useI18n } from '../hooks/useI18n';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { useTheme } from '../hooks/useTheme';
@@ -30,9 +31,10 @@ const ALL_COUNTRIES: Country = { code: 'ALL', name: 'Europe', active: true };
 const CITY_VISIT_COUNTS_KEY = 'location_city_visit_counts';
 
 export function LocationWelcome({ visible }: LocationWelcomeProps) {
-  const { s, lang, setLang } = useI18n();
+  const { s, lang } = useI18n();
   const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const {
     activeCountries,
     activeCities,
@@ -40,7 +42,7 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
     setSelectedCity,
     completeInitialLocationSetup,
   } = useSelectedLocation();
-  const styles = useMemo(() => createStyles(colors, isDark, width), [colors, isDark, width]);
+  const styles = useMemo(() => createStyles(colors, isDark, width, insets), [colors, isDark, width, insets]);
   const [query, setQuery] = useState('');
   const [pendingCountry, setPendingCountry] = useState<Country>(ALL_COUNTRIES);
   const [countryPanelOpen, setCountryPanelOpen] = useState(false);
@@ -92,13 +94,7 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
       end={{ x: 0.96, y: 1 }}
       style={styles.screen}
     >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.header}>
         <View style={styles.hero}>
           <View style={styles.heroTop}>
             <BrandLockup
@@ -108,7 +104,7 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
               gap={6}
               style={styles.brandLockup}
             />
-            <LanguageSelector lang={lang} setLang={setLang} styles={styles} />
+            <LanguagePicker />
           </View>
           <Text style={styles.title} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.86}>
             {heroTitle}
@@ -190,12 +186,20 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
             <Text style={styles.sectionTitle}>{s('locationSelectorFeaturedCities')}</Text>
           </View>
         ) : null}
+      </View>
 
-        {loadingCities && cities.length === 0 ? (
-          <View style={styles.loader}>
-            <ActivityIndicator color={colors.primary} />
-          </View>
-        ) : (
+      {loadingCities && cities.length === 0 ? (
+        <View style={styles.loader}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.listScroll}
+          contentContainerStyle={styles.listContent}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.cityGrid}>
             {cities.map((city) => (
               <WelcomeCityCard
@@ -208,8 +212,8 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
               />
             ))}
           </View>
-        )}
-      </ScrollView>
+        </ScrollView>
+      )}
 
       <View style={styles.footer}>
         <View style={styles.selectedCopy}>
@@ -274,36 +278,6 @@ function WelcomeCityCard({
 
 function normalizeLocationText(value: string): string {
   return foldDiacritics(value).toLowerCase();
-}
-
-function LanguageSelector({
-  lang,
-  setLang,
-  styles,
-}: {
-  lang: Lang;
-  setLang: (lang: Lang) => void;
-  styles: ReturnType<typeof createStyles>;
-}) {
-  return (
-    <View style={styles.languageSwitch} accessibilityLabel="Language">
-      {(['ro', 'en'] as Lang[]).map((option) => {
-        const active = lang === option;
-        return (
-          <TouchableOpacity
-            key={option}
-            style={[styles.languageOption, active && styles.languageOptionActive]}
-            onPress={() => setLang(option)}
-            activeOpacity={0.78}
-          >
-            <Text style={[styles.languageText, active && styles.languageTextActive]}>
-              {option.toUpperCase()}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
 }
 
 function readCityVisitCounts(): Record<number, number> {
@@ -388,7 +362,7 @@ function getCityCountryLabel(city: LocationCity, s: (key: string, ...args: strin
   return getCountryLabel({ code: city.country_code, name: city.country_name, active: true }, s);
 }
 
-function createStyles(colors: ThemeColors, isDark: boolean, width: number) {
+function createStyles(colors: ThemeColors, isDark: boolean, width: number, insets: EdgeInsets) {
   const layoutWidth = Math.min(width, 430);
   const isWide = layoutWidth >= 720;
   const ink = isDark ? colors.text : '#0F2F22';
@@ -402,14 +376,18 @@ function createStyles(colors: ThemeColors, isDark: boolean, width: number) {
       flex: 1,
       backgroundColor: colors.bg,
     },
-    scroll: {
+    header: {
+      paddingHorizontal: isWide ? 28 : 18,
+      paddingTop: (isWide ? 28 : 20) + insets.top,
+      gap: 10,
+    },
+    listScroll: {
       flex: 1,
     },
-    content: {
+    listContent: {
       paddingHorizontal: isWide ? 28 : 18,
-      paddingTop: isWide ? 28 : 20,
-      paddingBottom: 116,
-      gap: 10,
+      paddingTop: 10,
+      paddingBottom: 116 + insets.bottom,
     },
     hero: {
       alignItems: 'center',
@@ -424,35 +402,6 @@ function createStyles(colors: ThemeColors, isDark: boolean, width: number) {
     },
     brandLockup: {
       flexShrink: 1,
-    },
-    languageSwitch: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: border,
-      backgroundColor: isDark ? '#111b13' : '#FFFFFFB8',
-      padding: 2,
-    },
-    languageOption: {
-      minWidth: 32,
-      minHeight: 26,
-      borderRadius: 999,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 8,
-    },
-    languageOptionActive: {
-      backgroundColor: colors.primary,
-    },
-    languageText: {
-      fontFamily: Fonts.body,
-      fontSize: 11,
-      fontWeight: FontWeight.bold,
-      color: muted,
-    },
-    languageTextActive: {
-      color: colors.textOnPrimary,
     },
     title: {
       maxWidth: 356,
@@ -600,6 +549,7 @@ function createStyles(colors: ThemeColors, isDark: boolean, width: number) {
       color: ink,
     },
     loader: {
+      flex: 1,
       minHeight: 180,
       alignItems: 'center',
       justifyContent: 'center',
@@ -678,7 +628,7 @@ function createStyles(colors: ThemeColors, isDark: boolean, width: number) {
       backgroundColor: isDark ? '#101711F2' : '#FFFFFFF2',
       paddingHorizontal: isWide ? 30 : 18,
       paddingTop: 10,
-      paddingBottom: 18,
+      paddingBottom: 18 + insets.bottom,
     },
     selectedCopy: {
       flex: 1,

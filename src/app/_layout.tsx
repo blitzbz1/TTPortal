@@ -18,6 +18,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LogBox, Platform, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import AnimatedSplash from '../components/AnimatedSplash';
 import { InitialLocationSetupModal } from '../components/InitialLocationSetupModal';
 import { SessionProvider } from '../contexts/SessionProvider';
@@ -68,25 +69,27 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <KeyboardProvider>
-        <QueryClientProvider client={queryClient}>
-          <OfflineQueueProvider>
-            <SessionProvider>
-              <I18nProvider>
-                <LocationProvider>
-                  <ThemeProvider>
-                    <NotificationProvider>
-                      <BottomSheetModalProvider>
-                        <RootNavigator />
-                      </BottomSheetModalProvider>
-                    </NotificationProvider>
-                  </ThemeProvider>
-                </LocationProvider>
-              </I18nProvider>
-            </SessionProvider>
-          </OfflineQueueProvider>
-        </QueryClientProvider>
-      </KeyboardProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <KeyboardProvider>
+          <QueryClientProvider client={queryClient}>
+            <OfflineQueueProvider>
+              <SessionProvider>
+                <I18nProvider>
+                  <LocationProvider>
+                    <ThemeProvider>
+                      <NotificationProvider>
+                        <BottomSheetModalProvider>
+                          <RootNavigator />
+                        </BottomSheetModalProvider>
+                      </NotificationProvider>
+                    </ThemeProvider>
+                  </LocationProvider>
+                </I18nProvider>
+              </SessionProvider>
+            </OfflineQueueProvider>
+          </QueryClientProvider>
+        </KeyboardProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
