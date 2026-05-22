@@ -1,4 +1,12 @@
-import { normalize, extractNominatimCity, matchCity, buildNominatimAddress } from '../AddVenueScreen';
+import {
+  normalize,
+  extractNominatimCity,
+  matchCity,
+  buildNominatimAddress,
+  getCitySuggestionName,
+  isLikelyCitySuggestion,
+  orderCitySuggestions,
+} from '../AddVenueScreen';
 
 describe('AddVenueScreen — city matching', () => {
   describe('normalize', () => {
@@ -115,6 +123,147 @@ describe('AddVenueScreen — city matching', () => {
       // A city whose normalized name equals the key of an alias shouldn't
       // be redirected when already present directly.
       expect(matchCity('București', knownCities)).toBe('București');
+    });
+  });
+
+  describe('city suggestions', () => {
+    it('accepts capital/admin boundary results that expose only name metadata', () => {
+      const suggestion = {
+        name: 'Singapore',
+        display_name: 'Singapore',
+        lat: '1.28967',
+        lon: '103.85007',
+        class: 'boundary',
+        type: 'administrative',
+        addresstype: 'country',
+        address: { country: 'Singapore', country_code: 'sg' },
+      };
+
+      expect(getCitySuggestionName(suggestion)).toBe('Singapore');
+      expect(isLikelyCitySuggestion(suggestion)).toBe(true);
+    });
+
+    it('accepts structured city results without relying on featuretype=city', () => {
+      expect(isLikelyCitySuggestion({
+        name: 'Tokyo',
+        display_name: 'Tokyo, Japan',
+        lat: '35.6769',
+        lon: '139.7639',
+        class: 'boundary',
+        type: 'administrative',
+        addresstype: 'city',
+        address: { city: 'Tokyo', country: 'Japan', country_code: 'jp' },
+      })).toBe(true);
+    });
+
+    it('accepts country/capital-style results such as Luxembourg', () => {
+      const suggestion = {
+        display_name: 'Luxembourg',
+        lat: '49.6113',
+        lon: '6.1298',
+        namedetails: { name: 'Luxembourg' },
+        class: 'boundary',
+        type: 'administrative',
+        addresstype: 'country',
+        address: { country: 'Luxembourg', country_code: 'lu' },
+      };
+
+      expect(getCitySuggestionName(suggestion)).toBe('Luxembourg');
+      expect(isLikelyCitySuggestion(suggestion)).toBe(true);
+    });
+
+    it('filters obvious non-place results from broad Nominatim city search', () => {
+      expect(isLikelyCitySuggestion({
+        name: 'Paris Cafe',
+        display_name: 'Paris Cafe, Main Street',
+        lat: '1',
+        lon: '2',
+        class: 'amenity',
+        type: 'cafe',
+        addresstype: 'amenity',
+        address: { country: 'France', country_code: 'fr' },
+      })).toBe(false);
+    });
+
+    it('orders exact city matches ahead of broader country/admin fallbacks', () => {
+      const ordered = orderCitySuggestions([
+        {
+          name: 'Luxembourg',
+          display_name: 'Luxembourg',
+          lat: '49.8153',
+          lon: '6.1296',
+          class: 'boundary',
+          type: 'administrative',
+          addresstype: 'country',
+          address: { country: 'Luxembourg', country_code: 'lu' },
+        },
+        {
+          name: 'Luxembourg City',
+          display_name: 'Luxembourg City, Luxembourg',
+          lat: '49.6113',
+          lon: '6.1298',
+          class: 'place',
+          type: 'city',
+          addresstype: 'city',
+          address: { city: 'Luxembourg', country: 'Luxembourg', country_code: 'lu' },
+        },
+      ], 'Luxembourg');
+
+      expect(ordered[0].addresstype).toBe('city');
+    });
+
+    it('accepts major city results from the fallback geocoder shape', () => {
+      expect(isLikelyCitySuggestion({
+        name: 'Marseille',
+        display_name: 'Marseille, France',
+        lat: '43.2963986',
+        lon: '5.3777888',
+        class: 'place',
+        type: 'city',
+        addresstype: 'city',
+        address: { city: 'Marseille', country: 'France', country_code: 'fr' },
+        source: 'photon',
+      })).toBe(true);
+      expect(isLikelyCitySuggestion({
+        name: 'Manchester',
+        display_name: 'Manchester, United Kingdom',
+        lat: '53.4424618',
+        lon: '-2.2324547',
+        class: 'place',
+        type: 'city',
+        addresstype: 'city',
+        address: { city: 'Manchester', country: 'United Kingdom', country_code: 'gb' },
+        source: 'photon',
+      })).toBe(true);
+    });
+
+    it('orders Luxembourg city ahead of the same-name country from fallback results', () => {
+      const ordered = orderCitySuggestions([
+        {
+          name: 'Luxembourg',
+          display_name: 'Luxembourg',
+          lat: '49.8158683',
+          lon: '6.1296751',
+          class: 'place',
+          type: 'country',
+          addresstype: 'country',
+          address: { country: 'Luxembourg', country_code: 'lu' },
+          source: 'photon',
+        },
+        {
+          name: 'Luxembourg',
+          display_name: 'Luxembourg, Luxembourg',
+          lat: '49.6112768',
+          lon: '6.129799',
+          class: 'place',
+          type: 'city',
+          addresstype: 'city',
+          address: { city: 'Luxembourg', country: 'Luxembourg', country_code: 'lu' },
+          source: 'photon',
+        },
+      ], 'luxembourg');
+
+      expect(ordered[0].addresstype).toBe('city');
     });
   });
 

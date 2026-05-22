@@ -12,7 +12,7 @@ import {
 // edit modal touches name/address/city/type/tables_count/condition/night_lighting/nets/verified/photos/description/lat/lng
 // — fetching the full row roughly halves egress on this endpoint.
 const PENDING_VENUE_COLS =
-  'id, name, type, city, address, lat, lng, tables_count, condition, night_lighting, nets, verified, photos, description, submitted_by, created_at';
+  'id, name, type, city, city_id, address, lat, lng, tables_count, condition, night_lighting, nets, verified, photos, description, submitted_by, created_at, cities!city_id(country_code, country_name, lat, lng, zoom)';
 // Flagged-review cards render author, venue name, flag count and date — the
 // review body itself is not shown in the list.
 const FLAGGED_REVIEW_COLS =

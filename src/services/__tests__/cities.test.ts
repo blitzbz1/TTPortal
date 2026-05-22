@@ -31,12 +31,14 @@ beforeEach(() => {
 
 describe('upsertCity', () => {
   it('returns existing city id when name matches', async () => {
+    const countryChain = createQueryChain({ code: 'RO' });
     const chain = createQueryChain({ id: 42 });
-    mockFrom.mockReturnValue(chain);
+    mockFrom.mockReturnValueOnce(countryChain).mockReturnValueOnce(chain);
 
     const result = await upsertCity('București');
 
     expect(result).toEqual({ id: 42, error: null });
+    expect(countryChain.select).toHaveBeenCalledWith('code');
     expect(chain.select).toHaveBeenCalledWith('id');
     expect(chain.eq).toHaveBeenCalledWith('name', 'București');
     expect(chain.maybeSingle).toHaveBeenCalled();
@@ -44,8 +46,9 @@ describe('upsertCity', () => {
   });
 
   it('requires a map center when creating a new city', async () => {
+    const countryChain = createQueryChain({ code: 'RO' });
     const selectChain = createQueryChain(null);
-    mockFrom.mockReturnValueOnce(selectChain);
+    mockFrom.mockReturnValueOnce(countryChain).mockReturnValueOnce(selectChain);
 
     const result = await upsertCity('Sibiu');
 
@@ -54,8 +57,9 @@ describe('upsertCity', () => {
   });
 
   it('canonicalizes Piatra Neamt variants before upsert', async () => {
+    const countryChain = createQueryChain({ code: 'RO' });
     const selectChain = createQueryChain({ id: 100 });
-    mockFrom.mockReturnValueOnce(selectChain);
+    mockFrom.mockReturnValueOnce(countryChain).mockReturnValueOnce(selectChain);
 
     const result = await upsertCity('Piatra-Neamt');
 
@@ -64,9 +68,10 @@ describe('upsertCity', () => {
   });
 
   it('stores map center when creating a new city', async () => {
+    const countryChain = createQueryChain({ code: 'FR' });
     const selectChain = createQueryChain(null);
     const insertChain = createQueryChain({ id: 101 });
-    mockFrom.mockReturnValueOnce(selectChain).mockReturnValueOnce(insertChain);
+    mockFrom.mockReturnValueOnce(countryChain).mockReturnValueOnce(selectChain).mockReturnValueOnce(insertChain);
 
     const result = await upsertCity('Paris', {
       countryCode: 'FR',
@@ -89,9 +94,15 @@ describe('upsertCity', () => {
   });
 
   it('preserves backend country name for dynamic countries', async () => {
+    const countrySelectChain = createQueryChain(null);
+    const countryInsertChain = createQueryChain(null);
     const selectChain = createQueryChain(null);
     const insertChain = createQueryChain({ id: 102 });
-    mockFrom.mockReturnValueOnce(selectChain).mockReturnValueOnce(insertChain);
+    mockFrom
+      .mockReturnValueOnce(countrySelectChain)
+      .mockReturnValueOnce(countryInsertChain)
+      .mockReturnValueOnce(selectChain)
+      .mockReturnValueOnce(insertChain);
 
     const result = await upsertCity('Amsterdam', {
       countryCode: 'NL',
@@ -102,6 +113,11 @@ describe('upsertCity', () => {
     });
 
     expect(result).toEqual({ id: 102, error: null });
+    expect(countryInsertChain.insert).toHaveBeenCalledWith({
+      code: 'NL',
+      name: 'Netherlands',
+      active: true,
+    });
     expect(insertChain.insert).toHaveBeenCalledWith(expect.objectContaining({
       country_code: 'NL',
       country_name: 'Netherlands',
@@ -109,10 +125,12 @@ describe('upsertCity', () => {
   });
 
   it('recovers when another browser inserts the city first', async () => {
+    const countryChain = createQueryChain({ code: 'RO' });
     const selectChain = createQueryChain(null);
     const insertChain = createQueryChain(null, { code: '23505', message: 'duplicate key value' });
     const raceSelectChain = createQueryChain({ id: 123 });
     mockFrom
+      .mockReturnValueOnce(countryChain)
       .mockReturnValueOnce(selectChain)
       .mockReturnValueOnce(insertChain)
       .mockReturnValueOnce(raceSelectChain);
@@ -125,9 +143,10 @@ describe('upsertCity', () => {
   });
 
   it('returns error when insert fails', async () => {
+    const countryChain = createQueryChain({ code: 'RO' });
     const selectChain = createQueryChain(null);
     const insertChain = createQueryChain(null, { message: 'DB error' });
-    mockFrom.mockReturnValueOnce(selectChain).mockReturnValueOnce(insertChain);
+    mockFrom.mockReturnValueOnce(countryChain).mockReturnValueOnce(selectChain).mockReturnValueOnce(insertChain);
 
     const result = await upsertCity('Brașov', { lat: 45.6427, lng: 25.5887, zoom: 12 });
 

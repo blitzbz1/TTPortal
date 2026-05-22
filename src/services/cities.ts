@@ -38,6 +38,28 @@ export async function upsertCity(
   const countryName = options.countryName ?? country.name;
   const hasMapCenter = isFiniteCoordinate(options.lat) && isFiniteCoordinate(options.lng);
 
+  const { data: existingCountry, error: countrySelectError } = await supabase
+    .from('countries')
+    .select('code')
+    .eq('code', country.code)
+    .maybeSingle();
+
+  if (countrySelectError) return { id: null, error: countrySelectError.message };
+
+  if (!existingCountry) {
+    const { error: countryInsertError } = await supabase
+      .from('countries')
+      .insert({
+        code: country.code,
+        name: countryName,
+        active: true,
+      });
+
+    if (countryInsertError && countryInsertError.code !== '23505') {
+      return { id: null, error: countryInsertError.message };
+    }
+  }
+
   const { data: existing, error: selectError } = await supabase
     .from('cities')
     .select('id')

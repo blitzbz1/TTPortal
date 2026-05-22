@@ -21,6 +21,14 @@ import {
   type NominatimAddressDetails,
 } from '../screens/AddVenueScreen';
 
+function normalizeForQuery(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function getGeocodingHeaders(): HeadersInit {
+  return { 'Accept-Language': 'en' };
+}
+
 interface NominatimSuggestion {
   display_name: string;
   lat: string;
@@ -33,6 +41,20 @@ export interface AddressPickerChange {
   city?: string;
   lat?: number | null;
   lng?: number | null;
+  countryCode?: string | null;
+  countryName?: string | null;
+  cityCenterLat?: number | null;
+  cityCenterLng?: number | null;
+  cityZoom?: number | null;
+}
+
+interface KnownCityRecord {
+  name: string;
+  country_code?: string | null;
+  country_name?: string | null;
+  lat: number | null;
+  lng: number | null;
+  zoom: number | null;
 }
 
 interface AddressPickerFieldProps {
@@ -41,6 +63,7 @@ interface AddressPickerFieldProps {
   lat: number | null;
   lng: number | null;
   knownCities: string[];
+  knownCityRecords?: KnownCityRecord[];
   onChange: (patch: AddressPickerChange) => void;
   disabled?: boolean;
   // Accepted for API parity with the Android/web implementation but unused
@@ -61,6 +84,7 @@ export function AddressPickerField({
   lat,
   lng,
   knownCities,
+  knownCityRecords = [],
   onChange,
   disabled,
 }: AddressPickerFieldProps) {
@@ -84,14 +108,76 @@ export function AddressPickerField({
     setSearching(false);
   }, []);
 
+  const findKnownCity = useCallback((nominatimCity: string, countryCode: string | null) => {
+    const normalizedCountryCode = countryCode?.toUpperCase() ?? null;
+    const sameCountry = normalizedCountryCode
+      ? knownCityRecords.filter((record) => record.country_code?.toUpperCase() === normalizedCountryCode)
+      : knownCityRecords;
+    const candidates = sameCountry.length > 0 ? sameCountry : knownCityRecords;
+    const matchedName = matchCity(nominatimCity, candidates.map((record) => record.name));
+    return matchedName ? candidates.find((record) => record.name === matchedName) ?? null : null;
+  }, [knownCityRecords]);
+
+  const fetchCityCenter = useCallback(async (
+    cityName: string,
+    countryCode: string | null,
+    countryName: string | null,
+  ) => {
+    try {
+      const query = encodeURIComponent([cityName, countryName].filter(Boolean).join(', '));
+      const countryParam = countryCode ? `&countrycodes=${encodeURIComponent(countryCode.toLowerCase())}` : '';
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&dedupe=1&addressdetails=1${countryParam}&q=${query}`,
+        { headers: getGeocodingHeaders(), signal: controller.signal },
+      );
+      clearTimeout(timeout);
+      if (!res.ok) return;
+      const data: NominatimSuggestion[] = await res.json();
+      const first = data[0];
+      if (!first) return;
+      const nextLat = parseFloat(first.lat);
+      const nextLng = parseFloat(first.lon);
+      if (!Number.isFinite(nextLat) || !Number.isFinite(nextLng)) return;
+      onChange({
+        cityCenterLat: nextLat,
+        cityCenterLng: nextLng,
+        cityZoom: 12,
+        countryCode: first.address?.country_code?.toUpperCase() ?? countryCode,
+        countryName: first.address?.country ?? countryName,
+      });
+    } catch { /* timeout / abort - ignore */ }
+  }, [onChange]);
+
   const maybeSetCity = useCallback((addr: NominatimAddressDetails | undefined) => {
     const nominatimCity = extractNominatimCity(addr);
     if (!nominatimCity) return;
+    const countryCode = addr?.country_code?.toUpperCase() ?? null;
+    const countryName = addr?.country ?? null;
+    const knownCity = findKnownCity(nominatimCity, countryCode);
     // Prefer the canonical casing from our known cities list; otherwise use
     // Nominatim's value as-is so new cities still flow through.
-    const match = knownCities.length > 0 ? matchCity(nominatimCity, knownCities) : null;
-    onChange({ city: match ?? nominatimCity });
-  }, [knownCities, onChange]);
+    const match = knownCity?.name ?? (knownCities.length > 0 ? matchCity(nominatimCity, knownCities) : null);
+    onChange({
+      city: match ?? nominatimCity,
+      countryCode: knownCity?.country_code ?? countryCode,
+      countryName: knownCity?.country_name ?? countryName,
+      cityCenterLat: knownCity?.lat ?? null,
+      cityCenterLng: knownCity?.lng ?? null,
+      cityZoom: knownCity?.zoom ?? 12,
+    });
+    if (knownCity?.lat == null || knownCity?.lng == null) {
+      void fetchCityCenter(match ?? nominatimCity, countryCode, countryName);
+    }
+  }, [fetchCityCenter, findKnownCity, knownCities, onChange]);
+
+  const buildSearchQuery = useCallback((text: string) => {
+    const trimmed = text.trim();
+    const trimmedCity = city.trim();
+    if (!trimmedCity || normalizeForQuery(trimmed).includes(normalizeForQuery(trimmedCity))) return trimmed;
+    return `${trimmed}, ${trimmedCity}`;
+  }, [city]);
 
   const handleAddressChange = useCallback((text: string) => {
     onChange({ address: text });
@@ -111,12 +197,12 @@ export function AddressPickerField({
       lastQueryRef.current = trimmed;
 
       try {
-        const query = encodeURIComponent(trimmed);
+        const query = encodeURIComponent(buildSearchQuery(trimmed));
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5000);
         const res = await fetch(
-          'https://nominatim.openstreetmap.org/search?format=json&limit=5&dedupe=1&addressdetails=1&countrycodes=ro&q=' + query,
-          { headers: { 'User-Agent': 'TTPortal/1.0' }, signal: controller.signal },
+          'https://nominatim.openstreetmap.org/search?format=json&limit=5&dedupe=1&addressdetails=1&q=' + query,
+          { headers: getGeocodingHeaders(), signal: controller.signal },
         );
         clearTimeout(timeout);
         if (!res.ok) { setSearching(false); return; }
@@ -126,7 +212,7 @@ export function AddressPickerField({
       } catch { /* timeout / abort — ignore */ }
       setSearching(false);
     }, 800);
-  }, [onChange]);
+  }, [buildSearchQuery, onChange]);
 
   const handleSuggestionSelect = useCallback((item: NominatimSuggestion) => {
     const nextLat = parseFloat(item.lat);
@@ -143,10 +229,10 @@ export function AddressPickerField({
     if (!address.trim()) return;
     setGeocoding(true);
     try {
-      const query = encodeURIComponent(address.trim());
+      const query = encodeURIComponent(buildSearchQuery(address));
       const res = await fetch(
-        'https://nominatim.openstreetmap.org/search?format=json&countrycodes=ro&addressdetails=1&q=' + query,
-        { headers: { 'User-Agent': 'TTPortal/1.0' } },
+        'https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=' + query,
+        { headers: getGeocodingHeaders() },
       );
       const results: (NominatimSuggestion & { address?: NominatimAddressDetails })[] = await res.json();
       if (results && results.length > 0) {
@@ -162,7 +248,7 @@ export function AddressPickerField({
       }
     } catch { /* ignore */ }
     setGeocoding(false);
-  }, [address, onChange, closeSuggestions, maybeSetCity]);
+  }, [address, buildSearchQuery, onChange, closeSuggestions, maybeSetCity]);
 
   const handleMarkerDrag = useCallback(async (e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
     const nextLat = e.nativeEvent.coordinate.latitude;
@@ -175,7 +261,7 @@ export function AddressPickerField({
       const timeout = setTimeout(() => controller.abort(), 5000);
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat=${nextLat}&lon=${nextLng}`,
-        { headers: { 'User-Agent': 'TTPortal/1.0' }, signal: controller.signal },
+        { headers: getGeocodingHeaders(), signal: controller.signal },
       );
       clearTimeout(timeout);
       if (res.ok) {

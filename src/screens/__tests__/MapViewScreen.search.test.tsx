@@ -54,13 +54,21 @@ jest.mock('../../components/CityPickerModal', () => ({
 
  
 import React from 'react';
+import { Alert } from 'react-native';
+import * as Location from 'expo-location';
  
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
  
 import { MapViewScreen } from '../MapViewScreen';
 
 describe('MapViewScreen — search clear button', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted' });
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
+      coords: { latitude: 44.4268, longitude: 26.1025 },
+    });
+  });
 
   it('does not show clear button when search is empty', async () => {
     const { queryByTestId } = render(<MapViewScreen hideTabBar />);
@@ -101,5 +109,57 @@ describe('MapViewScreen — search clear button', () => {
     await waitFor(() => {
       expect(queryByTestId('search-clear')).toBeNull();
     });
+  });
+});
+
+describe('MapViewScreen - branded current location marker', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted' });
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
+      coords: { latitude: 44.4268, longitude: 26.1025 },
+    });
+  });
+
+  it('shows the branded current-location marker after Near Me succeeds', async () => {
+    const { getByTestId, queryByTestId } = render(<MapViewScreen hideTabBar />);
+
+    expect(queryByTestId('current-location-marker')).toBeNull();
+
+    await waitFor(() => expect(getByTestId('near-me-map-button')).toBeTruthy());
+    fireEvent.press(getByTestId('near-me-map-button'));
+
+    await waitFor(() => {
+      expect(getByTestId('current-location-marker')).toBeTruthy();
+    });
+  });
+
+  it('removes the current-location marker when Near Me is toggled off', async () => {
+    const { getByTestId, queryByTestId } = render(<MapViewScreen hideTabBar />);
+
+    await waitFor(() => expect(getByTestId('near-me-map-button')).toBeTruthy());
+    fireEvent.press(getByTestId('near-me-map-button'));
+
+    await waitFor(() => expect(getByTestId('current-location-marker')).toBeTruthy());
+
+    fireEvent.press(getByTestId('near-me-map-button'));
+
+    await waitFor(() => {
+      expect(queryByTestId('current-location-marker')).toBeNull();
+    });
+  });
+
+  it('does not show the marker when location permission is denied', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'denied' });
+    const { getByTestId, queryByTestId } = render(<MapViewScreen hideTabBar />);
+
+    await waitFor(() => expect(getByTestId('near-me-map-button')).toBeTruthy());
+    fireEvent.press(getByTestId('near-me-map-button'));
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    expect(queryByTestId('current-location-marker')).toBeNull();
+
+    alertSpy.mockRestore();
   });
 });

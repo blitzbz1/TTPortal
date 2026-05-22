@@ -337,6 +337,25 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
     outer: {
       alignItems: 'center',
     },
+    currentLocationOuter: {
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    currentLocationBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 3,
+      borderColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...Platform.select({
+        ios: { shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.28, shadowRadius: 4 },
+        android: { elevation: 6 },
+      }),
+    },
     wrap: {
       width: 30,
       height: 30,

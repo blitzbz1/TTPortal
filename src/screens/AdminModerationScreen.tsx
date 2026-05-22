@@ -55,6 +55,19 @@ function formatLocalizedDateTime(iso: string) {
   return _localizedDateTimeFmt.current.format(new Date(iso));
 }
 
+function formatVenueCoordinates(lat: number | null | undefined, lng: number | null | undefined): string | null {
+  if (typeof lat !== 'number' || typeof lng !== 'number') return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
+
+function formatVenueCountry(venue: any): string | null {
+  const countryName = venue.cities?.country_name;
+  const countryCode = venue.cities?.country_code;
+  if (countryName && countryCode) return `${countryName} (${countryCode})`;
+  return countryName ?? countryCode ?? null;
+}
+
 const CONDITION_OPTIONS: { value: VenueCondition; labelKey: string }[] = [
   { value: 'buna', labelKey: 'conditionGood' },
   { value: 'acceptabila', labelKey: 'conditionAcceptable' },
@@ -98,6 +111,11 @@ const PendingVenueCard = React.memo(function PendingVenueCard({
         {s('addedBy')}{venue.profiles?.full_name ?? s('user').toLowerCase()} {'·'}{' '}
         {formatRoDate(venue.created_at)} {'·'}{' '}
         {venue.city ?? ''}{venue.address ? `, ${venue.address}` : ''}
+      </Text>
+      <Text style={styles.modMeta}>
+        {[formatVenueCountry(venue), formatVenueCoordinates(venue.lat, venue.lng)]
+          .filter(Boolean)
+          .join(' / ')}
       </Text>
       <View style={styles.modActions}>
         <TouchableOpacity style={styles.approveBtn} onPress={() => onApprove(venue.id)}>

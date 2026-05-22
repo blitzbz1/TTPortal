@@ -30,7 +30,7 @@ interface BrandLockupProps {
   style?: StyleProp<ViewStyle>;
 }
 
-function BrandPin({ color, width }: BrandPinProps) {
+export function BrandPin({ color, width }: BrandPinProps) {
   const maskId = useId().replace(/:/g, '');
   const height = width / PIN_ASPECT;
 

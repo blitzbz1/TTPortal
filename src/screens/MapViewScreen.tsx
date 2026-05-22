@@ -8,7 +8,7 @@ import * as Location from 'expo-location';
 import { Lucide } from '../components/Icon';
 import { NotificationBellButton } from '../components/NotificationBellButton';
 import { FeedbackHeaderButton } from '../components/FeedbackHeaderButton';
-import { BrandLockup } from '../components/BrandLockup';
+import { BrandLockup, BrandPin } from '../components/BrandLockup';
 import { Card } from '../components/Card';
 import { LocationSelector, SelectedCityPill } from '../components/LocationSelector';
 import { VenueCardSkeleton, SkeletonList } from '../components/SkeletonLoader';
@@ -49,6 +49,21 @@ type FilterKey = 'toate' | 'parcuri' | 'indoor' | 'verificat';
 
 interface MapViewScreenProps {
   hideTabBar?: boolean;
+}
+
+interface CurrentLocationMarkerProps {
+  pinStyles: ReturnType<typeof createStyles>['pinStyles'];
+  color: string;
+}
+
+function CurrentLocationMarker({ pinStyles, color }: CurrentLocationMarkerProps) {
+  return (
+    <View style={pinStyles.currentLocationOuter} testID="current-location-marker">
+      <View style={[pinStyles.currentLocationBadge, { backgroundColor: color }]}>
+        <BrandPin color="#FFFFFF" width={18} />
+      </View>
+    </View>
+  );
 }
 
 export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
@@ -264,7 +279,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
           key={`map-${selectedCity?.id ?? 'fallback'}`}
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
-          showsUserLocation
+          showsUserLocation={false}
           initialRegion={selectedMapRegion}
         >
           {filteredVenues.map((venue) => {
@@ -301,6 +316,16 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
               </Marker>
             );
           })}
+          {nearMeEnabled && userLocation ? (
+            <Marker
+              identifier="current-location"
+              coordinate={userLocation}
+              tracksViewChanges={false}
+              testID="current-location-map-marker"
+            >
+              <CurrentLocationMarker pinStyles={pinStyles} color={colors.primary} />
+            </Marker>
+          ) : null}
         </MapView>
 
         <Card shadow="md" borderRadius={Radius.md} style={styles.legend}>

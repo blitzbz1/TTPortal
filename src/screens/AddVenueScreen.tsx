@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -16,7 +16,6 @@ import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { safeErrorMessage } from '../lib/auth-utils';
 import { rateLimitMessageFor } from '../lib/rateLimit';
 import type { VenueType } from '../types/database';
-import { getCityDisplayName } from '../lib/locationHelpers';
 
 /** Strip diacritics and lowercase for fuzzy city matching. */
 export function normalize(s: string): string {
@@ -35,6 +34,12 @@ export interface NominatimAddressDetails {
   town?: string;
   village?: string;
   municipality?: string;
+  city_district?: string;
+  state?: string;
+  state_district?: string;
+  county?: string;
+  country?: string;
+  country_code?: string;
 }
 
 /** Extract city name from Nominatim address details. */
@@ -72,6 +77,237 @@ export function matchCity(nominatimCity: string, knownCities: string[]): string 
     if (aliased) return aliased;
   }
   return null;
+}
+
+interface CitySuggestion {
+  display_name: string;
+  lat: string;
+  lon: string;
+  name?: string;
+  namedetails?: {
+    name?: string;
+    ['name:en']?: string;
+    int_name?: string;
+  };
+  class?: string;
+  type?: string;
+  addresstype?: string;
+  address?: NominatimAddressDetails;
+  source?: 'local' | 'nominatim' | 'photon';
+}
+
+const CITY_LIKE_ADDRESS_TYPES = new Set([
+  'city',
+  'town',
+  'village',
+  'municipality',
+  'administrative',
+  'state',
+]);
+
+const CITY_LIKE_TYPES = new Set([
+  'city',
+  'town',
+  'village',
+  'municipality',
+  'administrative',
+  'capital',
+]);
+
+const CITY_STATE_COUNTRY_CODES = new Set([
+  'mc',
+  'sg',
+  'va',
+  'lu',
+  'sm',
+  'ad',
+  'li',
+]);
+
+function debouncedCityClearsAddress(nextCity: string, previousCity: string): boolean {
+  return previousCity.trim().length > 0 && normalize(nextCity) !== normalize(previousCity);
+}
+
+function formatCitySuggestionTitle(item: CitySuggestion): string {
+  return getCitySuggestionName(item) ?? item.display_name.split(', ')[0] ?? item.display_name;
+}
+
+function formatCitySuggestionSubtitle(item: CitySuggestion): string {
+  const parts = [
+    item.address?.state ?? item.address?.state_district ?? item.address?.county,
+    item.address?.country,
+  ].filter((part): part is string => typeof part === 'string' && part.length > 0);
+  return parts.join(', ') || item.display_name;
+}
+
+function formatSelectedCityLocation(countryName: string | null, countryCode: string | null): string | null {
+  if (countryName && countryCode) return `${countryName} (${countryCode})`;
+  return countryName ?? countryCode;
+}
+
+function getGeocodingHeaders(): HeadersInit {
+  // Browsers reject the User-Agent header as unsafe. Native fetch accepts it,
+  // but keeping headers browser-safe makes web and native behavior consistent.
+  return { 'Accept-Language': 'en' };
+}
+
+export function getCitySuggestionName(item: CitySuggestion): string | null {
+  return extractNominatimCity(item.address)
+    ?? item.name
+    ?? item.namedetails?.name
+    ?? item.namedetails?.['name:en']
+    ?? item.namedetails?.int_name
+    ?? item.display_name.split(', ')[0]
+    ?? null;
+}
+
+export function isLikelyCitySuggestion(item: CitySuggestion): boolean {
+  const name = getCitySuggestionName(item);
+  if (!name) return false;
+  const addresstype = item.addresstype?.toLowerCase();
+  const type = item.type?.toLowerCase();
+  const klass = item.class?.toLowerCase();
+  const countryCode = item.address?.country_code?.toLowerCase();
+  if (addresstype === 'country') {
+    return countryCode ? CITY_STATE_COUNTRY_CODES.has(countryCode) : false;
+  }
+  if (addresstype && CITY_LIKE_ADDRESS_TYPES.has(addresstype)) {
+    return true;
+  }
+  if (type && CITY_LIKE_TYPES.has(type)) {
+    return true;
+  }
+  return klass === 'boundary' || klass === 'place';
+}
+
+function getSuggestionImportance(item: CitySuggestion): number {
+  const importance = (item as { importance?: unknown }).importance;
+  return typeof importance === 'number' && Number.isFinite(importance) ? importance : 0;
+}
+
+function getSuggestionPlaceRank(item: CitySuggestion): number {
+  const placeRank = (item as { place_rank?: unknown }).place_rank;
+  return typeof placeRank === 'number' && Number.isFinite(placeRank) ? placeRank : 99;
+}
+
+function scoreCitySuggestion(item: CitySuggestion, query: string): number {
+  const name = getCitySuggestionName(item) ?? '';
+  const normName = normalize(name);
+  const normQuery = normalize(query.trim());
+  const addresstype = item.addresstype?.toLowerCase();
+  const type = item.type?.toLowerCase();
+  const klass = item.class?.toLowerCase();
+  let score = 0;
+
+  if (item.source === 'local') score += 120;
+  if (normName === normQuery) score += 100;
+  else if (normName.startsWith(normQuery)) score += 70;
+  else if (normName.includes(normQuery)) score += 45;
+  if (addresstype === 'city' || type === 'city') score += 45;
+  else if (addresstype === 'town' || type === 'town') score += 35;
+  else if (addresstype === 'municipality' || type === 'municipality') score += 30;
+  else if (addresstype === 'village' || type === 'village') score += 20;
+  else if (addresstype === 'administrative' || type === 'administrative') score += 14;
+  else if (addresstype === 'country') score += 4;
+  if (klass === 'place') score += 10;
+  if (klass === 'boundary') score += 5;
+  score += getSuggestionImportance(item) * 35;
+  score += Math.max(0, 30 - getSuggestionPlaceRank(item));
+  return score;
+}
+
+function createLocalCitySuggestion(city: {
+  name: string;
+  country_code?: string | null;
+  country_name?: string | null;
+  admin_area?: string | null;
+  lat: number | null;
+  lng: number | null;
+  zoom: number | null;
+}): CitySuggestion | null {
+  if (city.lat == null || city.lng == null) return null;
+  return {
+    name: city.name,
+    display_name: [city.name, city.admin_area, city.country_name].filter(Boolean).join(', '),
+    lat: String(city.lat),
+    lon: String(city.lng),
+    class: 'place',
+    type: 'city',
+    addresstype: 'city',
+    address: {
+      city: city.name,
+      state: city.admin_area ?? undefined,
+      country: city.country_name ?? undefined,
+      country_code: city.country_code?.toLowerCase(),
+    },
+    source: 'local',
+  };
+}
+
+function photonFeatureToCitySuggestion(feature: {
+  geometry?: { coordinates?: [number, number] };
+  properties?: {
+    name?: string;
+    city?: string;
+    state?: string;
+    county?: string;
+    country?: string;
+    countrycode?: string;
+    type?: string;
+    osm_value?: string;
+  };
+}): CitySuggestion | null {
+  const coordinates = feature.geometry?.coordinates;
+  const props = feature.properties;
+  if (!coordinates || !props) return null;
+  const [lon, lat] = coordinates;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const name = props.city ?? props.name;
+  if (!name) return null;
+  const placeType = props.type ?? props.osm_value ?? 'city';
+  return {
+    name,
+    display_name: [name, props.state ?? props.county, props.country].filter(Boolean).join(', '),
+    lat: String(lat),
+    lon: String(lon),
+    class: 'place',
+    type: placeType,
+    addresstype: placeType,
+    address: {
+      city: name,
+      state: props.state,
+      county: props.county,
+      country: props.country,
+      country_code: props.countrycode?.toLowerCase(),
+    },
+    source: 'photon',
+  };
+}
+
+function mergeCitySuggestions(...groups: CitySuggestion[][]): CitySuggestion[] {
+  const byKey = new Map<string, CitySuggestion>();
+  for (const group of groups) {
+    for (const item of group) {
+      const name = getCitySuggestionName(item);
+      const country = item.address?.country_code ?? '';
+      const lat = Number.parseFloat(item.lat);
+      const lon = Number.parseFloat(item.lon);
+      if (!name || !Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      const key = `${normalize(name)}:${country.toLowerCase()}:${lat.toFixed(3)}:${lon.toFixed(3)}`;
+      if (!byKey.has(key)) byKey.set(key, item);
+    }
+  }
+  return Array.from(byKey.values());
+}
+
+export function orderCitySuggestions(suggestions: CitySuggestion[], query: string): CitySuggestion[] {
+  return [...suggestions].sort((a, b) => {
+    const scoreDiff = scoreCitySuggestion(b, query) - scoreCitySuggestion(a, query);
+    if (scoreDiff !== 0) return scoreDiff;
+    const importanceDiff = getSuggestionImportance(b) - getSuggestionImportance(a);
+    if (importanceDiff !== 0) return importanceDiff;
+    return formatCitySuggestionSubtitle(a).localeCompare(formatCitySuggestionSubtitle(b), 'en');
+  });
 }
 
 /**
@@ -115,7 +351,18 @@ export function AddVenueScreen() {
   const [loading, setLoading] = useState(false);
   const [geoLat, setGeoLat] = useState<number | null>(null);
   const [geoLng, setGeoLng] = useState<number | null>(null);
+  const [cityCountryCode, setCityCountryCode] = useState<string | null>(null);
+  const [cityCountryName, setCityCountryName] = useState<string | null>(null);
+  const [cityCenterLat, setCityCenterLat] = useState<number | null>(null);
+  const [cityCenterLng, setCityCenterLng] = useState<number | null>(null);
+  const [cityZoom, setCityZoom] = useState<number | null>(null);
+  const [venueLocationConfirmed, setVenueLocationConfirmed] = useState(false);
   const [knownCities, setKnownCities] = useState<string[]>([]);
+  const [citySuggestions, setCitySuggestions] = useState<CitySuggestion[]>([]);
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
+  const [citySearching, setCitySearching] = useState(false);
+  const cityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastCityQueryRef = useRef('');
   // Ref to the form's ScrollView so AddressPickerField can disable parent
   // scrolling while the user pans the map.
   const formScrollRef = useRef<any>(null);
@@ -123,27 +370,201 @@ export function AddVenueScreen() {
   // Read from the delta-synced cities cache (see useCitiesQuery): warm
   // starts paint instantly and the network call only ships changed rows.
   const { data: citiesList } = useCitiesQuery();
+  const knownCityRecords = useMemo(() => citiesList ?? [], [citiesList]);
   useEffect(() => {
     if (citiesList) setKnownCities(citiesList.map((c) => c.name));
   }, [citiesList]);
 
-  useEffect(() => {
-    if (!selectedCity || city) return;
-    setCity(getCityDisplayName(selectedCity));
-    if (geoLat == null && selectedCity.lat != null) setGeoLat(selectedCity.lat);
-    if (geoLng == null && selectedCity.lng != null) setGeoLng(selectedCity.lng);
-  }, [city, geoLat, geoLng, selectedCity]);
-
-  const handleAddressPatch = useCallback((patch: { address?: string; city?: string; lat?: number | null; lng?: number | null }) => {
+  const handleAddressPatch = useCallback((patch: {
+    address?: string;
+    city?: string;
+    lat?: number | null;
+    lng?: number | null;
+    countryCode?: string | null;
+    countryName?: string | null;
+    cityCenterLat?: number | null;
+    cityCenterLng?: number | null;
+    cityZoom?: number | null;
+  }) => {
     if (patch.address !== undefined) setAddress(patch.address);
     if (patch.city !== undefined) setCity(patch.city);
-    if (patch.lat !== undefined) setGeoLat(patch.lat);
-    if (patch.lng !== undefined) setGeoLng(patch.lng);
+    if (patch.lat !== undefined) {
+      setGeoLat(patch.lat);
+      if (patch.lat != null) setVenueLocationConfirmed(true);
+    }
+    if (patch.lng !== undefined) {
+      setGeoLng(patch.lng);
+      if (patch.lng != null) setVenueLocationConfirmed(true);
+    }
+    if (patch.countryCode !== undefined) setCityCountryCode(patch.countryCode);
+    if (patch.countryName !== undefined) setCityCountryName(patch.countryName);
+    if (patch.cityCenterLat !== undefined) setCityCenterLat(patch.cityCenterLat);
+    if (patch.cityCenterLng !== undefined) setCityCenterLng(patch.cityCenterLng);
+    if (patch.cityZoom !== undefined) setCityZoom(patch.cityZoom);
   }, []);
+
+  const closeCitySuggestions = useCallback(() => {
+    if (cityDebounceRef.current) {
+      clearTimeout(cityDebounceRef.current);
+      cityDebounceRef.current = null;
+    }
+    setCitySuggestions([]);
+    setShowCitySuggestions(false);
+    setCitySearching(false);
+  }, []);
+
+  const handleCityChange = useCallback((text: string) => {
+    setCity(text);
+    setCityCountryCode(null);
+    setCityCountryName(null);
+    setCityCenterLat(null);
+    setCityCenterLng(null);
+    setCityZoom(null);
+    if (debouncedCityClearsAddress(text, city)) {
+      setAddress('');
+      setGeoLat(null);
+      setGeoLng(null);
+      setVenueLocationConfirmed(false);
+    }
+    if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+
+    if (text.trim().length < 2) {
+      setCitySuggestions([]);
+      setShowCitySuggestions(false);
+      setCitySearching(false);
+      return;
+    }
+
+    const localSuggestions = mergeCitySuggestions(
+      knownCityRecords
+        .filter((record) => normalize(record.name).includes(normalize(text.trim())))
+        .map(createLocalCitySuggestion)
+        .filter((item): item is CitySuggestion => item != null),
+    );
+    const orderedLocalSuggestions = orderCitySuggestions(localSuggestions, text).slice(0, 5);
+    setCitySuggestions(orderedLocalSuggestions);
+    setShowCitySuggestions(orderedLocalSuggestions.length > 0);
+    setCitySearching(true);
+    cityDebounceRef.current = setTimeout(async () => {
+      const trimmed = text.trim();
+      if (trimmed === lastCityQueryRef.current) {
+        setCitySearching(false);
+        return;
+      }
+      lastCityQueryRef.current = trimmed;
+      try {
+        const freeformQuery = encodeURIComponent(trimmed);
+        const cityQuery = encodeURIComponent(`${trimmed} city`);
+        const capitalQuery = encodeURIComponent(`${trimmed} capital`);
+        const structuredCity = encodeURIComponent(trimmed);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const headers = getGeocodingHeaders();
+        const baseParams = 'format=json&dedupe=1&addressdetails=1&namedetails=1&extratags=1';
+        const [structuredResult, freeformResult, cityResult, capitalResult, photonResult] = await Promise.allSettled([
+          fetch(
+            `https://nominatim.openstreetmap.org/search?${baseParams}&limit=10&city=${structuredCity}`,
+            { headers, signal: controller.signal },
+          ),
+          fetch(
+            `https://nominatim.openstreetmap.org/search?${baseParams}&limit=14&q=${freeformQuery}`,
+            { headers, signal: controller.signal },
+          ),
+          fetch(
+            `https://nominatim.openstreetmap.org/search?${baseParams}&limit=8&q=${cityQuery}`,
+            { headers, signal: controller.signal },
+          ),
+          fetch(
+            `https://nominatim.openstreetmap.org/search?${baseParams}&limit=6&q=${capitalQuery}`,
+            { headers, signal: controller.signal },
+          ),
+          fetch(
+            `https://photon.komoot.io/api/?limit=10&q=${freeformQuery}`,
+            { headers, signal: controller.signal },
+          ),
+        ]);
+        clearTimeout(timeout);
+        if (lastCityQueryRef.current !== trimmed) return;
+        const structuredRes = structuredResult.status === 'fulfilled' ? structuredResult.value : null;
+        const freeformRes = freeformResult.status === 'fulfilled' ? freeformResult.value : null;
+        const cityRes = cityResult.status === 'fulfilled' ? cityResult.value : null;
+        const capitalRes = capitalResult.status === 'fulfilled' ? capitalResult.value : null;
+        const photonRes = photonResult.status === 'fulfilled' ? photonResult.value : null;
+        if (!(structuredRes?.ok) && !(freeformRes?.ok) && !(cityRes?.ok) && !(capitalRes?.ok) && !(photonRes?.ok)) {
+          setCitySearching(false);
+          return;
+        }
+        const structuredData: CitySuggestion[] = structuredRes?.ok ? await structuredRes.json() : [];
+        const freeformData: CitySuggestion[] = freeformRes?.ok ? await freeformRes.json() : [];
+        const cityData: CitySuggestion[] = cityRes?.ok ? await cityRes.json() : [];
+        const capitalData: CitySuggestion[] = capitalRes?.ok ? await capitalRes.json() : [];
+        const photonData: { features?: unknown[] } = photonRes?.ok ? await photonRes.json() : {};
+        const photonSuggestions = (photonData.features ?? [])
+          .map((feature) => photonFeatureToCitySuggestion(feature as Parameters<typeof photonFeatureToCitySuggestion>[0]))
+          .filter((item): item is CitySuggestion => item != null);
+        const cityResults = orderCitySuggestions(mergeCitySuggestions(
+          localSuggestions,
+          structuredData.filter(isLikelyCitySuggestion).map((item) => ({ ...item, source: 'nominatim' as const })),
+          freeformData.filter(isLikelyCitySuggestion).map((item) => ({ ...item, source: 'nominatim' as const })),
+          cityData.filter(isLikelyCitySuggestion).map((item) => ({ ...item, source: 'nominatim' as const })),
+          capitalData.filter(isLikelyCitySuggestion).map((item) => ({ ...item, source: 'nominatim' as const })),
+          photonSuggestions.filter(isLikelyCitySuggestion),
+        ), trimmed).slice(0, 8);
+        setCitySuggestions(cityResults);
+        setShowCitySuggestions(cityResults.length > 0);
+      } catch { /* timeout / abort - ignore */ }
+      setCitySearching(false);
+    }, 500);
+  }, [city, knownCityRecords]);
+
+  const handleCitySuggestionSelect = useCallback((item: CitySuggestion) => {
+    const suggestionCity = getCitySuggestionName(item);
+    const nextLat = parseFloat(item.lat);
+    const nextLng = parseFloat(item.lon);
+    if (!suggestionCity || !Number.isFinite(nextLat) || !Number.isFinite(nextLng)) return;
+    const countryCode = item.address?.country_code?.toUpperCase() ?? null;
+    const countryName = item.address?.country ?? null;
+    const match = knownCityRecords.length > 0
+      ? matchCity(
+          suggestionCity,
+          knownCityRecords
+            .filter((record) => !countryCode || record.country_code?.toUpperCase() === countryCode)
+            .map((record) => record.name),
+        )
+      : null;
+    const selectedName = match ?? suggestionCity;
+    setCity(selectedName);
+    setCityCountryCode(countryCode);
+    setCityCountryName(countryName);
+    setCityCenterLat(nextLat);
+    setCityCenterLng(nextLng);
+    setCityZoom(12);
+    setGeoLat(nextLat);
+    setGeoLng(nextLng);
+    setVenueLocationConfirmed(false);
+    closeCitySuggestions();
+    lastCityQueryRef.current = selectedName;
+  }, [closeCitySuggestions, knownCityRecords]);
 
   const handleSubmit = useCallback(async () => {
     if (!name.trim()) { Alert.alert(s('error'), s('nameRequired')); return; }
+    if (!city.trim()) { Alert.alert(s('error'), s('cityRequired')); return; }
+    const canonicalCity = canonicalizeCityName(city);
+    let resolvedCountryCode = cityCountryCode;
+    let resolvedCountryName = cityCountryName;
+    let resolvedCityCenterLat = cityCenterLat;
+    let resolvedCityCenterLng = cityCenterLng;
+    let resolvedCityZoom = cityZoom;
+
+    if (resolvedCityCenterLat == null || resolvedCityCenterLng == null || !resolvedCountryCode) {
+      Alert.alert(s('error'), s('cityRequired'));
+      return;
+    }
     if (!address.trim()) { Alert.alert(s('error'), s('addressRequired')); return; }
+    if (!venueLocationConfirmed || geoLat == null || geoLng == null) {
+      Alert.alert(s('error'), s('dragPinHint'));
+      return;
+    }
     if (tablesCount) {
       const count = parseInt(tablesCount, 10);
       if (isNaN(count) || count < 1 || count > 100) {
@@ -151,19 +572,17 @@ export function AddVenueScreen() {
         return;
       }
     }
-    if (!city) { Alert.alert(s('error'), s('cityRequired')); return; }
     setLoading(true);
 
     // Upsert city to get its id (city name extracted from Nominatim)
-    const canonicalCity = canonicalizeCityName(city);
     const { id: cityId, error: cityError } = await upsertCity(
       canonicalCity,
       {
-        countryCode: selectedCity?.country_code,
-        countryName: selectedCity?.country_name,
-        lat: getCityCenterLat(canonicalCity, selectedCity, geoLat),
-        lng: getCityCenterLng(canonicalCity, selectedCity, geoLng),
-        zoom: selectedCity?.name === canonicalCity ? selectedCity.zoom : 12,
+        countryCode: resolvedCountryCode ?? selectedCity?.country_code,
+        countryName: resolvedCountryName ?? selectedCity?.country_name,
+        lat: getCityCenterLat(canonicalCity, selectedCity, resolvedCityCenterLat),
+        lng: getCityCenterLng(canonicalCity, selectedCity, resolvedCityCenterLng),
+        zoom: selectedCity?.name === canonicalCity ? selectedCity.zoom : resolvedCityZoom ?? 12,
       },
     );
     if (cityError || !cityId) { setLoading(false); Alert.alert(s('error'), safeErrorMessage(cityError ?? 'genericError', 'genericError', s)); return; }
@@ -205,7 +624,7 @@ export function AddVenueScreen() {
     }
     Alert.alert(s('success'), s('venueSubmitted'));
     router.back();
-  }, [name, address, type, city, tablesCount, notes, router, geoLat, geoLng, selectedCity, s]);
+  }, [name, address, type, city, tablesCount, notes, router, geoLat, geoLng, venueLocationConfirmed, selectedCity, cityCountryCode, cityCountryName, cityCenterLat, cityCenterLng, cityZoom, s]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -263,6 +682,57 @@ export function AddVenueScreen() {
           </View>
 
           {/* Address field (with typeahead, geocode button, map) */}
+          <View style={[styles.field, { zIndex: 20 }]}>
+            <Text style={styles.fieldLabel}>{s('fieldCity')}</Text>
+            <TextInput
+              style={[styles.input, styles.inputText]}
+              placeholder={s('cityModalSearchPlaceholder')}
+              placeholderTextColor={colors.textFaint}
+              value={city}
+              onChangeText={handleCityChange}
+              maxLength={100}
+            />
+            {formatSelectedCityLocation(cityCountryName, cityCountryCode) && (
+              <Text style={styles.selectedCityMeta}>
+                {formatSelectedCityLocation(cityCountryName, cityCountryCode)}
+              </Text>
+            )}
+            {(showCitySuggestions || citySearching) && (
+              <View style={styles.suggestionsWrap}>
+                {citySearching && citySuggestions.length === 0 ? (
+                  <View style={styles.suggestionLoading}>
+                    <ActivityIndicator size="small" color={colors.primaryMid} />
+                    <Text style={styles.suggestionLoadingText}>{s('searching') || 'Searching...'}</Text>
+                  </View>
+                ) : (
+                  citySuggestions.map((item, idx) => (
+                    <Pressable
+                      key={`${item.lat}-${item.lon}-${idx}`}
+                      style={({ pressed }) => [
+                        styles.suggestionItem,
+                        pressed && styles.suggestionItemPressed,
+                        idx < citySuggestions.length - 1 && styles.suggestionBorder,
+                      ]}
+                      onPress={() => handleCitySuggestionSelect(item)}
+                    >
+                      <View style={{ marginTop: 2 }}>
+                        <Lucide name="map-pin" size={14} color={colors.primaryMid} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.suggestionTitle} numberOfLines={1}>
+                          {formatCitySuggestionTitle(item)}
+                        </Text>
+                        <Text style={styles.suggestionText} numberOfLines={1}>
+                          {formatCitySuggestionSubtitle(item)}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ))
+                )}
+              </View>
+            )}
+          </View>
+
           <View style={[styles.field, { zIndex: 10 }]}>
             <Text style={styles.fieldLabel}>{s('fieldAddress')}</Text>
             <AddressPickerField
@@ -271,6 +741,7 @@ export function AddVenueScreen() {
               lat={geoLat}
               lng={geoLng}
               knownCities={knownCities}
+              knownCityRecords={knownCityRecords}
               onChange={handleAddressPatch}
               parentScrollRef={formScrollRef}
             />
@@ -380,6 +851,61 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.body,
       fontSize: FontSize.md,
       color: colors.text,
+    },
+    selectedCityMeta: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.xs,
+      color: colors.textMuted,
+      marginTop: -2,
+    },
+    suggestionsWrap: {
+      backgroundColor: colors.bgAlt,
+      borderRadius: Radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      maxHeight: 220,
+      overflow: 'hidden',
+      marginTop: 6,
+      ...Shadows.md,
+    },
+    suggestionItem: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    suggestionItemPressed: {
+      backgroundColor: colors.bgMuted,
+    },
+    suggestionBorder: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    suggestionTitle: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.semibold,
+      color: colors.text,
+    },
+    suggestionText: {
+      flex: 1,
+      fontFamily: Fonts.body,
+      fontSize: FontSize.xs,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    suggestionLoading: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    suggestionLoadingText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      color: colors.textFaint,
     },
     typeRow: {
       flexDirection: 'row',
