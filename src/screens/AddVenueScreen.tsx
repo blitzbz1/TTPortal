@@ -742,6 +742,11 @@ export function AddVenueScreen() {
               lng={geoLng}
               knownCities={knownCities}
               knownCityRecords={knownCityRecords}
+              countryCode={cityCountryCode}
+              countryName={cityCountryName}
+              cityCenterLat={cityCenterLat}
+              cityCenterLng={cityCenterLng}
+              cityZoom={cityZoom}
               onChange={handleAddressPatch}
               parentScrollRef={formScrollRef}
             />

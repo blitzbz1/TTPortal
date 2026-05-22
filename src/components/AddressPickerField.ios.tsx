@@ -20,16 +20,19 @@ import {
   matchCity,
   type NominatimAddressDetails,
 } from '../screens/AddVenueScreen';
-
-function normalizeForQuery(value: string): string {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-}
+import {
+  buildAddressSearchRequests,
+  mergeAndRankAddressSuggestions,
+  type AddressSearchContext,
+  type AddressSearchCityRecord,
+  type AddressSuggestionLike,
+} from '../lib/addressSearch';
 
 function getGeocodingHeaders(): HeadersInit {
   return { 'Accept-Language': 'en' };
 }
 
-interface NominatimSuggestion {
+interface NominatimSuggestion extends AddressSuggestionLike {
   display_name: string;
   lat: string;
   lon: string;
@@ -48,7 +51,7 @@ export interface AddressPickerChange {
   cityZoom?: number | null;
 }
 
-interface KnownCityRecord {
+interface KnownCityRecord extends AddressSearchCityRecord {
   name: string;
   country_code?: string | null;
   country_name?: string | null;
@@ -64,6 +67,11 @@ interface AddressPickerFieldProps {
   lng: number | null;
   knownCities: string[];
   knownCityRecords?: KnownCityRecord[];
+  countryCode?: string | null;
+  countryName?: string | null;
+  cityCenterLat?: number | null;
+  cityCenterLng?: number | null;
+  cityZoom?: number | null;
   onChange: (patch: AddressPickerChange) => void;
   disabled?: boolean;
   // Accepted for API parity with the Android/web implementation but unused
@@ -85,6 +93,11 @@ export function AddressPickerField({
   lng,
   knownCities,
   knownCityRecords = [],
+  countryCode,
+  countryName,
+  cityCenterLat,
+  cityCenterLng,
+  cityZoom,
   onChange,
   disabled,
 }: AddressPickerFieldProps) {
@@ -172,12 +185,37 @@ export function AddressPickerField({
     }
   }, [fetchCityCenter, findKnownCity, knownCities, onChange]);
 
-  const buildSearchQuery = useCallback((text: string) => {
-    const trimmed = text.trim();
-    const trimmedCity = city.trim();
-    if (!trimmedCity || normalizeForQuery(trimmed).includes(normalizeForQuery(trimmedCity))) return trimmed;
-    return `${trimmed}, ${trimmedCity}`;
-  }, [city]);
+  const addressSearchContext = useMemo<AddressSearchContext>(() => ({
+    city,
+    countryCode,
+    countryName,
+    cityCenterLat,
+    cityCenterLng,
+    cityZoom,
+    knownCityRecords,
+  }), [city, countryCode, countryName, cityCenterLat, cityCenterLng, cityZoom, knownCityRecords]);
+
+  const buildSearchRequests = useCallback((text: string, limit = 5) => (
+    buildAddressSearchRequests(text, addressSearchContext, limit)
+  ), [addressSearchContext]);
+
+  const fetchFirstSuccessfulSearch = useCallback(async (
+    text: string,
+    limit: number,
+    signal?: AbortSignal,
+  ): Promise<NominatimSuggestion[]> => {
+    const requests = buildSearchRequests(text, limit);
+    const responses = await Promise.allSettled(requests.map(async (request) => {
+      const res = await fetch(request.url, { headers: getGeocodingHeaders(), signal });
+      if (!res.ok) return { items: [] as NominatimSuggestion[], weight: request.weight };
+      const items: NominatimSuggestion[] = await res.json();
+      return { items, weight: request.weight };
+    }));
+    const groups = responses
+      .filter((response): response is PromiseFulfilledResult<{ items: NominatimSuggestion[]; weight: number }> => response.status === 'fulfilled')
+      .map((response) => response.value);
+    return mergeAndRankAddressSuggestions(groups, addressSearchContext, limit);
+  }, [addressSearchContext, buildSearchRequests]);
 
   const handleAddressChange = useCallback((text: string) => {
     onChange({ address: text });
@@ -197,22 +235,16 @@ export function AddressPickerField({
       lastQueryRef.current = trimmed;
 
       try {
-        const query = encodeURIComponent(buildSearchQuery(trimmed));
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5000);
-        const res = await fetch(
-          'https://nominatim.openstreetmap.org/search?format=json&limit=5&dedupe=1&addressdetails=1&q=' + query,
-          { headers: getGeocodingHeaders(), signal: controller.signal },
-        );
+        const data = await fetchFirstSuccessfulSearch(trimmed, 5, controller.signal);
         clearTimeout(timeout);
-        if (!res.ok) { setSearching(false); return; }
-        const data: NominatimSuggestion[] = await res.json();
         setSuggestions(data);
         setShowSuggestions(data.length > 0);
       } catch { /* timeout / abort — ignore */ }
       setSearching(false);
     }, 800);
-  }, [buildSearchQuery, onChange]);
+  }, [fetchFirstSuccessfulSearch, onChange]);
 
   const handleSuggestionSelect = useCallback((item: NominatimSuggestion) => {
     const nextLat = parseFloat(item.lat);
@@ -229,12 +261,7 @@ export function AddressPickerField({
     if (!address.trim()) return;
     setGeocoding(true);
     try {
-      const query = encodeURIComponent(buildSearchQuery(address));
-      const res = await fetch(
-        'https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=' + query,
-        { headers: getGeocodingHeaders() },
-      );
-      const results: (NominatimSuggestion & { address?: NominatimAddressDetails })[] = await res.json();
+      const results = await fetchFirstSuccessfulSearch(address, 10);
       if (results && results.length > 0) {
         const nextLat = parseFloat(results[0].lat);
         const nextLng = parseFloat(results[0].lon);
@@ -248,7 +275,7 @@ export function AddressPickerField({
       }
     } catch { /* ignore */ }
     setGeocoding(false);
-  }, [address, buildSearchQuery, onChange, closeSuggestions, maybeSetCity]);
+  }, [address, fetchFirstSuccessfulSearch, onChange, closeSuggestions, maybeSetCity]);
 
   const handleMarkerDrag = useCallback(async (e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
     const nextLat = e.nativeEvent.coordinate.latitude;

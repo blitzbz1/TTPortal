@@ -829,6 +829,11 @@ export function AdminModerationScreen() {
                     lng={editLng}
                     knownCities={knownCities}
                     knownCityRecords={citiesList ?? []}
+                    countryCode={editCountryCode}
+                    countryName={editCountryName}
+                    cityCenterLat={editCityCenterLat}
+                    cityCenterLng={editCityCenterLng}
+                    cityZoom={editCityZoom}
                     onChange={handleEditAddressPatch}
                     parentScrollRef={editScrollRef}
                   />
