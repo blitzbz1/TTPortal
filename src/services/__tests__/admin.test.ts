@@ -1,4 +1,5 @@
 import {
+  approveVenue,
   searchVenuesAdmin,
   updateVenue,
   deleteVenue,
@@ -7,6 +8,15 @@ import {
   getFeedbackReplies,
   replyToFeedback,
 } from '../admin';
+
+const mockClearVenuesCache = jest.fn();
+const mockClearCitiesCache = jest.fn();
+jest.mock('../../lib/venuesPersistentCache', () => ({
+  clearVenuesCache: (...args: any[]) => mockClearVenuesCache(...args),
+}));
+jest.mock('../../lib/citiesPersistentCache', () => ({
+  clearCitiesCache: (...args: any[]) => mockClearCitiesCache(...args),
+}));
 
 function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
   const result = { data: resolvedData, error: resolvedError };
@@ -173,6 +183,25 @@ describe('updateVenue', () => {
       verified: true,
       photos: ['https://example.com/two.jpg'],
     });
+  });
+});
+
+describe('approveVenue', () => {
+  it('clears venue and city caches after approval', async () => {
+    const profilesChain = createQueryChain({ is_admin: true });
+    const venuesChain = createQueryChain({ id: 10, approved: true });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') return profilesChain;
+      if (table === 'venues') return venuesChain;
+      return createQueryChain();
+    });
+
+    const result = await approveVenue(10, 'admin-1');
+
+    expect(result.error).toBeNull();
+    expect(venuesChain.update).toHaveBeenCalledWith({ approved: true });
+    expect(mockClearVenuesCache).toHaveBeenCalled();
+    expect(mockClearCitiesCache).toHaveBeenCalled();
   });
 });
 

@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
-import { removeCacheItemsByPrefix } from '../lib/cacheUtils';
 import { invalidateVenueMetaCache, invalidateVenueReviewsCache } from '../lib/venueDetailCache';
+import { clearCitiesCache } from '../lib/citiesPersistentCache';
+import { clearVenuesCache } from '../lib/venuesPersistentCache';
 import {
   invalidateFlaggedReviewsCache,
   invalidatePendingVenuesCache,
@@ -19,7 +20,11 @@ const FLAGGED_REVIEW_COLS =
   'id, user_id, venue_id, flag_count, flagged, created_at, comment, rating';
 
 function invalidateMapVenuesCache() {
-  removeCacheItemsByPrefix('venues_');
+  clearVenuesCache();
+}
+
+function invalidateLocationCatalogCache() {
+  clearCitiesCache();
 }
 
 async function verifyAdmin(userId: string): Promise<boolean> {
@@ -77,6 +82,7 @@ export async function approveVenue(id: number, userId: string) {
     .single();
   if (!result.error) {
     invalidateMapVenuesCache();
+    invalidateLocationCatalogCache();
     invalidateVenueMetaCache(id);
     invalidatePendingVenuesCache();
   }

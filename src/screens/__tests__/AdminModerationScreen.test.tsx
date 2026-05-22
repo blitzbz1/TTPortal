@@ -3,6 +3,11 @@ import { render, fireEvent, act, waitFor } from '@testing-library/react-native';
 import { AdminModerationScreen } from '../AdminModerationScreen';
 
 // Mock dependencies
+const mockInvalidateQueries = jest.fn();
+jest.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
+}));
+
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
 }));
@@ -27,6 +32,7 @@ jest.mock('../../hooks/useTheme', () => ({
 
 const mockCitiesList: any[] = [];
 jest.mock('../../hooks/queries/useCitiesQuery', () => ({
+  citiesQueryKey: ['cities', 'delta'],
   useCitiesQuery: () => ({ data: mockCitiesList }),
 }));
 
@@ -268,6 +274,8 @@ describe('AdminModerationScreen — pending venues', () => {
     await act(async () => { fireEvent.press(getByText('approve')); });
 
     expect(mockApproveVenue).toHaveBeenCalledWith(10, 'admin-1');
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['venues'], exact: false });
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['cities', 'delta'] });
     expect(queryByText('Pending Venue')).toBeNull();
   });
 });

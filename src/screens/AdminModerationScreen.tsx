@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput, Modal, Pressable, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { FeedbackReplyModal } from '../components/FeedbackReplyModal';
 import { AddressPickerField } from '../components/AddressPickerField';
 import { upsertCity } from '../services/cities';
 import { canonicalizeCityName } from '../lib/cityCatalog';
-import { useCitiesQuery } from '../hooks/queries/useCitiesQuery';
+import { citiesQueryKey, useCitiesQuery } from '../hooks/queries/useCitiesQuery';
 import { useTheme } from '../hooks/useTheme';
 import { Fonts } from '../theme';
 import { createStyles } from './AdminModerationScreen.styles';
@@ -248,6 +249,11 @@ export function AdminModerationScreen() {
   const [editName, setEditName] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [editCity, setEditCity] = useState('');
+  const [editCountryCode, setEditCountryCode] = useState<string | null>(null);
+  const [editCountryName, setEditCountryName] = useState<string | null>(null);
+  const [editCityCenterLat, setEditCityCenterLat] = useState<number | null>(null);
+  const [editCityCenterLng, setEditCityCenterLng] = useState<number | null>(null);
+  const [editCityZoom, setEditCityZoom] = useState<number | null>(null);
   const [editLat, setEditLat] = useState<number | null>(null);
   const [editLng, setEditLng] = useState<number | null>(null);
   const [editType, setEditType] = useState('');
@@ -275,6 +281,7 @@ export function AdminModerationScreen() {
   const { user } = useSession();
   const { s } = useI18n();
   const { colors } = useTheme();
+  const queryClient = useQueryClient();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   useLayoutEffect(() => {
@@ -350,8 +357,12 @@ export function AdminModerationScreen() {
       Alert.alert(s('error'), s('approveError'));
       return;
     }
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['venues'], exact: false }),
+      queryClient.invalidateQueries({ queryKey: citiesQueryKey }),
+    ]);
     setPendingVenues((prev) => prev.filter((v) => v.id !== id));
-  }, [user, s]);
+  }, [queryClient, user, s]);
 
   const handleReject = useCallback((venue: any) => {
     setRejectTarget(venue);
@@ -394,6 +405,11 @@ export function AdminModerationScreen() {
     setEditName(venue.name ?? '');
     setEditAddress(venue.address ?? '');
     setEditCity(venue.city ?? '');
+    setEditCountryCode(venue.cities?.country_code ?? null);
+    setEditCountryName(venue.cities?.country_name ?? null);
+    setEditCityCenterLat(typeof venue.cities?.lat === 'number' ? venue.cities.lat : null);
+    setEditCityCenterLng(typeof venue.cities?.lng === 'number' ? venue.cities.lng : null);
+    setEditCityZoom(typeof venue.cities?.zoom === 'number' ? venue.cities.zoom : null);
     setEditLat(typeof venue.lat === 'number' ? venue.lat : null);
     setEditLng(typeof venue.lng === 'number' ? venue.lng : null);
     setEditType(venue.type ?? 'parc_exterior');
@@ -410,11 +426,26 @@ export function AdminModerationScreen() {
     setEditPhotos((prev) => prev.filter((url) => url !== photoUrl));
   }, []);
 
-  const handleEditAddressPatch = useCallback((patch: { address?: string; city?: string; lat?: number | null; lng?: number | null }) => {
+  const handleEditAddressPatch = useCallback((patch: {
+    address?: string;
+    city?: string;
+    lat?: number | null;
+    lng?: number | null;
+    countryCode?: string | null;
+    countryName?: string | null;
+    cityCenterLat?: number | null;
+    cityCenterLng?: number | null;
+    cityZoom?: number | null;
+  }) => {
     if (patch.address !== undefined) setEditAddress(patch.address);
     if (patch.city !== undefined) setEditCity(patch.city);
     if (patch.lat !== undefined) setEditLat(patch.lat);
     if (patch.lng !== undefined) setEditLng(patch.lng);
+    if (patch.countryCode !== undefined) setEditCountryCode(patch.countryCode);
+    if (patch.countryName !== undefined) setEditCountryName(patch.countryName);
+    if (patch.cityCenterLat !== undefined) setEditCityCenterLat(patch.cityCenterLat);
+    if (patch.cityCenterLng !== undefined) setEditCityCenterLng(patch.cityCenterLng);
+    if (patch.cityZoom !== undefined) setEditCityZoom(patch.cityZoom);
   }, []);
 
   const handleSaveEdit = useCallback(async () => {
@@ -424,11 +455,18 @@ export function AdminModerationScreen() {
     const trimmedCity = editCity.trim();
     const canonicalCity = canonicalizeCityName(trimmedCity);
     let cityIdUpdate: number | undefined;
-    if (canonicalCity && canonicalCity !== (editVenue.city ?? '').trim()) {
+    const hasEnoughCityMetadata = !!editCountryCode && editCityCenterLat != null && editCityCenterLng != null;
+    const shouldUpsertEditedCity = canonicalCity && (
+      canonicalCity !== (editVenue.city ?? '').trim() ||
+      (!editVenue.city_id && hasEnoughCityMetadata)
+    );
+    if (shouldUpsertEditedCity) {
       const { id: upsertedId, error: cityError } = await upsertCity(canonicalCity, {
-        lat: editLat,
-        lng: editLng,
-        zoom: 12,
+        countryCode: editCountryCode ?? editVenue.cities?.country_code,
+        countryName: editCountryName ?? editVenue.cities?.country_name,
+        lat: editCityCenterLat ?? editLat,
+        lng: editCityCenterLng ?? editLng,
+        zoom: editCityZoom ?? 12,
       });
       if (cityError || !upsertedId) {
         setEditSaving(false);
@@ -461,7 +499,7 @@ export function AdminModerationScreen() {
     // Update in pending list too
     setPendingVenues((prev) => prev.map((v) => v.id === editVenue.id ? { ...v, ...data } : v));
     setEditVenue(null);
-  }, [editVenue, editName, editAddress, editCity, editLat, editLng, editType, editTables, editCondition, editNightLighting, editNets, editVerified, editPhotos, editDescription, user, s]);
+  }, [editVenue, editName, editAddress, editCity, editCountryCode, editCountryName, editCityCenterLat, editCityCenterLng, editCityZoom, editLat, editLng, editType, editTables, editCondition, editNightLighting, editNets, editVerified, editPhotos, editDescription, user, s]);
 
   const handleKeep = useCallback(async (id: number) => {
     const { error } = await keepReview(id, user!.id);
@@ -790,6 +828,7 @@ export function AdminModerationScreen() {
                     lat={editLat}
                     lng={editLng}
                     knownCities={knownCities}
+                    knownCityRecords={citiesList ?? []}
                     onChange={handleEditAddressPatch}
                     parentScrollRef={editScrollRef}
                   />

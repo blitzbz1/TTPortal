@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { canonicalizeCityName } from '../lib/cityCatalog';
 import { FALLBACK_COUNTRY_CODE, getCountryByCode } from '../lib/locationHelpers';
+import { clearCitiesCache } from '../lib/citiesPersistentCache';
 
 // The "list cities" path is intentionally not in this file anymore —
 // callers should use useCitiesQuery (delta-synced via citiesDelta +
@@ -25,6 +26,10 @@ function isFiniteCoordinate(value: number | null | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function hasMeaningfullyDifferentCoordinate(current: number | null | undefined, next: number): boolean {
+  return !isFiniteCoordinate(current) || Math.abs(current - next) > 0.000001;
+}
+
 export async function upsertCity(
   name: string,
   countryCodeOrOptions: string | null | undefined | UpsertCityOptions = FALLBACK_COUNTRY_CODE,
@@ -33,7 +38,7 @@ export async function upsertCity(
   const options = countryCodeOrOptions && typeof countryCodeOrOptions === 'object'
     ? countryCodeOrOptions
     : { countryCode: countryCodeOrOptions };
-  const countryCode = options.countryCode ?? FALLBACK_COUNTRY_CODE;
+  const countryCode = (options.countryCode ?? FALLBACK_COUNTRY_CODE).toUpperCase();
   const country = getCountryByCode(countryCode);
   const countryName = options.countryName ?? country.name;
   const hasMapCenter = isFiniteCoordinate(options.lat) && isFiniteCoordinate(options.lng);
@@ -62,13 +67,32 @@ export async function upsertCity(
 
   const { data: existing, error: selectError } = await supabase
     .from('cities')
-    .select('id')
+    .select('id, country_name, lat, lng, zoom, active, expansion_status')
     .eq('name', canonicalName)
     .eq('country_code', country.code)
     .maybeSingle();
 
   if (selectError) return { id: null, error: selectError.message };
-  if (existing?.id) return { id: existing.id, error: null };
+  if (existing?.id) {
+    const repair: Record<string, unknown> = {};
+    if (countryName && existing.country_name !== countryName) repair.country_name = countryName;
+    if (hasMapCenter && hasMeaningfullyDifferentCoordinate(existing.lat, options.lat!)) repair.lat = options.lat;
+    if (hasMapCenter && hasMeaningfullyDifferentCoordinate(existing.lng, options.lng!)) repair.lng = options.lng;
+    if (hasMapCenter && (existing.zoom == null || existing.zoom !== (options.zoom ?? 12))) repair.zoom = options.zoom ?? 12;
+    if (existing.active !== true) repair.active = true;
+    if (existing.expansion_status == null || existing.expansion_status === 'hidden') repair.expansion_status = 'active';
+
+    if (Object.keys(repair).length > 0) {
+      const { error: updateError } = await supabase
+        .from('cities')
+        .update(repair)
+        .eq('id', existing.id);
+      if (updateError) return { id: null, error: updateError.message };
+      clearCitiesCache();
+    }
+
+    return { id: existing.id, error: null };
+  }
   if (!hasMapCenter) {
     return { id: null, error: 'city_map_center_required' };
   }
@@ -86,7 +110,10 @@ export async function upsertCity(
     .select('id')
     .single();
 
-  if (!insertError) return { id: inserted.id, error: null };
+  if (!insertError) {
+    clearCitiesCache();
+    return { id: inserted.id, error: null };
+  }
 
   // If another browser created the city between our SELECT and INSERT, recover
   // by reading the existing row instead of surfacing the unique violation.
@@ -99,7 +126,10 @@ export async function upsertCity(
       .maybeSingle();
 
     if (raceSelectError) return { id: null, error: raceSelectError.message };
-    if (raced?.id) return { id: raced.id, error: null };
+    if (raced?.id) {
+      clearCitiesCache();
+      return { id: raced.id, error: null };
+    }
   }
 
   return { id: null, error: insertError.message };

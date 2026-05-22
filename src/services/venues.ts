@@ -2,11 +2,11 @@ import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Venue, VenueInsert, VenueStats } from '../types/database';
 import { invalidateVenueMetaCache } from '../lib/venueDetailCache';
-import { removeCacheItemsByPrefix } from '../lib/cacheUtils';
+import { clearVenuesCache } from '../lib/venuesPersistentCache';
 
-// Drops every cached `venues_*` entry — covers all city scopes.
+// Drops every cached venue scope from the delta-synced map cache.
 function invalidateMapVenuesCache() {
-  removeCacheItemsByPrefix('venues_');
+  clearVenuesCache();
 }
 
 // `getVenues` was previously the imperative path used by VenuePickerModal.

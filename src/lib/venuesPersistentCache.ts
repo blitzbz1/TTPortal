@@ -3,7 +3,7 @@ import { createMMKV } from 'react-native-mmkv';
 // Persistent on-device venue list, scoped by (city, type). Each scope holds:
 //   - venues: full list as currently known to the device
 //   - syncedAt: ISO timestamp passed back to the server on the next delta call
-const store = createMMKV({ id: 'venues-cache-v1' });
+const store = createMMKV({ id: 'venues-cache-v2' });
 
 export interface PersistedVenue {
   id: number;

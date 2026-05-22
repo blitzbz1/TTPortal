@@ -1,5 +1,10 @@
 import { upsertCity } from '../cities';
 
+const mockClearCitiesCache = jest.fn();
+jest.mock('../../lib/citiesPersistentCache', () => ({
+  clearCitiesCache: (...args: any[]) => mockClearCitiesCache(...args),
+}));
+
 function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
   const result = { data: resolvedData, error: resolvedError };
   const chain: any = {
@@ -7,6 +12,7 @@ function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
     eq: jest.fn(() => chain),
     order: jest.fn(() => chain),
     insert: jest.fn(() => chain),
+    update: jest.fn(() => chain),
     upsert: jest.fn(() => chain),
     single: jest.fn(() => Promise.resolve(result)),
     maybeSingle: jest.fn(() => Promise.resolve(result)),
@@ -30,16 +36,26 @@ beforeEach(() => {
 // has its own integration test in the React Query layer.
 
 describe('upsertCity', () => {
+  const existingCity = (id: number) => ({
+    id,
+    country_name: 'Romania',
+    lat: 44.4268,
+    lng: 26.1025,
+    zoom: 12,
+    active: true,
+    expansion_status: 'active',
+  });
+
   it('returns existing city id when name matches', async () => {
     const countryChain = createQueryChain({ code: 'RO' });
-    const chain = createQueryChain({ id: 42 });
+    const chain = createQueryChain(existingCity(42));
     mockFrom.mockReturnValueOnce(countryChain).mockReturnValueOnce(chain);
 
     const result = await upsertCity('București');
 
     expect(result).toEqual({ id: 42, error: null });
     expect(countryChain.select).toHaveBeenCalledWith('code');
-    expect(chain.select).toHaveBeenCalledWith('id');
+    expect(chain.select).toHaveBeenCalledWith('id, country_name, lat, lng, zoom, active, expansion_status');
     expect(chain.eq).toHaveBeenCalledWith('name', 'București');
     expect(chain.maybeSingle).toHaveBeenCalled();
     expect(chain.insert).not.toHaveBeenCalled();
@@ -58,7 +74,7 @@ describe('upsertCity', () => {
 
   it('canonicalizes Piatra Neamt variants before upsert', async () => {
     const countryChain = createQueryChain({ code: 'RO' });
-    const selectChain = createQueryChain({ id: 100 });
+    const selectChain = createQueryChain(existingCity(100));
     mockFrom.mockReturnValueOnce(countryChain).mockReturnValueOnce(selectChain);
 
     const result = await upsertCity('Piatra-Neamt');
@@ -81,6 +97,7 @@ describe('upsertCity', () => {
     });
 
     expect(result).toEqual({ id: 101, error: null });
+    expect(mockClearCitiesCache).toHaveBeenCalled();
     expect(insertChain.insert).toHaveBeenCalledWith({
       name: 'Paris',
       country_code: 'FR',
@@ -122,6 +139,41 @@ describe('upsertCity', () => {
       country_code: 'NL',
       country_name: 'Netherlands',
     }));
+  });
+
+  it('repairs an existing city with missing metadata instead of creating a duplicate', async () => {
+    const countryChain = createQueryChain({ code: 'LU' });
+    const selectChain = createQueryChain({
+      id: 165,
+      country_name: null,
+      lat: null,
+      lng: null,
+      zoom: null,
+      active: false,
+      expansion_status: 'hidden',
+    });
+    mockFrom.mockReturnValueOnce(countryChain).mockReturnValueOnce(selectChain).mockReturnValueOnce(selectChain);
+
+    const result = await upsertCity('Luxembourg', {
+      countryCode: 'lu',
+      countryName: 'Luxembourg',
+      lat: 49.6112768,
+      lng: 6.129799,
+      zoom: 12,
+    });
+
+    expect(result).toEqual({ id: 165, error: null });
+    expect(selectChain.update).toHaveBeenCalledWith({
+      country_name: 'Luxembourg',
+      lat: 49.6112768,
+      lng: 6.129799,
+      zoom: 12,
+      active: true,
+      expansion_status: 'active',
+    });
+    expect(selectChain.eq).toHaveBeenCalledWith('id', 165);
+    expect(selectChain.insert).not.toHaveBeenCalled();
+    expect(mockClearCitiesCache).toHaveBeenCalled();
   });
 
   it('recovers when another browser inserts the city first', async () => {

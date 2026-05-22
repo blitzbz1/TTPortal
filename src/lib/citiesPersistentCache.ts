@@ -1,6 +1,6 @@
 import { createMMKV } from 'react-native-mmkv';
 
-const store = createMMKV({ id: 'cities-cache-v1' });
+const store = createMMKV({ id: 'cities-cache-v2' });
 const KEY = 'cities';
 
 export interface PersistedCity {
@@ -64,4 +64,8 @@ export function applyCitiesDelta(
   const next: CitiesCache = { cities: merged, syncedAt };
   writeCities(next);
   return next;
+}
+
+export function clearCitiesCache(): void {
+  store.clearAll();
 }

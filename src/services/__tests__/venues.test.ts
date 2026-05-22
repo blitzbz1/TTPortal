@@ -1,8 +1,8 @@
 import { createVenue } from '../venues';
 
-const mockRemoveCacheItemsByPrefix = jest.fn();
-jest.mock('../../lib/cacheUtils', () => ({
-  removeCacheItemsByPrefix: (...args: any[]) => mockRemoveCacheItemsByPrefix(...args),
+const mockClearVenuesCache = jest.fn();
+jest.mock('../../lib/venuesPersistentCache', () => ({
+  clearVenuesCache: (...args: any[]) => mockClearVenuesCache(...args),
 }));
 
 const mockInsert = jest.fn();
@@ -49,7 +49,7 @@ describe('createVenue', () => {
       name: 'New Place',
       approved: false,
     }));
-    expect(mockRemoveCacheItemsByPrefix).toHaveBeenCalledWith('venues_');
+    expect(mockClearVenuesCache).toHaveBeenCalled();
   });
 
   it('keeps venue caches when insert fails', async () => {
@@ -58,6 +58,6 @@ describe('createVenue', () => {
     const result = await createVenue({ name: 'Bad Place' } as any);
 
     expect(result.error).toEqual({ message: 'RLS failure' });
-    expect(mockRemoveCacheItemsByPrefix).not.toHaveBeenCalled();
+    expect(mockClearVenuesCache).not.toHaveBeenCalled();
   });
 });
