@@ -54,3 +54,35 @@ export async function getBlockedUsers() {
   const { data, error } = await supabase.rpc('get_blocked_users');
   return { data: (data as BlockedUser[] | null) ?? [], error };
 }
+
+export type ContentReport = {
+  id: number;
+  reporter_id: string;
+  content_type: ReportContentType;
+  content_id: string;
+  reason: ReportReason;
+  notes: string | null;
+  created_at: string;
+};
+
+/**
+ * Admin-only: list unresolved content reports. Returns empty list to
+ * non-admins because RLS on content_reports limits SELECT to admin
+ * profiles (plus reporter-self).
+ */
+export async function getUnresolvedReports() {
+  const { data, error } = await supabase
+    .from('content_reports')
+    .select('id, reporter_id, content_type, content_id, reason, notes, created_at')
+    .is('resolved_at', null)
+    .order('created_at', { ascending: false })
+    .limit(200);
+  return { data: (data as ContentReport[] | null) ?? [], error };
+}
+
+export async function resolveReport(reportId: number, resolution: string) {
+  return supabase
+    .from('content_reports')
+    .update({ resolved_at: new Date().toISOString(), resolution })
+    .eq('id', reportId);
+}

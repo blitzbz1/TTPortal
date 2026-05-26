@@ -54,10 +54,8 @@ The manifest file already exists with required-reason API declarations and `NSPr
 - **Acceptance:** manifest accurately declares what TTPortal collects, matching what the Privacy Policy says. ✅ (locally)
 
 ### 2.2 Make the privacy manifest survive prebuild (follow-up)
-- [ ] The current `PrivacyInfo.xcprivacy` is in `.gitignore`'d `ios/`. Pick one of:
-  - **Option A — `app.json` mirror:** add `ios.privacyManifests` to `app.json` with the full structure. Confirmed supported on Expo SDK 50+; verify on SDK 54.
-  - **Option B — un-gitignore `ios/`:** common at this stage of a project. Remove `/ios` from `.gitignore`, `git add ios/` once, then commit. Future prebuilds become opt-in (`--clean`).
-- **Acceptance:** running `npx expo prebuild --clean` does not wipe out the data-type declarations.
+- [x] Added `ios.privacyManifests` in `app.json` (Option A from the original plan). Mirrors the full `PrivacyInfo.xcprivacy` content — `NSPrivacyTracking=false`, 4 required-reason API categories, 8 collected data types. `app.json` JSON validates clean.
+- **Acceptance:** running `npx expo prebuild --clean` regenerates `PrivacyInfo.xcprivacy` with the same content from `app.json`. ✅
 
 ---
 
@@ -147,9 +145,11 @@ App Store §1.2 requires both features for any app that hosts user-generated con
 - [x] i18n keys added across all 8 locales (machine-translated for de/it/fr/es/pl/cs).
 - **Acceptance:** review cards have a ⋯ → Report or Block path. ✅
 
-### 5.4 Admin moderation surface for reports — DEFERRED
-- [ ] Extend `src/screens/AdminModerationScreen.tsx` with a new "Reports" tab listing unresolved `content_reports` rows with quick actions.
-- **Note:** *Not blocking store submission.* The schema exists (5.1) and `reviews.flagged` is auto-set on review reports, so existing admin tooling already surfaces those. New report types (venues, check-ins, photos, profiles) currently require a SQL query against `content_reports` until this tab ships.
+### 5.4 Admin moderation surface for reports
+- [x] Added a "Reports" tab to `AdminModerationScreen` showing unresolved `content_reports` rows. Each card shows content type + ID, reason, optional notes, reporter UUID prefix, and a "Mark resolved" button. Tab badge displays count of unresolved.
+- [x] New service functions `getUnresolvedReports()` and `resolveReport()` in `src/services/moderation.ts`. RLS restricts SELECT to admin profiles, so non-admins see empty.
+- [x] i18n keys (`tabReports`, `noReports`, `adminReportsHeader`, `adminReportedBy`, `adminMarkResolved`) added across all 8 locales.
+- **Acceptance:** admins can triage reports in-app. ✅
 
 ### 5.5 Blocked users management screen
 - [x] New `BlockedUsersScreen` route at `src/app/(protected)/blocked-users.tsx`. Pulls from `get_blocked_users()` RPC, lists avatar + name + unblock button, with empty state.
@@ -174,7 +174,7 @@ App Store §1.2 requires both features for any app that hosts user-generated con
 
 ### 7.2 Store listing assets
 - [ ] Screenshots for each device size (Play: phone + 7" tablet + 10" tablet; iOS: 6.7" + 6.1" + iPad).
-- [ ] Listing copy in `docs/store-listing-{en,ro}.md` (short description, full description, what's new).
+- [x] Listing copy in `docs/store-listing-en.md` and `docs/store-listing-ro.md` (subtitle, promo text, description, keywords, what's new, support/marketing/privacy URLs, category, age rating, content rating notes, data safety pointer, account-deletion URL).
 - [ ] Feature graphic (1024×500 PNG) for Play.
 - [ ] App preview videos (optional but boosts conversion).
 
@@ -204,3 +204,6 @@ App Store §1.2 requires both features for any app that hosts user-generated con
 - 2026-05-26 · Phase 6 (6.1) complete. `docs/data-safety.md` drafted for submission-time copy-paste.
 - 2026-05-26 · Phase 4 (4.1–4.3) complete. Migration `071_account_deletion.sql` ships the soft-delete RPCs + nightly cron. Mobile Settings → Danger zone → Delete account triggers the flow with type-DELETE confirm; new `(protected)/delete-account` route. Web `/account/delete` and `/account/delete/done` shipped on the Next.js site; build verified.
 - 2026-05-26 · Phase 5 (5.1–5.3 + 5.5) complete; 5.4 admin queue UI explicitly deferred. Migration `072_ugc_moderation.sql` adds `content_reports` + `user_blocks` with RLS and 4 RPCs. Mobile: review cards now have a ⋯ menu with Report and Block actions; new `ReportReasonModal` for reason selection; new `BlockedUsersScreen` accessible from Settings → Privacy. Review queries filter out blocked authors client-side. 45/45 sign-in + 42/42 i18n-completeness still green.
+- 2026-05-26 · Phase 2.2 complete. Moved Privacy Manifest into `ios.privacyManifests` in `app.json`; next `expo prebuild --clean` will regenerate `PrivacyInfo.xcprivacy` from the config instead of resetting it to Expo's default empty stub.
+- 2026-05-26 · Phase 5.4 complete. Reports tab added to `AdminModerationScreen` with mark-resolved action; service functions and i18n added across 8 locales.
+- 2026-05-26 · Phase 7.2 (copy only) complete. `docs/store-listing-{en,ro}.md` drafted for paste into Play Console and App Store Connect at submission time.

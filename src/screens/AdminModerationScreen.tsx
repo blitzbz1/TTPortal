@@ -10,7 +10,7 @@ import { upsertCity } from '../services/cities';
 import { canonicalizeCityName } from '../lib/cityCatalog';
 import { citiesQueryKey, useCitiesQuery } from '../hooks/queries/useCitiesQuery';
 import { useTheme } from '../hooks/useTheme';
-import { Fonts } from '../theme';
+import { Fonts, Radius } from '../theme';
 import { createStyles } from './AdminModerationScreen.styles';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
@@ -29,6 +29,11 @@ import {
   deleteUserFeedback,
 } from '../services/admin';
 import { getProfile } from '../services/profiles';
+import {
+  getUnresolvedReports,
+  resolveReport,
+  type ContentReport,
+} from '../services/moderation';
 import {
   loadCachedPendingVenues,
   saveCachedPendingVenues,
@@ -242,7 +247,11 @@ export function AdminModerationScreen() {
   const [feedbackLoaded, setFeedbackLoaded] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminLoading, setAdminLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'reviews' | 'venues' | 'feedback'>('reviews');
+  const [activeTab, setActiveTab] = useState<'reviews' | 'venues' | 'feedback' | 'reports'>('reviews');
+  const [reports, setReports] = useState<ContentReport[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsLoaded, setReportsLoaded] = useState(false);
+  const [resolvingReportId, setResolvingReportId] = useState<number | null>(null);
   const [replyTarget, setReplyTarget] = useState<any | null>(null);
   // Edit modal state
   const [editVenue, setEditVenue] = useState<any | null>(null);
@@ -546,6 +555,34 @@ export function AdminModerationScreen() {
     }
   }, [activeTab, feedbackLoaded, fetchFeedback]);
 
+  const fetchReports = useCallback(async () => {
+    setReportsLoading(true);
+    try {
+      const { data } = await getUnresolvedReports();
+      setReports(data);
+      setReportsLoaded(true);
+    } finally {
+      setReportsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'reports' && !reportsLoaded) {
+      void fetchReports();
+    }
+  }, [activeTab, reportsLoaded, fetchReports]);
+
+  const handleResolveReport = useCallback(async (reportId: number) => {
+    setResolvingReportId(reportId);
+    const { error } = await resolveReport(reportId, 'reviewed');
+    setResolvingReportId(null);
+    if (error) {
+      Alert.alert(s('error'), error.message);
+      return;
+    }
+    setReports((prev) => prev.filter((r) => r.id !== reportId));
+  }, [s]);
+
   const handleDeleteFeedback = useCallback((id: string) => {
     Alert.alert(s('confirmDeleteFeedback'), '', [
       { text: s('cancel'), style: 'cancel' },
@@ -614,6 +651,18 @@ export function AdminModerationScreen() {
           {userFeedback.length > 0 && (
             <View style={styles.tabBadge}>
               <Text style={styles.tabBadgeText}>{userFeedback.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'reports' && styles.tabActive]}
+          onPress={() => setActiveTab('reports')}
+          testID="admin-tab-reports"
+        >
+          <Text style={[styles.tabText, activeTab === 'reports' && styles.tabTextActive]}>{s('tabReports')}</Text>
+          {reports.length > 0 && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>{reports.length}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -747,7 +796,7 @@ export function AdminModerationScreen() {
             )}
           </View>
         </ScrollView>
-      ) : (
+      ) : activeTab === 'feedback' ? (
         <ScrollView style={styles.scroll}>
           <View style={styles.secLabel}>
             <Text style={styles.secLabelText}>{s('userFeedbackSection')}</Text>
@@ -773,6 +822,75 @@ export function AdminModerationScreen() {
                 onDelete={handleDeleteFeedback}
               />
             ))
+          )}
+        </ScrollView>
+      ) : (
+        <ScrollView style={styles.scroll}>
+          <View style={styles.secLabel}>
+            <Text style={styles.secLabelText}>{s('adminReportsHeader')}</Text>
+          </View>
+          {reportsLoading ? (
+            <ActivityIndicator size="small" color={colors.primary} style={{ paddingVertical: 24 }} />
+          ) : reports.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+              <Lucide name="shield-check" size={32} color={colors.border} />
+              <Text style={{ fontFamily: Fonts.body, fontSize: 13, color: colors.textFaint, marginTop: 8 }}>
+                {s('noReports')}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.modList}>
+              {reports.map((report) => {
+                const resolving = resolvingReportId === report.id;
+                return (
+                  <View key={report.id} style={[styles.modCard]} testID={`report-card-${report.id}`}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                      <Text style={{ fontFamily: Fonts.body, fontSize: 12, color: colors.textFaint, letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                        {report.content_type} · #{report.content_id}
+                      </Text>
+                      <Text style={{ fontFamily: Fonts.body, fontSize: 11, color: colors.textFaint }}>
+                        {new Date(report.created_at).toLocaleString()}
+                      </Text>
+                    </View>
+                    <Text style={{ fontFamily: Fonts.body, fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 4 }}>
+                      {s(`reportReason${report.reason
+                        .split('_')
+                        .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+                        .join('')}`)}
+                    </Text>
+                    {report.notes ? (
+                      <Text style={{ fontFamily: Fonts.body, fontSize: 13, color: colors.textMuted, marginBottom: 8 }}>
+                        {report.notes}
+                      </Text>
+                    ) : null}
+                    <Text style={{ fontFamily: Fonts.body, fontSize: 11, color: colors.textFaint, marginBottom: 10 }}>
+                      {s('adminReportedBy')}: {report.reporter_id.slice(0, 8)}…
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => void handleResolveReport(report.id)}
+                      disabled={resolving}
+                      style={{
+                        alignSelf: 'flex-start',
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        borderRadius: Radius.md,
+                        backgroundColor: colors.primary,
+                        opacity: resolving ? 0.5 : 1,
+                      }}
+                      testID={`resolve-report-${report.id}`}
+                    >
+                      {resolving ? (
+                        <ActivityIndicator size="small" color={colors.textOnPrimary} />
+                      ) : (
+                        <Text style={{ fontFamily: Fonts.body, fontSize: 13, fontWeight: '600', color: colors.textOnPrimary }}>
+                          {s('adminMarkResolved')}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
           )}
         </ScrollView>
       )}
