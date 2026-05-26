@@ -7,6 +7,9 @@ jest.mock('../../lib/mmkv', () => ({
   setString: (...args: [string, string]) => mockSetString(...args),
 }));
 
+import * as Localization from 'expo-localization';
+const mockGetLocales = Localization.getLocales as jest.Mock;
+
  
 import React from 'react';
  
@@ -39,6 +42,9 @@ describe('I18nProvider', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetSync.mockImplementation(() => null);
+    mockGetLocales.mockImplementation(() => [
+      { languageCode: 'ja', languageTag: 'ja-JP', regionCode: 'JP' },
+    ]);
   });
 
   it('returns Romanian string for authLogin when lang is ro', () => {
@@ -134,8 +140,55 @@ describe('I18nProvider', () => {
     expect(screen.getByTestId('lang')).toHaveTextContent('en');
   });
 
-  it('falls back to ro when stored value is invalid', () => {
+  it('falls back to device locale when stored value is invalid', () => {
     mockGetSync.mockReturnValueOnce('xx');
+    mockGetLocales.mockReturnValueOnce([
+      { languageCode: 'de', languageTag: 'de-DE', regionCode: 'DE' },
+    ]);
+
+    render(
+      <I18nProvider>
+        <TestConsumer />
+      </I18nProvider>
+    );
+
+    expect(screen.getByTestId('lang')).toHaveTextContent('de');
+  });
+
+  it('uses device locale on first launch when MMKV is empty', () => {
+    mockGetLocales.mockReturnValueOnce([
+      { languageCode: 'fr', languageTag: 'fr-FR', regionCode: 'FR' },
+    ]);
+
+    render(
+      <I18nProvider>
+        <TestConsumer />
+      </I18nProvider>
+    );
+
+    expect(screen.getByTestId('lang')).toHaveTextContent('fr');
+  });
+
+  it('picks the first supported locale when the device lists several', () => {
+    mockGetLocales.mockReturnValueOnce([
+      { languageCode: 'ja', languageTag: 'ja-JP', regionCode: 'JP' },
+      { languageCode: 'it', languageTag: 'it-IT', regionCode: 'IT' },
+      { languageCode: 'en', languageTag: 'en-US', regionCode: 'US' },
+    ]);
+
+    render(
+      <I18nProvider>
+        <TestConsumer />
+      </I18nProvider>
+    );
+
+    expect(screen.getByTestId('lang')).toHaveTextContent('it');
+  });
+
+  it('falls back to ro when no device locale is supported', () => {
+    mockGetLocales.mockReturnValueOnce([
+      { languageCode: 'ja', languageTag: 'ja-JP', regionCode: 'JP' },
+    ]);
 
     render(
       <I18nProvider>
@@ -144,6 +197,20 @@ describe('I18nProvider', () => {
     );
 
     expect(screen.getByTestId('lang')).toHaveTextContent('ro');
+  });
+
+  it('does not persist the auto-detected device locale to MMKV', () => {
+    mockGetLocales.mockReturnValueOnce([
+      { languageCode: 'fr', languageTag: 'fr-FR', regionCode: 'FR' },
+    ]);
+
+    render(
+      <I18nProvider>
+        <TestConsumer />
+      </I18nProvider>
+    );
+
+    expect(mockSetString).not.toHaveBeenCalled();
   });
 
   it('falls back to English string when key missing from current locale', () => {

@@ -109,6 +109,7 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
+      "expo-localization",
       "@react-native-google-signin/google-signin",
       [
         "expo-notifications",

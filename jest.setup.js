@@ -76,6 +76,16 @@ jest.mock('expo-device', () => ({
   isDevice: true,
 }));
 
+// Mock expo-localization — default to a locale not in SUPPORTED_LANGS so
+// I18nProvider's first-launch detection falls through to DEFAULT_LANG ('ro'),
+// preserving the implicit Romanian default that existing tests rely on.
+// Tests exercising the device-locale path override this via mockReturnValueOnce.
+jest.mock('expo-localization', () => ({
+  getLocales: jest.fn(() => [
+    { languageCode: 'ja', languageTag: 'ja-JP', regionCode: 'JP' },
+  ]),
+}));
+
 jest.mock('expo-constants', () => ({
   __esModule: true,
   default: {

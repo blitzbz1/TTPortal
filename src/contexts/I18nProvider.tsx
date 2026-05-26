@@ -4,6 +4,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import * as Localization from 'expo-localization';
 import { getStringSync, setString } from '../lib/mmkv';
 import roStrings from '../locales/ro.json';
 import enStrings from '../locales/en.json';
@@ -91,16 +92,36 @@ const locales: Record<Lang, Record<string, string>> = {
 };
 
 /**
- * Synchronous read so the first render uses the persisted language.
+ * Pick the first supported language from the device's preferred locales.
+ * Returns null if none of the user's locales map to a supported `Lang`.
+ */
+function detectDeviceLang(): Lang | null {
+  try {
+    const locales = Localization.getLocales();
+    for (const entry of locales) {
+      const code = entry?.languageCode?.toLowerCase();
+      if (code && VALID_LANGS.has(code)) return code as Lang;
+    }
+  } catch {
+    // expo-localization unavailable — caller falls through to DEFAULT_LANG
+  }
+  return null;
+}
+
+/**
+ * Synchronous read so the first render uses the right language.
+ * Order: explicit MMKV pick → device locale → DEFAULT_LANG.
+ * The device locale is not persisted, so OS-level language changes keep
+ * taking effect until the user explicitly picks a language.
  */
 function loadLangSync(): Lang {
   try {
     const value = getStringSync(STORAGE_KEY);
     if (value && VALID_LANGS.has(value)) return value as Lang;
   } catch {
-    // Storage unavailable — fall through to default
+    // Storage unavailable — fall through
   }
-  return DEFAULT_LANG;
+  return detectDeviceLang() ?? DEFAULT_LANG;
 }
 
 function saveLang(lang: Lang): void {
