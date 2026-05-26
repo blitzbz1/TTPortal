@@ -63,18 +63,20 @@ export function LocationSelector({
   const hasSearchQuery = query.trim().length > 0;
   const cityVisitCounts = useMemo(() => readCityVisitCounts(), []);
 
-  const launchCities = useMemo(() => getLaunchCities(activeCities, cityVisitCounts), [activeCities, cityVisitCounts]);
   const searchedCities = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
-    const source = normalizedQuery ? activeCities : launchCities;
-    const filtered = source.filter((city) => {
+    const countryCities = activeCities.filter((city) => {
       if (pendingCountry.code !== 'ALL' && city.country_code !== pendingCountry.code) return false;
+      return true;
+    });
+    if (!normalizedQuery) return getLaunchCities(countryCities, cityVisitCounts);
+
+    const filtered = countryCities.filter((city) => {
       if (!normalizedQuery) return true;
       return getCitySearchText(city).includes(normalizedQuery);
     });
-    if (!normalizedQuery) return filtered;
     return [...filtered].sort((a, b) => sortSearchCities(a, b, normalizedQuery, lang));
-  }, [activeCities, lang, launchCities, pendingCountry.code, query]);
+  }, [activeCities, cityVisitCounts, lang, pendingCountry.code, query]);
   const countriesWithCities = useMemo(
     () => activeCountries
       .filter((country) => activeCities.some((city) => city.country_code === country.code))
@@ -103,7 +105,10 @@ export function LocationSelector({
       return;
     }
     setPendingCountry(country);
-    const best = launchCities.find((city) => city.country_code === country.code);
+    const best = getLaunchCities(
+      activeCities.filter((city) => city.country_code === country.code),
+      cityVisitCounts,
+    )[0];
     if (best) setPendingCity(best);
     setCountryPanelOpen(false);
   };
