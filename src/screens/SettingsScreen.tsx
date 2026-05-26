@@ -151,6 +151,21 @@ export function SettingsScreen() {
           <Lucide name="external-link" size={16} color={colors.textFaint} />
         </TouchableOpacity>
 
+        {/* Privacy */}
+        <Text style={styles.sectionHeader}>{s('privacy')}</Text>
+
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => router.push('/(protected)/blocked-users' as any)}
+          testID="settings-blocked-users"
+        >
+          <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>
+            <Lucide name="user-x" size={18} color={colors.textMuted} />
+          </View>
+          <Text style={styles.rowLabel}>{s('blockedUsers')}</Text>
+          <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+        </TouchableOpacity>
+
         {/* Danger zone */}
         <Text style={styles.sectionHeader}>{s('dangerZone')}</Text>
 

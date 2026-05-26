@@ -470,6 +470,11 @@ export function createStyles(colors: ThemeColors) {
       justifyContent: 'space-between',
       alignItems: 'center',
     },
+    reviewTopRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
     reviewAuthor: {
       fontFamily: Fonts.body,
       fontSize: FontSize.md,

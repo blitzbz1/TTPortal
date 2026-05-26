@@ -17,10 +17,11 @@ import { prepareImageForUpload, ImageProcessingUnavailableError } from '../lib/i
 import * as ImagePicker from 'expo-image-picker';
 import { checkin, checkout, getUserAnyActiveCheckin } from '../services/checkins';
 import { addFavorite, removeFavorite } from '../services/favorites';
+import { useQueryClient } from '@tanstack/react-query';
 import { useVenueDetailQuery, useInvalidateVenueDetail } from '../hooks/queries/useVenueDetailQuery';
 import { useFriendsAtVenueQuery } from '../hooks/queries/useFriendsAtVenueQuery';
 import { useIsAdminQuery } from '../hooks/queries/useIsAdminQuery';
-import { useVenueReviewsQuery } from '../hooks/queries/useVenueReviewsQuery';
+import { useVenueReviewsQuery, venueReviewsQueryKey } from '../hooks/queries/useVenueReviewsQuery';
 import type { Venue, Review, VenueStats } from '../types/database';
 import { Card } from '../components/Card';
 import { safeErrorMessage } from '../lib/auth-utils';
@@ -28,6 +29,8 @@ import { rateLimitMessageFor } from '../lib/rateLimit';
 import { VenueActionRow } from '../components/VenueActionRow';
 import { CheckinSuccessSheet } from '../components/CheckinSuccessSheet';
 import { EmptyState } from '../components/EmptyState';
+import { ReportReasonModal } from '../components/ReportReasonModal';
+import { reportContent, blockUser, type ReportReason } from '../services/moderation';
 import { hapticLight } from '../lib/haptics';
 import Reanimated, {
   useSharedValue,
@@ -69,6 +72,7 @@ export function VenueDetailScreen({ venueId }: Props) {
   const isAdmin = !!isAdminFlag;
 
   const invalidateVenueDetail = useInvalidateVenueDetail();
+  const queryClient = useQueryClient();
 
   const venue = useMemo(
     () =>
@@ -116,6 +120,8 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [untilMinute, setUntilMinute] = useState('');
   const [successSheetVisible, setSuccessSheetVisible] = useState(false);
   const [lastCheckinEndTime, setLastCheckinEndTime] = useState<string | undefined>();
+  const [reportingReview, setReportingReview] = useState<Review | null>(null);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
   const visibleReviews = useMemo(
     () => (showAllReviews ? reviews : reviews.slice(0, REVIEW_INITIAL_LIMIT)),
     [reviews, showAllReviews],
@@ -160,6 +166,73 @@ export function VenueDetailScreen({ venueId }: Props) {
       Alert.alert(title, msg);
     }
   }, []);
+
+  const performBlockUser = useCallback(async (targetUserId: string) => {
+    const { error } = await blockUser(targetUserId);
+    if (error) {
+      showAlert(s('error'), s('blockUserError'));
+      return;
+    }
+    showAlert(s('blockedToastTitle'), s('blockedToastBody'));
+    invalidateVenueDetail(Number(venueId));
+    queryClient.invalidateQueries({ queryKey: venueReviewsQueryKey(Number(venueId)) });
+  }, [s, showAlert, invalidateVenueDetail, venueId, queryClient]);
+
+  const openReviewActions = useCallback((review: Review) => {
+    if (!user) return;
+    const isOwn = review.user_id === user.id;
+    const targetId = review.user_id;
+
+    const buttons: { text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }[] = [
+      { text: s('reportReviewAction'), onPress: () => setReportingReview(review) },
+    ];
+    if (!isOwn && targetId) {
+      buttons.push({
+        text: s('blockUserAction'),
+        style: 'destructive',
+        onPress: () => {
+          if (Platform.OS === 'web') {
+            if (window.confirm(s('blockUserConfirm'))) void performBlockUser(targetId);
+          } else {
+            Alert.alert(s('blockUserAction'), s('blockUserConfirm'), [
+              { text: s('cancel'), style: 'cancel' },
+              { text: s('blockUserAction'), style: 'destructive', onPress: () => void performBlockUser(targetId) },
+            ]);
+          }
+        },
+      });
+    }
+    buttons.push({ text: s('cancel'), style: 'cancel' });
+
+    if (Platform.OS === 'web') {
+      // Web fallback: simple chained prompts.
+      const choices = buttons.filter((b) => b.style !== 'cancel');
+      const label = choices.map((c, i) => `${i + 1}. ${c.text}`).join('\n');
+      const choice = window.prompt(`${s('reviewActions')}\n\n${label}\n\n${s('reviewActionsHint')}`);
+      const idx = Number(choice);
+      if (Number.isInteger(idx) && idx >= 1 && idx <= choices.length) {
+        choices[idx - 1].onPress?.();
+      }
+    } else {
+      Alert.alert(s('reviewActions'), undefined, buttons);
+    }
+  }, [user, s, performBlockUser]);
+
+  const handleSubmitReport = useCallback(
+    async (reason: ReportReason, notes: string | undefined) => {
+      if (!reportingReview) return;
+      setReportSubmitting(true);
+      const { error } = await reportContent('review', reportingReview.id, reason, notes);
+      setReportSubmitting(false);
+      setReportingReview(null);
+      if (error) {
+        showAlert(s('error'), s('reportError'));
+        return;
+      }
+      showAlert(s('reportedToastTitle'), s('reportedToastBody'));
+    },
+    [reportingReview, s, showAlert],
+  );
 
   const showDurationModal = useCallback(() => {
     setCustomMode('none');
@@ -674,7 +747,20 @@ export function VenueDetailScreen({ venueId }: Props) {
             <Card key={review.id} shadow="sm" borderRadius={Radius.md} style={styles.reviewCard}>
               <View style={styles.reviewTop}>
                 <Text style={styles.reviewAuthor}>{review.reviewer_name || s('anon')}</Text>
-                <Text style={styles.reviewStars}>{renderStars(review.rating)}</Text>
+                <View style={styles.reviewTopRight}>
+                  <Text style={styles.reviewStars}>{renderStars(review.rating)}</Text>
+                  {user && (
+                    <TouchableOpacity
+                      onPress={() => openReviewActions(review)}
+                      hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={s('reviewActions')}
+                      testID={`review-actions-${review.id}`}
+                    >
+                      <Lucide name="more-horizontal" size={18} color={colors.textFaint} />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
               <Text style={styles.reviewText}>{review.body || ''}</Text>
               <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString(dateLocale)}</Text>
@@ -715,6 +801,13 @@ export function VenueDetailScreen({ venueId }: Props) {
         onDismiss={() => setCheckinModalVisible(false)}
         onPickDuration={doCheckin}
         onConfirmCustom={handleCustomConfirm}
+      />
+
+      <ReportReasonModal
+        visible={reportingReview !== null}
+        submitting={reportSubmitting}
+        onClose={() => setReportingReview(null)}
+        onSubmit={handleSubmitReport}
       />
     </SafeAreaView>
   );
