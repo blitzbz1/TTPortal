@@ -151,6 +151,21 @@ export function SettingsScreen() {
           <Lucide name="external-link" size={16} color={colors.textFaint} />
         </TouchableOpacity>
 
+        {/* Danger zone */}
+        <Text style={styles.sectionHeader}>{s('dangerZone')}</Text>
+
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => router.push('/(protected)/delete-account' as any)}
+          testID="settings-delete-account"
+        >
+          <View style={[styles.rowIcon, { backgroundColor: colors.redPale }]}>
+            <Lucide name="trash-2" size={18} color={colors.redDeep} />
+          </View>
+          <Text style={[styles.rowLabel, { color: colors.redDeep }]}>{s('deleteAccount')}</Text>
+          <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+        </TouchableOpacity>
+
       </ScrollView>
     </SafeAreaView>
   );

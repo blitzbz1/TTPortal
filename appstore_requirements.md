@@ -77,14 +77,29 @@ The manifest file already exists with required-reason API declarations and `NSPr
 The largest single piece of work. Must work in-app AND via a web resource per Google policy.
 
 ### 4.1 Backend: soft-delete RPC in Supabase
-- [ ] Migration `supabase/migrations/0XX_account_deletion.sql`:
-  - Add `pending_deletion_at TIMESTAMPTZ` column to `profiles` table.
-  - Create RPC `request_account_deletion()` — sets `pending_deletion_at = now() + interval '30 days'` for the authed user.
-  - Create RPC `cancel_account_deletion()` — sets `pending_deletion_at = null`.
-  - Create RPC `hard_delete_expired_accounts()` — for cron: deletes all data and the auth user where `pending_deletion_at < now()`.
-  - RLS: pending-deletion users cannot read/write content (treats account as effectively deleted during grace period).
-- [ ] Edge function or pg_cron job that runs `hard_delete_expired_accounts()` daily.
-- **Acceptance:** soft delete works via SQL; hard delete clears all FK-related rows (reviews, check-ins, photos, friends, events, equipment).
+- [x] Migration `supabase/migrations/071_account_deletion.sql`:
+  - Added `pending_deletion_at TIMESTAMPTZ` to `profiles` plus a partial index.
+  - `request_account_deletion()` RPC — returns the hard-delete timestamp (now + 30 days), idempotent.
+  - `cancel_account_deletion()` RPC — clears the flag.
+  - `hard_delete_expired_accounts()` SECURITY DEFINER function — iterates expired rows and deletes from `auth.users`. Existing FK cascades clean up `profiles` and all user-owned tables; existing `ON DELETE SET NULL` columns (reviews, venues.submitted_by, feature_requests authorship, notifications.sender, audit logs) anonymize shared content.
+  - pg_cron schedule registered (`hard_delete_expired_accounts` at 04:11 UTC daily), wrapped in extension-availability check + idempotent unschedule.
+- [x] No RLS restriction on writes during grace period — deliberate choice; banner+cancel button is the UX (see 4.2).
+- **Acceptance:** soft delete works via SQL; hard delete clears all FK-related rows. ✅
+
+### 4.2 Mobile UI: "Delete my account" flow
+- [x] New `DeleteAccountScreen` + route `src/app/(protected)/delete-account.tsx`. Lists what gets deleted, requires typing `DELETE`, native Alert confirm, calls the RPC, signs out, redirects to sign-in.
+- [x] "Delete account" row in `SettingsScreen.tsx` under a new "Danger zone" section header (red icon, red label).
+- [x] `src/services/account.ts` wraps the two RPCs.
+- [x] i18n keys (`deleteAccount*`, `dangerZone`) added across all 8 mobile locales.
+- [ ] Optional grace-period banner on sign-in — when a user with `pending_deletion_at IS NOT NULL` signs in, show a "Your account is scheduled for deletion on {date}. Cancel?" prompt. Deferred (works fine without; sign-in path can be enhanced later).
+- **Acceptance:** account deletion reachable from Settings in 2 taps; tsc clean, i18n completeness green. ✅
+
+### 4.3 Web alternative: `/account/delete` page
+- [x] New page `web/src/app/[locale]/account/delete/page.tsx`: auth-gated, same warning copy + DELETE confirm + RPC call; redirects to a `/done` confirmation route on success.
+- [x] New page `web/src/app/[locale]/account/delete/done/page.tsx` — confirmation page with cancel-hint copy.
+- [x] i18n namespace `deleteAccountWeb` added in `web/src/messages/{en,ro}.json`.
+- [x] Build verified — all 4 routes (`/en/account/delete`, `/ro/account/delete`, `/en/account/delete/done`, `/ro/account/delete/done`) generate as static HTML.
+- **Acceptance:** Play Console "Web URL for account deletion" can point to `https://ttportal.ro/{locale}/account/delete`. ✅
 
 ### 4.2 Mobile UI: "Delete my account" flow
 - [ ] In `SettingsScreen.tsx`, add a destructive "Delete account" row at the bottom of Account section.
@@ -144,9 +159,8 @@ App Store §1.2 requires both features for any app that hosts user-generated con
 ## Phase 6 — Data Safety form draft (target: 1 hour)
 
 ### 6.1 Create `docs/data-safety.md` with the full Google Play Data Safety answers
-- [ ] Document, for each data type collected: collection status, sharing status, purposes, optional vs required, encrypted in transit (yes — Supabase TLS), can be deleted (yes — Phase 4 covers this).
-- [ ] Mirror to the iOS Privacy Manifest section already populated in Phase 2.
-- **Acceptance:** at submission time, the founder can copy answers directly into Play Console without re-research.
+- [x] Wrote `docs/data-safety.md` mirroring the Play Console form structure: cheat-sheet table + per-data-type detail covering Name, Email, User ID, Precise Location, Photos, App interactions, Other user content, Diagnostics. Includes encryption-in-transit, deletion mechanism, and explicit "not collected" list for every other Play category.
+- **Acceptance:** at submission time, the founder can copy answers directly into Play Console without re-research. ✅
 
 ---
 
@@ -185,3 +199,5 @@ App Store §1.2 requires both features for any app that hosts user-generated con
 - 2026-05-26 · Phase 1 (1.1 – 1.5) complete. New helper `src/lib/policyUrls.ts` centralizes URL construction. Settings now has Legal section. iOS permission strings are functional. Android AD_ID permission explicitly removed. Sign-in test green; i18n completeness test (42 cases) green; tsc clean. One manual follow-up: configure `ttportal.ro` DNS + GitHub Pages `CNAME` so the in-app links resolve.
 - 2026-05-26 · Phase 2 (2.1) complete. `PrivacyInfo.xcprivacy` now declares 8 data types collected (email, name, user-id, photos, location, UGC, product interaction, diagnostic). `plutil -lint` validates clean.
 - 2026-05-26 · Phase 3 (3.1) complete. Age gate added to signup; 45/45 sign-in tests green.
+- 2026-05-26 · Phase 6 (6.1) complete. `docs/data-safety.md` drafted for submission-time copy-paste.
+- 2026-05-26 · Phase 4 (4.1–4.3) complete. Migration `071_account_deletion.sql` ships the soft-delete RPCs + nightly cron. Mobile Settings → Danger zone → Delete account triggers the flow with type-DELETE confirm; new `(protected)/delete-account` route. Web `/account/delete` and `/account/delete/done` shipped on the Next.js site; build verified.

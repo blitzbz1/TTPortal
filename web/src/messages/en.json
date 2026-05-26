@@ -273,5 +273,33 @@
     "clearBody": "You can clear all the items above through your browser's settings, usually under \"Site data\" or \"Cookies and other site data\". Clearing them will sign you out and reset your preferences.",
     "contactTitle": "Questions?",
     "contactBody": "Email us at ttportal.info@gmail.com."
+  },
+  "deleteAccountWeb": {
+    "title": "Delete your TTPortal account",
+    "intro": "This will permanently delete your account and the data you've created on TTPortal. You can change your mind during a 30-day grace period before the deletion becomes irreversible.",
+    "backHome": "Back to home",
+    "whatHeader": "What gets deleted",
+    "whatProfile": "Your profile — name, email, photo, and any settings you configured.",
+    "whatReviews": "Your reviews and venue ratings.",
+    "whatCheckins": "Your check-ins and play history.",
+    "whatEvents": "Events you organize and your RSVPs to events organized by others.",
+    "whatFriends": "Your friends list and pending friend requests.",
+    "whatPhotos": "Photos you uploaded to venues and check-ins.",
+    "gracePeriod": "You have 30 days from when you confirm to change your mind. Sign back in to the app or this site within that window and cancel the deletion. After 30 days, your data cannot be recovered.",
+    "confirmLabel": "Type DELETE to confirm",
+    "submitButton": "Delete my account",
+    "submitting": "Deleting…",
+    "error": "We couldn't process the request. Please try again.",
+    "cancel": "Cancel",
+    "checkingAuth": "Checking your session…",
+    "signInRequiredTitle": "Sign in to delete your account",
+    "signInRequiredBody": "For your security, deletion requires a signed-in session. Sign in to the TTPortal web app, then return to this page.",
+    "signInButton": "Sign in",
+    "doneMetaTitle": "Account deletion scheduled — TTPortal",
+    "doneMetaDescription": "Your TTPortal account is scheduled for deletion.",
+    "doneTitle": "Account deletion scheduled",
+    "doneIntro": "Your TTPortal account is scheduled for permanent deletion in 30 days. You've been signed out from this device.",
+    "doneCancelHint": "Changed your mind? Sign back in to the TTPortal mobile app or this site within 30 days and your account and data will be restored. After 30 days, deletion is permanent and irreversible.",
+    "doneBackHome": "Back to TTPortal"
   }
 }

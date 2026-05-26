@@ -18,6 +18,7 @@ export default function ProtectedLayout() {
       <Stack.Screen name="create-event" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="event/[eventId]" />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="delete-account" />
       <Stack.Screen name="leaderboard" />
       <Stack.Screen name="player/[userId]" />
       <Stack.Screen name="event-feedback/[eventId]" options={{ animation: 'slide_from_bottom' }} />

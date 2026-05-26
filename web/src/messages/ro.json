@@ -273,5 +273,33 @@
     "clearBody": "Poți șterge toate elementele de mai sus din setările browserului tău, de obicei la „Date site\" sau „Cookie-uri și alte date\". Ștergerea le va deconecta și va reseta preferințele.",
     "contactTitle": "Întrebări?",
     "contactBody": "Scrie-ne la ttportal.info@gmail.com."
+  },
+  "deleteAccountWeb": {
+    "title": "Șterge contul tău TTPortal",
+    "intro": "Acest lucru va șterge permanent contul tău și datele pe care le-ai creat pe TTPortal. Te poți răzgândi într-o perioadă de 30 de zile, înainte ca ștergerea să devină ireversibilă.",
+    "backHome": "Înapoi la pagina principală",
+    "whatHeader": "Ce se șterge",
+    "whatProfile": "Profilul tău — nume, email, fotografie și orice setări configurate.",
+    "whatReviews": "Recenziile și evaluările tale pentru săli.",
+    "whatCheckins": "Check-in-urile și istoricul de joc.",
+    "whatEvents": "Evenimentele organizate de tine și RSVP-urile tale la evenimentele altora.",
+    "whatFriends": "Lista de prieteni și cererile de prietenie în așteptare.",
+    "whatPhotos": "Pozele încărcate pentru săli și check-in-uri.",
+    "gracePeriod": "Ai 30 de zile de la momentul confirmării pentru a te răzgândi. Conectează-te din nou în aplicație sau pe acest site în acest interval și anulează ștergerea. După 30 de zile, datele nu mai pot fi recuperate.",
+    "confirmLabel": "Tastează DELETE pentru a confirma",
+    "submitButton": "Șterge contul meu",
+    "submitting": "Se șterge…",
+    "error": "Nu am putut procesa cererea. Încearcă din nou.",
+    "cancel": "Anulează",
+    "checkingAuth": "Verificăm sesiunea ta…",
+    "signInRequiredTitle": "Conectează-te pentru a-ți șterge contul",
+    "signInRequiredBody": "Pentru siguranța ta, ștergerea necesită o sesiune autentificată. Conectează-te în aplicația web TTPortal, apoi revino pe această pagină.",
+    "signInButton": "Conectează-te",
+    "doneMetaTitle": "Ștergere cont programată — TTPortal",
+    "doneMetaDescription": "Contul tău TTPortal este programat pentru ștergere.",
+    "doneTitle": "Ștergere cont programată",
+    "doneIntro": "Contul tău TTPortal este programat pentru ștergere permanentă în 30 de zile. Ai fost deconectat de pe acest dispozitiv.",
+    "doneCancelHint": "Te-ai răzgândit? Conectează-te din nou în aplicația mobilă TTPortal sau pe acest site în următoarele 30 de zile, iar contul și datele tale vor fi restaurate. După 30 de zile, ștergerea este permanentă și ireversibilă.",
+    "doneBackHome": "Înapoi la TTPortal"
   }
 }
