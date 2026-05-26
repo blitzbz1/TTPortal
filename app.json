@@ -9,7 +9,15 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ttportal.app"
+      "bundleIdentifier": "com.ttportal.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "TTPortal uses the camera so you can take photos of venues and table conditions to share in your reviews and check-ins.",
+        "NSPhotoLibraryUsageDescription": "TTPortal accesses your photo library so you can attach existing photos to venue reviews and check-ins.",
+        "NSLocationWhenInUseUsageDescription": "TTPortal uses your location to show table tennis venues near you, suggest the closest places to play, and help you check in where you are.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "TTPortal uses your location to show table tennis venues near you, suggest the closest places to play, and help you check in where you are.",
+        "NSLocationAlwaysUsageDescription": "TTPortal uses your location to show table tennis venues near you and help you check in where you are.",
+        "NSMicrophoneUsageDescription": "TTPortal needs microphone access only if you record a video to attach to a venue review. Photo-only uploads do not use the microphone."
+      }
     },
     "android": {
       "icon": "./assets/images/icon.png",
@@ -19,7 +27,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "package": "com.ttportal.app"
+      "package": "com.ttportal.app",
+      "blockedPermissions": ["com.google.android.gms.permission.AD_ID"]
     },
     "web": {
       "bundler": "metro",
@@ -51,6 +60,9 @@
     "experiments": {
       "typedRoutes": true
     },
-    "newArchEnabled": true
+    "newArchEnabled": true,
+    "extra": {
+      "marketingSiteUrl": "https://ttportal.ro"
+    }
   }
 }

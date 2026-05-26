@@ -20,9 +20,7 @@ import { Fonts, Radius } from '../theme';
 import { Lucide } from '../components/Icon';
 import { logger } from '../lib/logger';
 import { isValidEmail, isStrongPassword, mapAuthErrorToKey, sanitizeRoute } from '../lib/auth-utils';
-
-const TERMS_URL = 'https://ttportal.ro/terms';
-const PRIVACY_URL = 'https://ttportal.ro/privacy';
+import { getPolicyUrl } from '../lib/policyUrls';
 
 export default function SignInScreen() {
   const { returnTo, initialTab } = useLocalSearchParams<{
@@ -48,6 +46,7 @@ export default function SignInScreen() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
 
   const handleTabSwitch = useCallback(
     (tab: 'signup' | 'login') => {
@@ -55,6 +54,7 @@ export default function SignInScreen() {
       setError(null);
       setSuccessMessage(null);
       setPendingVerificationEmail(null);
+      if (tab === 'login') setAgeConfirmed(false);
     },
     [],
   );
@@ -342,14 +342,39 @@ export default function SignInScreen() {
             </View>
           )}
 
+          {/* Age confirmation (signup only) */}
+          {activeTab === 'signup' && (
+            <Pressable
+              onPress={() => setAgeConfirmed((v) => !v)}
+              style={styles.ageRow}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: ageConfirmed }}
+              testID="age-confirmation"
+            >
+              <View style={[styles.ageBox, ageConfirmed && styles.ageBoxChecked]}>
+                {ageConfirmed && (
+                  <Lucide
+                    name="check"
+                    size={14}
+                    color={isDark ? colors.black : colors.textOnPrimary}
+                  />
+                )}
+              </View>
+              <Text style={styles.ageLabel}>{s('authAgeConfirmation')}</Text>
+            </Pressable>
+          )}
+
           {/* Submit Button */}
           <Pressable
             onPress={handleSubmit}
-            disabled={loading}
+            disabled={loading || (activeTab === 'signup' && !ageConfirmed)}
             accessibilityRole="button"
             accessibilityLabel={activeTab === 'signup' ? s('authSubmitSignup') : s('authSubmitLogin')}
             testID="submit-button"
-            style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+            style={[
+              styles.submitBtn,
+              (loading || (activeTab === 'signup' && !ageConfirmed)) && styles.submitBtnDisabled,
+            ]}
           >
             {loading ? (
               <ActivityIndicator size="small" color={isDark ? colors.black : colors.textOnPrimary} testID="loading-spinner" />
@@ -402,7 +427,7 @@ export default function SignInScreen() {
               {s('authTermsPrefix')}
               <Text
                 style={styles.termsLink}
-                onPress={() => Linking.openURL(TERMS_URL)}
+                onPress={() => Linking.openURL(getPolicyUrl(lang, 'terms'))}
                 accessibilityRole="link"
                 testID="terms-link"
               >
@@ -411,7 +436,7 @@ export default function SignInScreen() {
               {s('authTermsConnector')}
               <Text
                 style={styles.termsLink}
-                onPress={() => Linking.openURL(PRIVACY_URL)}
+                onPress={() => Linking.openURL(getPolicyUrl(lang, 'privacy'))}
                 accessibilityRole="link"
                 testID="privacy-link"
               >
@@ -587,6 +612,32 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       fontSize: 13,
       fontWeight: '700',
       color: isDark ? colors.primary : colors.primaryLight,
+    },
+    ageRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 4,
+    },
+    ageBox: {
+      width: 20,
+      height: 20,
+      borderRadius: 4,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.bg,
+    },
+    ageBoxChecked: {
+      backgroundColor: submitBg,
+      borderColor: submitBg,
+    },
+    ageLabel: {
+      flex: 1,
+      fontFamily: Fonts.body,
+      fontSize: 14,
+      color: colors.text,
     },
     submitBtn: {
       flexDirection: 'row',

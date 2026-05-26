@@ -11,11 +11,12 @@ import { useI18n } from '../hooks/useI18n';
 import { getProfile, updateProfile } from '../services/profiles';
 import { NotificationInboxModal, type NotificationInboxModalRef } from '../components/NotificationInboxModal';
 import { LanguagePicker } from '../components/LanguagePicker';
+import { getPolicyUrl } from '../lib/policyUrls';
 
 export function SettingsScreen() {
   const router = useRouter();
   const { user } = useSession();
-  const { s } = useI18n();
+  const { s, lang } = useI18n();
   const { colors, mode, setMode, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -102,13 +103,52 @@ export function SettingsScreen() {
           </View>
         </View>
 
-        {/* Privacy */}
+        {/* App permissions (OS settings) */}
         <TouchableOpacity style={styles.row} onPress={() => Linking.openSettings()}>
           <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>
             <Lucide name="shield" size={18} color={colors.textMuted} />
           </View>
-          <Text style={styles.rowLabel}>{s('privacy')}</Text>
+          <Text style={styles.rowLabel}>{s('appPermissions')}</Text>
           <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+        </TouchableOpacity>
+
+        {/* Legal */}
+        <Text style={styles.sectionHeader}>{s('legal')}</Text>
+
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => Linking.openURL(getPolicyUrl(lang, 'privacy'))}
+          testID="settings-privacy-policy"
+        >
+          <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>
+            <Lucide name="shield-check" size={18} color={colors.textMuted} />
+          </View>
+          <Text style={styles.rowLabel}>{s('privacyPolicy')}</Text>
+          <Lucide name="external-link" size={16} color={colors.textFaint} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => Linking.openURL(getPolicyUrl(lang, 'terms'))}
+          testID="settings-terms"
+        >
+          <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>
+            <Lucide name="file-text" size={18} color={colors.textMuted} />
+          </View>
+          <Text style={styles.rowLabel}>{s('termsOfService')}</Text>
+          <Lucide name="external-link" size={16} color={colors.textFaint} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => Linking.openURL(getPolicyUrl(lang, 'cookies'))}
+          testID="settings-cookies"
+        >
+          <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>
+            <Lucide name="cookie" size={18} color={colors.textMuted} />
+          </View>
+          <Text style={styles.rowLabel}>{s('cookiePolicy')}</Text>
+          <Lucide name="external-link" size={16} color={colors.textFaint} />
         </TouchableOpacity>
 
       </ScrollView>
@@ -142,6 +182,17 @@ function createStyles(colors: ThemeColors) {
     scroll: {
       flex: 1,
       paddingTop: Spacing.xs,
+    },
+    sectionHeader: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.semibold,
+      color: colors.textFaint,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase',
+      paddingTop: Spacing.lg,
+      paddingBottom: Spacing.xs,
+      paddingHorizontal: Spacing.md,
     },
     row: {
       flexDirection: 'row',

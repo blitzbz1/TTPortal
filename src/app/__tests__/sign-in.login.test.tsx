@@ -129,6 +129,7 @@ describe('SignInScreen — login form validation (T016)', () => {
 
     // Trigger a validation error on signup tab
     await user.type(getByTestId('input-email'), 'bad');
+    await user.press(getByTestId('age-confirmation'));
     await user.press(getByTestId('submit-button'));
     await waitFor(() => {
       expect(getByTestId('error-message')).toBeTruthy();

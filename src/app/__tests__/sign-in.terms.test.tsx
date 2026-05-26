@@ -108,7 +108,7 @@ describe('SignInScreen — Terms and Privacy links (T042)', () => {
 
     await user.press(getByTestId('terms-link'));
 
-    expect(Linking.openURL).toHaveBeenCalledWith('https://ttportal.ro/terms');
+    expect(Linking.openURL).toHaveBeenCalledWith('https://ttportal.ro/ro/terms');
     expect(Linking.openURL).toHaveBeenCalledTimes(1);
   });
 
@@ -118,7 +118,31 @@ describe('SignInScreen — Terms and Privacy links (T042)', () => {
 
     await user.press(getByTestId('privacy-link'));
 
-    expect(Linking.openURL).toHaveBeenCalledWith('https://ttportal.ro/privacy');
+    expect(Linking.openURL).toHaveBeenCalledWith('https://ttportal.ro/ro/privacy');
     expect(Linking.openURL).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the 16+ age confirmation on signup tab and hides it on login tab', async () => {
+    const { getByTestId, queryByTestId } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
+    expect(getByTestId('age-confirmation')).toBeTruthy();
+
+    await user.press(getByTestId('tab-login'));
+    expect(queryByTestId('age-confirmation')).toBeNull();
+  });
+
+  it('keeps the submit button disabled on signup until the age checkbox is ticked', async () => {
+    const { getByTestId } = render(<SignInScreen />);
+    fireEvent.press(getByTestId('tab-signup'));
+
+    expect(
+      getByTestId('submit-button').props.accessibilityState?.disabled,
+    ).toBe(true);
+
+    await user.press(getByTestId('age-confirmation'));
+
+    expect(
+      getByTestId('submit-button').props.accessibilityState?.disabled ?? false,
+    ).toBe(false);
   });
 });

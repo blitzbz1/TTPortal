@@ -43,7 +43,7 @@ jest.mock('../../hooks/useTheme', () => ({
  
 import SignInScreen from '../sign-in';
 
-/** Fills the signup form with valid data and presses submit. */
+/** Fills the signup form with valid data, confirms 16+ age, and presses submit. */
 async function fillAndSubmit(
   getByTestId: ReturnType<typeof render>['getByTestId'],
   user: ReturnType<typeof userEvent.setup>,
@@ -51,6 +51,7 @@ async function fillAndSubmit(
   await user.type(getByTestId('input-name'), 'John Doe');
   await user.type(getByTestId('input-email'), 'john@example.com');
   await user.type(getByTestId('input-password'), 'Password1');
+  await user.press(getByTestId('age-confirmation'));
   await user.press(getByTestId('submit-button'));
 }
 
@@ -185,6 +186,7 @@ describe('SignInScreen — registration flow (T013)', () => {
     await user.type(getByTestId('input-name'), 'John Doe');
     await user.type(getByTestId('input-email'), 'john@example.com');
     await user.type(getByTestId('input-password'), 'Password1');
+    await user.press(getByTestId('age-confirmation'));
 
     // Press submit — signUp is now pending
     await user.press(getByTestId('submit-button'));

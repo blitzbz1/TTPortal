@@ -79,6 +79,7 @@ describe('SignInScreen — registration form validation (T012)', () => {
     // Fill email and password but leave name empty
     await user.type(getByTestId('input-email'), 'test@example.com');
     await user.type(getByTestId('input-password'), 'Password1');
+    await user.press(getByTestId('age-confirmation'));
     await user.press(getByTestId('submit-button'));
 
     await waitFor(() => {
@@ -94,6 +95,7 @@ describe('SignInScreen — registration form validation (T012)', () => {
     await user.type(getByTestId('input-name'), 'John Doe');
     await user.type(getByTestId('input-email'), 'not-an-email');
     await user.type(getByTestId('input-password'), 'Password1');
+    await user.press(getByTestId('age-confirmation'));
     await user.press(getByTestId('submit-button'));
 
     await waitFor(() => {
@@ -109,6 +111,7 @@ describe('SignInScreen — registration form validation (T012)', () => {
     await user.type(getByTestId('input-name'), 'John Doe');
     await user.type(getByTestId('input-email'), 'test@example.com');
     await user.type(getByTestId('input-password'), 'short');
+    await user.press(getByTestId('age-confirmation'));
     await user.press(getByTestId('submit-button'));
 
     await waitFor(() => {
@@ -124,6 +127,7 @@ describe('SignInScreen — registration form validation (T012)', () => {
     await user.type(getByTestId('input-name'), 'John Doe');
     await user.type(getByTestId('input-email'), 'john@example.com');
     await user.type(getByTestId('input-password'), 'Password1');
+    await user.press(getByTestId('age-confirmation'));
     await user.press(getByTestId('submit-button'));
 
     await waitFor(() => {
