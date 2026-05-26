@@ -21,7 +21,8 @@ export default function Footer() {
     {
       title: t("legal"),
       links: [
-        { label: t("legalPrivacy"), href: "/" as const },
+        { label: t("legalPrivacy"), href: "/privacy" as const },
+        { label: t("legalCookies"), href: "/cookies" as const },
         { label: t("legalTerms"), href: "/" as const },
         { label: t("legalContact"), href: "/" as const },
       ],
