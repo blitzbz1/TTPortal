@@ -36,7 +36,7 @@ This document mirrors the answers required by the Google Play **Data safety** fo
 
 - *Does your app collect or share any of the required user data types?* **Yes — collect. No — share.**
 - *Is all of the user data collected by your app encrypted in transit?* **Yes.**
-- *Do you provide a way for users to request that their data is deleted?* **Yes — in-app under Settings → Delete account, and via the web at `https://ttportal.ro/{locale}/account/delete`.** (See `appstore_requirements.md` Phase 4 — implementation in progress as of this revision.)
+- *Do you provide a way for users to request that their data is deleted?* **Yes — in-app under Settings → Delete account, and via the web at `https://ttportal.org/{locale}/account/delete`.** (See `appstore_requirements.md` Phase 4 — implementation in progress as of this revision.)
 
 ---
 
@@ -117,7 +117,7 @@ Supabase encrypts all data at rest using AES-256 on managed storage. Backups inh
 Users can request deletion of their data in two ways:
 
 1. **In-app.** Settings → Delete account triggers a soft-delete with a 30-day grace period. After 30 days, all rows owned by the user (profile, check-ins, reviews, photos, friends, events, equipment) are hard-deleted via a Supabase scheduled job. Server logs (diagnostics) roll off independently at the 90-day retention boundary.
-2. **Web.** `https://ttportal.ro/{locale}/account/delete` (Next.js page, same RPC backend). Required by Google Play policy — must be reachable without installing the app.
+2. **Web.** `https://ttportal.org/{locale}/account/delete` (Next.js page, same RPC backend). Required by Google Play policy — must be reachable without installing the app.
 
 Both flows call the same Postgres RPC `request_account_deletion()`. Implementation detail: see `appstore_requirements.md` Phase 4 and `supabase/migrations/0XX_account_deletion.sql` once landed.
 
@@ -141,8 +141,8 @@ Both flows call the same Postgres RPC `request_account_deletion()`. Implementati
 ## Cross-references
 
 - **iOS Privacy Manifest** (`ios/TTPortal/PrivacyInfo.xcprivacy`) declares the same 8 collected data types with linked = true, tracking = false, purpose = App Functionality.
-- **Marketing-site Privacy Policy** at `https://ttportal.ro/{locale}/privacy` is the public-facing version of this document.
-- **Cookie Policy** at `https://ttportal.ro/{locale}/cookies` covers in-browser storage on the web app.
+- **Marketing-site Privacy Policy** at `https://ttportal.org/{locale}/privacy` is the public-facing version of this document.
+- **Cookie Policy** at `https://ttportal.org/{locale}/cookies` covers in-browser storage on the web app.
 
 ---
 

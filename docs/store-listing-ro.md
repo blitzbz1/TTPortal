@@ -64,13 +64,13 @@ Copie gata de lipit în Google Play Console (`ro-RO`) și App Store Connect (`ro
 *Aprox. 290 caractere.*
 
 ### URL suport
-> https://ttportal.ro/ro/support
+> https://ttportal.org/ro/support
 
 ### URL marketing
-> https://ttportal.ro/ro
+> https://ttportal.org/ro
 
 ### URL politică de confidențialitate
-> https://ttportal.ro/ro/privacy
+> https://ttportal.org/ro/privacy
 
 ### Categorie — Principală / Secundară
 > **Sport** / **Rețele sociale**
@@ -108,10 +108,10 @@ Copie gata de lipit în Google Play Console (`ro-RO`) și App Store Connect (`ro
 > ttportal.info@gmail.com
 
 ### Website
-> https://ttportal.ro
+> https://ttportal.org
 
 ### Politică de confidențialitate
-> https://ttportal.ro/ro/privacy
+> https://ttportal.org/ro/privacy
 
 ### Clasificare conținut
 > Rulează chestionarul de clasificare al Play Console. Rezultat așteptat: 13+. Conținut generat de utilizatori prezent; fără reclame; fără violență; fără achiziții în aplicație.
@@ -123,7 +123,7 @@ Copie gata de lipit în Google Play Console (`ro-RO`) și App Store Connect (`ro
 > Vezi `docs/data-safety.md` pentru răspunsurile de copiat în chestionarul Data safety din Play Console.
 
 ### Ștergere cont (câmp obligatoriu Google Play)
-> https://ttportal.ro/ro/account/delete
+> https://ttportal.org/ro/account/delete
 
 ### Guvern și alegeri
 > Neaplicabil.

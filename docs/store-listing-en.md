@@ -65,13 +65,13 @@ Copy ready to paste into Google Play Console and App Store Connect. Character co
 *Approx. 250 chars.*
 
 ### Support URL
-> https://ttportal.ro/support
+> https://ttportal.org/support
 
 ### Marketing URL
-> https://ttportal.ro
+> https://ttportal.org
 
 ### Privacy Policy URL
-> https://ttportal.ro/en/privacy
+> https://ttportal.org/en/privacy
 
 ### Category — Primary / Secondary
 > **Sports** / **Social Networking**
@@ -112,10 +112,10 @@ Copy ready to paste into Google Play Console and App Store Connect. Character co
 > ttportal.info@gmail.com
 
 ### Website
-> https://ttportal.ro
+> https://ttportal.org
 
 ### Privacy policy
-> https://ttportal.ro/en/privacy
+> https://ttportal.org/en/privacy
 
 ### Content rating
 > Run the Play Console content rating questionnaire. Expected outcome: Teen (13+). User-generated content present; no advertising; no violence; no in-app purchases.
@@ -127,7 +127,7 @@ Copy ready to paste into Google Play Console and App Store Connect. Character co
 > See `docs/data-safety.md` for the answers to copy into the Play Console Data safety questionnaire.
 
 ### Account deletion (Google Play required field)
-> https://ttportal.ro/en/account/delete
+> https://ttportal.org/en/account/delete
 
 ### Government and elections
 > Not applicable.

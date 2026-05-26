@@ -8,7 +8,7 @@ Tracking everything TTPortal needs before it can be submitted to Google Play and
 
 ## Open decisions (resolve as we go)
 
-- **Marketing-site domain.** Code currently hardcodes `https://ttportal.ro/...` in `src/app/sign-in.tsx:24-25` and in tests. The deployed site is at `https://blitzbz1.github.io/TTPortal/`. Plan assumes `ttportal.ro` will be configured as a GitHub Pages custom domain. Until then, links in the app will 404. **Action item:** set up DNS + `CNAME` file when ready. Not blocking phase 1 (we'll keep `ttportal.ro` URLs and document the dependency).
+- **Marketing-site domain.** Code currently hardcodes `https://ttportal.org/...` in `src/app/sign-in.tsx:24-25` and in tests. The deployed site is at `https://blitzbz1.github.io/TTPortal/`. Plan assumes `ttportal.org` will be configured as a GitHub Pages custom domain. Until then, links in the app will 404. **Action item:** set up DNS + `CNAME` file when ready. Not blocking phase 1 (we'll keep `ttportal.org` URLs and document the dependency).
 - **Minimum age.** Default in this plan: **16+** at signup (covers GDPR Art. 8 in all EU member states and avoids COPPA / kids-category requirements).
 - **Account deletion model.** Default in this plan: **soft-delete with 30-day grace period**, then hard-delete via scheduled job. User can cancel deletion within the grace period by signing in. Standard industry practice and gives a safety net for accidental deletions.
 - **Native folder strategy (`ios/`, `android/`).** Both directories are in `.gitignore` — they're treated as derived output from `expo prebuild`. This means the manual edits in Phases 1.4 (Info.plist), 1.5 (AndroidManifest.xml), and 2.1 (PrivacyInfo.xcprivacy) **will be regenerated** the next time anyone runs `expo prebuild --clean`. The `app.json` mirrors in 1.4 and 1.5 cover their cases, but `PrivacyInfo.xcprivacy` data types do not have an `app.json` config field exposed by Expo, so **Phase 2.1's content needs to either move into `ios.privacyManifests` in `app.json` (if Expo SDK 54 supports it) or `ios/` needs to be un-gitignored**. See Phase 2 follow-up below.
@@ -22,7 +22,7 @@ These are low-risk, high-ROI changes. Doing them first improves the app's compli
 ### 1.1 Update in-app Privacy/TOS URLs to be locale-aware
 - [x] Change `TERMS_URL` and `PRIVACY_URL` constants in `src/app/sign-in.tsx:24-25` to call a `getPolicyUrl(lang, kind)` helper that includes the current locale.
 - [x] Update the linked test `src/app/__tests__/sign-in.terms.test.tsx:111,121` to match.
-- [ ] Verify the URLs resolve once `ttportal.ro` is configured (manual step for the user).
+- [ ] Verify the URLs resolve once `ttportal.org` is configured (manual step for the user).
 - **Acceptance:** signup screen opens locale-appropriate policy URLs. ✅
 
 ### 1.2 Add marketing-site base URL to `app.json` extras
@@ -97,7 +97,7 @@ The largest single piece of work. Must work in-app AND via a web resource per Go
 - [x] New page `web/src/app/[locale]/account/delete/done/page.tsx` — confirmation page with cancel-hint copy.
 - [x] i18n namespace `deleteAccountWeb` added in `web/src/messages/{en,ro}.json`.
 - [x] Build verified — all 4 routes (`/en/account/delete`, `/ro/account/delete`, `/en/account/delete/done`, `/ro/account/delete/done`) generate as static HTML.
-- **Acceptance:** Play Console "Web URL for account deletion" can point to `https://ttportal.ro/{locale}/account/delete`. ✅
+- **Acceptance:** Play Console "Web URL for account deletion" can point to `https://ttportal.org/{locale}/account/delete`. ✅
 
 ### 4.2 Mobile UI: "Delete my account" flow
 - [ ] In `SettingsScreen.tsx`, add a destructive "Delete account" row at the bottom of Account section.
@@ -180,7 +180,7 @@ App Store §1.2 requires both features for any app that hosts user-generated con
 
 ### 7.3 Support infrastructure
 - [ ] Support email (`ttportal.info@gmail.com` — already chosen).
-- [ ] Support URL (`https://ttportal.ro/support` page on marketing site).
+- [ ] Support URL (`https://ttportal.org/support` page on marketing site).
 - [ ] Marketing URL.
 
 ---
@@ -198,7 +198,7 @@ App Store §1.2 requires both features for any app that hosts user-generated con
 (Each entry: date · phase/step · short note.)
 
 - 2026-05-26 · Plan created.
-- 2026-05-26 · Phase 1 (1.1 – 1.5) complete. New helper `src/lib/policyUrls.ts` centralizes URL construction. Settings now has Legal section. iOS permission strings are functional. Android AD_ID permission explicitly removed. Sign-in test green; i18n completeness test (42 cases) green; tsc clean. One manual follow-up: configure `ttportal.ro` DNS + GitHub Pages `CNAME` so the in-app links resolve.
+- 2026-05-26 · Phase 1 (1.1 – 1.5) complete. New helper `src/lib/policyUrls.ts` centralizes URL construction. Settings now has Legal section. iOS permission strings are functional. Android AD_ID permission explicitly removed. Sign-in test green; i18n completeness test (42 cases) green; tsc clean. One manual follow-up: configure `ttportal.org` DNS + GitHub Pages `CNAME` so the in-app links resolve.
 - 2026-05-26 · Phase 2 (2.1) complete. `PrivacyInfo.xcprivacy` now declares 8 data types collected (email, name, user-id, photos, location, UGC, product interaction, diagnostic). `plutil -lint` validates clean.
 - 2026-05-26 · Phase 3 (3.1) complete. Age gate added to signup; 45/45 sign-in tests green.
 - 2026-05-26 · Phase 6 (6.1) complete. `docs/data-safety.md` drafted for submission-time copy-paste.

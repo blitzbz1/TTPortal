@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 
-const DEFAULT_BASE_URL = 'https://ttportal.ro';
+const DEFAULT_BASE_URL = 'https://ttportal.org';
 
 export type PolicyKind = 'privacy' | 'terms' | 'cookies';
 

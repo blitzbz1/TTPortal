@@ -108,7 +108,7 @@ describe('SignInScreen — Terms and Privacy links (T042)', () => {
 
     await user.press(getByTestId('terms-link'));
 
-    expect(Linking.openURL).toHaveBeenCalledWith('https://ttportal.ro/ro/terms');
+    expect(Linking.openURL).toHaveBeenCalledWith('https://ttportal.org/ro/terms');
     expect(Linking.openURL).toHaveBeenCalledTimes(1);
   });
 
@@ -118,7 +118,7 @@ describe('SignInScreen — Terms and Privacy links (T042)', () => {
 
     await user.press(getByTestId('privacy-link'));
 
-    expect(Linking.openURL).toHaveBeenCalledWith('https://ttportal.ro/ro/privacy');
+    expect(Linking.openURL).toHaveBeenCalledWith('https://ttportal.org/ro/privacy');
     expect(Linking.openURL).toHaveBeenCalledTimes(1);
   });
 
