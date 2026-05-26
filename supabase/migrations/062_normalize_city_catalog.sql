@@ -21,7 +21,10 @@ BEGIN
   END
   LIMIT 1;
 
-  INSERT INTO public.cities (name, county, lat, lng, zoom, venue_count, active)
+  -- Originally written when cities.name was UNIQUE on its own. Migration
+  -- 066 changed that to UNIQUE (country_code, name), so this INSERT now
+  -- needs country_code set + the conflict target widened.
+  INSERT INTO public.cities (name, county, lat, lng, zoom, venue_count, active, country_code)
   VALUES (
     'Piatra Neamț',
     COALESCE(v_county, 'Neamț'),
@@ -29,9 +32,10 @@ BEGIN
     COALESCE(v_lng, 26.3770),
     COALESCE(v_zoom, 13),
     0,
-    true
+    true,
+    'RO'
   )
-  ON CONFLICT (name) DO UPDATE
+  ON CONFLICT (country_code, name) DO UPDATE
   SET county = COALESCE(public.cities.county, EXCLUDED.county),
       lat = COALESCE(public.cities.lat, EXCLUDED.lat),
       lng = COALESCE(public.cities.lng, EXCLUDED.lng),
