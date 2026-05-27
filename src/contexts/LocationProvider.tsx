@@ -43,6 +43,7 @@ export interface LocationContextValue {
   loadingCities: boolean;
   locationReady: boolean;
   hasCompletedInitialLocationSetup: boolean;
+  refreshCities: () => Promise<void>;
   setSelectedCountry: (country: Country | CountryCode) => void;
   setSelectedCity: (city: LocationCity | null) => void;
   completeInitialLocationSetup: () => void;
@@ -81,7 +82,7 @@ function incrementCityVisitCount(cityId: number): void {
 }
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {
-  const { data: cityRows, isLoading } = useCitiesQuery();
+  const { data: cityRows, isLoading, refreshCatalog } = useCitiesQuery();
   const [selectedCountry, setSelectedCountryState] = useState<Country>(loadCountry);
   const [selectedCityId, setSelectedCityId] = useState<number | null>(loadCityId);
   const [hasCompletedInitialLocationSetup, setHasCompletedInitialLocationSetup] = useState<boolean>(
@@ -157,6 +158,10 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     removeString(SETUP_DONE_KEY);
   }, []);
 
+  const refreshCities = useCallback(async () => {
+    await refreshCatalog();
+  }, [refreshCatalog]);
+
   const value = useMemo<LocationContextValue>(
     () => ({
       selectedCountry,
@@ -167,6 +172,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       loadingCities: isLoading && cityRowsCount === 0,
       locationReady,
       hasCompletedInitialLocationSetup,
+      refreshCities,
       setSelectedCountry,
       setSelectedCity,
       completeInitialLocationSetup,
@@ -182,6 +188,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       cityRowsCount,
       locationReady,
       hasCompletedInitialLocationSetup,
+      refreshCities,
       setSelectedCountry,
       setSelectedCity,
       completeInitialLocationSetup,

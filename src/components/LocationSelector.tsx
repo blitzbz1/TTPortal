@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -51,6 +51,7 @@ export function LocationSelector({
     activeCountries,
     activeCities,
     loadingCities,
+    refreshCities,
     setSelectedCity,
     completeInitialLocationSetup,
   } = useSelectedLocation();
@@ -60,6 +61,7 @@ export function LocationSelector({
   const [locating, setLocating] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const [countryPanelOpen, setCountryPanelOpen] = useState(false);
+  const wasVisibleRef = useRef(false);
   const hasSearchQuery = query.trim().length > 0;
   const cityVisitCounts = useMemo(() => readCityVisitCounts(), []);
 
@@ -91,6 +93,13 @@ export function LocationSelector({
 
   useEffect(() => {
     if (!visible) return;
+    void refreshCities();
+  }, [refreshCities, visible]);
+
+  useEffect(() => {
+    const justOpened = visible && !wasVisibleRef.current;
+    wasVisibleRef.current = visible;
+    if (!justOpened) return;
     setPendingCountry(ALL_COUNTRIES);
     setPendingCity(selectedCity);
     setQuery('');

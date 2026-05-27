@@ -6,6 +6,7 @@ import type { LocationCity } from '../../lib/locationTypes';
 
 const mockSetSelectedCity = jest.fn();
 const mockCompleteInitialLocationSetup = jest.fn();
+const mockRefreshCities = jest.fn(async () => {});
 
 function city(id: number, name: string, countryCode: string, countryName: string, venueCount: number): LocationCity {
   return {
@@ -66,6 +67,7 @@ jest.mock('../../hooks/useSelectedLocation', () => ({
     citiesForSelectedCountry: mockCrowdedRomania,
     loadingCities: false,
     hasCompletedInitialLocationSetup: true,
+    refreshCities: mockRefreshCities,
     setSelectedCountry: jest.fn(),
     setSelectedCity: mockSetSelectedCity,
     completeInitialLocationSetup: mockCompleteInitialLocationSetup,
@@ -103,5 +105,13 @@ describe('LocationSelector', () => {
 
     expect(getAllByText('Lyon').length).toBeGreaterThan(0);
     expect(getAllByText('Paris').length).toBeGreaterThan(0);
+  });
+
+  it('refreshes the city catalog when opened', () => {
+    render(
+      <LocationSelector visible mode="switcher" onClose={jest.fn()} />,
+    );
+
+    expect(mockRefreshCities).toHaveBeenCalledTimes(1);
   });
 });

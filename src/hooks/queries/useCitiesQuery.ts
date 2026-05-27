@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { applyCitiesDelta, readCities, type PersistedCity } from '../../lib/citiesPersistentCache';
 import { cleanCityCatalog } from '../../lib/cityCatalog';
 import { getCitiesDelta } from '../../services/citiesDelta';
@@ -12,7 +13,8 @@ export const citiesQueryKey = ['cities', 'delta'] as const;
  * ships zero or one row. Cache survives app restarts (MMKV).
  */
 export function useCitiesQuery() {
-  return useQuery<PersistedCity[]>({
+  const queryClient = useQueryClient();
+  const query = useQuery<PersistedCity[]>({
     queryKey: citiesQueryKey,
     queryFn: async () => {
       const cached = readCities();
@@ -37,4 +39,25 @@ export function useCitiesQuery() {
     refetchOnMount: true,
     gcTime: 24 * 60 * 60 * 1000,
   });
+
+  const refreshCatalog = useCallback(async () => {
+    const { data, error } = await getCitiesDelta(null);
+    if (error || !data) {
+      if (query.data) return query.data;
+      throw error ?? new Error('cities full refresh failed and no cache');
+    }
+    const next = applyCitiesDelta(
+      data.upserts ?? [],
+      data.tombstone_ids ?? [],
+      data.synced_at,
+    );
+    const cleaned = cleanCityCatalog(next.cities);
+    queryClient.setQueryData(citiesQueryKey, cleaned);
+    return cleaned;
+  }, [query.data, queryClient]);
+
+  return {
+    ...query,
+    refreshCatalog,
+  };
 }

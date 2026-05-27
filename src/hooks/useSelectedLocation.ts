@@ -13,6 +13,7 @@ export function useSelectedLocation() {
     loadingCities: false,
     locationReady: true,
     hasCompletedInitialLocationSetup: true,
+    refreshCities: async () => {},
     setSelectedCountry: () => {},
     setSelectedCity: () => {},
     completeInitialLocationSetup: () => {},

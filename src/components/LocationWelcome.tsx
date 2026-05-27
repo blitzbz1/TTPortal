@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -39,6 +39,7 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
     activeCountries,
     activeCities,
     loadingCities,
+    refreshCities,
     setSelectedCity,
     completeInitialLocationSetup,
   } = useSelectedLocation();
@@ -72,6 +73,11 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
 
   const [pendingCityId, setPendingCityId] = useState<number | null>(null);
   const pendingCity = cities.find((city) => city.id === pendingCityId) ?? cities[0] ?? null;
+
+  useEffect(() => {
+    if (!visible) return;
+    void refreshCities();
+  }, [refreshCities, visible]);
 
   const chooseCountry = (country: Country | 'ALL') => {
     setPendingCountry(country === 'ALL' ? ALL_COUNTRIES : country);
