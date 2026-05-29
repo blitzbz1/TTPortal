@@ -326,6 +326,8 @@
   "privacyPolicy": "Privacy Policy",
   "termsOfService": "Terms of Service",
   "cookiePolicy": "Cookie Policy",
+  "dataSources": "Data sources",
+  "dataSourcesBody": "Map and venue data © OpenStreetMap contributors (ODbL), Overture Maps, and GeoNames (CC BY 4.0).",
   "dangerZone": "Danger zone",
   "deleteAccount": "Delete account",
   "deleteAccountTitle": "Delete account",

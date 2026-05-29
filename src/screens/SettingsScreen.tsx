@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -149,6 +149,18 @@ export function SettingsScreen() {
           </View>
           <Text style={styles.rowLabel}>{s('cookiePolicy')}</Text>
           <Lucide name="external-link" size={16} color={colors.textFaint} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => Alert.alert(s('dataSources'), s('dataSourcesBody'))}
+          testID="settings-data-sources"
+        >
+          <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>
+            <Lucide name="map" size={18} color={colors.textMuted} />
+          </View>
+          <Text style={styles.rowLabel}>{s('dataSources')}</Text>
+          <Lucide name="chevron-right" size={16} color={colors.textFaint} />
         </TouchableOpacity>
 
         {/* Privacy */}
