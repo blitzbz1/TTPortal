@@ -13,7 +13,7 @@ import {
   DMSans_400Regular,
   DMSans_500Medium,
 } from '@expo-google-fonts/dm-sans';
-import { Stack, useGlobalSearchParams } from 'expo-router';
+import { Stack, useGlobalSearchParams, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -105,6 +105,7 @@ function RootNavigator() {
     resetInitialLocationSetup,
   } = useSelectedLocation();
   const searchParams = useGlobalSearchParams();
+  const pathname = usePathname();
   const { isDark, colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [urlForcesInitialLocation, setUrlForcesInitialLocation] = useState(
@@ -172,7 +173,15 @@ function RootNavigator() {
   }, []);
 
   const initialLocationGateReady = forceInitialLocationPreview || splashDone;
-  const showInitialLocation = initialLocationGateReady && (!hasCompletedInitialLocationSetup || forceInitialLocationPreview);
+  const isAuthRoute =
+    pathname === '/sign-in' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password' ||
+    pathname === '/auth/callback';
+  const showInitialLocation =
+    !isAuthRoute &&
+    initialLocationGateReady &&
+    (!hasCompletedInitialLocationSetup || forceInitialLocationPreview);
 
   const nav = appReady ? (
     showInitialLocation ? (

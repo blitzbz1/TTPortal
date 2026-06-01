@@ -223,6 +223,15 @@ export default function ResetPasswordScreen() {
       }
 
       if (!recovery.code) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (cancelled) return;
+
+        if (sessionData.session) {
+          logger.info('reset password session already active');
+          setTokenStatus('valid');
+          return;
+        }
+
         setTokenStatus('expired');
         return;
       }

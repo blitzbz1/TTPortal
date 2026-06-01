@@ -267,6 +267,25 @@ describe('ResetPasswordScreen — T040', () => {
     expect(mockExchangeCodeForSession).not.toHaveBeenCalled();
   });
 
+  it('accepts an already-restored recovery session after auth callback redirects', async () => {
+    mockSearchParams = {};
+    mockGetSession.mockResolvedValueOnce({
+      data: { session: { access_token: 'restored-token' } },
+      error: null,
+    });
+
+    const { getByTestId } = render(<ResetPasswordScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('input-new-password')).toBeTruthy();
+    });
+
+    expect(mockGetSession).toHaveBeenCalled();
+    expect(mockExchangeCodeForSession).not.toHaveBeenCalled();
+    expect(mockSetSession).not.toHaveBeenCalled();
+    expect(mockVerifyOtp).not.toHaveBeenCalled();
+  });
+
   it('accepts Supabase recovery token_hash links', async () => {
     mockSearchParams = {
       token_hash: 'recovery-token-hash',

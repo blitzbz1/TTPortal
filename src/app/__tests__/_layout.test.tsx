@@ -11,6 +11,8 @@ jest.mock('react-native-gesture-handler', () => {
 const mockUseSession = jest.fn();
 const mockStackScreenNames: string[] = [];
 let mockGlobalSearchParams: Record<string, string> = {};
+let mockPathname = '/';
+const mockUseSelectedLocation = jest.fn();
 
 jest.mock('../../hooks/useSession', () => ({
   useSession: () => mockUseSession(),
@@ -44,10 +46,7 @@ jest.mock('../../contexts/LocationProvider', () => {
 });
 
 jest.mock('../../hooks/useSelectedLocation', () => ({
-  useSelectedLocation: () => ({
-    hasCompletedInitialLocationSetup: true,
-    resetInitialLocationSetup: jest.fn(),
-  }),
+  useSelectedLocation: () => mockUseSelectedLocation(),
 }));
 
 const mockUseFonts = jest.fn<[boolean, Error | null], []>();
@@ -73,6 +72,7 @@ jest.mock('expo-router', () => {
   return {
     Stack: StackComponent,
     useGlobalSearchParams: () => mockGlobalSearchParams,
+    usePathname: () => mockPathname,
     ErrorBoundary: () => null,
   };
 });
@@ -139,6 +139,11 @@ describe('RootLayout', () => {
     });
     mockUseFonts.mockReturnValue([true, null]);
     mockGlobalSearchParams = {};
+    mockPathname = '/';
+    mockUseSelectedLocation.mockReturnValue({
+      hasCompletedInitialLocationSetup: true,
+      resetInitialLocationSetup: jest.fn(),
+    });
   });
 
   describe('loading state', () => {
@@ -219,6 +224,19 @@ describe('RootLayout', () => {
 
       getByTestId('initial-location-setup-modal');
       expect(queryByTestId('stack-navigator')).toBeNull();
+    });
+
+    it('keeps reset password route visible even before initial location setup', () => {
+      mockPathname = '/reset-password';
+      mockUseSelectedLocation.mockReturnValueOnce({
+        hasCompletedInitialLocationSetup: false,
+        resetInitialLocationSetup: jest.fn(),
+      });
+
+      const { getByTestId, queryByTestId } = render(<RootLayout />);
+
+      getByTestId('stack-navigator');
+      expect(queryByTestId('initial-location-setup-modal')).toBeNull();
     });
   });
 
