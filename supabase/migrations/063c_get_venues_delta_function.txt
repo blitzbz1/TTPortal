@@ -1,0 +1,78 @@
+DROP FUNCTION IF EXISTS public.get_venues_delta(TIMESTAMPTZ, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.get_venues_delta(TIMESTAMPTZ, TEXT, TEXT, INTEGER);
+
+CREATE OR REPLACE FUNCTION public.get_venues_delta(
+  p_since   TIMESTAMPTZ DEFAULT NULL,
+  p_city    TEXT        DEFAULT NULL,
+  p_type    TEXT        DEFAULT NULL,
+  p_city_id INTEGER     DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_now        TIMESTAMPTZ := now();
+  v_upserts    JSONB;
+  v_tombstones JSONB;
+BEGIN
+  SELECT COALESCE(jsonb_agg(to_jsonb(v) ORDER BY (v->>'updated_at') DESC), '[]'::jsonb)
+  INTO v_upserts
+  FROM (
+    SELECT to_jsonb(rec) AS v
+    FROM (
+      SELECT
+        id,
+        name,
+        type,
+        city,
+        city_id,
+        address,
+        lat,
+        lng,
+        tables_count,
+        condition,
+        free_access,
+        night_lighting,
+        nets,
+        verified,
+        approved,
+        updated_at,
+        created_at
+      FROM public.venues
+      WHERE approved = true
+        AND (p_since IS NULL OR updated_at > p_since)
+        AND (p_city_id IS NULL OR city_id = p_city_id)
+        AND (p_city IS NULL OR city = p_city)
+        AND (p_type IS NULL OR type = p_type)
+    ) rec
+  ) src;
+
+  SELECT COALESCE(jsonb_agg(DISTINCT t.venue_id), '[]'::jsonb)
+  INTO v_tombstones
+  FROM (
+    SELECT venue_id
+    FROM public.venue_tombstones
+    WHERE p_since IS NULL OR deleted_at > p_since
+    UNION ALL
+    SELECT id AS venue_id
+    FROM public.venues
+    WHERE approved = false
+      AND (p_since IS NULL OR updated_at > p_since)
+      AND (p_city_id IS NULL OR city_id = p_city_id)
+      AND (p_city IS NULL OR city = p_city)
+      AND (p_type IS NULL OR type = p_type)
+  ) t;
+
+  RETURN jsonb_build_object(
+    'upserts',        v_upserts,
+    'tombstone_ids',  v_tombstones,
+    'synced_at',      v_now
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_venues_delta(TIMESTAMPTZ, TEXT, TEXT, INTEGER)
+  TO authenticated, anon;

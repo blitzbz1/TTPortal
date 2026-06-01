@@ -1,0 +1,26 @@
+# E2E Test: Leaderboard Screen
+# Verifies leaderboard display and tab switching
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+- runFlow: ../helpers/login.yaml
+
+# Navigate to leaderboard tab
+- tapOn: "Clasament"
+- extendedWaitUntil:
+    visible: "Check-ins"
+    timeout: 5000
+
+# --- Reviews Tab ---
+- tapOn: "Recenzii"
+
+# --- Locations Tab ---
+- tapOn: "Locații"
+
+# --- Switch back to Check-ins ---
+- tapOn: "Check-ins"

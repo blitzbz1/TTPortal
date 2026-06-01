@@ -1,0 +1,34 @@
+# E2E Test: Add Venue Flow (Protected)
+# Verifies add venue form fields and cancel navigation
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+- runFlow: ../helpers/login.yaml
+
+# After login, user is already on the map. Tap "Adaugă" to open add venue.
+- tapOn: "Adaugă"
+
+# Wait for add venue screen
+- extendedWaitUntil:
+    visible: "Adaugă locație"
+    timeout: 5000
+
+# Verify form fields
+- assertVisible: "NUME LOCAȚIE *"
+- assertVisible: "TIP"
+- assertVisible: "NR. MESE"
+- assertVisible: "ORAȘ *"
+- assertVisible: "ADRESĂ *"
+
+# Test cancel button - return to map
+- tapOn: "Anulează"
+
+# Should go back to map
+- extendedWaitUntil:
+    visible: "TT PORTAL"
+    timeout: 5000

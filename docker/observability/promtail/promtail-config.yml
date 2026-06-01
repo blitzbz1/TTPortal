@@ -1,0 +1,42 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: supabase_edge_functions
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: name
+            values: ["supabase_edge_runtime"]
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'stream'
+      - target_label: 'job'
+        replacement: 'supabase_edge_functions'
+    pipeline_stages:
+      # Supabase Edge Runtime prepends each line with a level tag like
+      # "[Info] {json...}". Strip it so the JSON stage can parse the
+      # structured body emitted by createLogger().
+      - regex:
+          expression: '^\[\w+\]\s+(?P<json_msg>\{.*\})\s*$'
+      - json:
+          expressions:
+            level: level
+            function: function
+            type: '"data".type'
+          source: json_msg
+      - labels:
+          level:
+          function:
+          type:

@@ -1,0 +1,48 @@
+# E2E Test: Venue Check-in Flow
+# Verifies checking in at a venue from the detail screen
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+- runFlow: ../helpers/login.yaml
+
+# Wait for venues to load
+- extendedWaitUntil:
+    visible:
+      id: "venues-count"
+    timeout: 10000
+
+# Tap a specific venue
+- tapOn: "ACS TT Energy Brașov"
+
+# Wait for venue detail
+- extendedWaitUntil:
+    visible: "Înapoi"
+    timeout: 5000
+
+# Scroll to check-in section
+- scrollUntilVisible:
+    element: "Check-in aici"
+    direction: DOWN
+    timeout: 5000
+
+# Verify friends here section
+- assertVisible: "Prieteni aici acum"
+
+# Tap check-in button
+- tapOn: "Check-in aici"
+
+# Wait for success alert
+- extendedWaitUntil:
+    visible: "OK"
+    timeout: 10000
+
+# Dismiss alert
+- tapOn: "OK"
+
+# Go back
+- tapOn: "Înapoi"

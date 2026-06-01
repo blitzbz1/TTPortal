@@ -1,0 +1,6 @@
+# Maestro E2E Test Configuration
+# App: TT Portal (Table Tennis Romania)
+# Platform: iOS Simulator
+
+appId: com.ttportal.app
+name: TTPortal E2E Tests

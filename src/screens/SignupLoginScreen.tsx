@@ -1,0 +1,315 @@
+import React, { useState, useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Lucide } from '../components/Icon';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeColors } from '../theme';
+import { Fonts, FontSize, FontWeight, Spacing, Radius } from '../theme';
+
+type AuthTab = 'signup' | 'login';
+
+export function SignupLoginScreen() {
+  const [activeTab, setActiveTab] = useState<AuthTab>('signup');
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.content}>
+        {/* Top Branding */}
+        <View style={styles.branding}>
+          <Text style={styles.subtitle}>Mese Tenis Rom&#226;nia</Text>
+          <Text style={styles.logo}>TT PORTAL</Text>
+          <Text style={styles.tagline}>
+            G&#259;se&#537;te o mas&#259; de tenis.{'\n'}Joac&#259; cu prietenii.
+          </Text>
+        </View>
+
+        {/* Auth Form */}
+        <View style={styles.form}>
+          {/* Tabs */}
+          <View style={styles.authTabs}>
+            <TouchableOpacity
+              style={[styles.authTab, activeTab === 'signup' && styles.authTabActive]}
+              onPress={() => setActiveTab('signup')}
+            >
+              <Text style={[styles.authTabText, activeTab === 'signup' && styles.authTabTextActive]}>
+                &#206;nregistrare
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.authTab, activeTab === 'login' && styles.authTabActive]}
+              onPress={() => setActiveTab('login')}
+            >
+              <Text style={[styles.authTabText, activeTab === 'login' && styles.authTabTextActive]}>
+                Conectare
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Name Field (signup only) */}
+          {activeTab === 'signup' && (
+            <View style={styles.inputField}>
+              <Lucide name="user" size={18} color={colors.textFaint} />
+              <Text style={styles.inputPlaceholder}>Nume complet</Text>
+            </View>
+          )}
+
+          {/* Email Field */}
+          <View style={styles.inputField}>
+            <Lucide name="mail" size={18} color={colors.textFaint} />
+            <Text style={styles.inputPlaceholder}>Email</Text>
+          </View>
+
+          {/* Password Field */}
+          <View style={styles.inputField}>
+            <Lucide name="lock" size={18} color={colors.textFaint} />
+            <Text style={[styles.inputPlaceholder, { flex: 1 }]}>Parol&#259;</Text>
+            <Lucide name="eye-off" size={18} color={colors.textFaint} />
+          </View>
+
+          {/* Submit Button */}
+          <TouchableOpacity style={styles.submitBtn}>
+            <Text style={styles.submitText}>
+              {activeTab === 'signup' ? 'Creeaz&#259; cont' : 'Conectare'}
+            </Text>
+            <Lucide name="arrow-right" size={20} color={colors.textOnPrimary} />
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>sau</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Social Buttons */}
+          <View style={styles.socialRow}>
+            <TouchableOpacity style={styles.googleBtn}>
+              <Text style={styles.googleIcon}>G</Text>
+              <Text style={styles.googleText}>Google</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.appleBtn}>
+              <Lucide name="apple" size={20} color={colors.textOnPrimary} />
+              <Text style={styles.appleText}>Apple</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Bottom Section */}
+        <View style={styles.bottom}>
+          <Text style={styles.terms}>
+            Prin &#238;nregistrare, accep&#539;i Termenii &#537;i condi&#539;iile{'\n'}
+            &#537;i Politica de confiden&#539;ialitate
+          </Text>
+          <View style={styles.langRow}>
+            <TouchableOpacity style={styles.langActive}>
+              <Text style={styles.langActiveText}>RO</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.langInactive}>
+              <Text style={styles.langInactiveText}>EN</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.primary,
+    },
+    content: {
+      flex: 1,
+      justifyContent: 'space-between',
+      paddingTop: 60,
+      paddingBottom: Spacing.xxl,
+      paddingHorizontal: 28,
+    },
+    branding: {
+      alignItems: 'center',
+      gap: Spacing.sm,
+    },
+    subtitle: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.medium,
+      color: colors.primaryDim,
+      opacity: 0.7,
+    },
+    logo: {
+      fontFamily: Fonts.heading,
+      fontSize: 42,
+      fontWeight: FontWeight.extrabold,
+      color: colors.textOnPrimary,
+    },
+    tagline: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.xl,
+      color: colors.primaryDim,
+      textAlign: 'center',
+      width: 260,
+    },
+    form: {
+      gap: 14,
+    },
+    authTabs: {
+      flexDirection: 'row',
+      backgroundColor: colors.authInputBg,
+      borderRadius: 12,
+    },
+    authTab: {
+      flex: 1,
+      height: 42,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 12,
+    },
+    authTabActive: {
+      backgroundColor: colors.bgAlt,
+    },
+    authTabText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.medium,
+      color: colors.primaryDim,
+    },
+    authTabTextActive: {
+      color: colors.primary,
+      fontWeight: FontWeight.semibold,
+    },
+    inputField: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.authInputBg,
+      borderRadius: Radius.md,
+      height: 48,
+      paddingHorizontal: 14,
+      gap: 10,
+    },
+    inputPlaceholder: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.lg,
+      color: colors.textFaint,
+    },
+    submitBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primaryLight,
+      borderRadius: 12,
+      height: 50,
+      gap: Spacing.xs,
+    },
+    submitText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.xl,
+      fontWeight: FontWeight.bold,
+      color: colors.textOnPrimary,
+    },
+    divider: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      paddingVertical: 4,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: colors.authInputBg,
+    },
+    dividerText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.medium,
+      color: colors.textFaint,
+    },
+    socialRow: {
+      flexDirection: 'row',
+      gap: Spacing.sm,
+    },
+    googleBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.bgAlt,
+      borderRadius: Radius.md,
+      height: 46,
+      gap: Spacing.xs,
+    },
+    googleIcon: {
+      fontFamily: Fonts.heading,
+      fontSize: FontSize.xxl,
+      fontWeight: FontWeight.extrabold,
+      color: colors.primary,
+    },
+    googleText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
+      color: colors.primary,
+    },
+    appleBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: Radius.md,
+      height: 46,
+      gap: 8,
+      borderWidth: 1,
+      borderColor: colors.primaryDim,
+    },
+    appleText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.semibold,
+      color: colors.textOnPrimary,
+    },
+    bottom: {
+      alignItems: 'center',
+      gap: Spacing.md,
+    },
+    terms: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      color: colors.textFaint,
+      textAlign: 'center',
+      width: 280,
+    },
+    langRow: {
+      flexDirection: 'row',
+      gap: Spacing.xxs,
+    },
+    langActive: {
+      backgroundColor: colors.bgAlt,
+      borderRadius: 14,
+      width: 36,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    langActiveText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.bold,
+      color: colors.primary,
+    },
+    langInactive: {
+      borderRadius: 14,
+      width: 36,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    langInactiveText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.medium,
+      color: colors.textFaint,
+    },
+  });
+}

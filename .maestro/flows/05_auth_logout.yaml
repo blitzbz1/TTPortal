@@ -1,0 +1,38 @@
+# E2E Test: Logout Flow
+# Verifies sign out from profile screen
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+- runFlow: ../helpers/login.yaml
+
+# Navigate to profile tab
+- tapOn: "Profil"
+
+# Wait for profile screen to load
+- extendedWaitUntil:
+    visible: "Profilul meu"
+    timeout: 5000
+
+# Scroll down to find sign out button
+- scrollUntilVisible:
+    element: "Deconectare"
+    direction: DOWN
+    timeout: 5000
+
+# Tap sign out
+- tapOn: "Deconectare"
+
+# Should redirect to sign-in screen
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 5000
+
+# Verify we're on the sign-in screen
+- assertVisible: "TT PORTAL"
+- assertVisible: "Mese Tenis România"

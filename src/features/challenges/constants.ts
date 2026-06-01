@@ -1,0 +1,2 @@
+export const CHALLENGE_CHOICE_POOL_SIZE = 20;
+export const VISIBLE_CHALLENGE_COUNT = 4;

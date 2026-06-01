@@ -1,0 +1,51 @@
+# Helper: Log in with test credentials
+# Taps Add to trigger protected route redirect, then logs in
+
+appId: com.ttportal.app
+
+---
+
+# Wait for map to load
+- extendedWaitUntil:
+    visible: "TT PORTAL"
+    timeout: 15000
+
+# Tap Add button to trigger protected route redirect to sign-in
+- tapOn: "Adaugă"
+
+# Wait for sign-in screen
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 10000
+
+# Switch to login tab
+- tapOn:
+    id: "tab-login"
+
+# Fill email
+- tapOn:
+    id: "input-email"
+- inputText: "andrei@test.com"
+
+# Fill password
+- tapOn:
+    id: "input-password"
+- inputText: "test1234"
+
+# Submit
+- tapOn:
+    id: "submit-button"
+
+# After login, app navigates to add-venue screen (returnTo route)
+- extendedWaitUntil:
+    visible: "Adaugă locație"
+    timeout: 15000
+
+# Close add-venue screen to return to map
+- tapOn: "Anulează"
+
+# Wait for map to load
+- extendedWaitUntil:
+    visible: "TT PORTAL"
+    timeout: 15000

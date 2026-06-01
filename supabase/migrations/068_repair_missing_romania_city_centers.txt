@@ -1,0 +1,38 @@
+-- Repair missing map centers found after migrations 063-067.
+-- These are city-level centers used only for initial map positioning.
+
+UPDATE public.cities
+SET lat = 44.11667,
+    lng = 24.35000,
+    zoom = COALESCE(zoom, 12),
+    updated_at = now()
+WHERE country_code = 'RO'
+  AND id = 113
+  AND (lat IS NULL OR lng IS NULL OR zoom IS NULL);
+
+UPDATE public.cities
+SET lat = 44.55000,
+    lng = 23.51667,
+    zoom = COALESCE(zoom, 12),
+    updated_at = now()
+WHERE country_code = 'RO'
+  AND id = 114
+  AND (lat IS NULL OR lng IS NULL OR zoom IS NULL);
+
+UPDATE public.cities
+SET lat = 46.91667,
+    lng = 26.33333,
+    zoom = COALESCE(zoom, 12),
+    updated_at = now()
+WHERE country_code = 'RO'
+  AND id = 135
+  AND (lat IS NULL OR lng IS NULL OR zoom IS NULL);
+
+UPDATE public.cities
+SET lat = 45.03417,
+    lng = 23.27472,
+    zoom = COALESCE(zoom, 12),
+    updated_at = now()
+WHERE country_code = 'RO'
+  AND id = 116
+  AND (lat IS NULL OR lng IS NULL OR zoom IS NULL);

@@ -1,0 +1,116 @@
+# E2E Test: Full User Journey
+# End-to-end flow: Login -> Browse Map -> View Venue -> Check Tab Screens -> Logout
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+
+# ===== 1. AUTHENTICATION =====
+# App starts on MAP screen after clearState. Tap Adaugă to trigger protected route redirect.
+- extendedWaitUntil:
+    visible: "TT PORTAL"
+    timeout: 15000
+
+- tapOn: "Adaugă"
+
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 10000
+
+# Login
+- tapOn:
+    id: "tab-login"
+- tapOn:
+    id: "input-email"
+- inputText: "andrei@test.com"
+- tapOn:
+    id: "input-password"
+- inputText: "test1234"
+- tapOn:
+    id: "submit-button"
+
+# After login, app goes to add-venue (returnTo route)
+- extendedWaitUntil:
+    visible: "Adaugă locație"
+    timeout: 15000
+
+# Close add-venue to return to map
+- tapOn: "Anulează"
+
+- extendedWaitUntil:
+    visible: "TT PORTAL"
+    timeout: 15000
+
+# ===== 2. BROWSE MAP =====
+- assertVisible: "București"
+
+# Wait for venues to load
+- extendedWaitUntil:
+    visible:
+      id: "venues-count"
+    timeout: 10000
+
+# ===== 3. VIEW VENUE DETAIL =====
+- tapOn: "ACS TT Energy Brașov"
+
+- extendedWaitUntil:
+    visible: "Înapoi"
+    timeout: 5000
+
+# Browse venue sections
+- scrollUntilVisible:
+    element: "Navigare"
+    direction: DOWN
+    timeout: 5000
+- scrollUntilVisible:
+    element:
+      id: "write-review-btn"
+    direction: DOWN
+    timeout: 5000
+
+# Go back
+- tapOn: "Înapoi"
+
+# ===== 4. CHECK EVENTS =====
+- tapOn: "Evenimente"
+- extendedWaitUntil:
+    visible: "Creează"
+    timeout: 5000
+
+# ===== 5. CHECK LEADERBOARD =====
+- tapOn: "Clasament"
+- extendedWaitUntil:
+    visible: "Check-ins"
+    timeout: 5000
+
+# ===== 6. CHECK FAVORITES =====
+- tapOn: "Favorite"
+- extendedWaitUntil:
+    visible: "Favorite"
+    timeout: 5000
+
+# ===== 7. CHECK PROFILE =====
+- tapOn: "Profil"
+- extendedWaitUntil:
+    visible: "Profilul meu"
+    timeout: 5000
+- assertVisible: "Acțiuni rapide"
+
+# ===== 8. LOGOUT =====
+- scrollUntilVisible:
+    element: "Deconectare"
+    direction: DOWN
+    timeout: 5000
+- tapOn: "Deconectare"
+
+# Verify back on sign-in
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 5000
+- assertVisible: "TT PORTAL"

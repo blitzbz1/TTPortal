@@ -1,0 +1,12 @@
+# Helper: Ensure user is logged in
+# If sign-in screen is showing, perform login; otherwise continue
+
+appId: com.ttportal.app
+
+---
+
+- runFlow:
+    when:
+      visible:
+        id: "sign-in-screen"
+    file: login.yaml

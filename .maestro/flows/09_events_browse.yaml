@@ -1,0 +1,27 @@
+# E2E Test: Events Screen
+# Verifies event listing and tab switching
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+- runFlow: ../helpers/login.yaml
+
+# Navigate to events tab
+- tapOn: "Evenimente"
+- extendedWaitUntil:
+    visible: "Creează"
+    timeout: 5000
+
+# Verify tabs are present and tappable
+- tapOn: "Trecute"
+- tapOn: "Ale mele"
+
+# Switch back to Upcoming
+- tapOn: "Viitoare"
+- extendedWaitUntil:
+    visible: "Creează"
+    timeout: 5000

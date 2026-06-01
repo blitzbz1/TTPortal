@@ -1,0 +1,77 @@
+# E2E Test: Sign Up Flow
+# Verifies the full registration flow with email/password
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+
+# Wait for app to load
+- extendedWaitUntil:
+    visible: "TT PORTAL"
+    timeout: 15000
+
+# Navigate to sign-in by tapping Add (protected route)
+- tapOn: "Adaugă"
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 10000
+
+# Should default to signup tab
+- assertVisible:
+    id: "tab-signup"
+
+# Verify signup form fields are visible
+- assertVisible:
+    id: "input-name"
+- assertVisible:
+    id: "input-email"
+- assertVisible:
+    id: "input-password"
+
+# Fill in signup form
+- tapOn:
+    id: "input-name"
+- inputText: "Test User E2E"
+
+- tapOn:
+    id: "input-email"
+- inputText: "e2e-test@ttportal.ro"
+
+- tapOn:
+    id: "input-password"
+- inputText: "SecurePass123!"
+
+# Test password visibility toggle
+- tapOn:
+    id: "toggle-password"
+- tapOn:
+    id: "toggle-password"
+
+# Verify terms text is visible (signup only)
+- assertVisible:
+    id: "terms-container"
+
+# Verify social login buttons
+- assertVisible:
+    id: "google-button"
+- assertVisible:
+    id: "apple-button"
+
+# Verify language selector
+- assertVisible: "RO"
+- assertVisible: "EN"
+
+# Submit signup
+- tapOn:
+    id: "submit-button"
+
+# Wait for response - shows duplicate email error (test account already exists)
+- extendedWaitUntil:
+    visible:
+      id: "error-message"
+    timeout: 10000

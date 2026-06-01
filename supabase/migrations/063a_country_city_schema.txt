@@ -1,0 +1,94 @@
+-- Prepare the location catalog for country + city expansion.
+--
+-- The app still keeps legacy Romania fields (`county`, `venues.city`,
+-- `venues.county`, `venues.sector`) working, but city identity can now move
+-- toward country-scoped rows and venue queries can use stable city ids.
+
+CREATE TABLE IF NOT EXISTS public.countries (
+  code       TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  active     BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.countries ENABLE ROW LEVEL SECURITY;
+
+INSERT INTO public.countries (code, name, active)
+VALUES ('RO', 'Romania', true)
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name,
+    active = EXCLUDED.active,
+    updated_at = now();
+
+DROP TRIGGER IF EXISTS countries_set_updated_at ON public.countries;
+CREATE TRIGGER countries_set_updated_at
+  BEFORE UPDATE ON public.countries
+  FOR EACH ROW EXECUTE FUNCTION public.tg_set_updated_at();
+
+DROP POLICY IF EXISTS countries_select ON public.countries;
+CREATE POLICY countries_select ON public.countries
+  FOR SELECT USING (true);
+
+ALTER TABLE public.cities
+  ADD COLUMN IF NOT EXISTS country_code TEXT,
+  ADD COLUMN IF NOT EXISTS country_name TEXT,
+  ADD COLUMN IF NOT EXISTS admin_area TEXT,
+  ADD COLUMN IF NOT EXISTS local_area TEXT,
+  ADD COLUMN IF NOT EXISTS expansion_status TEXT NOT NULL DEFAULT 'active';
+
+UPDATE public.cities
+SET
+  country_code = COALESCE(country_code, 'RO'),
+  country_name = COALESCE(country_name, 'Romania'),
+  admin_area = COALESCE(admin_area, county),
+  expansion_status = COALESCE(expansion_status, CASE WHEN active = false THEN 'hidden' ELSE 'active' END)
+WHERE country_code IS NULL
+   OR country_name IS NULL
+   OR admin_area IS NULL
+   OR expansion_status IS NULL;
+
+ALTER TABLE public.cities
+  ALTER COLUMN country_code SET DEFAULT 'RO',
+  ALTER COLUMN country_code SET NOT NULL,
+  ALTER COLUMN country_name SET DEFAULT 'Romania',
+  ALTER COLUMN country_name SET NOT NULL;
+
+ALTER TABLE public.cities
+  DROP CONSTRAINT IF EXISTS cities_country_code_fkey;
+
+ALTER TABLE public.cities
+  ADD CONSTRAINT cities_country_code_fkey
+  FOREIGN KEY (country_code) REFERENCES public.countries(code) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+ALTER TABLE public.cities
+  DROP CONSTRAINT IF EXISTS cities_expansion_status_check;
+
+ALTER TABLE public.cities
+  ADD CONSTRAINT cities_expansion_status_check CHECK (
+    expansion_status IN (
+      'active',
+      'launch_ready',
+      'community_review',
+      'researching',
+      'coming_soon',
+      'hidden'
+    )
+  );
+
+CREATE UNIQUE INDEX IF NOT EXISTS cities_country_code_name_key
+  ON public.cities(country_code, name);
+
+ALTER TABLE public.cities
+  DROP CONSTRAINT IF EXISTS cities_name_key;
+
+ALTER TABLE public.cities
+  DROP CONSTRAINT IF EXISTS cities_name_key1;
+
+DROP INDEX IF EXISTS cities_name_key;
+DROP INDEX IF EXISTS cities_name_key1;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_venues_name_city_id
+  ON public.venues(name, city_id);
+
+DROP INDEX IF EXISTS idx_venues_name_city;

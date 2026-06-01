@@ -1,0 +1,31 @@
+# Helper: Sign out if currently logged in
+
+appId: com.ttportal.app
+
+---
+
+# Navigate to profile tab
+- tapOn: "Profil"
+- extendedWaitUntil:
+    visible: "Profilul meu"
+    timeout: 5000
+
+# Wait for profile to finish loading (wait for content beyond spinner)
+- extendedWaitUntil:
+    visible: "Deconectare"
+    timeout: 30000
+
+# Scroll to sign out
+- scrollUntilVisible:
+    element: "Deconectare"
+    direction: DOWN
+    timeout: 10000
+
+# Tap sign out
+- tapOn: "Deconectare"
+
+# Wait for sign-in screen
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 5000

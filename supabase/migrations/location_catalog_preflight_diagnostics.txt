@@ -1,0 +1,119 @@
+-- Location catalog preflight diagnostics.
+-- Safe to run before or after migrations 063-067.
+
+SELECT
+  to_regclass('public.countries') AS countries_table,
+  to_regclass('public.cities') AS cities_table,
+  to_regclass('public.venues') AS venues_table,
+  to_regclass('public.city_tombstones') AS city_tombstones_table,
+  to_regclass('public.venue_tombstones') AS venue_tombstones_table;
+
+SELECT
+  column_name,
+  data_type,
+  is_nullable,
+  column_default
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'cities'
+ORDER BY ordinal_position;
+
+SELECT
+  conname,
+  contype,
+  pg_get_constraintdef(oid) AS definition
+FROM pg_constraint
+WHERE conrelid = 'public.cities'::regclass
+ORDER BY conname;
+
+SELECT
+  indexname,
+  indexdef
+FROM pg_indexes
+WHERE schemaname = 'public'
+  AND tablename IN ('cities', 'countries', 'venues')
+ORDER BY tablename, indexname;
+
+SELECT
+  p.proname,
+  pg_get_function_identity_arguments(p.oid) AS args
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public'
+  AND p.proname IN ('get_cities_delta', 'get_countries_delta', 'get_venues_delta')
+ORDER BY p.proname, args;
+
+DO $$
+DECLARE
+  has_country_code BOOLEAN;
+  has_expansion_status BOOLEAN;
+  duplicates_exist BOOLEAN := false;
+BEGIN
+  CREATE TEMP TABLE IF NOT EXISTS location_preflight_missing_centers (
+    id INTEGER,
+    name TEXT,
+    country_code TEXT,
+    country_name TEXT,
+    lat DOUBLE PRECISION,
+    lng DOUBLE PRECISION,
+    zoom INTEGER,
+    active BOOLEAN,
+    expansion_status TEXT
+  ) ON COMMIT DROP;
+
+  TRUNCATE location_preflight_missing_centers;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'cities'
+      AND column_name = 'country_code'
+  )
+  INTO has_country_code;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'cities'
+      AND column_name = 'expansion_status'
+  )
+  INTO has_expansion_status;
+
+  IF has_country_code THEN
+    EXECUTE $query$
+      SELECT EXISTS (
+        SELECT 1
+        FROM (
+          SELECT country_code, lower(name), COUNT(*)
+          FROM public.cities
+          GROUP BY country_code, lower(name)
+          HAVING COUNT(*) > 1
+        ) duplicates
+      )
+    $query$
+    INTO duplicates_exist;
+    RAISE NOTICE 'country-scoped duplicate city keys exist: %', duplicates_exist;
+  ELSE
+    RAISE NOTICE 'country_code column does not exist yet. Run 063a before checking country-scoped duplicate city keys.';
+  END IF;
+
+  IF has_country_code AND has_expansion_status THEN
+    RAISE NOTICE 'Visible cities missing map centers:';
+    EXECUTE $query$
+      INSERT INTO location_preflight_missing_centers
+      SELECT id, name, country_code, country_name, lat, lng, zoom, active, expansion_status
+      FROM public.cities
+      WHERE active = true
+        AND COALESCE(expansion_status, 'active') <> 'hidden'
+        AND (lat IS NULL OR lng IS NULL OR zoom IS NULL)
+    $query$;
+  ELSE
+    RAISE NOTICE 'country_code/expansion_status columns do not exist yet. Run 063a before checking map-center readiness.';
+  END IF;
+END $$;
+
+SELECT *
+FROM location_preflight_missing_centers
+ORDER BY country_code, name;

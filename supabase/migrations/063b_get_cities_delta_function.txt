@@ -1,0 +1,56 @@
+CREATE OR REPLACE FUNCTION public.get_cities_delta(p_since TIMESTAMPTZ DEFAULT NULL)
+RETURNS JSONB
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_now        TIMESTAMPTZ := now();
+  v_upserts    JSONB;
+  v_tombstones JSONB;
+BEGIN
+  SELECT COALESCE(jsonb_agg(to_jsonb(rec)), '[]'::jsonb)
+  INTO v_upserts
+  FROM (
+    SELECT
+      id,
+      name,
+      county,
+      country_code,
+      country_name,
+      admin_area,
+      local_area,
+      lat,
+      lng,
+      zoom,
+      venue_count,
+      active,
+      expansion_status,
+      updated_at
+    FROM public.cities
+    WHERE active = true
+      AND expansion_status <> 'hidden'
+      AND (p_since IS NULL OR updated_at > p_since)
+  ) rec;
+
+  SELECT COALESCE(jsonb_agg(DISTINCT t.city_id), '[]'::jsonb)
+  INTO v_tombstones
+  FROM (
+    SELECT city_id FROM public.city_tombstones
+    WHERE p_since IS NULL OR deleted_at > p_since
+    UNION ALL
+    SELECT id AS city_id FROM public.cities
+    WHERE (active = false OR expansion_status = 'hidden')
+      AND (p_since IS NULL OR updated_at > p_since)
+  ) t;
+
+  RETURN jsonb_build_object(
+    'upserts',       v_upserts,
+    'tombstone_ids', v_tombstones,
+    'synced_at',     v_now
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_cities_delta(TIMESTAMPTZ) TO authenticated, anon;
