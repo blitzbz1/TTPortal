@@ -1,4 +1,5 @@
 import type { PersistedCity } from './citiesPersistentCache';
+import { getCanonicalCountryName } from './countryLabels';
 import type { CityExpansionStatus, Country, CountryCode, LocationCity } from './locationTypes';
 
 export const FALLBACK_COUNTRY_CODE: CountryCode = 'RO';
@@ -196,7 +197,7 @@ function getCityKey(city: Pick<LocationCity, 'country_code' | 'name'>): string {
 export function getCountryByCode(code?: string | null): Country {
   const existing = COUNTRIES.find((country) => country.code === code);
   if (existing) return existing;
-  return code ? { code, name: code, active: true } : COUNTRIES[0];
+  return code ? { code, name: getCanonicalCountryName(code, code), active: true } : COUNTRIES[0];
 }
 
 export function getCountryForCity(city: Pick<LocationCity, 'country_code' | 'country_name'>): Country {
@@ -217,7 +218,7 @@ export function getCountriesFromCities(cities: LocationCity[]): Country[] {
     const existing = byCode.get(city.country_code);
     byCode.set(city.country_code, {
       code: city.country_code,
-      name: city.country_name || existing?.name || city.country_code,
+      name: getCanonicalCountryName(city.country_code, city.country_name || existing?.name || city.country_code),
       active: true,
     });
   }

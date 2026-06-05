@@ -1,0 +1,414 @@
+-- Admin venue review dashboard support.
+--
+-- These RPCs are intentionally admin-gated even though they are SECURITY
+-- DEFINER: the web admin dashboard can browse staged/hidden import data, while
+-- regular app users keep seeing only public rows through the existing APIs.
+
+CREATE EXTENSION IF NOT EXISTS unaccent;
+
+CREATE INDEX IF NOT EXISTS idx_venues_lat_lng
+  ON public.venues(lat, lng);
+
+CREATE INDEX IF NOT EXISTS idx_venues_city_id_approved_type
+  ON public.venues(city_id, approved, type);
+
+CREATE OR REPLACE FUNCTION public.is_current_user_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE((
+    SELECT p.is_admin
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  ), false);
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_current_user_admin() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_get_city_review_queue(
+  p_country_code TEXT DEFAULT NULL,
+  p_expansion_status TEXT DEFAULT NULL,
+  p_query TEXT DEFAULT NULL,
+  p_limit INTEGER DEFAULT 80,
+  p_offset INTEGER DEFAULT 0
+)
+RETURNS TABLE (
+  city_id INTEGER,
+  city_name TEXT,
+  country_code TEXT,
+  country_name TEXT,
+  admin_area TEXT,
+  local_area TEXT,
+  lat DOUBLE PRECISION,
+  lng DOUBLE PRECISION,
+  zoom INTEGER,
+  active BOOLEAN,
+  expansion_status TEXT,
+  venue_count INTEGER,
+  approved_count INTEGER,
+  hidden_count INTEGER,
+  missing_address_count INTEGER,
+  missing_tables_count INTEGER,
+  unknown_condition_count INTEGER,
+  duplicate_name_groups INTEGER,
+  flagged_review_count INTEGER,
+  updated_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_current_user_admin() THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  RETURN QUERY
+  WITH duplicate_names AS (
+    SELECT v.city_id, COUNT(*)::INTEGER AS duplicate_name_groups
+    FROM (
+      SELECT
+        venue_dupes.city_id,
+        lower(
+          trim(
+            regexp_replace(
+              unaccent(venue_dupes.name),
+              '\s*\([0-9]{1,3}\)\s*$',
+              '',
+              'g'
+            )
+          )
+        ) AS normalized_name
+      FROM public.venues venue_dupes
+      WHERE venue_dupes.city_id IS NOT NULL
+      GROUP BY
+        venue_dupes.city_id,
+        lower(
+          trim(
+            regexp_replace(
+              unaccent(venue_dupes.name),
+              '\s*\([0-9]{1,3}\)\s*$',
+              '',
+              'g'
+            )
+          )
+        )
+      HAVING COUNT(*) > 1
+    ) v
+    GROUP BY v.city_id
+  ),
+  flagged_reviews AS (
+    SELECT v.city_id, COUNT(r.id)::INTEGER AS flagged_review_count
+    FROM public.reviews r
+    JOIN public.venues v ON v.id = r.venue_id
+    WHERE r.flagged = true
+      AND v.city_id IS NOT NULL
+    GROUP BY v.city_id
+  )
+  SELECT
+    c.id AS city_id,
+    c.name AS city_name,
+    c.country_code,
+    c.country_name,
+    c.admin_area,
+    c.local_area,
+    c.lat,
+    c.lng,
+    c.zoom,
+    c.active,
+    c.expansion_status,
+    COUNT(v.id)::INTEGER AS venue_count,
+    COUNT(v.id) FILTER (WHERE v.approved = true)::INTEGER AS approved_count,
+    COUNT(v.id) FILTER (WHERE v.approved = false)::INTEGER AS hidden_count,
+    COUNT(v.id) FILTER (WHERE v.address IS NULL OR trim(v.address) = '')::INTEGER AS missing_address_count,
+    COUNT(v.id) FILTER (WHERE v.tables_count IS NULL OR v.tables_count = 0)::INTEGER AS missing_tables_count,
+    COUNT(v.id) FILTER (WHERE v.condition IS NULL OR v.condition = 'necunoscuta')::INTEGER AS unknown_condition_count,
+    COALESCE(d.duplicate_name_groups, 0) AS duplicate_name_groups,
+    COALESCE(fr.flagged_review_count, 0) AS flagged_review_count,
+    c.updated_at
+  FROM public.cities c
+  LEFT JOIN public.venues v ON v.city_id = c.id
+  LEFT JOIN duplicate_names d ON d.city_id = c.id
+  LEFT JOIN flagged_reviews fr ON fr.city_id = c.id
+  WHERE (p_country_code IS NULL OR c.country_code = p_country_code)
+    AND (p_expansion_status IS NULL OR c.expansion_status = p_expansion_status)
+    AND (
+      p_query IS NULL
+      OR trim(p_query) = ''
+      OR unaccent(c.name) ILIKE '%' || unaccent(p_query) || '%'
+      OR unaccent(COALESCE(c.admin_area, '')) ILIKE '%' || unaccent(p_query) || '%'
+      OR unaccent(COALESCE(c.country_name, '')) ILIKE '%' || unaccent(p_query) || '%'
+    )
+  GROUP BY c.id, d.duplicate_name_groups, fr.flagged_review_count
+  HAVING COUNT(v.id) > 0
+  ORDER BY
+    CASE WHEN c.expansion_status = 'community_review' THEN 0 ELSE 1 END,
+    COUNT(v.id) DESC,
+    c.country_name,
+    c.name
+  LIMIT LEAST(GREATEST(COALESCE(p_limit, 80), 1), 250)
+  OFFSET GREATEST(COALESCE(p_offset, 0), 0);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_get_city_review_queue(TEXT, TEXT, TEXT, INTEGER, INTEGER)
+  TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_get_venues_in_viewport(
+  p_min_lat DOUBLE PRECISION,
+  p_min_lng DOUBLE PRECISION,
+  p_max_lat DOUBLE PRECISION,
+  p_max_lng DOUBLE PRECISION,
+  p_city_id INTEGER DEFAULT NULL,
+  p_approved BOOLEAN DEFAULT NULL,
+  p_type TEXT DEFAULT NULL,
+  p_query TEXT DEFAULT NULL,
+  p_needs_attention BOOLEAN DEFAULT false,
+  p_limit INTEGER DEFAULT 600
+)
+RETURNS TABLE (
+  id INTEGER,
+  name TEXT,
+  city TEXT,
+  city_id INTEGER,
+  country_code TEXT,
+  address TEXT,
+  type TEXT,
+  tables_count INTEGER,
+  condition TEXT,
+  lat DOUBLE PRECISION,
+  lng DOUBLE PRECISION,
+  approved BOOLEAN,
+  verified BOOLEAN,
+  description TEXT,
+  review_status TEXT,
+  duplicate_of_venue_id INTEGER,
+  needs_manual_pin BOOLEAN,
+  admin_review_notes TEXT,
+  reviewed_at TIMESTAMPTZ,
+  reviewed_by UUID,
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ,
+  avg_rating NUMERIC,
+  review_count INTEGER,
+  checkin_count INTEGER,
+  flagged_review_count INTEGER
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_current_user_admin() THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    v.id,
+    v.name,
+    v.city,
+    v.city_id,
+    c.country_code,
+    v.address,
+    v.type,
+    v.tables_count,
+    v.condition,
+    v.lat,
+    v.lng,
+    v.approved,
+    v.verified,
+    v.description,
+    COALESCE(v.review_status, CASE WHEN v.approved THEN 'approved' ELSE 'hidden' END) AS review_status,
+    v.duplicate_of_venue_id,
+    COALESCE(v.needs_manual_pin, false) AS needs_manual_pin,
+    v.admin_review_notes,
+    v.reviewed_at,
+    v.reviewed_by,
+    v.created_at,
+    v.updated_at,
+    s.avg_rating,
+    s.review_count,
+    s.checkin_count,
+    COUNT(r.id) FILTER (WHERE r.flagged = true)::INTEGER AS flagged_review_count
+  FROM public.venues v
+  LEFT JOIN public.cities c ON c.id = v.city_id
+  LEFT JOIN public.venue_stats s ON s.venue_id = v.id
+  LEFT JOIN public.reviews r ON r.venue_id = v.id
+  WHERE v.lat BETWEEN LEAST(p_min_lat, p_max_lat) AND GREATEST(p_min_lat, p_max_lat)
+    AND v.lng BETWEEN LEAST(p_min_lng, p_max_lng) AND GREATEST(p_min_lng, p_max_lng)
+    AND (p_city_id IS NULL OR v.city_id = p_city_id)
+    AND (p_approved IS NULL OR v.approved = p_approved)
+    AND (p_type IS NULL OR v.type = p_type)
+    AND (
+      p_query IS NULL
+      OR trim(p_query) = ''
+      OR unaccent(v.name) ILIKE '%' || unaccent(p_query) || '%'
+      OR unaccent(v.address) ILIKE '%' || unaccent(p_query) || '%'
+    )
+    AND (
+      p_needs_attention = false
+      OR v.address IS NULL
+      OR trim(v.address) = ''
+      OR v.tables_count IS NULL
+      OR v.tables_count = 0
+      OR v.condition IS NULL
+      OR v.condition = 'necunoscuta'
+      OR EXISTS (
+        SELECT 1
+        FROM public.reviews attention_review
+        WHERE attention_review.venue_id = v.id
+          AND attention_review.flagged = true
+      )
+    )
+  GROUP BY
+    v.id,
+    v.name,
+    v.city,
+    v.city_id,
+    c.country_code,
+    v.address,
+    v.type,
+    v.tables_count,
+    v.condition,
+    v.lat,
+    v.lng,
+    v.approved,
+    v.verified,
+    v.description,
+    v.review_status,
+    v.duplicate_of_venue_id,
+    v.needs_manual_pin,
+    v.admin_review_notes,
+    v.reviewed_at,
+    v.reviewed_by,
+    v.created_at,
+    v.updated_at,
+    s.avg_rating,
+    s.review_count,
+    s.checkin_count
+  ORDER BY
+    COUNT(r.id) FILTER (WHERE r.flagged = true) DESC,
+    v.approved ASC,
+    v.updated_at DESC,
+    v.name
+  LIMIT LEAST(GREATEST(COALESCE(p_limit, 600), 1), 1000);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_get_venues_in_viewport(
+  DOUBLE PRECISION,
+  DOUBLE PRECISION,
+  DOUBLE PRECISION,
+  DOUBLE PRECISION,
+  INTEGER,
+  BOOLEAN,
+  TEXT,
+  TEXT,
+  BOOLEAN,
+  INTEGER
+) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_get_venue_review_context(p_venue_id INTEGER)
+RETURNS JSONB
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_reviews JSONB;
+  v_stats JSONB;
+BEGIN
+  IF NOT public.is_current_user_admin() THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  SELECT to_jsonb(s)
+  INTO v_stats
+  FROM (
+    SELECT venue_id, avg_rating, review_count, checkin_count, favorite_count
+    FROM public.venue_stats
+    WHERE venue_id = p_venue_id
+  ) s;
+
+  SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY r.flagged DESC, r.created_at DESC), '[]'::jsonb)
+  INTO v_reviews
+  FROM (
+    SELECT
+      r.id,
+      r.rating,
+      r.body,
+      r.flagged,
+      r.flag_count,
+      r.created_at,
+      p.full_name
+    FROM public.reviews r
+    LEFT JOIN public.profiles p ON p.id = r.user_id
+    WHERE r.venue_id = p_venue_id
+    ORDER BY r.flagged DESC, r.created_at DESC
+    LIMIT 8
+  ) r;
+
+  RETURN jsonb_build_object(
+    'stats', v_stats,
+    'reviews', v_reviews
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_get_venue_review_context(INTEGER)
+  TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_update_city_review_status(
+  p_city_id INTEGER,
+  p_active BOOLEAN,
+  p_expansion_status TEXT
+)
+RETURNS public.cities
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_city public.cities;
+BEGIN
+  IF NOT public.is_current_user_admin() THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  IF p_expansion_status NOT IN (
+    'active',
+    'launch_ready',
+    'community_review',
+    'researching',
+    'coming_soon',
+    'hidden'
+  ) THEN
+    RAISE EXCEPTION 'Invalid expansion status';
+  END IF;
+
+  UPDATE public.cities
+  SET active = p_active,
+      expansion_status = p_expansion_status,
+      updated_at = now()
+  WHERE public.cities.id = p_city_id
+  RETURNING * INTO v_city;
+
+  IF v_city.id IS NULL THEN
+    RAISE EXCEPTION 'City not found';
+  END IF;
+
+  RETURN v_city;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_update_city_review_status(INTEGER, BOOLEAN, TEXT)
+  TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

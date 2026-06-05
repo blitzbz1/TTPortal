@@ -19,6 +19,7 @@ import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { useTheme } from '../hooks/useTheme';
 import { getStringSync } from '../lib/mmkv';
 import { foldDiacritics } from '../lib/textSearch';
+import { getLocalizedCountryName } from '../lib/countryLabels';
 import { getCountryFlagEmoji } from '../lib/locationHelpers';
 import type { Country, LocationCity } from '../lib/locationTypes';
 import { Fonts, FontSize, FontWeight, Spacing, type ThemeColors } from '../theme';
@@ -52,11 +53,11 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
   const cityVisitCounts = useMemo(() => readCityVisitCounts(), []);
   const selectedCountryLabel = pendingCountry.code === 'ALL'
     ? s('locationSelectorAllCountries')
-    : getCountryLabel(pendingCountry, s);
+    : getCountryLabel(pendingCountry, lang);
   const countriesWithCities = useMemo(
     () => activeCountries
       .filter((country) => activeCities.some((city) => city.country_code === country.code))
-      .sort((a, b) => getCountryLabel(a, s).localeCompare(getCountryLabel(b, s), lang)),
+      .sort((a, b) => getCountryLabel(a, lang).localeCompare(getCountryLabel(b, lang), lang)),
     [activeCities, activeCountries, lang, s],
   );
 
@@ -65,7 +66,9 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
       (city) => city.expansion_status !== 'hidden' && (pendingCountry.code === 'ALL' || city.country_code === pendingCountry.code),
     );
     const filtered = normalizedQuery
-      ? source.filter((city) => normalizeLocationText(`${city.name} ${city.country_name}`).includes(normalizedQuery))
+      ? source.filter((city) =>
+          normalizeLocationText(`${city.name} ${getCityCountryLabel(city, lang)} ${city.country_name}`).includes(normalizedQuery),
+        )
       : source;
 
     return [...filtered].sort((a, b) => sortLocationCities(a, b, normalizedQuery, cityVisitCounts, lang));
@@ -174,7 +177,7 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
                 {countriesWithCities.map((country) => (
                   <CountryOption
                     key={country.code}
-                    label={getCountryLabel(country, s)}
+                    label={getCountryLabel(country, lang)}
                     flag={getCountryFlag(country.code)}
                     active={pendingCountry.code === country.code}
                     onPress={() => chooseCountry(country)}
@@ -214,7 +217,7 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
                 selected={pendingCity?.id === city.id}
                 onPress={() => setPendingCityId(city.id)}
                 styles={styles}
-                s={s}
+                lang={lang}
               />
             ))}
           </View>
@@ -227,7 +230,7 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
           <Text style={styles.selectedTitle} numberOfLines={1}>
             {pendingCity ? pendingCity.name : s('initialLocationChooseCity')}
           </Text>
-          {pendingCity ? <Text style={styles.selectedMeta} numberOfLines={1}>{getCityCountryLabel(pendingCity, s)}</Text> : null}
+          {pendingCity ? <Text style={styles.selectedMeta} numberOfLines={1}>{getCityCountryLabel(pendingCity, lang)}</Text> : null}
         </View>
         <TouchableOpacity
           style={[styles.cta, !pendingCity && styles.ctaDisabled]}
@@ -250,13 +253,13 @@ function WelcomeCityCard({
   selected,
   onPress,
   styles,
-  s,
+  lang,
 }: {
   city: LocationCity;
   selected: boolean;
   onPress: () => void;
   styles: ReturnType<typeof createStyles>;
-  s: (key: string, ...args: string[]) => string;
+  lang: string;
 }) {
   return (
     <TouchableOpacity
@@ -270,7 +273,7 @@ function WelcomeCityCard({
         <Text style={[styles.cityName, selected && styles.cityNameSelected]} numberOfLines={1}>
           {city.name}
         </Text>
-          <Text style={styles.cityMeta} numberOfLines={1}>{getCityCountryLabel(city, s)}</Text>
+          <Text style={styles.cityMeta} numberOfLines={1}>{getCityCountryLabel(city, lang)}</Text>
         </View>
         {selected ? (
           <View style={styles.checkSelected}>
@@ -358,14 +361,12 @@ function getCountryFlag(code: string | null | undefined): string {
   return getCountryFlagEmoji(code);
 }
 
-function getCountryLabel(country: Country, s: (key: string, ...args: string[]) => string): string {
-  const key = `country_${country.code}`;
-  const label = s(key);
-  return label === key ? country.name : label;
+function getCountryLabel(country: Country, lang: string): string {
+  return getLocalizedCountryName(country.code, lang, country.name);
 }
 
-function getCityCountryLabel(city: LocationCity, s: (key: string, ...args: string[]) => string): string {
-  return getCountryLabel({ code: city.country_code, name: city.country_name, active: true }, s);
+function getCityCountryLabel(city: LocationCity, lang: string): string {
+  return getCountryLabel({ code: city.country_code, name: city.country_name, active: true }, lang);
 }
 
 function createStyles(colors: ThemeColors, isDark: boolean, width: number, insets: EdgeInsets) {

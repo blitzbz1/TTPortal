@@ -19,6 +19,7 @@ import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { useTheme } from '../hooks/useTheme';
 import { getDistanceKm } from '../lib/geo';
 import { getStringSync } from '../lib/mmkv';
+import { getLocalizedCountryName } from '../lib/countryLabels';
 import { getCountryFlagEmoji } from '../lib/locationHelpers';
 import type { Country, LocationCity } from '../lib/locationTypes';
 import { Fonts, FontSize, FontWeight, Radius, Shadows, Spacing, type ThemeColors } from '../theme';
@@ -75,21 +76,21 @@ export function LocationSelector({
 
     const filtered = countryCities.filter((city) => {
       if (!normalizedQuery) return true;
-      return getCitySearchText(city).includes(normalizedQuery);
+      return getCitySearchText(city, lang).includes(normalizedQuery);
     });
     return [...filtered].sort((a, b) => sortSearchCities(a, b, normalizedQuery, lang));
   }, [activeCities, cityVisitCounts, lang, pendingCountry.code, query]);
   const countriesWithCities = useMemo(
     () => activeCountries
       .filter((country) => activeCities.some((city) => city.country_code === country.code))
-      .sort((a, b) => getCountryLabel(a, s).localeCompare(getCountryLabel(b, s), lang)),
+      .sort((a, b) => getCountryLabel(a, lang).localeCompare(getCountryLabel(b, lang), lang)),
     [activeCities, activeCountries, lang, s],
   );
   const menuCities = useMemo(() => searchedCities.slice(0, 8), [searchedCities]);
   const filteredCities = countryPanelOpen ? menuCities : searchedCities;
   const selectedCountryLabel = pendingCountry.code === 'ALL'
     ? s('locationSelectorAllCountries')
-    : getCountryLabel(pendingCountry, s);
+    : getCountryLabel(pendingCountry, lang);
 
   useEffect(() => {
     if (!visible) return;
@@ -208,7 +209,7 @@ export function LocationSelector({
                 {pendingCity ? pendingCity.name : s('initialLocationChooseCity')}
               </Text>
               <Text style={styles.activeMeta} numberOfLines={1}>
-                {pendingCity ? getLocalizedCitySupportLine(pendingCity, s) : s('locationSelectorSelectedHint')}
+                {pendingCity ? getLocalizedCitySupportLine(pendingCity, s, lang) : s('locationSelectorSelectedHint')}
               </Text>
             </View>
             {pendingCity ? (
@@ -276,7 +277,7 @@ export function LocationSelector({
                 {countriesWithCities.map((country) => (
                   <CountryOption
                     key={country.code}
-                    label={getCountryLabel(country, s)}
+                    label={getCountryLabel(country, lang)}
                     flag={getDisplayCountryFlag(country.code)}
                     active={pendingCountry.code === country.code}
                     onPress={() => chooseCountry(country)}
@@ -295,7 +296,7 @@ export function LocationSelector({
                   onPress={() => (mode === 'welcome' ? setPendingCity(city) : applyCity(city))}
                   styles={styles}
                   colors={colors}
-                  s={s}
+                  lang={lang}
                 />
               ))}
             </View>
@@ -341,7 +342,7 @@ export function LocationSelector({
                 selected={pendingCity?.id === city.id}
                 onPress={() => (mode === 'welcome' ? setPendingCity(city) : applyCity(city))}
                 styles={styles}
-                s={s}
+                lang={lang}
               />
             ))}
           </ScrollView>
@@ -359,7 +360,7 @@ export function LocationSelector({
                   {pendingCity ? pendingCity.name : s('initialLocationChooseCity')}
                 </Text>
                 <Text style={styles.selectedPreviewMeta} numberOfLines={1}>
-                  {pendingCity ? getLocalizedCitySupportLine(pendingCity, s) : s('locationSelectorSelectedHint')}
+                  {pendingCity ? getLocalizedCitySupportLine(pendingCity, s, lang) : s('locationSelectorSelectedHint')}
                 </Text>
               </View>
             </View>
@@ -399,14 +400,14 @@ export function SelectedCityPill({
   onPress: () => void;
   compact?: boolean;
 }) {
-  const { s } = useI18n();
+  const { s, lang } = useI18n();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createPillStyles(colors, isDark, compact), [colors, compact, isDark]);
 
   return (
     <TouchableOpacity style={styles.pill} onPress={onPress} activeOpacity={0.78}>
       <Text style={styles.city} numberOfLines={1}>
-        {city ? `${city.name}, ${getCityCountryLabel(city, s)}` : s('initialLocationChooseCity')}
+        {city ? `${city.name}, ${getCityCountryLabel(city, lang)}` : s('initialLocationChooseCity')}
       </Text>
       <Lucide name="chevron-down" size={13} color={isDark ? colors.textFaint : '#ffffffcc'} />
     </TouchableOpacity>
@@ -418,13 +419,13 @@ function CityLaunchCard({
   selected,
   onPress,
   styles,
-  s,
+  lang,
 }: {
   city: LocationCity;
   selected: boolean;
   onPress: () => void;
   styles: ReturnType<typeof createStyles>;
-  s: (key: string, ...args: string[]) => string;
+  lang: string;
 }) {
   return (
     <TouchableOpacity style={[styles.cityCard, selected && styles.cityCardSelected]} onPress={onPress} activeOpacity={0.78}>
@@ -432,7 +433,7 @@ function CityLaunchCard({
         <Text style={styles.cityFlag}>{getDisplayCountryFlag(city.country_code)}</Text>
         <View style={styles.cityCopy}>
           <Text style={[styles.cityName, selected && styles.cityNameSelected]} numberOfLines={1}>{city.name}</Text>
-          <Text style={styles.cityCountry} numberOfLines={1}>{getCityCountryLabel(city, s)}</Text>
+          <Text style={styles.cityCountry} numberOfLines={1}>{getCityCountryLabel(city, lang)}</Text>
         </View>
         {selected ? (
           <View style={styles.cityActionSelected}>
@@ -494,21 +495,21 @@ function CityMenuOption({
   onPress,
   styles,
   colors,
-  s,
+  lang,
 }: {
   city: LocationCity;
   selected: boolean;
   onPress: () => void;
   styles: ReturnType<typeof createStyles>;
   colors: ThemeColors;
-  s: (key: string, ...args: string[]) => string;
+  lang: string;
 }) {
   return (
     <TouchableOpacity style={[styles.cityMenuOption, selected && styles.cityMenuOptionSelected]} onPress={onPress} activeOpacity={0.76}>
       <Text style={styles.cityMenuFlag}>{getDisplayCountryFlag(city.country_code)}</Text>
       <View style={styles.cityMenuCopy}>
         <Text style={[styles.cityMenuName, selected && styles.cityMenuNameSelected]} numberOfLines={1}>{city.name}</Text>
-        <Text style={styles.cityMenuMeta} numberOfLines={1}>{getCityCountryLabel(city, s)}</Text>
+        <Text style={styles.cityMenuMeta} numberOfLines={1}>{getCityCountryLabel(city, lang)}</Text>
       </View>
       {selected ? <Lucide name="check" size={16} color={colors.primary} /> : <Lucide name="chevron-right" size={15} color={colors.textFaint} />}
     </TouchableOpacity>
@@ -566,9 +567,10 @@ function normalizeSearch(value: string | null | undefined): string {
     .trim();
 }
 
-function getCitySearchText(city: LocationCity): string {
+function getCitySearchText(city: LocationCity, lang: string): string {
   return normalizeSearch([
     city.name,
+    getCityCountryLabel(city, lang),
     city.country_name,
     city.country_code,
     city.admin_area,
@@ -577,19 +579,17 @@ function getCitySearchText(city: LocationCity): string {
   ].filter(Boolean).join(' '));
 }
 
-function getCountryLabel(country: Country, s: (key: string, ...args: string[]) => string): string {
-  const key = `country_${country.code}`;
-  const label = s(key);
-  return label === key ? country.name : label;
+function getCountryLabel(country: Country, lang: string): string {
+  return getLocalizedCountryName(country.code, lang, country.name);
 }
 
-function getCityCountryLabel(city: LocationCity, s: (key: string, ...args: string[]) => string): string {
-  return getCountryLabel({ code: city.country_code, name: city.country_name, active: true }, s);
+function getCityCountryLabel(city: LocationCity, lang: string): string {
+  return getCountryLabel({ code: city.country_code, name: city.country_name, active: true }, lang);
 }
 
-function getLocalizedCitySupportLine(city: LocationCity, s: (key: string, ...args: string[]) => string): string {
+function getLocalizedCitySupportLine(city: LocationCity, s: (key: string, ...args: string[]) => string, lang: string): string {
   void getCitySupportLine;
-  return `${getCityCountryLabel(city, s)} · ${getVenueCountLabel(city.venue_count ?? 0, s)}`;
+  return `${getCityCountryLabel(city, lang)} · ${getVenueCountLabel(city.venue_count ?? 0, s)}`;
 }
 
 function getVenueCountLabel(count: number, s: (key: string, ...args: string[]) => string): string {

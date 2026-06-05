@@ -247,6 +247,30 @@ describe('AdminModerationScreen — edit modal', () => {
 });
 
 describe('AdminModerationScreen — pending venues', () => {
+  const lubeckPendingVenues = [
+    ['Tischtennis Carlebach-Park', 'Maria-Goeppert-Straße 1, Lübeck'],
+    ['Tischtennis Damaschkestraße', 'Julius-Brecht-Straße 15, Lübeck'],
+    ['Tischtennis Ernestinenschule', 'Engelswisch 33/ 5, Lübeck'],
+    ['Tischtennis Lunapark', 'Hanseplatz 4a, Lübeck'],
+    ['Tischtennis Carlebach-Park (2)', 'Maria-Goeppert-Straße 1, Lübeck'],
+    ['Tischtennis Carlebach-Park (3)', 'Maria-Goeppert-Straße 9, Lübeck'],
+    ['Tischtennis Carlebach-Park (4)', 'Maria-Goeppert-Straße 9, Lübeck'],
+    ['Tischtennis An den Schießständen', 'Pfeifengrasweg 21a, Lübeck'],
+    ['Tischtennis Ziegelstraße', 'Korvettenstraße 13, Lübeck'],
+    ['Tischtennis Lunapark (2)', 'Hanseplatz 4a, Lübeck'],
+    ['Tischtennis Mühlenstraße', 'Mühlenstraße 72, Lübeck'],
+    ['Tischtennis Hundestraße 83/', 'Hundestraße 83/ 1, Lübeck'],
+    ['Tischtennis Hundestraße 83/ (2)', 'Hundestraße 83/ 1, Lübeck'],
+    ['Tischtennis Dornestraße', 'Dornestraße 65, Lübeck'],
+  ].map(([name, address], index) => ({
+    id: 9000 + index,
+    name,
+    city: 'Lübeck',
+    address,
+    created_at: `2026-06-01T10:${String(index).padStart(2, '0')}:00Z`,
+    profiles: null,
+  }));
+
   it('renders pending venue cards', async () => {
     const pending = [
       { id: 10, name: 'New Venue', city: 'Cluj', address: 'Str. ABC', created_at: '2026-04-01', profiles: { full_name: 'Ion' } },
@@ -277,6 +301,23 @@ describe('AdminModerationScreen — pending venues', () => {
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['venues'], exact: false });
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['cities', 'delta'] });
     expect(queryByText('Pending Venue')).toBeNull();
+  });
+
+  it('shows Lübeck imported locations as pending admin approvals', async () => {
+    mockGetPendingVenues.mockResolvedValue({ data: lubeckPendingVenues });
+    mockApproveVenue.mockResolvedValue({ data: { id: 9000, approved: true }, error: null });
+
+    const { getByText, getAllByText, queryByText } = await renderAdmin();
+
+    expect(getAllByText('14').length).toBeGreaterThan(0);
+    expect(getByText('Tischtennis Carlebach-Park')).toBeTruthy();
+    expect(getByText('Tischtennis Dornestraße')).toBeTruthy();
+    expect(getAllByText('approve')).toHaveLength(14);
+
+    await act(async () => { fireEvent.press(getAllByText('approve')[0]); });
+
+    expect(mockApproveVenue).toHaveBeenCalledWith(9000, 'admin-1');
+    expect(queryByText('Tischtennis Carlebach-Park')).toBeNull();
   });
 });
 
