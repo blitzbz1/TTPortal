@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useAdmin } from "@/lib/use-admin";
 import { useAuth } from "@/lib/auth-context";
+import { asset } from "@/lib/asset";
 import { getCanonicalCountryName, getLocalizedCountryName } from "@/lib/country-labels";
 import {
   getAdminCityReviewQueue,
@@ -578,7 +579,7 @@ export function VenueReviewDashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/data/osm-location-counts.json")
+    fetch(asset("/data/osm-location-counts.json"))
       .then((response) => (response.ok ? response.json() : null))
       .then((data: OsmSeedInventory | null) => {
         if (!cancelled) setSeedInventory(data);
@@ -608,7 +609,7 @@ export function VenueReviewDashboard() {
     }
     let cancelled = false;
     setSeedVenueManifestLoading(true);
-    fetch(`/data/osm-seed-venues/${manifestCountryCode.toLowerCase()}.json`)
+    fetch(asset(`/data/osm-seed-venues/${manifestCountryCode.toLowerCase()}.json`))
       .then((response) => (response.ok ? response.json() : null))
       .then((data: OsmSeedCountryVenueManifest | null) => {
         if (cancelled) return;
