@@ -11,8 +11,8 @@ INSERT INTO venues (name,type,city,city_id,county,sector,address,lat,lng,tables_
 SELECT v.name,v.type,v.city,c.id,v.county::text,v.sector::text,v.address,v.lat::double precision,v.lng::double precision,v.tables_count::int,v.free_access::boolean,v.night_lighting::boolean,v.hours::text,v.description::text,v.tags::text[],v.approved::boolean,v.verified::boolean,NULL
 FROM (VALUES
   ('Ping Pong KS Tirana','parc_exterior','Tirana','Bashkia Tiranë',NULL,'Shkolla e Mesme "Sinan Tafaj", Tirana',41.33115,19.81596,1,true,false,'Mo-Sa 08:00-20:00','KS Tirana',ARRAY['exterior'],true,false),
-  ('Tenis tavoline Parku i Madh i Tiranës','parc_exterior','Tirana','Bashkia Tiranë',NULL,'Parku i Madh i Tiranës, Tirana',41.3133175,19.8177625,4,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Tenis tavoline Stadiumi "ISMAIL XHEMALI" Pukë','parc_exterior','Pukë','Bashkia Pukë',NULL,'Stadiumi "ISMAIL XHEMALI" Pukë, Pukë',42.04446,19.8983,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Parku i Madh i Tiranës','parc_exterior','Tirana','Bashkia Tiranë',NULL,'Parku i Madh i Tiranës, Tirana',41.3133175,19.8177625,4,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Stadiumi "ISMAIL XHEMALI" Pukë','parc_exterior','Pukë','Bashkia Pukë',NULL,'Stadiumi "ISMAIL XHEMALI" Pukë, Pukë',42.04446,19.8983,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Baste Live - Bar Sallon','parc_exterior','Tirana','Bashkia Tiranë',NULL,'Buzz, Tirana',41.3138,19.8035,1,true,false,'24/7',NULL,ARRAY['exterior'],true,false)
 ) AS v(name,type,city,county,sector,address,lat,lng,tables_count,free_access,night_lighting,hours,description,tags,approved,verified)
 JOIN cities c ON c.country_code='AL' AND c.name=v.city

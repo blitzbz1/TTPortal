@@ -15,18 +15,18 @@ ON CONFLICT (country_code,name) DO NOTHING;
 INSERT INTO venues (name,type,city,city_id,county,sector,address,lat,lng,tables_count,free_access,night_lighting,hours,description,tags,approved,verified,submitted_by)
 SELECT v.name,v.type,v.city,c.id,v.county::text,v.sector::text,v.address,v.lat::double precision,v.lng::double precision,v.tables_count::int,v.free_access::boolean,v.night_lighting::boolean,v.hours::text,v.description::text,v.tags::text[],v.approved::boolean,v.verified::boolean,NULL
 FROM (VALUES
-  ('Table tennis Gudauri Ski Resort','parc_exterior','Gudauri','Mtskheta-Mtianeti',NULL,'Gudauri Ski Resort, Gudauri',42.4611,44.48436,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis ვაკის პარკი','parc_exterior','Okroq’ana','Tbilisi',NULL,'ვაკის პარკი, Okroq’ana',41.70965,44.7500767,3,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis 6 მაისი პარკი','parc_exterior','Batumi','Adjara',NULL,'6 მაისი პარკი, Batumi',41.64902,41.62751,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis ლისი რეკრეაცია','parc_exterior','Dighomi','Tbilisi',NULL,'ლისი რეკრეაცია, Dighomi',41.73988,44.74252,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis Mantra','parc_exterior','Tsqnet’i','Kvemo Kartli',NULL,'Mantra, Tsqnet’i',41.72341,44.70403,1,true,true,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis ფოთის ცენტრალური პარკი • Poti Central Park','parc_exterior','Poti','Poti Municipality',NULL,'ფოთის ცენტრალური პარკი • Poti Central Park, Poti',42.14039,41.67453,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis შენი სახლი უნივერსიტეტის ქუჩაზე','parc_exterior','Tsqnet’i','Kvemo Kartli',NULL,'შენი სახლი უნივერსიტეტის ქუჩაზე, Tsqnet’i',41.71662,44.72674,2,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis Gelovani Park','parc_exterior','Tsqnet’i','Kvemo Kartli',NULL,'Gelovani Park, Tsqnet’i',41.725235,44.73718,2,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Gudauri Ski Resort','parc_exterior','Gudauri','Mtskheta-Mtianeti',NULL,'Gudauri Ski Resort, Gudauri',42.4611,44.48436,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('ვაკის პარკი','parc_exterior','Okroq’ana','Tbilisi',NULL,'ვაკის პარკი, Okroq’ana',41.70965,44.7500767,3,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('6 მაისი პარკი','parc_exterior','Batumi','Adjara',NULL,'6 მაისი პარკი, Batumi',41.64902,41.62751,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('ლისი რეკრეაცია','parc_exterior','Dighomi','Tbilisi',NULL,'ლისი რეკრეაცია, Dighomi',41.73988,44.74252,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Mantra','parc_exterior','Tsqnet’i','Kvemo Kartli',NULL,'Mantra, Tsqnet’i',41.72341,44.70403,1,true,true,NULL,NULL,ARRAY['exterior'],true,false),
+  ('ფოთის ცენტრალური პარკი • Poti Central Park','parc_exterior','Poti','Poti Municipality',NULL,'ფოთის ცენტრალური პარკი • Poti Central Park, Poti',42.14039,41.67453,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('შენი სახლი უნივერსიტეტის ქუჩაზე','parc_exterior','Tsqnet’i','Kvemo Kartli',NULL,'შენი სახლი უნივერსიტეტის ქუჩაზე, Tsqnet’i',41.71662,44.72674,2,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Gelovani Park','parc_exterior','Tsqnet’i','Kvemo Kartli',NULL,'Gelovani Park, Tsqnet’i',41.725235,44.73718,2,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('მეჩ ფოინთ პინგ-პონგის კლუბი','parc_exterior','Tsqnet’i','Kvemo Kartli',NULL,'35th Football School • 35-ე საფეხბურთო სკოლა, Tsqnet’i',41.72229,44.73689,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis ილიას ბაღი','parc_exterior','Okroq’ana','Tbilisi',NULL,'ილიას ბაღი, Okroq’ana',41.70836,44.80021,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Free table tennis in School','parc_exterior','Kutaisi','Imereti',NULL,'ბალახვანი, Kutaisi',42.26493,42.70672,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis მიროს პარკი','parc_exterior','Okroq’ana','Tbilisi',NULL,'მიროს პარკი, Okroq’ana',41.719715,44.76812,2,true,false,NULL,NULL,ARRAY['exterior'],true,false)
+  ('ილიას ბაღი','parc_exterior','Okroq’ana','Tbilisi',NULL,'ილიას ბაღი, Okroq’ana',41.70836,44.80021,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Free in School','parc_exterior','Kutaisi','Imereti',NULL,'ბალახვანი, Kutaisi',42.26493,42.70672,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('მიროს პარკი','parc_exterior','Okroq’ana','Tbilisi',NULL,'მიროს პარკი, Okroq’ana',41.719715,44.76812,2,true,false,NULL,NULL,ARRAY['exterior'],true,false)
 ) AS v(name,type,city,county,sector,address,lat,lng,tables_count,free_access,night_lighting,hours,description,tags,approved,verified)
 JOIN cities c ON c.country_code='GE' AND c.name=v.city
 ON CONFLICT (name,city_id) DO NOTHING;

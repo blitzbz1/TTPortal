@@ -12,9 +12,9 @@ ON CONFLICT (country_code,name) DO NOTHING;
 INSERT INTO venues (name,type,city,city_id,county,sector,address,lat,lng,tables_count,free_access,night_lighting,hours,description,tags,approved,verified,submitted_by)
 SELECT v.name,v.type,v.city,c.id,v.county::text,v.sector::text,v.address,v.lat::double precision,v.lng::double precision,v.tables_count::int,v.free_access::boolean,v.night_lighting::boolean,v.hours::text,v.description::text,v.tags::text[],v.approved::boolean,v.verified::boolean,NULL
 FROM (VALUES
-  ('Table tennis Shoghakat Park','parc_exterior','Argavand','Masis Municipality',NULL,'Shoghakat Park, Argavand',40.15005,44.47921,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis Հաղթանակի զբոսայգի','parc_exterior','Yerevan','Yerevan',NULL,'Հաղթանակի զբոսայգի, Yerevan',40.1956,44.51949,1,false,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis Էկոկայան Դիլիջան Ռեզորտ Հոթել','parc_exterior','Dilijan','Dilijan Municipality',NULL,'Էկոկայան Դիլիջան Ռեզորտ Հոթել, Dilijan',40.75696,44.85149,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Shoghakat Park','parc_exterior','Argavand','Masis Municipality',NULL,'Shoghakat Park, Argavand',40.15005,44.47921,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Հաղթանակի զբոսայգի','parc_exterior','Yerevan','Yerevan',NULL,'Հաղթանակի զբոսայգի, Yerevan',40.1956,44.51949,1,false,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Էկոկայան Դիլիջան Ռեզորտ Հոթել','parc_exterior','Dilijan','Dilijan Municipality',NULL,'Էկոկայան Դիլիջան Ռեզորտ Հոթել, Dilijan',40.75696,44.85149,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Աշխատանքային Ռեզերվներ','parc_exterior','Gugark','Vanadzor Municipality',NULL,'Gugark',40.80065,44.5199,1,true,false,NULL,NULL,ARRAY['exterior'],true,false)
 ) AS v(name,type,city,county,sector,address,lat,lng,tables_count,free_access,night_lighting,hours,description,tags,approved,verified)
 JOIN cities c ON c.country_code='AM' AND c.name=v.city

@@ -15,11 +15,11 @@ INSERT INTO venues (name,type,city,city_id,county,sector,address,lat,lng,tables_
 SELECT v.name,v.type,v.city,c.id,v.county::text,v.sector::text,v.address,v.lat::double precision,v.lng::double precision,v.tables_count::int,v.free_access::boolean,v.night_lighting::boolean,v.hours::text,v.description::text,v.tags::text[],v.approved::boolean,v.verified::boolean,NULL
 FROM (VALUES
   ('Stonoteniski klub "STENS-EURO ASFALT"','parc_exterior','Kobilja Glava','Federation of B&H',NULL,'Bokserski klub Zlatni Ljiljani, Kobilja Glava',43.85749,18.41564,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Una RC Kiro Rafting Camp','parc_exterior','Bihać','Unsko-Sanski Kanton',NULL,'Una RC Kiro Rafting Camp, Bihać',44.78257,15.92536,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Plivsko jezero','parc_exterior','Jajce','Federation of B&H',NULL,'Plivsko jezero, Jajce',44.35121,17.22671,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Grbavica','parc_exterior','Tuzla','Federation of B&H',NULL,'Grbavica, Tuzla',44.53772,18.69437,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Una RC Kiro Rafting Camp','parc_exterior','Bihać','Unsko-Sanski Kanton',NULL,'Una RC Kiro Rafting Camp, Bihać',44.78257,15.92536,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Plivsko jezero','parc_exterior','Jajce','Federation of B&H',NULL,'Plivsko jezero, Jajce',44.35121,17.22671,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Grbavica','parc_exterior','Tuzla','Federation of B&H',NULL,'Grbavica, Tuzla',44.53772,18.69437,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis','parc_exterior','Zenica','Federation of B&H',NULL,'Arena Husejin Smajlović, Zenica',44.2025,17.91395,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Univerzitetski grad','parc_exterior','Banja Luka','Srpska',NULL,'Univerzitetski grad, Banja Luka',44.77509,17.2099967,3,true,false,NULL,NULL,ARRAY['exterior'],true,false)
+  ('Univerzitetski grad','parc_exterior','Banja Luka','Srpska',NULL,'Univerzitetski grad, Banja Luka',44.77509,17.2099967,3,true,false,NULL,NULL,ARRAY['exterior'],true,false)
 ) AS v(name,type,city,county,sector,address,lat,lng,tables_count,free_access,night_lighting,hours,description,tags,approved,verified)
 JOIN cities c ON c.country_code='BA' AND c.name=v.city
 ON CONFLICT (name,city_id) DO NOTHING;

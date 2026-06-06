@@ -10,8 +10,8 @@ ON CONFLICT (country_code,name) DO NOTHING;
 INSERT INTO venues (name,type,city,city_id,county,sector,address,lat,lng,tables_count,free_access,night_lighting,hours,description,tags,approved,verified,submitted_by)
 SELECT v.name,v.type,v.city,c.id,v.county::text,v.sector::text,v.address,v.lat::double precision,v.lng::double precision,v.tables_count::int,v.free_access::boolean,v.night_lighting::boolean,v.hours::text,v.description::text,v.tags::text[],v.approved::boolean,v.verified::boolean,NULL
 FROM (VALUES
-  ('Table tennis Gauguin Park','parc_exterior','Trachóni',NULL,NULL,'Gauguin Park, Trachóni',34.654015,32.998725,2,true,true,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis Limassol Nautical Club','parc_exterior','Limassol','Limassol',NULL,'Limassol Nautical Club, Limassol',34.68887,33.07185,1,true,false,NULL,NULL,ARRAY['exterior'],true,false)
+  ('Gauguin Park','parc_exterior','Trachóni',NULL,NULL,'Gauguin Park, Trachóni',34.654015,32.998725,2,true,true,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Limassol Nautical Club','parc_exterior','Limassol','Limassol',NULL,'Limassol Nautical Club, Limassol',34.68887,33.07185,1,true,false,NULL,NULL,ARRAY['exterior'],true,false)
 ) AS v(name,type,city,county,sector,address,lat,lng,tables_count,free_access,night_lighting,hours,description,tags,approved,verified)
 JOIN cities c ON c.country_code='CY' AND c.name=v.city
 ON CONFLICT (name,city_id) DO NOTHING;
