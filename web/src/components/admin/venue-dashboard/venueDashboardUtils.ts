@@ -36,6 +36,7 @@ export type OsmSeedVenue = {
   address: string | null;
   lat: number;
   lng: number;
+  tables_count?: number | null;
 };
 
 const tableCountSuffixPattern = /\s*\((\d{1,3})\)\s*$/;

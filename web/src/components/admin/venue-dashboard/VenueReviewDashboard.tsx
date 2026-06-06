@@ -3,11 +3,12 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useLocale } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   AlertTriangle,
   Check,
   ChevronLeft,
+  ChevronRight,
   Clipboard,
   Database,
   Eye,
@@ -15,6 +16,8 @@ import {
   Filter,
   Globe2,
   History,
+  LogIn,
+  LogOut,
   Loader2,
   MapPinned,
   Pencil,
@@ -228,7 +231,7 @@ type RecentAdminActionInput = RecentAdminAction extends infer Action
 
 export function VenueReviewDashboard() {
   const locale = useLocale();
-  const { user } = useAuth();
+  const { user, signIn, signInWithGoogle, signOut } = useAuth();
   const { isAdmin, loading: adminLoading } = useAdmin();
 
   const [seedInventory, setSeedInventory] = useState<OsmSeedInventory | null>(null);
@@ -269,6 +272,11 @@ export function VenueReviewDashboard() {
   const [editTarget, setEditTarget] = useState<AdminVenue | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [recentActions, setRecentActions] = useState<RecentAdminAction[]>([]);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+  const [authError, setAuthError] = useState("");
   const venueDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedCity = useMemo(
@@ -1271,6 +1279,31 @@ export function VenueReviewDashboard() {
     });
   }
 
+  async function handleDashboardSignIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!authEmail.trim() || !authPassword.trim()) return;
+
+    setAuthSubmitting(true);
+    setAuthError("");
+    const { error } = await signIn(authEmail.trim(), authPassword);
+    setAuthSubmitting(false);
+
+    if (error) {
+      setAuthError(error);
+      return;
+    }
+
+    setAuthPassword("");
+  }
+
+  async function handleDashboardGoogleSignIn() {
+    setAuthSubmitting(true);
+    setAuthError("");
+    const { error } = await signInWithGoogle();
+    setAuthSubmitting(false);
+    if (error) setAuthError(error);
+  }
+
   if (adminLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper">
@@ -1279,14 +1312,101 @@ export function VenueReviewDashboard() {
     );
   }
 
-  if (!user || !isAdmin) {
+  if (!user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-paper">
+      <div className="flex min-h-screen items-center justify-center bg-paper px-4 py-10">
+        <div className="w-full max-w-[430px] rounded-md border border-ink-100 bg-surface p-6 shadow-[0_18px_60px_-36px_rgba(12,29,19,0.35)]">
+          <div className="mb-5 flex flex-col items-center gap-3 text-center">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-moss-50 text-moss-800">
+              <ShieldAlert className="h-6 w-6" />
+            </span>
+            <div>
+              <h1 className="font-heading text-[24px] font-bold tracking-tight text-ink-900">
+                Admin sign in
+              </h1>
+              <p className="mt-1 text-[13.5px] leading-relaxed text-ink-500">
+                Use an admin TTPortal account to open the venue review dashboard.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleDashboardSignIn} className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1.5 text-[12px] font-bold uppercase text-ink-500">
+              Email
+              <input
+                type="email"
+                value={authEmail}
+                onChange={(event) => setAuthEmail(event.target.value)}
+                autoComplete="email"
+                required
+                className="h-11 rounded-md border border-ink-200 bg-paper px-3 text-[14px] font-semibold normal-case text-ink-900 outline-none transition focus:border-moss-500 focus:ring-4 focus:ring-moss-500/15"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-[12px] font-bold uppercase text-ink-500">
+              Password
+              <input
+                type="password"
+                value={authPassword}
+                onChange={(event) => setAuthPassword(event.target.value)}
+                autoComplete="current-password"
+                required
+                minLength={6}
+                className="h-11 rounded-md border border-ink-200 bg-paper px-3 text-[14px] font-semibold normal-case text-ink-900 outline-none transition focus:border-moss-500 focus:ring-4 focus:ring-moss-500/15"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={authSubmitting}
+              className="btn-moss mt-1 inline-flex h-11 items-center justify-center gap-2 rounded-md text-[14px] font-bold disabled:opacity-60"
+            >
+              {authSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
+              Sign in
+            </button>
+          </form>
+
+          {authError ? (
+            <p className="mt-3 rounded-md bg-clay-50 px-3 py-2 text-center text-[12.5px] font-semibold text-clay-700">
+              {authError}
+            </p>
+          ) : null}
+
+          <div className="my-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-ink-100" />
+            <span className="text-[10.5px] font-bold uppercase text-ink-400">or</span>
+            <div className="h-px flex-1 bg-ink-100" />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleDashboardGoogleSignIn}
+            disabled={authSubmitting}
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md border border-ink-200 bg-paper text-[14px] font-bold text-ink-800 hover:bg-ink-50 disabled:opacity-60"
+          >
+            Continue with Google
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-paper px-4 text-center">
         <ShieldAlert className="h-16 w-16 text-ink-300" />
         <h1 className="font-heading text-[26px] font-bold tracking-tight text-ink-900">
           Admin access required
         </h1>
-        <p className="text-[14px] text-ink-600">Sign in with an admin account to continue.</p>
+        <p className="max-w-[420px] text-[14px] text-ink-600">
+          You are signed in as {user.email ?? "this account"}, but this account is not marked as an admin.
+        </p>
+        <button
+          type="button"
+          onClick={signOut}
+          className="inline-flex items-center gap-2 rounded-md border border-ink-200 bg-surface px-3 py-2 text-[13px] font-bold text-ink-700 hover:bg-ink-50"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </button>
       </div>
     );
   }
@@ -1366,6 +1486,8 @@ export function VenueReviewDashboard() {
               <RecentActionsPanel
                 actions={recentActions}
                 loadingActionId={actionLoading?.startsWith("undo-") ? actionLoading.slice(5) : null}
+                open={activityOpen}
+                onOpenChange={setActivityOpen}
                 onUndo={handleUndoRecentAction}
               />
               <div className="min-h-0 flex-1 overflow-y-auto bg-paper/60">
@@ -1645,16 +1767,18 @@ function VenueQueueBar({
           <button
             onClick={onPrevious}
             disabled={!hasPrevious}
-            className="rounded-md border border-ink-200 px-2.5 py-1.5 text-[12px] font-semibold text-ink-700 hover:bg-ink-50 disabled:opacity-50"
+            title="Previous queue item"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-ink-200 text-ink-700 hover:bg-ink-50 disabled:opacity-50"
           >
-            Previous
+            <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             onClick={onNext}
             disabled={!hasNext}
-            className="btn-moss rounded-md px-2.5 py-1.5 text-[12px] font-semibold disabled:opacity-50"
+            title="Next queue item"
+            className="btn-moss inline-flex h-9 w-9 items-center justify-center rounded-md disabled:opacity-50"
           >
-            Next
+            <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -1730,41 +1854,74 @@ function CityCompletionGuard({
 function RecentActionsPanel({
   actions,
   loadingActionId,
+  open,
+  onOpenChange,
   onUndo,
 }: {
   actions: RecentAdminAction[];
   loadingActionId: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onUndo: (action: RecentAdminAction) => void;
 }) {
   if (!actions.length) return null;
 
+  const visibleActions = actions.slice(0, 5);
+
   return (
-    <section className="shrink-0 border-b border-ink-100 bg-surface px-3 py-2">
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 kicker text-ink-500">
+    <section className="shrink-0 border-b border-ink-100 bg-surface">
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-ink-50"
+        aria-expanded={open}
+      >
+        <span className="inline-flex min-w-0 items-center gap-1.5 kicker text-ink-500">
           <History className="h-3.5 w-3.5" />
-          Recent admin actions
+          Activity
         </span>
-        <span className="text-[10.5px] font-bold uppercase text-ink-400">This session</span>
-      </div>
-      <div className="flex flex-col gap-1">
-        {actions.slice(0, 3).map((action) => (
-          <div key={action.id} className="flex items-center justify-between gap-2 rounded-md bg-paper px-2 py-1.5">
-            <div className="min-w-0">
-              <p className="truncate text-[11.5px] font-bold text-ink-800">{action.label}</p>
-              <p className="truncate text-[10.5px] font-semibold text-ink-400">{action.detail}</p>
-            </div>
-            <button
-              onClick={() => onUndo(action)}
-              disabled={loadingActionId === action.id}
-              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-ink-200 bg-surface px-2 py-1 text-[10.5px] font-bold text-ink-700 hover:bg-ink-50 disabled:opacity-60"
-            >
-              {loadingActionId === action.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
-              Undo
-            </button>
+        <span className="inline-flex shrink-0 items-center gap-1.5">
+          <span className="rounded-full bg-moss-50 px-2 py-0.5 text-[10.5px] font-bold text-moss-800">
+            {formatDashboardNumber(actions.length)}
+          </span>
+          <ChevronRight className={`h-3.5 w-3.5 text-ink-400 transition-transform ${open ? "rotate-90" : ""}`} />
+        </span>
+      </button>
+
+      {open ? (
+        <div className="max-h-52 overflow-y-auto border-t border-ink-100 px-3 py-2">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <span className="text-[10.5px] font-bold uppercase text-ink-400">This session</span>
+            {actions.length > visibleActions.length ? (
+              <span className="text-[10.5px] font-bold text-ink-400">
+                Showing {formatDashboardNumber(visibleActions.length)}
+              </span>
+            ) : null}
           </div>
-        ))}
-      </div>
+          <div className="flex flex-col gap-1">
+            {visibleActions.map((action) => (
+              <div key={action.id} className="flex items-center justify-between gap-2 rounded-md bg-paper px-2 py-1.5">
+                <div className="min-w-0">
+                  <p className="truncate text-[11.5px] font-bold text-ink-800">{action.label}</p>
+                  <p className="truncate text-[10.5px] font-semibold text-ink-400">{action.detail}</p>
+                </div>
+                <button
+                  onClick={() => onUndo(action)}
+                  disabled={loadingActionId === action.id}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-ink-200 bg-surface px-2 py-1 text-[10.5px] font-bold text-ink-700 hover:bg-ink-50 disabled:opacity-60"
+                >
+                  {loadingActionId === action.id ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <RotateCcw className="h-3 w-3" />
+                  )}
+                  Undo
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -2468,7 +2625,7 @@ function seedVenueToDraft(venue: OsmSeedVenue): SeedVenueDraft {
     address: venue.address ?? "",
     lat: String(venue.lat),
     lng: String(venue.lng),
-    tablesCount: String(nameParts.tableCount ?? 1),
+    tablesCount: String(venue.tables_count ?? nameParts.tableCount ?? 1),
     condition: "necunoscuta",
     description: "",
     freeAccess: true,

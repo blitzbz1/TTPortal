@@ -5,7 +5,7 @@ Source: tables.json (47209 OSM points) → Overture Maps `2026-05-20.0` + GeoNam
 ## Totals
 - Input points: **47209**
 - **Venues emitted: 33330**  across **10291 cities** / **44 countries**
-- Tables represented (co-located same-name tables merged into one venue): 44914
+- Tables represented (co-located same-name tables merged into one venue): 44917
 - Venues that merged ≥2 co-located tables: 8385
 - Distant same-name venues kept separate (suffixed ' (2)'…): 1726
 
@@ -30,7 +30,7 @@ Source: tables.json (47209 OSM points) → Overture Maps `2026-05-20.0` + GeoNam
 ## Per country (venues / tables / cities)
 | cc | country | venues | tables | cities |
 |---|---|---|---|---|
-| DE | Germany | 13376 | 18653 | 2882 |
+| DE | Germany | 13376 | 18656 | 2882 |
 | CH | Switzerland | 5504 | 7574 | 1007 |
 | FR | France | 4990 | 6516 | 2768 |
 | NL | The Netherlands | 1793 | 1952 | 556 |

@@ -17,6 +17,7 @@ export function useAdmin() {
       return;
     }
 
+    setLoading(true);
     supabase
       .from("profiles")
       .select("is_admin")

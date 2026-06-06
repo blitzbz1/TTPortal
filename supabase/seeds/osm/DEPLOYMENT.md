@@ -1,6 +1,6 @@
 # Deployment — OpenStreetMap venue import
 
-**44,914 venues · 10,291 cities · 44 countries**, derived from OpenStreetMap (via Overture Maps
+**33,330 venues · 44,917 represented tables · 10,291 cities · 44 countries**, derived from OpenStreetMap (via Overture Maps
 `2026-05-20.0` + GeoNames). One **idempotent** `.sql` file per country in this directory, plus
 `run_all.sql`. Per-country counts, name-source breakdown, drop reasons and samples are in
 [`REPORT.md`](./REPORT.md). The generator lives in `scripts/osm-import/` (re-runnable).
