@@ -1,4 +1,4 @@
--- BA — Bosnia and Herzegovina — 8 venues, 6 cities
+-- BA — Bosnia and Herzegovina — 6 venues, 6 cities
 -- Idempotent: safe to run multiple times. Source: OpenStreetMap via Overture Maps + GeoNames.
 -- STAGED: cities active=false, expansion_status='community_review' (hidden in-app until activated — see DEPLOYMENT.md). Venues approved=true.
 BEGIN;
@@ -19,9 +19,7 @@ FROM (VALUES
   ('Stoni tenis Plivsko jezero','parc_exterior','Jajce','Federation of B&H',NULL,'Plivsko jezero, Jajce',44.35121,17.22671,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis Grbavica','parc_exterior','Tuzla','Federation of B&H',NULL,'Grbavica, Tuzla',44.53772,18.69437,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis','parc_exterior','Zenica','Federation of B&H',NULL,'Arena Husejin Smajlović, Zenica',44.2025,17.91395,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Univerzitetski grad','parc_exterior','Banja Luka','Srpska',NULL,'Univerzitetski grad, Banja Luka',44.77506,17.20951,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Univerzitetski grad (2)','parc_exterior','Banja Luka','Srpska',NULL,'Univerzitetski grad, Banja Luka',44.77508,17.2098,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Univerzitetski grad (3)','parc_exterior','Banja Luka','Srpska',NULL,'Univerzitetski grad, Banja Luka',44.77513,17.21068,1,true,false,NULL,NULL,ARRAY['exterior'],true,false)
+  ('Stoni tenis Univerzitetski grad','parc_exterior','Banja Luka','Srpska',NULL,'Univerzitetski grad, Banja Luka',44.77509,17.2099967,3,true,false,NULL,NULL,ARRAY['exterior'],true,false)
 ) AS v(name,type,city,county,sector,address,lat,lng,tables_count,free_access,night_lighting,hours,description,tags,approved,verified)
 JOIN cities c ON c.country_code='BA' AND c.name=v.city
 ON CONFLICT (name,city_id) DO NOTHING;

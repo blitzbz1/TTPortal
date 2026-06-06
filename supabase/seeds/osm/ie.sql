@@ -1,4 +1,4 @@
--- IE — Ireland — 15 venues, 11 cities
+-- IE — Ireland — 11 venues, 11 cities
 -- Idempotent: safe to run multiple times. Source: OpenStreetMap via Overture Maps + GeoNames.
 -- STAGED: cities active=false, expansion_status='community_review' (hidden in-app until activated — see DEPLOYMENT.md). Venues approved=true.
 BEGIN;
@@ -23,16 +23,12 @@ FROM (VALUES
   ('Table Tennis','parc_exterior','Maynooth','Kildare',NULL,'Maynooth University North Campus, Maynooth',53.38393,-6.60274,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Table tennis Albert College Park','parc_exterior','Glasnevin','Dublin City',NULL,'Albert College Park, Glasnevin',53.38353,-6.26046,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Table tennis Clay Farm','parc_exterior','Foxrock','Dún Laoghaire-Rathdown',NULL,'Clay Farm, Foxrock',53.25532,-6.20281,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis Hamilton Gardens','parc_exterior','Cabra','Dublin City',NULL,'Hamilton Gardens, Cabra',53.36413,-6.29261,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis Hamilton Gardens (2)','parc_exterior','Cabra','Dublin City',NULL,'Hamilton Gardens, Cabra',53.36412,-6.29253,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis Q-Park Exchange Hall','parc_exterior','Tallaght','South Dublin',NULL,'Q-Park Exchange Hall, Tallaght',53.29102,-6.37263,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis Q-Park Exchange Hall (2)','parc_exterior','Tallaght','South Dublin',NULL,'Q-Park Exchange Hall, Tallaght',53.29096,-6.37268,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis NAC Swim Club','parc_exterior','Blanchardstown','Fingal County',NULL,'NAC Swim Club, Blanchardstown',53.39593,-6.36896,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis NAC Swim Club (2)','parc_exterior','Blanchardstown','Fingal County',NULL,'NAC Swim Club, Blanchardstown',53.39578,-6.36895,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Table tennis Hamilton Gardens','parc_exterior','Cabra','Dublin City',NULL,'Hamilton Gardens, Cabra',53.364125,-6.29257,2,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Table tennis Q-Park Exchange Hall','parc_exterior','Tallaght','South Dublin',NULL,'Q-Park Exchange Hall, Tallaght',53.29099,-6.372655,2,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Table tennis NAC Swim Club','parc_exterior','Blanchardstown','Fingal County',NULL,'NAC Swim Club, Blanchardstown',53.395855,-6.368955,2,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Table tennis Woodlands Park','parc_exterior','Tralee','Kerry',NULL,'Woodlands Park, Tralee',52.26214,-9.70497,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Table tennis Lakeside Holiday Park','parc_exterior','Ballina','County Tipperary',NULL,'Lakeside Holiday Park, Ballina',52.92771,-8.41896,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis Blarney Playground','parc_exterior','Blarney','County Cork',NULL,'Blarney Playground, Blarney',51.92872,-8.55701,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Table tennis Blarney Playground (2)','parc_exterior','Blarney','County Cork',NULL,'Blarney Playground, Blarney',51.92872,-8.55696,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Table tennis Blarney Playground','parc_exterior','Blarney','County Cork',NULL,'Blarney Playground, Blarney',51.92872,-8.556985,2,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Table tennis Shannon Rowing Club','parc_exterior','Limerick','Limerick City and County Council',NULL,'Shannon Rowing Club, Limerick',52.6652,-8.6287,1,true,true,NULL,NULL,ARRAY['exterior'],true,false)
 ) AS v(name,type,city,county,sector,address,lat,lng,tables_count,free_access,night_lighting,hours,description,tags,approved,verified)
 JOIN cities c ON c.country_code='IE' AND c.name=v.city

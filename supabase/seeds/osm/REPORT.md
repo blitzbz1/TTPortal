@@ -4,8 +4,10 @@ Source: tables.json (47209 OSM points) → Overture Maps `2026-05-20.0` + GeoNam
 
 ## Totals
 - Input points: **47209**
-- **Venues emitted: 44914**  across **10291 cities** / **44 countries**
-- Cluster names disambiguated with a suffix: 13314
+- **Venues emitted: 33330**  across **10291 cities** / **44 countries**
+- Tables represented (co-located same-name tables merged into one venue): 44914
+- Venues that merged ≥2 co-located tables: 8385
+- Distant same-name venues kept separate (suffixed ' (2)'…): 1726
 
 ## Dropped (2295)
 | reason | count |
@@ -25,69 +27,69 @@ Source: tables.json (47209 OSM points) → Overture Maps `2026-05-20.0` + GeoNam
 | nearest street | 13434 |
 | other named area | 0 |
 
-## Per country (venues / cities)
-| cc | country | venues | cities |
-|---|---|---|---|
-| DE | Germany | 18653 | 2882 |
-| CH | Switzerland | 7574 | 1007 |
-| FR | France | 6516 | 2768 |
-| PL | Poland | 2084 | 465 |
-| NL | The Netherlands | 1952 | 556 |
-| ES | Spain | 1312 | 431 |
-| GB | United Kingdom | 903 | 349 |
-| CZ | Czechia | 811 | 283 |
-| RU | Russia | 789 | 136 |
-| AT | Austria | 662 | 168 |
-| IT | Italy | 570 | 247 |
-| BE | Belgium | 407 | 234 |
-| NO | Norway | 366 | 78 |
-| HU | Hungary | 355 | 70 |
-| SK | Slovakia | 307 | 72 |
-| EE | Estonia | 284 | 44 |
-| HR | Croatia | 266 | 54 |
-| UA | Ukraine | 161 | 54 |
-| BG | Bulgaria | 142 | 13 |
-| DK | Denmark | 117 | 52 |
-| SE | Sweden | 101 | 47 |
-| FI | Finland | 77 | 40 |
-| PT | Portugal | 74 | 50 |
-| BY | Belarus | 61 | 18 |
-| LV | Latvia | 53 | 21 |
-| SI | Slovenia | 49 | 16 |
-| LT | Lithuania | 40 | 12 |
-| GR | Greece | 34 | 23 |
-| LU | Luxembourg | 32 | 19 |
-| RS | Serbia | 31 | 15 |
-| ME | Montenegro | 30 | 5 |
-| TR | Turkey | 23 | 16 |
-| GE | Georgia | 17 | 7 |
-| IE | Ireland | 15 | 11 |
-| MD | Moldova | 10 | 5 |
-| BA | Bosnia and Herzegovina | 8 | 6 |
-| AL | Albania | 7 | 2 |
-| LI | Liechtenstein | 6 | 4 |
-| AM | Armenia | 4 | 4 |
-| MC | Monaco | 4 | 1 |
-| CY | Cyprus | 3 | 2 |
-| IS | Iceland | 2 | 2 |
-| DZ | Algeria | 1 | 1 |
-| IR | Iran | 1 | 1 |
+## Per country (venues / tables / cities)
+| cc | country | venues | tables | cities |
+|---|---|---|---|---|
+| DE | Germany | 13376 | 18653 | 2882 |
+| CH | Switzerland | 5504 | 7574 | 1007 |
+| FR | France | 4990 | 6516 | 2768 |
+| NL | The Netherlands | 1793 | 1952 | 556 |
+| PL | Poland | 1623 | 2084 | 465 |
+| ES | Spain | 930 | 1312 | 431 |
+| CZ | Czechia | 649 | 811 | 283 |
+| GB | United Kingdom | 638 | 903 | 349 |
+| RU | Russia | 583 | 789 | 136 |
+| AT | Austria | 502 | 662 | 168 |
+| IT | Italy | 436 | 570 | 247 |
+| BE | Belgium | 347 | 407 | 234 |
+| HU | Hungary | 270 | 355 | 70 |
+| NO | Norway | 253 | 366 | 78 |
+| SK | Slovakia | 239 | 307 | 72 |
+| EE | Estonia | 217 | 284 | 44 |
+| HR | Croatia | 161 | 266 | 54 |
+| UA | Ukraine | 131 | 161 | 54 |
+| DK | Denmark | 95 | 117 | 52 |
+| BG | Bulgaria | 85 | 142 | 13 |
+| SE | Sweden | 80 | 101 | 47 |
+| FI | Finland | 62 | 77 | 40 |
+| PT | Portugal | 58 | 74 | 50 |
+| BY | Belarus | 37 | 61 | 18 |
+| LV | Latvia | 37 | 53 | 21 |
+| SI | Slovenia | 34 | 49 | 16 |
+| LT | Lithuania | 30 | 40 | 12 |
+| GR | Greece | 26 | 34 | 23 |
+| LU | Luxembourg | 26 | 32 | 19 |
+| RS | Serbia | 22 | 31 | 15 |
+| ME | Montenegro | 21 | 30 | 5 |
+| TR | Turkey | 18 | 23 | 16 |
+| GE | Georgia | 12 | 17 | 7 |
+| IE | Ireland | 11 | 15 | 11 |
+| MD | Moldova | 7 | 10 | 5 |
+| BA | Bosnia and Herzegovina | 6 | 8 | 6 |
+| LI | Liechtenstein | 5 | 6 | 4 |
+| AL | Albania | 4 | 7 | 2 |
+| AM | Armenia | 4 | 4 | 4 |
+| CY | Cyprus | 2 | 3 | 2 |
+| IS | Iceland | 2 | 2 | 2 |
+| MC | Monaco | 2 | 4 | 1 |
+| DZ | Algeria | 1 | 1 | 1 |
+| IR | Iran | 1 | 1 | 1 |
 
 ## Samples (top 5 countries)
 
 ### DE — Germany
-  - Tischtennis Ludwig-Meyn-Gymnasium  —  Bleekerstraße 8, Uetersen
-  - Tischtennis Michelwiese  —  Martin-Luther-Straße 35, Hamburg
-  - Tischtennis Auguststraße  —  Auguststraße 34, Bremen
-  - Tischtennis Rennstieg  —  Rennstieg 77, Bremen
-  - Tischtennis Im Krummen Arm  —  Linienstraße 49, Bremen
-  - Tischtennis Abenteuerspielplatz  —  Repgowstieg 55, Hamburg
-  - Tischtennis Steindammwiesen  —  Steindamm 26, Elmshorn
-  - Tischtennis Gesamtschule West  —  Lissaer Straße 7, Bremen
-  - Tischtennis Altes Gymnasium  —  Karolinastraße 7, Bremen
-  - Tischtennis Altes Gymnasium (2)  —  Karolinastraße 7, Bremen
-  - Tischtennis Altes Gymnasium (3)  —  Karolinastraße 8, Bremen
-  - Tischtennis Altes Gymnasium (4)  —  Karolinastraße 8, Bremen
+  - Ludwig-Meyn-Gymnasium  —  Bleekerstraße 8, Uetersen
+  - Michelwiese  —  Martin-Luther-Straße 35, Hamburg
+  - Auguststraße  —  Auguststraße 34, Bremen
+  - Rennstieg  —  Rennstieg 77, Bremen
+  - Im Krummen Arm  —  Linienstraße 49, Bremen
+  - Abenteuerspielplatz  —  Repgowstieg 55, Hamburg
+  - Steindammwiesen  —  Steindamm 26, Elmshorn
+  - Gesamtschule West  —  Lissaer Straße 7, Bremen
+  - Altes Gymnasium  —  Karolinastraße 7, Bremen
+  - Bürgerpark  —  Hollerallee 99, Bremen
+  - Neue Oberschule Gröpelingen  —  Humannstraße 69, Ritterhude
+  - Oberschule Habenhausen  —  Bunnsackerweg 2, Bremen
 
 ### CH — Switzerland
   - Tischtennis Schule Im Birch  —  Margrit-Rainer-Strasse 6, Grossacker/Opfikon
@@ -117,20 +119,6 @@ Source: tables.json (47209 OSM points) → Overture Maps `2026-05-20.0` + GeoNam
   - Tennis de table Square Voyer d'Argenson  —  Rue du Château 99, Asnières-sur-Seine
   - Tennis de table CHM Montalivet  —  Avenue de l'Europe 46, Vendays-Montalivet
 
-### PL — Poland
-  - Tenis stołowy Centrum Kształcenia Sportowego  —  Mazurska 40, Szczecin
-  - Tenis stołowy Centrum Kształcenia Sportowego (2)  —  Generała Ludomiła Rayskiego 9, Szczecin
-  - Tenis stołowy Plac Dziecka  —  Plac Dziecka 13, Szczecin
-  - Tenis stołowy Zespół Szkół Ogólnokształcących  —  Stefana Żeromskiego 1, Hel
-  - Tenis stołowy Park Diany  —  Diany 32, Osowa
-  - Tenis stołowy Piernikowe Miasteczko  —  Podmurna 60, Toruń
-  - Tenis stołowy Piernikowe Miasteczko (2)  —  Podmurna 68, Toruń
-  - Tenis stołowy Skwer imienia Telesfora Badetko  —  Spółdzielcza 70, Szczecin
-  - Tenis stołowy Szkoła Podstawowa nr 8 imienia Jana Pawła II  —  Piaskowa 99a, Police
-  - Tenis stołowy Szkoła Podstawowa nr 8 imienia Jana Pawła II (2)  —  Piaskowa 99a, Police
-  - Tenis stołowy Os. Dolne Miasto  —  Osiedle Dolne Miasto 14A, Wałcz
-  - Tenis stołowy Os. Dolne Miasto (2)  —  Osiedle Dolne Miasto 14A, Wałcz
-
 ### NL — The Netherlands
   - Tafeltennis Universitair Medisch Centrum Groningen  —  Vrydemalaan 17, Groningen
   - Tafeltennis CBS De Parel  —  Kerkstraat 108, Veendam
@@ -142,5 +130,19 @@ Source: tables.json (47209 OSM points) → Overture Maps `2026-05-20.0` + GeoNam
   - Tafeltennis Oranjetuin  —  Oranje-Nassaupark 1, Leeuwarden
   - Tafeltennis GBS De Parel  —  Aletta Jacobsweg 78, Assen
   - Tafeltennis Comenius Mariënburg  —  Achter de Hoven 116k, Leeuwarden
-  - Tafeltennis Comenius Mariënburg (2)  —  Achter de Hoven 116k, Leeuwarden
   - Tafeltennis Durperhonk  —  Schipper Boonstraat 18, De Koog
+  - Tafeltennis Kindcentrum SPEEL en LEER  —  Kerklaan 3A, Haulerwijk
+
+### PL — Poland
+  - Tenis stołowy Centrum Kształcenia Sportowego  —  Mazurska 40, Szczecin
+  - Tenis stołowy Plac Dziecka  —  Plac Dziecka 13, Szczecin
+  - Tenis stołowy Zespół Szkół Ogólnokształcących  —  Stefana Żeromskiego 1, Hel
+  - Tenis stołowy Park Diany  —  Diany 32, Osowa
+  - Tenis stołowy Piernikowe Miasteczko  —  Podmurna 60, Toruń
+  - Tenis stołowy Skwer imienia Telesfora Badetko  —  Spółdzielcza 70, Szczecin
+  - Tenis stołowy Szkoła Podstawowa nr 8 imienia Jana Pawła II  —  Piaskowa 99a, Police
+  - Tenis stołowy Os. Dolne Miasto  —  Osiedle Dolne Miasto 14A, Wałcz
+  - Tenis stołowy Jar Wilanowski  —  prof. Romualda Cebertowicza 19, Ujeścisko-Łostowice
+  - Tenis stołowy Szkoła Podstawowa nr 3 im. Juliusza Słowackiego  —  Władysława Stanisława Reymonta 23, Szczecin
+  - Tenis stołowy Szkoła Podstawowa nr 12 im. Konstantego Ildefonsa Gałczyńskiego  —  Krzemienna 42a, Szczecin
+  - Tenis stołowy Plac Trzech Pokoleń  —  Perłowa 12, Kołobrzeg

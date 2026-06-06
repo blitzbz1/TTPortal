@@ -1,4 +1,4 @@
--- LU — Luxembourg — 32 venues, 19 cities
+-- LU — Luxembourg — 26 venues, 19 cities
 -- Idempotent: safe to run multiple times. Source: OpenStreetMap via Overture Maps + GeoNames.
 -- STAGED: cities active=false, expansion_status='community_review' (hidden in-app until activated — see DEPLOYMENT.md). Venues approved=true.
 BEGIN;
@@ -28,15 +28,11 @@ INSERT INTO venues (name,type,city,city_id,county,sector,address,lat,lng,tables_
 SELECT v.name,v.type,v.city,c.id,v.county::text,v.sector::text,v.address,v.lat::double precision,v.lng::double precision,v.tables_count::int,v.free_access::boolean,v.night_lighting::boolean,v.hours::text,v.description::text,v.tags::text[],v.approved::boolean,v.verified::boolean,NULL
 FROM (VALUES
   ('Tennis de table Rue Rosemarie Kieffer','parc_exterior','Luxembourg','Ville de Luxembourg',NULL,'Rue Rosemarie Kieffer 22, Luxembourg',49.62093,6.17256,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Tennis de table Parc de Merl','parc_exterior','Luxembourg','Ville de Luxembourg',NULL,'Avenue Guillaume 83, Luxembourg',49.60707,6.11228,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Tennis de table Parc de Merl (2)','parc_exterior','Luxembourg','Ville de Luxembourg',NULL,'Avenue Guillaume 81, Luxembourg',49.60701,6.11227,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Tennis de table Camping Birkelt','parc_exterior','Larochette','Larochette',NULL,'Camping Birkelt 1, Larochette',49.78389,6.21087,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Tennis de table Camping Birkelt (2)','parc_exterior','Larochette','Larochette',NULL,'Camping Birkelt 1, Larochette',49.78335,6.21159,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Tennis de table Parc de Merl','parc_exterior','Luxembourg','Ville de Luxembourg',NULL,'Avenue Guillaume 83, Luxembourg',49.6070425,6.1122775,4,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Tennis de table Camping Birkelt','parc_exterior','Larochette','Larochette',NULL,'Camping Birkelt 1, Larochette',49.78362,6.21123,2,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Tennis de table Haaptstrooss','parc_exterior','Ell','Ell',NULL,'Haaptstrooss 25, Ell',49.76209,5.85304,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Tennis de table Bisserweg','parc_exterior','Luxembourg','Ville de Luxembourg',NULL,'Bisserweg 18, Luxembourg',49.60771,6.13806,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Tennis de table Route de Luxembourg','parc_exterior','Müllendorf','Steinsel',NULL,'Route de Luxembourg 164, Müllendorf',49.68435,6.13621,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Tennis de table Parc de Merl (3)','parc_exterior','Luxembourg','Ville de Luxembourg',NULL,'Avenue Guillaume 81, Luxembourg',49.60702,6.11228,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Tennis de table Parc de Merl (4)','parc_exterior','Luxembourg','Ville de Luxembourg',NULL,'Avenue Guillaume 83, Luxembourg',49.60707,6.11228,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Tennis de table Plateau Altmunster','parc_exterior','Luxembourg','Ville de Luxembourg',NULL,'Rue du Fort Olisy 2, Luxembourg',49.61315,6.13798,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Tennis de table Parc Um Päsch','parc_exterior','Hautcharage','Käerjeng',NULL,'Rue de Bascharage 14, Hautcharage',49.57376,5.90969,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Tennis de table Place Du Parc','parc_exterior','Luxembourg','Ville de Luxembourg',NULL,'Cour du Couvent 10, Luxembourg',49.59765,6.13877,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
@@ -50,13 +46,11 @@ FROM (VALUES
   ('Tennis de table Park Brill','parc_exterior','Mamer','Mamer',NULL,'Rue Bellevue 12, Mamer',49.62527,6.02566,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Tennis de table Nommerlayen','parc_exterior','Nommern','Nommern',NULL,'Rue Nommerlayen 99, Nommern',49.78441,6.16625,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Tennis de table Parc Kaltreis','parc_exterior','Howald','Hesperange',NULL,'Boulevard Kaltreis 48, Howald',49.59354,6.15302,1,true,true,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Tennis de table Parc bei der Schwemm','parc_exterior','Bettembourg','Bettembourg',NULL,'Rue James Hilliard Polk 4, Bettembourg',49.51625,6.09845,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Tennis de table Parc bei der Schwemm','parc_exterior','Bettembourg','Bettembourg',NULL,'Rue James Hilliard Polk 4, Bettembourg',49.5162,6.098435,2,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Sportshal Lénger','parc_exterior','Pétange','Pétange',NULL,'Rue de la Libération 12, Pétange',49.56592,5.88708,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Tennis de table Parc bei der Schwemm (2)','parc_exterior','Bettembourg','Bettembourg',NULL,'Rue James Hilliard Polk 10, Bettembourg',49.51615,6.09842,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Tennis de table Puddel','parc_exterior','Lenningen','Lenningen',NULL,'Route du Vin 133, Lenningen',49.60064,6.38816,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Tennis de table Rue du Réservoir','parc_exterior','Erpeldange','Erpeldange',NULL,'Rue du Réservoir 1, Erpeldange',49.88401,6.09083,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Tennis de table Kengert','parc_exterior','Medernach','Commune de la Vallée de l''Ernz',NULL,'Kengert 1, Medernach',49.8011,6.19885,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Tennis de table Kengert (2)','parc_exterior','Medernach','Commune de la Vallée de l''Ernz',NULL,'Kengert 1, Medernach',49.80107,6.19882,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Tennis de table Kengert','parc_exterior','Medernach','Commune de la Vallée de l''Ernz',NULL,'Kengert 1, Medernach',49.801085,6.198835,2,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Tennis de table Rue Yvonne Stoffel-Wagener','parc_exterior','Belvaux','Sanem',NULL,'Rue Yvonne Stoffel-Wagener 14, Belvaux',49.51625,5.91403,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Tennis de table Parc communal de Mersch','parc_exterior','Rollingen','Mersch',NULL,'Parc communal de Mersch, Rollingen',49.74429,6.10834,1,true,false,NULL,NULL,ARRAY['exterior'],true,false)
 ) AS v(name,type,city,county,sector,address,lat,lng,tables_count,free_access,night_lighting,hours,description,tags,approved,verified)

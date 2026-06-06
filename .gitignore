@@ -37,6 +37,9 @@ supabase/.env
 supabase/volumes/db/data/
 supabase/volumes/storage/
 
+# Local database backups (contain data — do not commit)
+backups/
+
 # testing
 coverage/
 

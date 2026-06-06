@@ -1,4 +1,4 @@
--- TR — Turkey — 23 venues, 16 cities
+-- TR — Turkey — 18 venues, 16 cities
 -- Idempotent: safe to run multiple times. Source: OpenStreetMap via Overture Maps + GeoNames.
 -- STAGED: cities active=false, expansion_status='community_review' (hidden in-app until activated — see DEPLOYMENT.md). Venues approved=true.
 BEGIN;
@@ -29,14 +29,9 @@ FROM (VALUES
   ('Masa tenisi Karayolları Parkı','parc_exterior','Cikcilli','Alanya',NULL,'Karayolları Parkı, Cikcilli',36.54013,32.02426,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Tenis Masası','parc_exterior','Çerkezköy','Çerkezköy',NULL,'Çerkezköy, Çerkezköy',41.28168,27.98683,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Masa tenisi Yoğurtçu Parkı','parc_exterior','Üsküdar','Üsküdar',NULL,'Yoğurtçu Parkı, Üsküdar',40.98488,29.03355,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Masa tenisi Avcılar Sahil Yolu','parc_exterior','Yakuplu','Beylikdüzü',NULL,'Avcılar Sahil Yolu, Yakuplu',40.97232,28.74278,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Masa tenisi Avcılar Sahil Yolu (2)','parc_exterior','Yakuplu','Beylikdüzü',NULL,'Avcılar Sahil Yolu, Yakuplu',40.97238,28.74276,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Masa tenisi Avcılar Sahil Yolu (3)','parc_exterior','Yakuplu','Beylikdüzü',NULL,'Avcılar Sahil Yolu, Yakuplu',40.97259,28.74288,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Masa tenisi Yaşam Vadisi','parc_exterior','İçmeler','Tuzla',NULL,'Yaşam Vadisi, İçmeler',40.83483,29.31249,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Masa tenisi Yaşam Vadisi (2)','parc_exterior','İçmeler','Tuzla',NULL,'Yaşam Vadisi, İçmeler',40.83475,29.31258,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Masa tenisi Dostluk Parkı','parc_exterior','Etimesgut','Etimesgut İlçesi',NULL,'Dostluk Parkı, Etimesgut',39.96482,32.73021,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Masa tenisi Dostluk Parkı (2)','parc_exterior','Etimesgut','Etimesgut İlçesi',NULL,'Dostluk Parkı, Etimesgut',39.96477,32.7302,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Masa tenisi Dostluk Parkı (3)','parc_exterior','Etimesgut','Etimesgut İlçesi',NULL,'Dostluk Parkı, Etimesgut',39.96472,32.73018,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Masa tenisi Avcılar Sahil Yolu','parc_exterior','Yakuplu','Beylikdüzü',NULL,'Avcılar Sahil Yolu, Yakuplu',40.97243,28.7428067,3,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Masa tenisi Yaşam Vadisi','parc_exterior','İçmeler','Tuzla',NULL,'Yaşam Vadisi, İçmeler',40.83479,29.312535,2,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Masa tenisi Dostluk Parkı','parc_exterior','Etimesgut','Etimesgut İlçesi',NULL,'Dostluk Parkı, Etimesgut',39.96477,32.7301967,3,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Masa tenisi Pınarça Dere Kenarı Park','parc_exterior','Çerkezköy','Çerkezköy',NULL,'Pınarça Dere Kenarı Park, Çerkezköy',41.28807,28.00729,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('2 Tables','parc_exterior','Beldibi','Konyaaltı',NULL,'Beldibi',36.71039,30.57013,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Masa tenisi Ağva Kıyı Rekreasyon Alanı Parkı','parc_exterior','Ağva','Şile',NULL,'Ağva Kıyı Rekreasyon Alanı Parkı, Ağva',41.13726,29.84977,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),

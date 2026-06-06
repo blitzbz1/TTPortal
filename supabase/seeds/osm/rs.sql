@@ -1,4 +1,4 @@
--- RS — Serbia — 31 venues, 15 cities
+-- RS — Serbia — 22 venues, 15 cities
 -- Idempotent: safe to run multiple times. Source: OpenStreetMap via Overture Maps + GeoNames.
 -- STAGED: cities active=false, expansion_status='community_review' (hidden in-app until activated — see DEPLOYMENT.md). Venues approved=true.
 BEGIN;
@@ -25,22 +25,14 @@ SELECT v.name,v.type,v.city,c.id,v.county::text,v.sector::text,v.address,v.lat::
 FROM (VALUES
   ('Stoni tenis Велики Калемегдан','parc_exterior','Stari Grad','Belgrade',NULL,'KALEMEGDAN GORNJI GRAD 9, Stari Grad',44.82115,20.45021,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis Блок 9','parc_exterior','Zemun','Belgrade',NULL,'KARAĐORĐEV TRG 13, Zemun',44.83582,20.41888,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Савски парк','parc_exterior','Beograd','Belgrade',NULL,'LUKE ĆELOVIĆA TREBINJCA 17, Beograd',44.80503,20.45174,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Савски парк (2)','parc_exterior','Beograd','Belgrade',NULL,'LUKE ĆELOVIĆA TREBINJCA 17, Beograd',44.80503,20.45161,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Савски парк (3)','parc_exterior','Beograd','Belgrade',NULL,'LUKE ĆELOVIĆA TREBINJCA 17, Beograd',44.80504,20.45149,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Спомен-парк Крагујевачки октобар','parc_exterior','Kragujevac','Šumadija',NULL,'DRAGIŠE VITOŠEVIĆA 2, Kragujevac',44.02997,20.87913,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Спомен-парк Крагујевачки октобар (2)','parc_exterior','Kragujevac','Šumadija',NULL,'DRAGIŠE VITOŠEVIĆA 2, Kragujevac',44.03001,20.87914,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Спомен-парк Крагујевачки октобар (3)','parc_exterior','Kragujevac','Šumadija',NULL,'DRAGIŠE VITOŠEVIĆA 2, Kragujevac',44.02999,20.87902,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Спомен-парк Крагујевачки октобар (4)','parc_exterior','Kragujevac','Šumadija',NULL,'DRAGIŠE VITOŠEVIĆA 2, Kragujevac',44.03003,20.87903,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Спомен-парк Крагујевачки октобар (5)','parc_exterior','Kragujevac','Šumadija',NULL,'DRAGIŠE VITOŠEVIĆA 6A, Kragujevac',44.03002,20.87891,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Спомен-парк Крагујевачки октобар (6)','parc_exterior','Kragujevac','Šumadija',NULL,'DRAGIŠE VITOŠEVIĆA 6A, Kragujevac',44.03006,20.87892,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Stoni tenis Савски парк','parc_exterior','Beograd','Belgrade',NULL,'LUKE ĆELOVIĆA TREBINJCA 17, Beograd',44.8050333,20.4516133,3,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Stoni tenis Спомен-парк Крагујевачки октобар','parc_exterior','Kragujevac','Šumadija',NULL,'DRAGIŠE VITOŠEVIĆA 2, Kragujevac',44.0300133,20.879025,6,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis Велики парк','parc_exterior','Užice','Zlatibor',NULL,'VELIKI PARK 14, Užice',43.84927,19.84564,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis Блок 45','parc_exterior','Čukarica','Belgrade',NULL,'DR IVANA RIBARA 189, Čukarica',44.79393,20.37886,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis Градска плажа Ужице','parc_exterior','Užice','Zlatibor',NULL,'HEROJA LUNA 2, Užice',43.85295,19.83316,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis Међај','parc_exterior','Užice','Zlatibor',NULL,'MEĐAJ 45, Užice',43.8539,19.83503,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis SAVE LJUBOJEVA','parc_exterior','Novi Sad','South Bačka',NULL,'SAVE LJUBOJEVA 7, Novi Sad',45.26453,19.83364,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Блок 44','parc_exterior','Novi Beograd','Belgrade',NULL,'GANDIJEVA 190, Novi Beograd',44.79968,20.38478,1,true,true,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Блок 44 (2)','parc_exterior','Novi Beograd','Belgrade',NULL,'GANDIJEVA 190, Novi Beograd',44.79968,20.38473,1,true,true,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Stoni tenis Блок 44','parc_exterior','Novi Beograd','Belgrade',NULL,'GANDIJEVA 190, Novi Beograd',44.79968,20.384755,2,true,true,NULL,NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis Блок 70','parc_exterior','Novi Beograd','Belgrade',NULL,'JURIJA GAGARINA 43, Novi Beograd',44.80109,20.39943,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis Igraliste ul Luke Vojvodica','parc_exterior','Filmski Grad','Belgrade',NULL,'LUKE VOJVODIĆA 67, Filmski Grad',44.75216,20.43634,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis Pedaleros Kayak  Shop','parc_exterior','Novi Sad','South Bačka',NULL,'SUNČANI KEJ 33, Novi Sad',45.23949,19.85104,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
@@ -50,8 +42,7 @@ FROM (VALUES
   ('Ping Pong Room','parc_exterior','Čukarica','Belgrade',NULL,'VISOKA 19, Čukarica',44.78709,20.41856,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Smash','parc_exterior','Subotica','North Bačka',NULL,'DRAGIŠE MIŠOVIĆA 32, Subotica',46.09144,19.67419,1,true,false,'Mo-Su 10:00-12:00, 16:00-23:00',NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis Sport Vision','parc_exterior','Vršac','South Banat',NULL,'SVETOZARA MILETIĆA 5, Vršac',45.11944,21.29449,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Сава парк','parc_exterior','Šabac','Mačva',NULL,'Сава парк, Šabac',44.76272,19.70304,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
-  ('Stoni tenis Сава парк (2)','parc_exterior','Šabac','Mačva',NULL,'Сава парк, Šabac',44.76272,19.70309,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
+  ('Stoni tenis Сава парк','parc_exterior','Šabac','Mačva',NULL,'Сава парк, Šabac',44.76272,19.703065,2,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis Igralište za decu','parc_exterior','Novi Sad','South Bačka',NULL,'SIMEONA PIŠČEVIĆA 11, Novi Sad',45.25276,19.80924,1,true,false,NULL,NULL,ARRAY['exterior'],true,false),
   ('Stoni tenis STJEPANA SUPANCA','parc_exterior','Ostružnica','Belgrade',NULL,'STJEPANA SUPANCA 2A, Ostružnica',44.72961,20.37532,1,true,false,NULL,NULL,ARRAY['exterior'],true,false)
 ) AS v(name,type,city,county,sector,address,lat,lng,tables_count,free_access,night_lighting,hours,description,tags,approved,verified)
