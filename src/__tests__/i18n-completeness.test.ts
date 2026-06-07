@@ -18,6 +18,11 @@ const NON_EN_LOCALES: [string, Record<string, string>][] = Object.entries(LOCALE
   ([code]) => code !== 'en',
 );
 
+const ACTIVE_CHALLENGE_TITLE_KEY_PATTERN = /^badgeChallenge_(CRF|SPN|ATK|FTW|DEF|SRV|CMP|EXP)\d{3}$/;
+const PACK_2_3_CHALLENGE_TITLE_KEY_PATTERN = /^badgeChallenge_(CRF|SPN|ATK|FTW|DEF|SRV|CMP|EXP)[23]\d{2}$/;
+const ACTIVE_CHALLENGE_TITLE_KEY_COUNT = 344;
+const PACK_2_3_CHALLENGE_TITLE_KEY_COUNT = 160;
+
 /** Auth screen files to audit for hardcoded strings. */
 const AUTH_SCREEN_FILES = [
   'src/app/sign-in.tsx',
@@ -92,6 +97,16 @@ describe('i18n completeness', () => {
         expect(trivial).toEqual([]);
       },
     );
+
+    it.each(Object.entries(LOCALES))('%s.json covers every active challenge title key', (_code, locale) => {
+      const challengeKeys = Object.keys(locale).filter((key) => ACTIVE_CHALLENGE_TITLE_KEY_PATTERN.test(key));
+      const pack23Keys = challengeKeys.filter((key) => PACK_2_3_CHALLENGE_TITLE_KEY_PATTERN.test(key));
+      const invalidValues = challengeKeys.filter((key) => !locale[key]?.trim() || locale[key] === key);
+
+      expect(challengeKeys).toHaveLength(ACTIVE_CHALLENGE_TITLE_KEY_COUNT);
+      expect(pack23Keys).toHaveLength(PACK_2_3_CHALLENGE_TITLE_KEY_COUNT);
+      expect(invalidValues).toEqual([]);
+    });
   });
 
   describe('auth screen hardcoded string audit', () => {
