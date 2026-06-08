@@ -30,6 +30,9 @@ import { VenueActionRow } from '../components/VenueActionRow';
 import { CheckinSuccessSheet } from '../components/CheckinSuccessSheet';
 import { EmptyState } from '../components/EmptyState';
 import { ReportReasonModal } from '../components/ReportReasonModal';
+import { VenueChangeRequestModal } from '../components/VenueChangeRequestModal';
+import { submitVenueChangeRequest } from '../services/venueChangeRequests';
+import type { VenueChangeRequestInput } from '../services/venueChangeRequests';
 import { reportContent, blockUser, type ReportReason } from '../services/moderation';
 import { hapticLight } from '../lib/haptics';
 import Reanimated, {
@@ -122,6 +125,8 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [lastCheckinEndTime, setLastCheckinEndTime] = useState<string | undefined>();
   const [reportingReview, setReportingReview] = useState<Review | null>(null);
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [vcrVisible, setVcrVisible] = useState(false);
+  const [vcrSubmitting, setVcrSubmitting] = useState(false);
   const visibleReviews = useMemo(
     () => (showAllReviews ? reviews : reviews.slice(0, REVIEW_INITIAL_LIMIT)),
     [reviews, showAllReviews],
@@ -166,6 +171,27 @@ export function VenueDetailScreen({ venueId }: Props) {
       Alert.alert(title, msg);
     }
   }, []);
+
+  const handleSuggestEdit = useCallback(() => {
+    // Submitting requires a session; bounce to sign-in if signed out.
+    if (!user) {
+      router.push('/sign-in' as any);
+      return;
+    }
+    setVcrVisible(true);
+  }, [user, router]);
+
+  const handleSubmitChangeRequest = useCallback(async (payload: VenueChangeRequestInput) => {
+    setVcrSubmitting(true);
+    const { error } = await submitVenueChangeRequest(Number(venueId), payload);
+    setVcrSubmitting(false);
+    if (error) {
+      showAlert(s('error'), s('vcrSubmitError'));
+      return;
+    }
+    setVcrVisible(false);
+    showAlert(s('vcrSubmittedTitle'), s('vcrSubmittedMessage'));
+  }, [venueId, s, showAlert]);
 
   const performBlockUser = useCallback(async (targetUserId: string) => {
     const { error } = await blockUser(targetUserId);
@@ -608,6 +634,12 @@ export function VenueDetailScreen({ venueId }: Props) {
             <Text style={styles.evalText}>{s('evaluateCondition')}</Text>
             <Lucide name="chevron-right" size={14} color={colors.primaryMid} />
           </TouchableOpacity>
+
+          {/* Suggest an edit / report an issue */}
+          <TouchableOpacity style={[styles.evalBtn, { marginTop: 8 }]} onPress={handleSuggestEdit} testID="suggest-edit-btn">
+            <Lucide name="pencil" size={16} color={colors.primaryMid} />
+            <Text style={styles.evalText}>{s('requestChangesCta')}</Text>
+          </TouchableOpacity>
         </Card>
 
         {/* Friends Here */}
@@ -808,6 +840,14 @@ export function VenueDetailScreen({ venueId }: Props) {
         submitting={reportSubmitting}
         onClose={() => setReportingReview(null)}
         onSubmit={handleSubmitReport}
+      />
+
+      <VenueChangeRequestModal
+        visible={vcrVisible}
+        submitting={vcrSubmitting}
+        current={venue ? { nets: venue.nets, night_lighting: venue.night_lighting, tables_count: venue.tables_count } : undefined}
+        onClose={() => setVcrVisible(false)}
+        onSubmit={handleSubmitChangeRequest}
       />
     </SafeAreaView>
   );

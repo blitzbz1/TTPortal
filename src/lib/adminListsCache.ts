@@ -13,6 +13,7 @@ const KEYS = {
   pendingVenues: 'admin:pending-venues',
   flaggedReviews: 'admin:flagged-reviews',
   userFeedback: (limit: number) => `admin:user-feedback:${limit}`,
+  venueChangeRequests: 'admin:venue-change-requests',
 };
 
 export function loadCachedPendingVenues<T>(): CacheRead<T[]> | null {
@@ -46,4 +47,14 @@ export function invalidateUserFeedbackCache(): void {
   cachedInvalidate(KEYS.userFeedback(100));
   cachedInvalidate(KEYS.userFeedback(50));
   cachedInvalidate(KEYS.userFeedback(25));
+}
+
+export function loadCachedVenueChangeRequests<T>(): CacheRead<T[]> | null {
+  return cachedLoad<T[]>(KEYS.venueChangeRequests, TTL_MS);
+}
+export function saveCachedVenueChangeRequests<T>(data: T[]): void {
+  cachedSave(KEYS.venueChangeRequests, data);
+}
+export function invalidateVenueChangeRequestsCache(): void {
+  cachedInvalidate(KEYS.venueChangeRequests);
 }

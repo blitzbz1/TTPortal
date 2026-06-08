@@ -59,6 +59,9 @@ const mockKeepReview = jest.fn();
 const mockDeleteReview = jest.fn();
 const mockGetUserFeedback = jest.fn();
 const mockDeleteUserFeedback = jest.fn();
+const mockGetVenueChangeRequests = jest.fn();
+const mockResolveVenueChangeRequest = jest.fn();
+const mockDismissVenueChangeRequest = jest.fn();
 
 jest.mock('../../services/admin', () => ({
   getPendingVenues: (...args: any[]) => mockGetPendingVenues(...args),
@@ -72,6 +75,9 @@ jest.mock('../../services/admin', () => ({
   deleteReview: (...args: any[]) => mockDeleteReview(...args),
   getUserFeedback: (...args: any[]) => mockGetUserFeedback(...args),
   deleteUserFeedback: (...args: any[]) => mockDeleteUserFeedback(...args),
+  getVenueChangeRequests: (...args: any[]) => mockGetVenueChangeRequests(...args),
+  resolveVenueChangeRequest: (...args: any[]) => mockResolveVenueChangeRequest(...args),
+  dismissVenueChangeRequest: (...args: any[]) => mockDismissVenueChangeRequest(...args),
   getFeedbackReplies: jest.fn().mockResolvedValue({ data: [] }),
   replyToFeedback: jest.fn().mockResolvedValue({ data: null, error: null }),
 }));
@@ -89,6 +95,9 @@ beforeEach(() => {
   mockSearchVenuesAdmin.mockResolvedValue({ data: [] });
   mockGetUserFeedback.mockResolvedValue({ data: [] });
   mockDeleteUserFeedback.mockResolvedValue({ data: null, error: null });
+  mockGetVenueChangeRequests.mockResolvedValue({ data: [] });
+  mockResolveVenueChangeRequest.mockResolvedValue({ data: 'applied', error: null });
+  mockDismissVenueChangeRequest.mockResolvedValue({ data: 'dismissed', error: null });
 });
 
 afterEach(() => {
@@ -403,5 +412,84 @@ describe('AdminModerationScreen — feedback tab', () => {
     await act(async () => { fireEvent.press(getByText('tabFeedback')); });
 
     expect(getByText('anon@x.com')).toBeTruthy();
+  });
+});
+
+describe('AdminModerationScreen — changes tab', () => {
+  it('does not fetch change requests until the Changes tab is opened', async () => {
+    const { getByText } = await renderAdmin();
+    expect(mockGetVenueChangeRequests).not.toHaveBeenCalled();
+
+    await act(async () => { fireEvent.press(getByText('tabChanges')); });
+
+    expect(mockGetVenueChangeRequests).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders a change-request card with current → proposed values', async () => {
+    mockGetVenueChangeRequests.mockResolvedValue({
+      data: [
+        {
+          id: 1, venue_id: 10, submitted_by: 'u-1',
+          proposed_nets: true, proposed_night_lighting: null, proposed_tables_count: 4,
+          mark_unavailable: false, note: 'has nets now', status: 'pending',
+          created_at: '2026-06-01T10:00:00Z', profiles: { full_name: 'Ann' },
+          venues: { name: 'Park A', city: 'Cluj', nets: false, night_lighting: true, tables_count: 2, approved: true },
+        },
+      ],
+    });
+
+    const { getByText, getByTestId } = await renderAdmin();
+    await act(async () => { fireEvent.press(getByText('tabChanges')); });
+
+    expect(getByTestId('vcr-card-1')).toBeTruthy();
+    expect(getByText('Park A')).toBeTruthy();
+    expect(getByText('no → yes')).toBeTruthy();
+    expect(getByText('2 → 4')).toBeTruthy();
+  });
+
+  it('applies a change request with the accepted-field decision', async () => {
+    mockGetVenueChangeRequests.mockResolvedValue({
+      data: [
+        {
+          id: 1, venue_id: 10, submitted_by: 'u-1',
+          proposed_nets: true, proposed_night_lighting: null, proposed_tables_count: null,
+          mark_unavailable: false, status: 'pending',
+          created_at: '2026-06-01T10:00:00Z', profiles: null,
+          venues: { name: 'Park A', nets: false },
+        },
+      ],
+    });
+
+    const { getByText, getByTestId, queryByTestId } = await renderAdmin();
+    await act(async () => { fireEvent.press(getByText('tabChanges')); });
+    await act(async () => { fireEvent.press(getByTestId('vcr-apply-1')); });
+
+    expect(mockResolveVenueChangeRequest).toHaveBeenCalledWith(1, 10, 'admin-1', {
+      applyNets: true,
+      applyNightLighting: true,
+      applyTablesCount: true,
+      availability: 'none',
+    });
+    expect(queryByTestId('vcr-card-1')).toBeNull();
+  });
+
+  it('dismisses a change request', async () => {
+    mockGetVenueChangeRequests.mockResolvedValue({
+      data: [
+        {
+          id: 2, venue_id: 11, submitted_by: 'u-2',
+          proposed_nets: false, mark_unavailable: false, status: 'pending',
+          created_at: '2026-06-01T10:00:00Z', profiles: null,
+          venues: { name: 'Park B', nets: true },
+        },
+      ],
+    });
+
+    const { getByText, getByTestId, queryByTestId } = await renderAdmin();
+    await act(async () => { fireEvent.press(getByText('tabChanges')); });
+    await act(async () => { fireEvent.press(getByTestId('vcr-dismiss-2')); });
+
+    expect(mockDismissVenueChangeRequest).toHaveBeenCalledWith(2, 'admin-1');
+    expect(queryByTestId('vcr-card-2')).toBeNull();
   });
 });

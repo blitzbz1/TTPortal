@@ -625,5 +625,73 @@ export function createStyles(colors: ThemeColors) {
       fontWeight: FontWeight.bold,
       color: colors.textOnPrimary,
     },
+    // Venue change-request card
+    vcrNote: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      fontStyle: 'italic',
+      color: colors.textMuted,
+    },
+    vcrFieldRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+      paddingVertical: 6,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    vcrFieldInfo: {
+      flex: 1,
+      gap: 2,
+    },
+    vcrFieldLabel: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.semibold,
+      color: colors.textFaint,
+      letterSpacing: 0.7,
+    },
+    vcrFieldChange: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      color: colors.text,
+    },
+    vcrDecisionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      height: 34,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+    },
+    vcrDecisionAccept: {
+      backgroundColor: colors.primaryPale,
+      borderColor: colors.primaryDim,
+    },
+    vcrDecisionReject: {
+      backgroundColor: colors.redPale,
+      borderColor: colors.redBorder,
+    },
+    vcrDecisionText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
+    },
+    vcrAvailBlock: {
+      gap: 8,
+      padding: 10,
+      borderRadius: Radius.md,
+      backgroundColor: colors.redPale,
+      borderWidth: 1,
+      borderColor: colors.redBorder,
+    },
+    vcrAvailHeader: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.semibold,
+      color: colors.redDeep,
+    },
   });
 }

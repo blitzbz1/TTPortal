@@ -6,6 +6,7 @@ import {
   invalidateFlaggedReviewsCache,
   invalidatePendingVenuesCache,
   invalidateUserFeedbackCache,
+  invalidateVenueChangeRequestsCache,
 } from '../lib/adminListsCache';
 
 // Slim column lists for the admin moderation lists. The admin UI renders
@@ -232,4 +233,69 @@ export async function replyToFeedback(feedbackId: string, adminId: string, reply
     .insert({ feedback_id: feedbackId, admin_id: adminId, reply_text: trimmed })
     .select()
     .single();
+}
+
+// ── Venue change requests ──
+// Each card renders the submitter, note, and current→proposed values, so we
+// embed the current venue values (the venue_id FK points at public.venues, so
+// the embed works; submitted_by points at auth.users, so attachProfiles).
+const CHANGE_REQUEST_COLS =
+  'id, venue_id, submitted_by, proposed_nets, proposed_night_lighting, proposed_tables_count, mark_unavailable, note, status, created_at, venues!venue_id(name, city, nets, night_lighting, tables_count, approved)';
+
+export async function getVenueChangeRequests() {
+  const result = await supabase
+    .from('venue_change_requests')
+    .select(CHANGE_REQUEST_COLS)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+  if (result.error || !result.data) return result;
+  const data = await attachProfiles(result.data, 'submitted_by', 'profiles', 'full_name');
+  return { ...result, data };
+}
+
+export type VenueChangeRequestDecision = {
+  applyNets?: boolean;
+  applyNightLighting?: boolean;
+  applyTablesCount?: boolean;
+  availability?: 'none' | 'hide' | 'remove';
+};
+
+export async function resolveVenueChangeRequest(
+  requestId: number,
+  venueId: number,
+  userId: string,
+  decision: VenueChangeRequestDecision,
+) {
+  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  const availability = decision.availability ?? 'none';
+  const result = await supabase.rpc('resolve_venue_change_request', {
+    p_request_id: requestId,
+    p_apply_nets: decision.applyNets ?? false,
+    p_apply_night_lighting: decision.applyNightLighting ?? false,
+    p_apply_tables_count: decision.applyTablesCount ?? false,
+    p_availability: availability,
+  });
+  if (!result.error) {
+    invalidateVenueChangeRequestsCache();
+    invalidateMapVenuesCache();
+    invalidateVenueMetaCache(venueId);
+    // Hiding or removing a venue changes per-city venue counts.
+    if (availability === 'hide' || availability === 'remove') {
+      invalidateLocationCatalogCache();
+    }
+  }
+  return result;
+}
+
+export async function dismissVenueChangeRequest(requestId: number, userId: string) {
+  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  const result = await supabase.rpc('resolve_venue_change_request', {
+    p_request_id: requestId,
+    p_apply_nets: false,
+    p_apply_night_lighting: false,
+    p_apply_tables_count: false,
+    p_availability: 'none',
+  });
+  if (!result.error) invalidateVenueChangeRequestsCache();
+  return result;
 }

@@ -100,6 +100,30 @@ export interface ConditionVote {
   created_at: string;
 }
 
+export type VenueChangeRequestStatus =
+  | 'pending'
+  | 'applied'
+  | 'partially_applied'
+  | 'dismissed';
+
+export interface VenueChangeRequest {
+  id: number;
+  venue_id: number;
+  submitted_by: string;
+  // proposed values; null = no change proposed for that field
+  proposed_nets: boolean | null;
+  proposed_night_lighting: boolean | null;
+  proposed_tables_count: number | null;
+  mark_unavailable: boolean;
+  note: string | null;
+  status: VenueChangeRequestStatus;
+  resolution: Record<string, string> | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type FriendshipStatus = 'pending' | 'accepted' | 'declined';
 
 export interface Friendship {

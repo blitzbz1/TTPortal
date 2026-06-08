@@ -7,6 +7,9 @@ import {
   deleteUserFeedback,
   getFeedbackReplies,
   replyToFeedback,
+  getVenueChangeRequests,
+  resolveVenueChangeRequest,
+  dismissVenueChangeRequest,
 } from '../admin';
 
 const mockClearVenuesCache = jest.fn();
@@ -379,5 +382,96 @@ describe('replyToFeedback', () => {
     });
     expect(repliesChain.single).toHaveBeenCalled();
     expect(data).toEqual({ id: 'r-new' });
+  });
+});
+
+describe('getVenueChangeRequests', () => {
+  it('selects pending requests then attaches submitter profiles', async () => {
+    const rows = [
+      { id: 1, venue_id: 10, submitted_by: 'u-1', proposed_nets: true, venues: { name: 'V' } },
+    ];
+    const profiles = [{ id: 'u-1', full_name: 'Alex' }];
+    const vcrChain = createQueryChain(rows);
+    const profilesChain = createQueryChain(profiles);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'venue_change_requests') return vcrChain;
+      if (table === 'profiles') return profilesChain;
+      return createQueryChain();
+    });
+
+    const { data } = await getVenueChangeRequests();
+
+    expect(mockFrom).toHaveBeenCalledWith('venue_change_requests');
+    expect(vcrChain.eq).toHaveBeenCalledWith('status', 'pending');
+    expect(vcrChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(profilesChain.select).toHaveBeenCalledWith('id, full_name');
+    expect(profilesChain.in).toHaveBeenCalledWith('id', ['u-1']);
+    expect(data).toEqual([
+      { ...rows[0], profiles: { id: 'u-1', full_name: 'Alex' } },
+    ]);
+  });
+});
+
+describe('resolveVenueChangeRequest', () => {
+  it('returns unauthorized when user is not admin', async () => {
+    const profilesChain = createQueryChain({ is_admin: false });
+    mockFrom.mockImplementation((table: string) =>
+      table === 'profiles' ? profilesChain : createQueryChain());
+
+    const result = await resolveVenueChangeRequest(1, 10, 'user-1', { applyNets: true });
+
+    expect(result).toEqual({ data: null, error: { message: 'Unauthorized' } });
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('calls the resolve RPC with the mapped decision when admin', async () => {
+    const profilesChain = createQueryChain({ is_admin: true });
+    mockFrom.mockImplementation((table: string) =>
+      table === 'profiles' ? profilesChain : createQueryChain());
+    mockRpc.mockResolvedValue({ data: 'applied', error: null });
+
+    await resolveVenueChangeRequest(5, 10, 'admin-1', {
+      applyNets: true,
+      applyTablesCount: true,
+      availability: 'hide',
+    });
+
+    expect(mockRpc).toHaveBeenCalledWith('resolve_venue_change_request', {
+      p_request_id: 5,
+      p_apply_nets: true,
+      p_apply_night_lighting: false,
+      p_apply_tables_count: true,
+      p_availability: 'hide',
+    });
+  });
+});
+
+describe('dismissVenueChangeRequest', () => {
+  it('returns unauthorized when user is not admin', async () => {
+    const profilesChain = createQueryChain({ is_admin: false });
+    mockFrom.mockImplementation((table: string) =>
+      table === 'profiles' ? profilesChain : createQueryChain());
+
+    const result = await dismissVenueChangeRequest(1, 'user-1');
+
+    expect(result).toEqual({ data: null, error: { message: 'Unauthorized' } });
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('calls the resolve RPC with no changes when admin', async () => {
+    const profilesChain = createQueryChain({ is_admin: true });
+    mockFrom.mockImplementation((table: string) =>
+      table === 'profiles' ? profilesChain : createQueryChain());
+    mockRpc.mockResolvedValue({ data: 'dismissed', error: null });
+
+    await dismissVenueChangeRequest(7, 'admin-1');
+
+    expect(mockRpc).toHaveBeenCalledWith('resolve_venue_change_request', {
+      p_request_id: 7,
+      p_apply_nets: false,
+      p_apply_night_lighting: false,
+      p_apply_tables_count: false,
+      p_availability: 'none',
+    });
   });
 });

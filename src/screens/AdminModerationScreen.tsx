@@ -27,6 +27,10 @@ import {
   deleteReview,
   getUserFeedback,
   deleteUserFeedback,
+  getVenueChangeRequests,
+  resolveVenueChangeRequest,
+  dismissVenueChangeRequest,
+  type VenueChangeRequestDecision,
 } from '../services/admin';
 import { getProfile } from '../services/profiles';
 import {
@@ -41,6 +45,8 @@ import {
   saveCachedFlaggedReviews,
   loadCachedUserFeedback,
   saveCachedUserFeedback,
+  loadCachedVenueChangeRequests,
+  saveCachedVenueChangeRequests,
 } from '../lib/adminListsCache';
 
 // Cached at module scope so each per-row format call doesn't construct a fresh
@@ -234,6 +240,150 @@ const FeedbackCard = React.memo(function FeedbackCard({
   );
 });
 
+interface VenueChangeRequestCardProps {
+  request: any;
+  styles: any;
+  colors: any;
+  s: (key: string) => string;
+  onApply: (request: any, decision: VenueChangeRequestDecision) => Promise<boolean>;
+  onDismiss: (id: number) => Promise<boolean>;
+}
+const VenueChangeRequestCard = React.memo(function VenueChangeRequestCard({
+  request, styles, colors, s, onApply, onDismiss,
+}: VenueChangeRequestCardProps) {
+  const [acceptNets, setAcceptNets] = useState(true);
+  const [acceptLighting, setAcceptLighting] = useState(true);
+  const [acceptTables, setAcceptTables] = useState(true);
+  const [availability, setAvailability] = useState<'none' | 'hide' | 'remove'>('none');
+  const [busy, setBusy] = useState(false);
+
+  const v = request.venues ?? {};
+  const fmtBool = (b: boolean | null | undefined) =>
+    b == null ? s('conditionUnknown') : b ? s('yes') : s('no');
+
+  const fields: {
+    key: string; label: string; current: string; proposed: string;
+    accepted: boolean; set: (next: boolean) => void;
+  }[] = [];
+  if (request.proposed_nets != null) {
+    fields.push({ key: 'nets', label: s('fieldNets'), current: fmtBool(v.nets), proposed: fmtBool(request.proposed_nets), accepted: acceptNets, set: setAcceptNets });
+  }
+  if (request.proposed_night_lighting != null) {
+    fields.push({ key: 'lighting', label: s('fieldLighting'), current: fmtBool(v.night_lighting), proposed: fmtBool(request.proposed_night_lighting), accepted: acceptLighting, set: setAcceptLighting });
+  }
+  if (request.proposed_tables_count != null) {
+    fields.push({ key: 'tables', label: s('fieldTables'), current: String(v.tables_count ?? '?'), proposed: String(request.proposed_tables_count), accepted: acceptTables, set: setAcceptTables });
+  }
+
+  const availOptions: { v: 'none' | 'hide' | 'remove'; labelKey: string }[] = [
+    { v: 'none', labelKey: 'vcrAvailIgnore' },
+    { v: 'hide', labelKey: 'vcrAvailHide' },
+    { v: 'remove', labelKey: 'vcrAvailRemove' },
+  ];
+
+  const handleApply = async () => {
+    setBusy(true);
+    const ok = await onApply(request, {
+      applyNets: acceptNets,
+      applyNightLighting: acceptLighting,
+      applyTablesCount: acceptTables,
+      availability,
+    });
+    if (!ok) setBusy(false);
+  };
+
+  const handleDismiss = async () => {
+    setBusy(true);
+    const ok = await onDismiss(request.id);
+    if (!ok) setBusy(false);
+  };
+
+  return (
+    <View style={styles.modCard} testID={`vcr-card-${request.id}`}>
+      <View style={styles.modTop}>
+        <Text style={styles.modTitle}>{v.name ?? s('venue')}</Text>
+        <View style={styles.modBadge}>
+          <Text style={styles.modBadgeText}>{s('tabChanges')}</Text>
+        </View>
+      </View>
+      <Text style={styles.modMeta}>
+        {(request.profiles?.full_name ?? s('user'))} {'·'} {formatRoDate(request.created_at)}
+        {v.city ? ` · ${v.city}` : ''}
+      </Text>
+      {request.note ? <Text style={styles.vcrNote}>{`"${request.note}"`}</Text> : null}
+
+      {fields.map((f) => (
+        <View key={f.key} style={styles.vcrFieldRow}>
+          <View style={styles.vcrFieldInfo}>
+            <Text style={styles.vcrFieldLabel}>{f.label}</Text>
+            <Text style={styles.vcrFieldChange}>{`${f.current} → ${f.proposed}`}</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.vcrDecisionBtn, f.accepted ? styles.vcrDecisionAccept : styles.vcrDecisionReject]}
+            onPress={() => f.set(!f.accepted)}
+            testID={`vcr-${request.id}-${f.key}`}
+          >
+            <Lucide name={f.accepted ? 'check' : 'x'} size={13} color={f.accepted ? colors.greenDeep : colors.red} />
+            <Text style={[styles.vcrDecisionText, { color: f.accepted ? colors.greenDeep : colors.red }]}>
+              {f.accepted ? s('vcrAccept') : s('vcrReject')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      {request.mark_unavailable ? (
+        <View style={styles.vcrAvailBlock}>
+          <Text style={styles.vcrAvailHeader}>{s('vcrAvailabilityHeader')}</Text>
+          <View style={styles.modalChoiceGrid}>
+            {availOptions.map((o) => {
+              const active = availability === o.v;
+              return (
+                <TouchableOpacity
+                  key={o.v}
+                  style={[styles.modalChoiceBtn, active && styles.modalChoiceBtnActive]}
+                  onPress={() => setAvailability(o.v)}
+                  testID={`vcr-avail-${o.v}`}
+                >
+                  <Text style={[styles.modalChoiceText, active && styles.modalChoiceTextActive]}>
+                    {s(o.labelKey)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+
+      <View style={styles.modActions}>
+        <TouchableOpacity
+          style={[styles.approveBtn, busy && { opacity: 0.6 }]}
+          onPress={handleApply}
+          disabled={busy}
+          testID={`vcr-apply-${request.id}`}
+        >
+          {busy ? (
+            <ActivityIndicator size="small" color={colors.textOnPrimary} />
+          ) : (
+            <>
+              <Lucide name="check" size={14} color={colors.textOnPrimary} />
+              <Text style={styles.approveBtnText}>{s('vcrApply')}</Text>
+            </>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.editBtn}
+          onPress={handleDismiss}
+          disabled={busy}
+          testID={`vcr-dismiss-${request.id}`}
+        >
+          <Lucide name="x" size={14} color={colors.textMuted} />
+          <Text style={styles.editBtnText}>{s('vcrDismiss')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
 export function AdminModerationScreen() {
   const [pendingVenues, setPendingVenues] = useState<any[]>([]);
   const [venueResults, setVenueResults] = useState<any[]>([]);
@@ -247,11 +397,14 @@ export function AdminModerationScreen() {
   const [feedbackLoaded, setFeedbackLoaded] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminLoading, setAdminLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'reviews' | 'venues' | 'feedback' | 'reports'>('reviews');
+  const [activeTab, setActiveTab] = useState<'reviews' | 'venues' | 'feedback' | 'reports' | 'changes'>('reviews');
   const [reports, setReports] = useState<ContentReport[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [reportsLoaded, setReportsLoaded] = useState(false);
   const [resolvingReportId, setResolvingReportId] = useState<number | null>(null);
+  const [changeRequests, setChangeRequests] = useState<any[]>([]);
+  const [changeRequestsLoading, setChangeRequestsLoading] = useState(false);
+  const [changeRequestsLoaded, setChangeRequestsLoaded] = useState(false);
   const [replyTarget, setReplyTarget] = useState<any | null>(null);
   // Edit modal state
   const [editVenue, setEditVenue] = useState<any | null>(null);
@@ -572,6 +725,33 @@ export function AdminModerationScreen() {
     }
   }, [activeTab, reportsLoaded, fetchReports]);
 
+  const fetchChangeRequests = useCallback(async () => {
+    const cached = loadCachedVenueChangeRequests<any>();
+    if (cached?.data) {
+      setChangeRequests(cached.data);
+      setChangeRequestsLoaded(true);
+      if (cached.fresh) return;
+    } else {
+      setChangeRequestsLoading(true);
+    }
+    try {
+      const { data } = await getVenueChangeRequests();
+      if (data) {
+        setChangeRequests(data);
+        saveCachedVenueChangeRequests(data);
+      }
+      setChangeRequestsLoaded(true);
+    } finally {
+      setChangeRequestsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'changes' && !changeRequestsLoaded) {
+      void fetchChangeRequests();
+    }
+  }, [activeTab, changeRequestsLoaded, fetchChangeRequests]);
+
   const handleResolveReport = useCallback(async (reportId: number) => {
     setResolvingReportId(reportId);
     const { error } = await resolveReport(reportId, 'reviewed');
@@ -582,6 +762,27 @@ export function AdminModerationScreen() {
     }
     setReports((prev) => prev.filter((r) => r.id !== reportId));
   }, [s]);
+
+  const handleApplyChangeRequest = useCallback(async (request: any, decision: VenueChangeRequestDecision) => {
+    const { error } = await resolveVenueChangeRequest(request.id, request.venue_id, user!.id, decision);
+    if (error) {
+      Alert.alert(s('error'), s('vcrApplyError'));
+      return false;
+    }
+    await queryClient.invalidateQueries({ queryKey: ['venues'], exact: false });
+    setChangeRequests((prev) => prev.filter((r) => r.id !== request.id));
+    return true;
+  }, [user, s, queryClient]);
+
+  const handleDismissChangeRequest = useCallback(async (id: number) => {
+    const { error } = await dismissVenueChangeRequest(id, user!.id);
+    if (error) {
+      Alert.alert(s('error'), s('vcrDismissError'));
+      return false;
+    }
+    setChangeRequests((prev) => prev.filter((r) => r.id !== id));
+    return true;
+  }, [user, s]);
 
   const handleDeleteFeedback = useCallback((id: string) => {
     Alert.alert(s('confirmDeleteFeedback'), '', [
@@ -663,6 +864,18 @@ export function AdminModerationScreen() {
           {reports.length > 0 && (
             <View style={styles.tabBadge}>
               <Text style={styles.tabBadgeText}>{reports.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'changes' && styles.tabActive]}
+          onPress={() => setActiveTab('changes')}
+          testID="admin-tab-changes"
+        >
+          <Text style={[styles.tabText, activeTab === 'changes' && styles.tabTextActive]}>{s('tabChanges')}</Text>
+          {changeRequests.length > 0 && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>{changeRequests.length}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -824,7 +1037,7 @@ export function AdminModerationScreen() {
             ))
           )}
         </ScrollView>
-      ) : (
+      ) : activeTab === 'reports' ? (
         <ScrollView style={styles.scroll}>
           <View style={styles.secLabel}>
             <Text style={styles.secLabelText}>{s('adminReportsHeader')}</Text>
@@ -890,6 +1103,36 @@ export function AdminModerationScreen() {
                   </View>
                 );
               })}
+            </View>
+          )}
+        </ScrollView>
+      ) : (
+        <ScrollView style={styles.scroll}>
+          <View style={styles.secLabel}>
+            <Text style={styles.secLabelText}>{s('venueChangeRequestsSection')}</Text>
+          </View>
+          {changeRequestsLoading ? (
+            <ActivityIndicator size="small" color={colors.primary} style={{ paddingVertical: 24 }} />
+          ) : changeRequests.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+              <Lucide name="clipboard-pen-line" size={32} color={colors.border} />
+              <Text style={{ fontFamily: Fonts.body, fontSize: 13, color: colors.textFaint, marginTop: 8 }}>
+                {s('noChangeRequests')}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.modList}>
+              {changeRequests.map((request) => (
+                <VenueChangeRequestCard
+                  key={request.id}
+                  request={request}
+                  styles={styles}
+                  colors={colors}
+                  s={s}
+                  onApply={handleApplyChangeRequest}
+                  onDismiss={handleDismissChangeRequest}
+                />
+              ))}
             </View>
           )}
         </ScrollView>
