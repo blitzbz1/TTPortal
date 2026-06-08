@@ -61,6 +61,35 @@ psql "$DB" -c   "SELECT name,address,city FROM venues WHERE submitted_by IS NULL
 Each `<cc>.sql` is wrapped in a single `BEGIN…COMMIT`. **Re-running any file is a no-op**
 (`ON CONFLICT DO NOTHING`) — the second pass inserts 0 rows.
 
+### 3a. Apply helpers (recommended over raw `psql -f`)
+
+Two wrapper scripts inject an extra dedup filter into a **temp copy** of each file at apply time
+(the seed files themselves are never modified) and add preflight/postflight checks, dry-run, and
+rollback watermarks. Both take the same args/env as below.
+
+| Script | What it adds on top of the file's own `ON CONFLICT (name,city_id)` |
+|---|---|
+| `apply_new_cities_only.sh` | **City-level**: only brand-new cities (`c.id > C0`) get venues — pre-existing/curated cities are left untouched. |
+| `apply_with_geo_dedup.sh` | **Venue-level 50 m geo-gate**: skips any incoming venue within `RADIUS_M` m (default 50) of a venue already in the DB. Venues may enter existing cities, gated only by the radius. |
+
+```bash
+export DB="postgresql://USER:PASS@HOST:PORT/postgres"
+
+# validate against prod, persist NOTHING (parses + runs + rolls back)
+DRY_RUN=1 ./apply_with_geo_dedup.sh me
+
+# live: 50 m geo-dedup against existing venues, all countries (or list specific ones)
+./apply_with_geo_dedup.sh
+./apply_with_geo_dedup.sh de fr ch
+
+RADIUS_M=100 ./apply_with_geo_dedup.sh        # widen the perimeter to 100 m
+NEW_CITIES_ONLY=1 ./apply_with_geo_dedup.sh   # ALSO keep pre-existing cities untouched
+```
+
+The geo-gate is a bounding-box pre-filter + exact haversine `≤ RADIUS_M`; on a live run the script
+ensures `idx_venues_lat_lng` exists so the gate is fast, and its postflight asserts that **0** added
+venues sit within `RADIUS_M` of a pre-existing venue.
+
 ---
 
 ## 4. Activate a market (when you're ready to launch it)

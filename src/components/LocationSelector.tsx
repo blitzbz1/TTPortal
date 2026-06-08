@@ -18,16 +18,14 @@ import { useI18n } from '../hooks/useI18n';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { useTheme } from '../hooks/useTheme';
 import { getDistanceKm } from '../lib/geo';
-import { getStringSync } from '../lib/mmkv';
 import { getLocalizedCountryName } from '../lib/countryLabels';
-import { getCountryFlagEmoji } from '../lib/locationHelpers';
+import { getCountryFlagEmoji, getRecommendedCities } from '../lib/locationHelpers';
 import type { Country, LocationCity } from '../lib/locationTypes';
 import { Fonts, FontSize, FontWeight, Radius, Shadows, Spacing, type ThemeColors } from '../theme';
 
 type LocationSelectorMode = 'welcome' | 'switcher';
 
 const ALL_COUNTRIES: Country = { code: 'ALL', name: 'Europe', active: true };
-const CITY_VISIT_COUNTS_KEY = 'location_city_visit_counts';
 
 interface LocationSelectorProps {
   visible: boolean;
@@ -64,7 +62,6 @@ export function LocationSelector({
   const [countryPanelOpen, setCountryPanelOpen] = useState(false);
   const wasVisibleRef = useRef(false);
   const hasSearchQuery = query.trim().length > 0;
-  const cityVisitCounts = useMemo(() => readCityVisitCounts(), []);
 
   const searchedCities = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
@@ -72,19 +69,19 @@ export function LocationSelector({
       if (pendingCountry.code !== 'ALL' && city.country_code !== pendingCountry.code) return false;
       return true;
     });
-    if (!normalizedQuery) return getLaunchCities(countryCities, cityVisitCounts);
+    if (!normalizedQuery) return getRecommendedCities(countryCities);
 
     const filtered = countryCities.filter((city) => {
       if (!normalizedQuery) return true;
       return getCitySearchText(city, lang).includes(normalizedQuery);
     });
     return [...filtered].sort((a, b) => sortSearchCities(a, b, normalizedQuery, lang));
-  }, [activeCities, cityVisitCounts, lang, pendingCountry.code, query]);
+  }, [activeCities, lang, pendingCountry.code, query]);
   const countriesWithCities = useMemo(
     () => activeCountries
       .filter((country) => activeCities.some((city) => city.country_code === country.code))
       .sort((a, b) => getCountryLabel(a, lang).localeCompare(getCountryLabel(b, lang), lang)),
-    [activeCities, activeCountries, lang, s],
+    [activeCities, activeCountries, lang],
   );
   const menuCities = useMemo(() => searchedCities.slice(0, 8), [searchedCities]);
   const filteredCities = countryPanelOpen ? menuCities : searchedCities;
@@ -115,9 +112,8 @@ export function LocationSelector({
       return;
     }
     setPendingCountry(country);
-    const best = getLaunchCities(
+    const best = getRecommendedCities(
       activeCities.filter((city) => city.country_code === country.code),
-      cityVisitCounts,
     )[0];
     if (best) setPendingCity(best);
     setCountryPanelOpen(false);
@@ -273,6 +269,7 @@ export function LocationSelector({
                   onPress={() => chooseCountry('ALL')}
                   styles={styles}
                   colors={colors}
+                  testID="country-option-ALL"
                 />
                 {countriesWithCities.map((country) => (
                   <CountryOption
@@ -283,6 +280,7 @@ export function LocationSelector({
                     onPress={() => chooseCountry(country)}
                     styles={styles}
                     colors={colors}
+                    testID={`country-option-${country.code}`}
                   />
                 ))}
               </ScrollView>
@@ -452,6 +450,7 @@ function CountryOption({
   onPress,
   styles,
   colors,
+  testID,
 }: {
   label: string;
   flag?: string;
@@ -459,9 +458,10 @@ function CountryOption({
   onPress: () => void;
   styles: ReturnType<typeof createStyles>;
   colors: ThemeColors;
+  testID?: string;
 }) {
   return (
-    <TouchableOpacity style={[styles.countryOption, active && styles.countryOptionActive]} onPress={onPress} activeOpacity={0.76}>
+    <TouchableOpacity testID={testID} style={[styles.countryOption, active && styles.countryOptionActive]} onPress={onPress} activeOpacity={0.76}>
       <View style={[styles.countryOptionMark, active && styles.countryOptionMarkActive]}>
         <Text style={styles.countryOptionFlag}>{flag ?? getDisplayCountryFlag('ALL')}</Text>
       </View>
@@ -521,16 +521,6 @@ function getDisplayCountryFlag(code: string | null | undefined): string {
   return getCountryFlagEmoji(code);
 }
 
-function getLaunchCities(cities: LocationCity[], cityVisitCounts: Record<number, number>): LocationCity[] {
-  return [...cities]
-    .sort((a, b) => {
-      const visitDelta = (cityVisitCounts[b.id] ?? 0) - (cityVisitCounts[a.id] ?? 0);
-      if (visitDelta !== 0) return visitDelta;
-      return (b.venue_count ?? 0) - (a.venue_count ?? 0) || a.name.localeCompare(b.name);
-    })
-    .slice(0, 50);
-}
-
 function sortSearchCities(a: LocationCity, b: LocationCity, normalizedQuery: string, locale: string): number {
   const aName = normalizeSearch(a.name);
   const bName = normalizeSearch(b.name);
@@ -542,21 +532,6 @@ function sortSearchCities(a: LocationCity, b: LocationCity, normalizedQuery: str
     if (venueDelta !== 0) return venueDelta;
   }
   return a.name.localeCompare(b.name, locale);
-}
-
-function readCityVisitCounts(): Record<number, number> {
-  try {
-    const raw = getStringSync(CITY_VISIT_COUNTS_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, number>;
-    return Object.fromEntries(
-      Object.entries(parsed)
-        .map(([cityId, count]) => [Number(cityId), Number(count)])
-        .filter(([cityId, count]) => Number.isFinite(cityId) && Number.isFinite(count)),
-    );
-  } catch {
-    return {};
-  }
 }
 
 function normalizeSearch(value: string | null | undefined): string {

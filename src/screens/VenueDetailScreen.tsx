@@ -588,7 +588,7 @@ export function VenueDetailScreen({ venueId }: Props) {
             <View style={styles.infoRow}>
               <Lucide name="lamp-floor" size={16} color={colors.textFaint} />
               <Text style={styles.infoRowText}>
-                {(venue.night_lighting ? s('nightLighting') : s('noLighting')) + ' \u00B7 ' + (venue.nets ? s('netsPresent') : s('noNets'))}
+                {(venue.night_lighting ? s('nightLighting') + ' \u00B7 ' : '') + (venue.nets ? s('netsPresent') : s('noNets'))}
               </Text>
             </View>
           </View>

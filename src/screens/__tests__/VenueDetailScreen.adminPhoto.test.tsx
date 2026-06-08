@@ -152,4 +152,39 @@ describe('VenueDetailScreen — admin photo button', () => {
       expect(queryByTestId('admin-add-photo')).toBeNull();
     });
   });
+
+  it('hides the night-lighting flag when it is not set to yes', async () => {
+    mockGetProfile.mockResolvedValue({ data: { id: 'u1', is_admin: false } });
+    // VENUE default: night_lighting=false, nets=true
+    const { getByText, queryByText } = render(<VenueDetailScreen venueId="1" />);
+
+    await waitFor(() => expect(getByText('Nets present')).toBeTruthy());
+    expect(queryByText(/Night lighting/)).toBeNull();
+  });
+
+  it('shows the night-lighting flag when it is set to yes', async () => {
+    mockGetProfile.mockResolvedValue({ data: { id: 'u1', is_admin: false } });
+    const litVenue = { ...VENUE, night_lighting: true };
+    mockGetVenueById.mockResolvedValue({ data: litVenue });
+    mockRpc.mockImplementation((fn: string) =>
+      fn === 'get_venue_detail'
+        ? Promise.resolve({
+            data: {
+              venue: litVenue,
+              stats: VENUE.venue_stats,
+              is_favorited: false,
+              user_active_checkin: null,
+              upcoming_event_count: 0,
+              champion: null,
+              recent_reviews: [],
+            },
+            error: null,
+          })
+        : Promise.resolve({ data: [], error: null }),
+    );
+
+    const { getByText } = render(<VenueDetailScreen venueId="1" />);
+
+    await waitFor(() => expect(getByText(/Night lighting/)).toBeTruthy());
+  });
 });

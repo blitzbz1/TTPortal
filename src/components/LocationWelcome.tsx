@@ -20,7 +20,7 @@ import { useTheme } from '../hooks/useTheme';
 import { getStringSync } from '../lib/mmkv';
 import { foldDiacritics } from '../lib/textSearch';
 import { getLocalizedCountryName } from '../lib/countryLabels';
-import { getCountryFlagEmoji } from '../lib/locationHelpers';
+import { getCountryFlagEmoji, getRecommendedCities } from '../lib/locationHelpers';
 import type { Country, LocationCity } from '../lib/locationTypes';
 import { Fonts, FontSize, FontWeight, Spacing, type ThemeColors } from '../theme';
 
@@ -58,19 +58,17 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
     () => activeCountries
       .filter((country) => activeCities.some((city) => city.country_code === country.code))
       .sort((a, b) => getCountryLabel(a, lang).localeCompare(getCountryLabel(b, lang), lang)),
-    [activeCities, activeCountries, lang, s],
+    [activeCities, activeCountries, lang],
   );
 
   const cities = useMemo(() => {
     const source = activeCities.filter(
       (city) => city.expansion_status !== 'hidden' && (pendingCountry.code === 'ALL' || city.country_code === pendingCountry.code),
     );
-    const filtered = normalizedQuery
-      ? source.filter((city) =>
-          normalizeLocationText(`${city.name} ${getCityCountryLabel(city, lang)} ${city.country_name}`).includes(normalizedQuery),
-        )
-      : source;
-
+    if (!normalizedQuery) return getRecommendedCities(source);
+    const filtered = source.filter((city) =>
+      normalizeLocationText(`${city.name} ${getCityCountryLabel(city, lang)} ${city.country_name}`).includes(normalizedQuery),
+    );
     return [...filtered].sort((a, b) => sortLocationCities(a, b, normalizedQuery, cityVisitCounts, lang));
   }, [activeCities, cityVisitCounts, lang, normalizedQuery, pendingCountry.code]);
 

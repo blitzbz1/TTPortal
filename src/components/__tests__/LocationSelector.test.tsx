@@ -94,17 +94,31 @@ describe('LocationSelector', () => {
   });
 
   it('filters by country before capping featured cities', () => {
-    const { getAllByText, getByText, queryByText } = render(
+    const { getAllByText, getByText, getByTestId, queryByText } = render(
       <LocationSelector visible mode="switcher" onClose={jest.fn()} />,
     );
 
     expect(queryByText('Lyon')).toBeNull();
 
     fireEvent.press(getByText('All countries'));
-    fireEvent.press(getByText('France'));
+    fireEvent.press(getByTestId('country-option-FR'));
 
     expect(getAllByText('Lyon').length).toBeGreaterThan(0);
     expect(getAllByText('Paris').length).toBeGreaterThan(0);
+  });
+
+  it('surfaces capitals first in the recommended list and caps it to a few', () => {
+    const { getAllByText, queryByText } = render(
+      <LocationSelector visible mode="switcher" onClose={jest.fn()} />,
+    );
+
+    // Paris is the French capital with 0 venues, yet it surfaces over the 55 busier
+    // (non-capital) Romanian cities — capitals come first regardless of venue count.
+    expect(getAllByText('Paris').length).toBeGreaterThan(0);
+
+    // The list is capped at RECOMMENDED_CITY_LIMIT (10): Paris + the 9 busiest others,
+    // so the 10th-busiest Romanian city is not shown.
+    expect(queryByText('Romania City 10')).toBeNull();
   });
 
   it('refreshes the city catalog when opened', () => {

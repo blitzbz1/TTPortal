@@ -290,3 +290,45 @@ export function getDefaultCity(cities: LocationCity[]): LocationCity | null {
     null
   );
 }
+
+// How many cities the "Recommended cities" list surfaces (a short, scannable set).
+export const RECOMMENDED_CITY_LIMIT = 10;
+
+// National capital by country code, written as the endonym stored in the cities catalog
+// (e.g. 'Wien', 'Praha', 'București'). Matched diacritic/case-insensitively, so a stored ASCII
+// form like 'Chisinau' still resolves 'Chișinău'. Capitals with no imported venues are simply
+// absent from the catalog and never match — the recommended list then falls back to busiest cities.
+export const CAPITAL_BY_CC: Record<string, string> = {
+  AL: 'Tirana', AM: 'Yerevan', AT: 'Wien', BA: 'Sarajevo', BE: 'Bruxelles', BG: 'Sofia',
+  BY: 'Minsk', CH: 'Bern', CY: 'Nicosia', CZ: 'Praha', DE: 'Berlin', DK: 'København',
+  DZ: 'Algiers', EE: 'Tallinn', ES: 'Madrid', FI: 'Helsinki', FR: 'Paris', GB: 'London',
+  GE: 'Tbilisi', GR: 'Athens', HR: 'Zagreb', HU: 'Budapest', IE: 'Dublin', IR: 'Tehran',
+  IS: 'Reykjavík', IT: 'Roma', LI: 'Vaduz', LT: 'Vilnius', LU: 'Luxembourg', LV: 'Riga',
+  MC: 'Monaco', MD: 'Chișinău', ME: 'Podgorica', NL: 'Amsterdam', NO: 'Oslo', PL: 'Warszawa',
+  PT: 'Lisboa', RO: 'București', RS: 'Beograd', RU: 'Moscow', SE: 'Stockholm', SI: 'Ljubljana',
+  SK: 'Bratislava', TR: 'Ankara', UA: 'Kyiv',
+};
+
+const normalizeCityName = (value: string): string =>
+  value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+export function isCapitalCity(city: Pick<LocationCity, 'name' | 'country_code'>): boolean {
+  const capital = city.country_code ? CAPITAL_BY_CC[city.country_code] : undefined;
+  return capital != null && normalizeCityName(capital) === normalizeCityName(city.name);
+}
+
+// "Recommended cities": national capitals first (busiest first), then the busiest remaining
+// cities, capped at `limit`. Deterministic (no per-user history) so the short list stays stable.
+export function getRecommendedCities(
+  cities: LocationCity[],
+  limit: number = RECOMMENDED_CITY_LIMIT,
+): LocationCity[] {
+  const capitals: LocationCity[] = [];
+  const rest: LocationCity[] = [];
+  for (const city of cities) (isCapitalCity(city) ? capitals : rest).push(city);
+  const byVenues = (a: LocationCity, b: LocationCity) =>
+    (b.venue_count ?? 0) - (a.venue_count ?? 0) || a.name.localeCompare(b.name);
+  capitals.sort(byVenues);
+  rest.sort(byVenues);
+  return [...capitals, ...rest].slice(0, limit);
+}
