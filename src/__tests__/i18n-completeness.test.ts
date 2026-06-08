@@ -22,6 +22,7 @@ const ACTIVE_CHALLENGE_TITLE_KEY_PATTERN = /^badgeChallenge_(CRF|SPN|ATK|FTW|DEF
 const PACK_2_3_CHALLENGE_TITLE_KEY_PATTERN = /^badgeChallenge_(CRF|SPN|ATK|FTW|DEF|SRV|CMP|EXP)[23]\d{2}$/;
 const ACTIVE_CHALLENGE_TITLE_KEY_COUNT = 344;
 const PACK_2_3_CHALLENGE_TITLE_KEY_COUNT = 160;
+const PACK_2_3_TITLE_WORDING_MIGRATION = 'supabase/migrations/077_pack_2_3_challenge_title_wording.sql';
 
 /** Auth screen files to audit for hardcoded strings. */
 const AUTH_SCREEN_FILES = [
@@ -106,6 +107,20 @@ describe('i18n completeness', () => {
       expect(challengeKeys).toHaveLength(ACTIVE_CHALLENGE_TITLE_KEY_COUNT);
       expect(pack23Keys).toHaveLength(PACK_2_3_CHALLENGE_TITLE_KEY_COUNT);
       expect(invalidValues).toEqual([]);
+    });
+
+    it('Pack 2/3 SQL fallback titles match en.json', () => {
+      const migration = fs.readFileSync(path.join(ROOT, PACK_2_3_TITLE_WORDING_MIGRATION), 'utf-8');
+      const rowPattern = /\('((?:CRF|SPN|ATK|FTW|DEF|SRV|CMP|EXP)[23]\d{2})', '((?:''|[^'])*)'\)/g;
+      const rows = [...migration.matchAll(rowPattern)].map((match) => [
+        `badgeChallenge_${match[1]}`,
+        match[2].replace(/''/g, "'"),
+      ] as const);
+
+      const mismatched = rows.filter(([key, title]) => enRef[key] !== title);
+
+      expect(rows).toHaveLength(PACK_2_3_CHALLENGE_TITLE_KEY_COUNT);
+      expect(mismatched).toEqual([]);
     });
   });
 
