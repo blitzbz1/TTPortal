@@ -1,4 +1,7 @@
 {
+  "vcrViewPhoto": "Zobrazit fotku",
+  "vcrAddPhoto": "Přidat fotku",
+  "rateLimitUploadImage": "Dosáhli jste denního limitu {max} nahraných fotek. Zkuste to zítra.",
   "requestChangesCta": "Navrhnout úpravu",
   "vcrTitle": "Navrhnout úpravu",
   "vcrSubtitle": "Navrhněte opravy pro toto místo. Moderátor je zkontroluje.",

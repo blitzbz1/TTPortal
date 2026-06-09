@@ -1,4 +1,7 @@
 {
+  "vcrViewPhoto": "Ver foto",
+  "vcrAddPhoto": "Añadir foto",
+  "rateLimitUploadImage": "Has alcanzado el límite diario de {max} subidas de fotos. Inténtalo de nuevo mañana.",
   "requestChangesCta": "Sugerir una edición",
   "vcrTitle": "Sugerir una edición",
   "vcrSubtitle": "Propón correcciones para este lugar. Un moderador las revisará.",

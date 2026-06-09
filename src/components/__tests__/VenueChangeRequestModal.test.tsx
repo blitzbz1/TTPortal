@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, act } from '@testing-library/react-native';
 
 import { VenueChangeRequestModal } from '../VenueChangeRequestModal';
 
@@ -34,6 +34,22 @@ jest.mock('../Icon', () => ({
   },
 }));
 
+const mockRequestPerm = jest.fn();
+const mockLaunch = jest.fn();
+jest.mock('expo-image-picker', () => ({
+  requestMediaLibraryPermissionsAsync: (...a: any[]) => mockRequestPerm(...a),
+  launchImageLibraryAsync: (...a: any[]) => mockLaunch(...a),
+}));
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockRequestPerm.mockResolvedValue({ status: 'granted' });
+  mockLaunch.mockResolvedValue({
+    canceled: false,
+    assets: [{ uri: 'file:///p.jpg', width: 800, height: 600, fileSize: 1000, mimeType: 'image/jpeg' }],
+  });
+});
+
 function setup(props: Partial<React.ComponentProps<typeof VenueChangeRequestModal>> = {}) {
   const onSubmit = jest.fn();
   const onClose = jest.fn();
@@ -56,7 +72,7 @@ describe('VenueChangeRequestModal', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('submits a nets change with the right payload', () => {
+  it('submits a nets change with the right payload and no image', () => {
     const { getByTestId, onSubmit } = setup();
     fireEvent.press(getByTestId('vcr-nets-true'));
     fireEvent.press(getByTestId('vcr-submit'));
@@ -66,7 +82,7 @@ describe('VenueChangeRequestModal', () => {
       tablesCount: null,
       markUnavailable: false,
       note: null,
-    });
+    }, null);
   });
 
   it('submits a tables count and the unavailable flag', () => {
@@ -80,7 +96,7 @@ describe('VenueChangeRequestModal', () => {
       tablesCount: 4,
       markUnavailable: true,
       note: null,
-    });
+    }, null);
   });
 
   it('ignores an invalid tables count (stays disabled)', () => {
@@ -97,7 +113,42 @@ describe('VenueChangeRequestModal', () => {
     fireEvent.press(getByTestId('vcr-submit'));
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ nightLighting: false, note: 'gone now' }),
+      null,
     );
+  });
+
+  it('attaches a picked image to the submission', async () => {
+    const { getByTestId, onSubmit } = setup();
+    fireEvent.press(getByTestId('vcr-nets-true'));
+    await act(async () => { fireEvent.press(getByTestId('vcr-photo-pick')); });
+    expect(getByTestId('vcr-photo-remove')).toBeTruthy();
+
+    fireEvent.press(getByTestId('vcr-submit'));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ nets: true }),
+      { uri: 'file:///p.jpg', width: 800, height: 600 },
+    );
+  });
+
+  it('removes a picked image before submitting', async () => {
+    const { getByTestId, queryByTestId, onSubmit } = setup();
+    fireEvent.press(getByTestId('vcr-nets-true'));
+    await act(async () => { fireEvent.press(getByTestId('vcr-photo-pick')); });
+    fireEvent.press(getByTestId('vcr-photo-remove'));
+    expect(queryByTestId('vcr-photo-remove')).toBeNull();
+
+    fireEvent.press(getByTestId('vcr-submit'));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ nets: true }), null);
+  });
+
+  it('blocks an oversized image', async () => {
+    mockLaunch.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file:///big.jpg', width: 8000, height: 6000, fileSize: 20 * 1024 * 1024, mimeType: 'image/jpeg' }],
+    });
+    const { getByTestId, queryByTestId } = setup();
+    await act(async () => { fireEvent.press(getByTestId('vcr-photo-pick')); });
+    expect(queryByTestId('vcr-photo-remove')).toBeNull();
   });
 
   it('closes via the close button without submitting', () => {

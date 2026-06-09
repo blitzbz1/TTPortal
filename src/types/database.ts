@@ -116,6 +116,7 @@ export interface VenueChangeRequest {
   proposed_tables_count: number | null;
   mark_unavailable: boolean;
   note: string | null;
+  photo_url: string | null;
   status: VenueChangeRequestStatus;
   resolution: Record<string, string> | null;
   reviewed_by: string | null;

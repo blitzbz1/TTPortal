@@ -431,7 +431,7 @@ describe('AdminModerationScreen — changes tab', () => {
         {
           id: 1, venue_id: 10, submitted_by: 'u-1',
           proposed_nets: true, proposed_night_lighting: null, proposed_tables_count: 4,
-          mark_unavailable: false, note: 'has nets now', status: 'pending',
+          mark_unavailable: false, note: 'has nets now', photo_url: 'https://cdn/evidence.jpg', status: 'pending',
           created_at: '2026-06-01T10:00:00Z', profiles: { full_name: 'Ann' },
           venues: { name: 'Park A', city: 'Cluj', nets: false, night_lighting: true, tables_count: 2, approved: true },
         },
@@ -445,6 +445,31 @@ describe('AdminModerationScreen — changes tab', () => {
     expect(getByText('Park A')).toBeTruthy();
     expect(getByText('no → yes')).toBeTruthy();
     expect(getByText('2 → 4')).toBeTruthy();
+    expect(getByTestId('vcr-photo-1')).toBeTruthy();
+  });
+
+  it('opens and closes the full-screen photo viewer from the thumbnail', async () => {
+    mockGetVenueChangeRequests.mockResolvedValue({
+      data: [
+        {
+          id: 1, venue_id: 10, submitted_by: 'u-1',
+          proposed_nets: true, mark_unavailable: false, status: 'pending',
+          created_at: '2026-06-01T10:00:00Z', profiles: null,
+          photo_url: 'https://cdn/evidence.jpg',
+          venues: { name: 'Park A', nets: false },
+        },
+      ],
+    });
+
+    const { getByText, getByTestId, queryByTestId } = await renderAdmin();
+    await act(async () => { fireEvent.press(getByText('tabChanges')); });
+
+    expect(queryByTestId('image-viewer')).toBeNull();
+    await act(async () => { fireEvent.press(getByTestId('vcr-photo-1')); });
+    expect(getByTestId('image-viewer')).toBeTruthy();
+
+    await act(async () => { fireEvent.press(getByTestId('image-viewer-close')); });
+    expect(queryByTestId('image-viewer')).toBeNull();
   });
 
   it('applies a change request with the accepted-field decision', async () => {

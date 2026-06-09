@@ -22,7 +22,7 @@ const ACTIVE_CHALLENGE_TITLE_KEY_PATTERN = /^badgeChallenge_(CRF|SPN|ATK|FTW|DEF
 const PACK_2_3_CHALLENGE_TITLE_KEY_PATTERN = /^badgeChallenge_(CRF|SPN|ATK|FTW|DEF|SRV|CMP|EXP)[23]\d{2}$/;
 const ACTIVE_CHALLENGE_TITLE_KEY_COUNT = 344;
 const PACK_2_3_CHALLENGE_TITLE_KEY_COUNT = 160;
-const PACK_2_3_TITLE_WORDING_MIGRATION = 'supabase/migrations/077_pack_2_3_challenge_title_wording.sql';
+const PACK_2_3_TITLE_WORDING_MIGRATION = 'supabase/migrations/079_pack_2_3_challenge_title_wording.sql';
 
 /** Auth screen files to audit for hardcoded strings. */
 const AUTH_SCREEN_FILES = [

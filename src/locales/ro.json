@@ -1,4 +1,7 @@
 {
+  "vcrViewPhoto": "Vezi poza",
+  "vcrAddPhoto": "Adaugă o poză",
+  "rateLimitUploadImage": "Ai atins limita zilnică de {max} încărcări de poze. Încearcă din nou mâine.",
   "requestChangesCta": "Sugerează o modificare",
   "vcrTitle": "Sugerează o modificare",
   "vcrSubtitle": "Propune corecții pentru această locație. Un moderator le va verifica.",

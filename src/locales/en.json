@@ -1,4 +1,7 @@
 {
+  "vcrViewPhoto": "View photo",
+  "vcrAddPhoto": "Add photo",
+  "rateLimitUploadImage": "You've reached the daily limit of {max} photo uploads. Please try again tomorrow.",
   "requestChangesCta": "Suggest an edit",
   "vcrTitle": "Suggest an edit",
   "vcrSubtitle": "Propose corrections for this venue. A moderator will review them.",

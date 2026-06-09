@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { FeedbackReplyModal } from '../components/FeedbackReplyModal';
+import { FullscreenImageViewer } from '../components/FullscreenImageViewer';
 import { AddressPickerField } from '../components/AddressPickerField';
 import { upsertCity } from '../services/cities';
 import { canonicalizeCityName } from '../lib/cityCatalog';
@@ -247,9 +248,10 @@ interface VenueChangeRequestCardProps {
   s: (key: string) => string;
   onApply: (request: any, decision: VenueChangeRequestDecision) => Promise<boolean>;
   onDismiss: (id: number) => Promise<boolean>;
+  onViewPhoto: (url: string) => void;
 }
 const VenueChangeRequestCard = React.memo(function VenueChangeRequestCard({
-  request, styles, colors, s, onApply, onDismiss,
+  request, styles, colors, s, onApply, onDismiss, onViewPhoto,
 }: VenueChangeRequestCardProps) {
   const [acceptNets, setAcceptNets] = useState(true);
   const [acceptLighting, setAcceptLighting] = useState(true);
@@ -311,6 +313,17 @@ const VenueChangeRequestCard = React.memo(function VenueChangeRequestCard({
         {v.city ? ` · ${v.city}` : ''}
       </Text>
       {request.note ? <Text style={styles.vcrNote}>{`"${request.note}"`}</Text> : null}
+
+      {request.photo_url ? (
+        <TouchableOpacity
+          onPress={() => onViewPhoto(request.photo_url)}
+          accessibilityRole="imagebutton"
+          accessibilityLabel={s('vcrViewPhoto')}
+          testID={`vcr-photo-${request.id}`}
+        >
+          <Image source={{ uri: request.photo_url }} style={styles.vcrPhoto} />
+        </TouchableOpacity>
+      ) : null}
 
       {fields.map((f) => (
         <View key={f.key} style={styles.vcrFieldRow}>
@@ -405,6 +418,7 @@ export function AdminModerationScreen() {
   const [changeRequests, setChangeRequests] = useState<any[]>([]);
   const [changeRequestsLoading, setChangeRequestsLoading] = useState(false);
   const [changeRequestsLoaded, setChangeRequestsLoaded] = useState(false);
+  const [photoViewerUrl, setPhotoViewerUrl] = useState<string | null>(null);
   const [replyTarget, setReplyTarget] = useState<any | null>(null);
   // Edit modal state
   const [editVenue, setEditVenue] = useState<any | null>(null);
@@ -1131,6 +1145,7 @@ export function AdminModerationScreen() {
                   s={s}
                   onApply={handleApplyChangeRequest}
                   onDismiss={handleDismissChangeRequest}
+                  onViewPhoto={setPhotoViewerUrl}
                 />
               ))}
             </View>
@@ -1445,6 +1460,8 @@ export function AdminModerationScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <FullscreenImageViewer url={photoViewerUrl} onClose={() => setPhotoViewerUrl(null)} />
     </SafeAreaView>
   );
 }

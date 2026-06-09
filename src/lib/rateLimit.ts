@@ -69,6 +69,7 @@ export function formatRateLimitMessage(
     info.action === 'add_venue' ? 'rateLimitAddVenue'
     : info.action === 'create_event' ? 'rateLimitCreateEvent'
     : info.action === 'checkin' ? 'rateLimitCheckin'
+    : info.action === 'upload_image' ? 'rateLimitUploadImage'
     : 'rateLimitGeneric';
   return s(key).replace('{minutes}', String(minutes)).replace('{max}', String(info.max));
 }

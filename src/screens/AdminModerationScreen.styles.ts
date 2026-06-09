@@ -693,5 +693,13 @@ export function createStyles(colors: ThemeColors) {
       fontWeight: FontWeight.semibold,
       color: colors.redDeep,
     },
+    vcrPhoto: {
+      width: 120,
+      height: 120,
+      borderRadius: Radius.md,
+      backgroundColor: colors.bg,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
   });
 }

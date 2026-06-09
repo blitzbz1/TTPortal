@@ -31,7 +31,9 @@ import { CheckinSuccessSheet } from '../components/CheckinSuccessSheet';
 import { EmptyState } from '../components/EmptyState';
 import { ReportReasonModal } from '../components/ReportReasonModal';
 import { VenueChangeRequestModal } from '../components/VenueChangeRequestModal';
-import { submitVenueChangeRequest } from '../services/venueChangeRequests';
+import type { SelectedImage } from '../components/VenueChangeRequestModal';
+import { FullscreenImageViewer } from '../components/FullscreenImageViewer';
+import { submitVenueChangeRequest, uploadChangeRequestImage } from '../services/venueChangeRequests';
 import type { VenueChangeRequestInput } from '../services/venueChangeRequests';
 import { reportContent, blockUser, type ReportReason } from '../services/moderation';
 import { hapticLight } from '../lib/haptics';
@@ -113,6 +115,7 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [checkinLoading, setCheckinLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [viewerPhotoUrl, setViewerPhotoUrl] = useState<string | null>(null);
   const screenWidth = Dimensions.get('window').width;
   const photoWidth = Platform.OS === 'web' ? Math.min(screenWidth, 430) : screenWidth;
   const photoHeight = Math.round(photoWidth * 9 / 16);
@@ -181,9 +184,25 @@ export function VenueDetailScreen({ venueId }: Props) {
     setVcrVisible(true);
   }, [user, router]);
 
-  const handleSubmitChangeRequest = useCallback(async (payload: VenueChangeRequestInput) => {
+  const handleSubmitChangeRequest = useCallback(async (payload: VenueChangeRequestInput, image: SelectedImage | null) => {
     setVcrSubmitting(true);
-    const { error } = await submitVenueChangeRequest(Number(venueId), payload);
+    let photoUrl: string | null = null;
+    if (image) {
+      const res = await uploadChangeRequestImage(Number(venueId), image);
+      if (!res.ok) {
+        setVcrSubmitting(false);
+        if (res.reason === 'rate_limited') {
+          showAlert(s('error'), rateLimitMessageFor(res.error, s) ?? s('vcrSubmitError'));
+        } else if (res.reason === 'processing_unavailable') {
+          showAlert(s('error'), s('photoProcessingUnavailable'));
+        } else {
+          showAlert(s('error'), s('photoUploadError'));
+        }
+        return;
+      }
+      photoUrl = res.url;
+    }
+    const { error } = await submitVenueChangeRequest(Number(venueId), { ...payload, photoUrl });
     setVcrSubmitting(false);
     if (error) {
       showAlert(s('error'), s('vcrSubmitError'));
@@ -512,13 +531,20 @@ export function VenueDetailScreen({ venueId }: Props) {
                   setActivePhotoIndex(index);
                 }}
                 renderItem={({ item }) => (
-                  <Image
-                    source={venueImageUrl(item, { width: Math.round(photoWidth * 2), quality: 75 })}
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => setViewerPhotoUrl(item)}
                     style={{ width: photoWidth, height: photoHeight }}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                    transition={150}
-                  />
+                    testID="venue-photo"
+                  >
+                    <Image
+                      source={venueImageUrl(item, { width: Math.round(photoWidth * 2), quality: 75 })}
+                      style={{ width: photoWidth, height: photoHeight }}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={150}
+                    />
+                  </TouchableOpacity>
                 )}
                 getItemLayout={(_, index) => ({ length: photoWidth, offset: photoWidth * index, index })}
               />
@@ -849,6 +875,8 @@ export function VenueDetailScreen({ venueId }: Props) {
         onClose={() => setVcrVisible(false)}
         onSubmit={handleSubmitChangeRequest}
       />
+
+      <FullscreenImageViewer url={viewerPhotoUrl} onClose={() => setViewerPhotoUrl(null)} />
     </SafeAreaView>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -8,7 +8,10 @@ import {
   ActivityIndicator,
   StyleSheet,
   ScrollView,
+  Image,
+  Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
@@ -17,6 +20,12 @@ import { useI18n } from '../hooks/useI18n';
 import type { VenueChangeRequestInput } from '../services/venueChangeRequests';
 
 type TriValue = boolean | null;
+
+export type SelectedImage = {
+  uri: string;
+  width: number | null;
+  height: number | null;
+};
 
 export type VenueChangeRequestModalProps = {
   visible: boolean;
@@ -28,7 +37,7 @@ export type VenueChangeRequestModalProps = {
     tables_count?: number | null;
   };
   onClose: () => void;
-  onSubmit: (payload: VenueChangeRequestInput) => void;
+  onSubmit: (payload: VenueChangeRequestInput, image: SelectedImage | null) => void;
 };
 
 const MAX_TABLES = 200;
@@ -49,6 +58,7 @@ export function VenueChangeRequestModal({
   const [tables, setTables] = useState('');
   const [markUnavailable, setMarkUnavailable] = useState(false);
   const [note, setNote] = useState('');
+  const [image, setImage] = useState<SelectedImage | null>(null);
 
   const reset = useCallback(() => {
     setNets(null);
@@ -56,12 +66,44 @@ export function VenueChangeRequestModal({
     setTables('');
     setMarkUnavailable(false);
     setNote('');
+    setImage(null);
   }, []);
+
+  // Start each open with a fresh form. The parent closes the sheet by flipping
+  // `visible` (not via handleClose) on success, so reset here rather than on submit.
+  useEffect(() => {
+    if (visible) reset();
+  }, [visible, reset]);
 
   const handleClose = useCallback(() => {
     reset();
     onClose();
   }, [reset, onClose]);
+
+  const handlePickImage = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(s('error'), s('photoPermissionDenied'));
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    if (result.canceled || result.assets.length === 0) return;
+    const asset = result.assets[0];
+    if (asset.fileSize && asset.fileSize > 10 * 1024 * 1024) {
+      Alert.alert(s('error'), s('photoTooLarge'));
+      return;
+    }
+    const allowed = ['image/jpeg', 'image/png', 'image/heic', 'image/heif'];
+    if (asset.mimeType && !allowed.includes(asset.mimeType)) {
+      Alert.alert(s('error'), s('photoUploadError'));
+      return;
+    }
+    setImage({ uri: asset.uri, width: asset.width ?? null, height: asset.height ?? null });
+  }, [s]);
 
   const tablesTrimmed = tables.trim();
   const tablesNum = tablesTrimmed === '' ? null : Number(tablesTrimmed);
@@ -83,9 +125,8 @@ export function VenueChangeRequestModal({
       tablesCount: tablesProvided ? tablesNum : null,
       markUnavailable,
       note: note.trim() ? note.trim() : null,
-    });
-    reset();
-  }, [hasChange, nets, lighting, tablesProvided, tablesNum, markUnavailable, note, onSubmit, reset]);
+    }, image);
+  }, [hasChange, nets, lighting, tablesProvided, tablesNum, markUnavailable, note, image, onSubmit]);
 
   const renderTriState = (
     field: string,
@@ -204,6 +245,25 @@ export function VenueChangeRequestModal({
             maxLength={500}
             testID="vcr-note-input"
           />
+
+          {image ? (
+            <View style={styles.photoPreviewWrap}>
+              <Image source={{ uri: image.uri }} style={styles.photoPreview} />
+              <Pressable
+                onPress={() => setImage(null)}
+                style={styles.photoRemoveBtn}
+                hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                testID="vcr-photo-remove"
+              >
+                <Lucide name="x" size={14} color={colors.textOnPrimary} />
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable onPress={handlePickImage} style={styles.photoPickBtn} testID="vcr-photo-pick">
+              <Lucide name="image-plus" size={18} color={colors.primaryMid} />
+              <Text style={styles.photoPickText}>{s('vcrAddPhoto')}</Text>
+            </Pressable>
+          )}
         </ScrollView>
 
         <Pressable
@@ -372,6 +432,45 @@ function createStyles(colors: ThemeColors) {
       fontSize: 14,
       color: colors.text,
       textAlignVertical: 'top',
+    },
+    photoPickBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: Spacing.md,
+      height: 44,
+      borderRadius: Radius.md,
+      borderWidth: 1,
+      borderColor: colors.primaryDim,
+      backgroundColor: colors.primaryPale,
+    },
+    photoPickText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
+      color: colors.primaryMid,
+    },
+    photoPreviewWrap: {
+      marginTop: Spacing.md,
+      alignSelf: 'flex-start',
+    },
+    photoPreview: {
+      width: 96,
+      height: 96,
+      borderRadius: Radius.md,
+      backgroundColor: colors.bgAlt,
+    },
+    photoRemoveBtn: {
+      position: 'absolute',
+      top: -8,
+      right: -8,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: colors.red,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     submitBtn: {
       marginHorizontal: Spacing.md,

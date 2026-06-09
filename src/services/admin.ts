@@ -240,7 +240,7 @@ export async function replyToFeedback(feedbackId: string, adminId: string, reply
 // embed the current venue values (the venue_id FK points at public.venues, so
 // the embed works; submitted_by points at auth.users, so attachProfiles).
 const CHANGE_REQUEST_COLS =
-  'id, venue_id, submitted_by, proposed_nets, proposed_night_lighting, proposed_tables_count, mark_unavailable, note, status, created_at, venues!venue_id(name, city, nets, night_lighting, tables_count, approved)';
+  'id, venue_id, submitted_by, proposed_nets, proposed_night_lighting, proposed_tables_count, mark_unavailable, note, photo_url, status, created_at, venues!venue_id(name, city, nets, night_lighting, tables_count, approved)';
 
 export async function getVenueChangeRequests() {
   const result = await supabase
