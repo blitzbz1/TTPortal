@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput, Modal, Pressable, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput, Modal, Pressable, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -15,7 +15,7 @@ import { Fonts, Radius } from '../theme';
 import { createStyles } from './AdminModerationScreen.styles';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import type { VenueCondition } from '../types/database';
+import type { VenueCondition, Profile } from '../types/database';
 import {
   getPendingVenues,
   searchVenuesAdmin,
@@ -31,9 +31,13 @@ import {
   getVenueChangeRequests,
   resolveVenueChangeRequest,
   dismissVenueChangeRequest,
+  searchUsersAdmin,
+  setUserModerator,
   type VenueChangeRequestDecision,
+  type AdminUserSearchRow,
 } from '../services/admin';
 import { getProfile } from '../services/profiles';
+import { loadCachedProfile, saveCachedProfile } from '../lib/profileCache';
 import {
   getUnresolvedReports,
   resolveReport,
@@ -249,9 +253,10 @@ interface VenueChangeRequestCardProps {
   onApply: (request: any, decision: VenueChangeRequestDecision) => Promise<boolean>;
   onDismiss: (id: number) => Promise<boolean>;
   onViewPhoto: (url: string) => void;
+  canRemove: boolean;
 }
 const VenueChangeRequestCard = React.memo(function VenueChangeRequestCard({
-  request, styles, colors, s, onApply, onDismiss, onViewPhoto,
+  request, styles, colors, s, onApply, onDismiss, onViewPhoto, canRemove,
 }: VenueChangeRequestCardProps) {
   const [acceptNets, setAcceptNets] = useState(true);
   const [acceptLighting, setAcceptLighting] = useState(true);
@@ -277,11 +282,13 @@ const VenueChangeRequestCard = React.memo(function VenueChangeRequestCard({
     fields.push({ key: 'tables', label: s('fieldTables'), current: String(v.tables_count ?? '?'), proposed: String(request.proposed_tables_count), accepted: acceptTables, set: setAcceptTables });
   }
 
-  const availOptions: { v: 'none' | 'hide' | 'remove'; labelKey: string }[] = [
+  // Permanent removal is admin-only (also enforced by resolve_venue_change_request);
+  // moderators may hide but not delete a venue.
+  const availOptions = ([
     { v: 'none', labelKey: 'vcrAvailIgnore' },
     { v: 'hide', labelKey: 'vcrAvailHide' },
     { v: 'remove', labelKey: 'vcrAvailRemove' },
-  ];
+  ] as { v: 'none' | 'hide' | 'remove'; labelKey: string }[]).filter((o) => o.v !== 'remove' || canRemove);
 
   const handleApply = async () => {
     setBusy(true);
@@ -409,6 +416,7 @@ export function AdminModerationScreen() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackLoaded, setFeedbackLoaded] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isModerator, setIsModerator] = useState(false);
   const [adminLoading, setAdminLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'reviews' | 'venues' | 'feedback' | 'reports' | 'changes'>('reviews');
   const [reports, setReports] = useState<ContentReport[]>([]);
@@ -420,6 +428,13 @@ export function AdminModerationScreen() {
   const [changeRequestsLoaded, setChangeRequestsLoaded] = useState(false);
   const [photoViewerUrl, setPhotoViewerUrl] = useState<string | null>(null);
   const [replyTarget, setReplyTarget] = useState<any | null>(null);
+  // Moderator-management modal (admin-only)
+  const [moderatorsModalVisible, setModeratorsModalVisible] = useState(false);
+  const [userQuery, setUserQuery] = useState('');
+  const [userResults, setUserResults] = useState<AdminUserSearchRow[]>([]);
+  const [usersSearching, setUsersSearching] = useState(false);
+  const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
+  const userDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Edit modal state
   const [editVenue, setEditVenue] = useState<any | null>(null);
   const [editName, setEditName] = useState('');
@@ -462,8 +477,23 @@ export function AdminModerationScreen() {
 
   useLayoutEffect(() => {
     if (!user) return;
+    // Cache-first: ProfileScreen (the only entry point here) populates the
+    // persistent profile cache, so on the common path we already know the role
+    // and can paint immediately instead of blocking on a network round-trip
+    // (which showed a blank loading screen for a few seconds). We only skip the
+    // loader optimistically for an *authorized* cached role — an unauthorized or
+    // stale cache still waits for the network, so a freshly-granted moderator is
+    // never bounced and a revoked one is never trusted.
+    const cached = loadCachedProfile<Profile>(user.id);
+    if (cached?.data && (cached.data.is_admin || cached.data.is_moderator)) {
+      setIsAdmin(cached.data.is_admin === true);
+      setIsModerator(cached.data.is_moderator === true);
+      setAdminLoading(false);
+    }
     getProfile(user.id).then(({ data }) => {
       setIsAdmin(data?.is_admin === true);
+      setIsModerator(data?.is_moderator === true);
+      if (data) saveCachedProfile(user.id, data);
       setAdminLoading(false);
     });
   }, [user]);
@@ -522,9 +552,41 @@ export function AdminModerationScreen() {
     }, 400);
   }, []);
 
+  const handleUserSearch = useCallback((text: string) => {
+    setUserQuery(text);
+    if (userDebounceRef.current) clearTimeout(userDebounceRef.current);
+    if (text.trim().length < 3) {
+      setUserResults([]);
+      setUsersSearching(false);
+      return;
+    }
+    setUsersSearching(true);
+    userDebounceRef.current = setTimeout(async () => {
+      const { data } = await searchUsersAdmin(text.trim());
+      setUserResults(data);
+      setUsersSearching(false);
+    }, 400);
+  }, []);
+
+  const handleToggleModerator = useCallback(async (u: AdminUserSearchRow) => {
+    if (!user) return;
+    setTogglingUserId(u.id);
+    const next = !u.is_moderator;
+    const { error } = await setUserModerator(user.id, u.id, next);
+    setTogglingUserId(null);
+    if (error) {
+      Alert.alert(s('error'), s('moderatorUpdateError'));
+      return;
+    }
+    setUserResults((prev) => prev.map((r) => (r.id === u.id ? { ...r, is_moderator: next } : r)));
+  }, [user, s]);
+
   useEffect(() => {
     fetchReviewsData();
-    return () => { if (venueDebounceRef.current) clearTimeout(venueDebounceRef.current); };
+    return () => {
+      if (venueDebounceRef.current) clearTimeout(venueDebounceRef.current);
+      if (userDebounceRef.current) clearTimeout(userDebounceRef.current);
+    };
   }, [fetchReviewsData]);
 
   const handleApprove = useCallback(async (id: number) => {
@@ -813,8 +875,17 @@ export function AdminModerationScreen() {
     ]);
   }, [user, s]);
 
-  if (adminLoading) return <ActivityIndicator />;
-  if (!isAdmin) {
+  if (adminLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+  const canModerate = isAdmin || isModerator;
+  if (!canModerate) {
     router.back();
     return null;
   }
@@ -833,8 +904,15 @@ export function AdminModerationScreen() {
           <Lucide name="arrow-left" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{s('adminModeration')}</Text>
-        <View style={styles.adminBadge}>
-          <Text style={styles.adminBadgeText}>{s('admin')}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {isAdmin && (
+            <TouchableOpacity onPress={() => setModeratorsModalVisible(true)} testID="manage-moderators-btn">
+              <Lucide name="users" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
+          <View style={styles.adminBadge}>
+            <Text style={styles.adminBadgeText}>{s(isAdmin ? 'admin' : 'moderator')}</Text>
+          </View>
         </View>
       </View>
 
@@ -851,12 +929,15 @@ export function AdminModerationScreen() {
             </View>
           )}
         </TouchableOpacity>
+        {isAdmin && (
         <TouchableOpacity
           style={[styles.tab, activeTab === 'venues' && styles.tabActive]}
           onPress={() => setActiveTab('venues')}
         >
           <Text style={[styles.tabText, activeTab === 'venues' && styles.tabTextActive]}>{s('tabVenues')}</Text>
         </TouchableOpacity>
+        )}
+        {isAdmin && (
         <TouchableOpacity
           style={[styles.tab, activeTab === 'feedback' && styles.tabActive]}
           onPress={() => setActiveTab('feedback')}
@@ -869,6 +950,7 @@ export function AdminModerationScreen() {
             </View>
           )}
         </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={[styles.tab, activeTab === 'reports' && styles.tabActive]}
           onPress={() => setActiveTab('reports')}
@@ -899,6 +981,7 @@ export function AdminModerationScreen() {
         <ActivityIndicator size="large" color={colors.primary} style={{ flex: 1, marginTop: 40 }} />
       ) : activeTab === 'reviews' ? (
         <ScrollView style={styles.scroll}>
+          {isAdmin && (<>
           {/* Stats */}
           <View style={styles.statsRow}>
             {stats.map((stat) => (
@@ -935,6 +1018,7 @@ export function AdminModerationScreen() {
               ))
             )}
           </View>
+          </>)}
 
           {/* Flagged Reviews */}
           <View style={styles.secLabel}>
@@ -1143,6 +1227,7 @@ export function AdminModerationScreen() {
                   styles={styles}
                   colors={colors}
                   s={s}
+                  canRemove={isAdmin}
                   onApply={handleApplyChangeRequest}
                   onDismiss={handleDismissChangeRequest}
                   onViewPhoto={setPhotoViewerUrl}
@@ -1153,6 +1238,115 @@ export function AdminModerationScreen() {
         </ScrollView>
       )}
       <FeedbackReplyModal feedback={replyTarget} onClose={() => setReplyTarget(null)} />
+      {/* Manage moderators (admin-only) */}
+      <Modal
+        visible={moderatorsModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModeratorsModalVisible(false)}
+      >
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle}><View style={styles.modalHandleBar} /></View>
+            <Text style={styles.modalTitle}>{s('manageModerators')}</Text>
+
+            <View style={styles.venueSearchWrap}>
+              <Lucide name="search" size={16} color={colors.textFaint} />
+              <TextInput
+                style={styles.venueSearchInput}
+                placeholder={s('searchUsers')}
+                placeholderTextColor={colors.textFaint}
+                value={userQuery}
+                onChangeText={handleUserSearch}
+                autoCapitalize="none"
+                autoCorrect={false}
+                testID="moderator-search-input"
+              />
+              {userQuery.length > 0 && (
+                <TouchableOpacity onPress={() => { setUserQuery(''); setUserResults([]); }}>
+                  <Lucide name="x" size={16} color={colors.textFaint} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.venueList}>
+                {userQuery.trim().length < 3 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+                    <Lucide name="users" size={32} color={colors.border} />
+                    <Text style={{ fontFamily: Fonts.body, fontSize: 13, color: colors.textFaint, marginTop: 8 }}>
+                      {s('searchUsersHint')}
+                    </Text>
+                  </View>
+                ) : usersSearching ? (
+                  <ActivityIndicator size="small" color={colors.primary} style={{ paddingVertical: 24 }} />
+                ) : userResults.length === 0 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 16 }}>
+                    <Text style={{ fontFamily: Fonts.body, fontSize: 13, color: colors.textFaint }}>
+                      {s('noUsersFound')}
+                    </Text>
+                  </View>
+                ) : (
+                  userResults.map((u) => (
+                    <View key={u.id} style={styles.venueCard} testID={`moderator-user-${u.id}`}>
+                      <View style={styles.venueInfo}>
+                        <Text style={styles.venueName}>{u.full_name ?? u.username ?? s('user')}</Text>
+                        <Text style={styles.venueMeta} numberOfLines={1}>
+                          {u.email ?? ''}{u.username ? ` · @${u.username}` : ''}
+                        </Text>
+                      </View>
+                      {u.is_admin ? (
+                        <View style={styles.adminBadge}>
+                          <Text style={styles.adminBadgeText}>{s('admin')}</Text>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          onPress={() => void handleToggleModerator(u)}
+                          disabled={togglingUserId === u.id}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minWidth: 84,
+                            paddingHorizontal: 14,
+                            height: 36,
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: u.is_moderator ? colors.redBorder : colors.primaryDim,
+                            backgroundColor: u.is_moderator ? colors.redPale : colors.primaryPale,
+                            opacity: togglingUserId === u.id ? 0.5 : 1,
+                          }}
+                          testID={`toggle-moderator-${u.id}`}
+                        >
+                          {togglingUserId === u.id ? (
+                            <ActivityIndicator size="small" color={colors.primary} />
+                          ) : (
+                            <Text style={{ fontFamily: Fonts.body, fontSize: 13, fontWeight: '600', color: u.is_moderator ? colors.red : colors.primaryMid }}>
+                              {s(u.is_moderator ? 'revokeModerator' : 'grantModerator')}
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))
+                )}
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setModeratorsModalVisible(false)} testID="close-moderators-modal">
+                <Text style={styles.modalCancelText}>{s('close')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+        </KeyboardAvoidingView>
+      </Modal>
       {/* Edit Venue Modal */}
       <Modal visible={editVenue !== null} transparent animationType="slide" onRequestClose={() => setEditVenue(null)}>
           <View style={styles.modalOverlay}>

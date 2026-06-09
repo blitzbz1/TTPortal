@@ -33,6 +33,17 @@ async function verifyAdmin(userId: string): Promise<boolean> {
   return data?.is_admin === true;
 }
 
+// Moderators (and admins) may act on flagged reviews + venue change requests.
+// Defensive early-return mirror of the DB-side can_moderate() gate.
+async function verifyCanModerate(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('is_admin, is_moderator')
+    .eq('id', userId)
+    .single();
+  return data?.is_admin === true || data?.is_moderator === true;
+}
+
 // Several admin queries used to PostgREST-embed profiles via the `<col>` FK
 // (e.g. `profiles!user_id(full_name)`). That works only when the embedded
 // FK actually points at `public.profiles`. In this schema the user-id FKs
@@ -177,7 +188,7 @@ export async function getFlaggedReviews() {
 }
 
 export async function keepReview(id: number, userId: string) {
-  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  if (!await verifyCanModerate(userId)) return { data: null, error: { message: 'Unauthorized' } };
   const result = await supabase
     .from('reviews')
     .update({ flagged: false, flag_count: 0 })
@@ -189,7 +200,7 @@ export async function keepReview(id: number, userId: string) {
 }
 
 export async function deleteReview(id: number, userId: string) {
-  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  if (!await verifyCanModerate(userId)) return { data: null, error: { message: 'Unauthorized' } };
   const result = await supabase.from('reviews').delete().eq('id', id);
   if (!result.error) invalidateFlaggedReviewsCache();
   return result;
@@ -266,7 +277,7 @@ export async function resolveVenueChangeRequest(
   userId: string,
   decision: VenueChangeRequestDecision,
 ) {
-  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  if (!await verifyCanModerate(userId)) return { data: null, error: { message: 'Unauthorized' } };
   const availability = decision.availability ?? 'none';
   const result = await supabase.rpc('resolve_venue_change_request', {
     p_request_id: requestId,
@@ -288,7 +299,7 @@ export async function resolveVenueChangeRequest(
 }
 
 export async function dismissVenueChangeRequest(requestId: number, userId: string) {
-  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  if (!await verifyCanModerate(userId)) return { data: null, error: { message: 'Unauthorized' } };
   const result = await supabase.rpc('resolve_venue_change_request', {
     p_request_id: requestId,
     p_apply_nets: false,
@@ -298,4 +309,35 @@ export async function dismissVenueChangeRequest(requestId: number, userId: strin
   });
   if (!result.error) invalidateVenueChangeRequestsCache();
   return result;
+}
+
+// ── Moderator role management (admin-only) ──
+
+export type AdminUserSearchRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  username: string | null;
+  is_admin: boolean;
+  is_moderator: boolean;
+};
+
+// Diacritic-insensitive user search for the moderator-management UI. Gated
+// admin-only server-side (admin_search_users RPC); returns [] for non-admins.
+export async function searchUsersAdmin(query: string) {
+  const { data, error } = await supabase.rpc('admin_search_users', {
+    p_query: query,
+    p_limit: 30,
+  });
+  return { data: (data as AdminUserSearchRow[] | null) ?? [], error };
+}
+
+// Grant (true) or revoke (false) the moderator role on another user. Admin-only:
+// verified client-side here and enforced server-side by admin_set_user_moderator.
+export async function setUserModerator(adminId: string, targetUserId: string, value: boolean) {
+  if (!await verifyAdmin(adminId)) return { data: null, error: { message: 'Unauthorized' } };
+  return supabase.rpc('admin_set_user_moderator', {
+    p_user_id: targetUserId,
+    p_value: value,
+  });
 }

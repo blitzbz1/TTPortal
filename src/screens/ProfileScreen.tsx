@@ -220,14 +220,14 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
             <Lucide name="chevron-right" size={16} color={colors.textFaint} />
           </TouchableOpacity>
 
-          {profile?.is_admin && (
+          {(profile?.is_admin || profile?.is_moderator) && (
             <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/admin' as any)}>
               <View style={[styles.navIcon, { backgroundColor: colors.primaryPale }]}>
                 <Lucide name="shield-check" size={18} color={colors.primaryMid} />
               </View>
               <Text style={styles.navLabel}>{s('moderation')}</Text>
               <View style={styles.adminPill}>
-                <Text style={styles.adminPillText}>{s('admin')}</Text>
+                <Text style={styles.adminPillText}>{s(profile?.is_admin ? 'admin' : 'moderator')}</Text>
               </View>
               <Lucide name="chevron-right" size={16} color={colors.textFaint} />
             </TouchableOpacity>

@@ -11,6 +11,7 @@ export interface Profile {
   created_at: string;
   username: string | null;
   is_admin: boolean;
+  is_moderator: boolean;
 }
 
 export interface City {

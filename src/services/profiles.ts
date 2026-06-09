@@ -7,7 +7,7 @@ export async function getProfile(userId: string) {
     .from('profiles')
     .select(
       'id, full_name, email, avatar_url, city, lang, auth_provider, created_at, ' +
-        'username, is_admin, notify_friend_checkins',
+        'username, is_admin, is_moderator, notify_friend_checkins',
     )
     .eq('id', userId)
     .single()
