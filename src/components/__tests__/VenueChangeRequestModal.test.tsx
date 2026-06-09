@@ -41,6 +41,13 @@ jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: (...a: any[]) => mockLaunch(...a),
 }));
 
+jest.mock('expo-image', () => ({
+  Image: () => {
+    const { View } = require('react-native');
+    return <View />;
+  },
+}));
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockRequestPerm.mockResolvedValue({ status: 'granted' });
@@ -118,10 +125,11 @@ describe('VenueChangeRequestModal', () => {
   });
 
   it('attaches a picked image to the submission', async () => {
-    const { getByTestId, onSubmit } = setup();
+    const { getByTestId, getByText, onSubmit } = setup();
     fireEvent.press(getByTestId('vcr-nets-true'));
     await act(async () => { fireEvent.press(getByTestId('vcr-photo-pick')); });
-    expect(getByTestId('vcr-photo-remove')).toBeTruthy();
+    // Once a photo is picked, the shared picker switches to its "change" label.
+    expect(getByText('changePhoto')).toBeTruthy();
 
     fireEvent.press(getByTestId('vcr-submit'));
     expect(onSubmit).toHaveBeenCalledWith(
@@ -130,25 +138,14 @@ describe('VenueChangeRequestModal', () => {
     );
   });
 
-  it('removes a picked image before submitting', async () => {
-    const { getByTestId, queryByTestId, onSubmit } = setup();
-    fireEvent.press(getByTestId('vcr-nets-true'));
-    await act(async () => { fireEvent.press(getByTestId('vcr-photo-pick')); });
-    fireEvent.press(getByTestId('vcr-photo-remove'));
-    expect(queryByTestId('vcr-photo-remove')).toBeNull();
-
-    fireEvent.press(getByTestId('vcr-submit'));
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ nets: true }), null);
-  });
-
-  it('blocks an oversized image', async () => {
+  it('blocks an oversized image (none attached)', async () => {
     mockLaunch.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file:///big.jpg', width: 8000, height: 6000, fileSize: 20 * 1024 * 1024, mimeType: 'image/jpeg' }],
     });
-    const { getByTestId, queryByTestId } = setup();
+    const { getByTestId, queryByText } = setup();
     await act(async () => { fireEvent.press(getByTestId('vcr-photo-pick')); });
-    expect(queryByTestId('vcr-photo-remove')).toBeNull();
+    expect(queryByText('changePhoto')).toBeNull();
   });
 
   it('closes via the close button without submitting', () => {

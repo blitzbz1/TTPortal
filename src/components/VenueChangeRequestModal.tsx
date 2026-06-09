@@ -7,12 +7,12 @@ import {
   TextInput,
   ActivityIndicator,
   StyleSheet,
-  ScrollView,
-  Image,
   Alert,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import * as ImagePicker from 'expo-image-picker';
 import { Lucide } from './Icon';
+import { PhotoPickerButton } from './PhotoPickerButton';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius } from '../theme';
@@ -177,12 +177,12 @@ export function VenueChangeRequestModal({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <Pressable
-        style={styles.backdrop}
+        style={styles.overlay}
         onPress={handleClose}
         accessibilityRole="button"
         accessibilityLabel={s('cancel')}
-      />
-      <View style={styles.sheet}>
+      >
+        <Pressable style={styles.sheet} onPress={() => {}}>
         <View style={styles.header}>
           <Text style={styles.title}>{s('vcrTitle')}</Text>
           <Pressable
@@ -196,7 +196,13 @@ export function VenueChangeRequestModal({
 
         <Text style={styles.subtitle}>{s('vcrSubtitle')}</Text>
 
-        <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView
+          contentContainerStyle={styles.bodyContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          bottomOffset={20}
+          showsVerticalScrollIndicator={false}
+        >
           {renderTriState('nets', s('vcrFieldNets'), current?.nets, nets, setNets)}
           {renderTriState('lighting', s('vcrFieldLighting'), current?.night_lighting, lighting, setLighting)}
 
@@ -246,54 +252,43 @@ export function VenueChangeRequestModal({
             testID="vcr-note-input"
           />
 
-          {image ? (
-            <View style={styles.photoPreviewWrap}>
-              <Image source={{ uri: image.uri }} style={styles.photoPreview} />
-              <Pressable
-                onPress={() => setImage(null)}
-                style={styles.photoRemoveBtn}
-                hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                testID="vcr-photo-remove"
-              >
-                <Lucide name="x" size={14} color={colors.textOnPrimary} />
-              </Pressable>
-            </View>
-          ) : (
-            <Pressable onPress={handlePickImage} style={styles.photoPickBtn} testID="vcr-photo-pick">
-              <Lucide name="image-plus" size={18} color={colors.primaryMid} />
-              <Text style={styles.photoPickText}>{s('vcrAddPhoto')}</Text>
-            </Pressable>
-          )}
-        </ScrollView>
-
-        <Pressable
-          onPress={handleSubmit}
-          disabled={!hasChange || submitting}
-          style={[styles.submitBtn, (!hasChange || submitting) && styles.submitBtnDisabled]}
-          testID="vcr-submit"
-        >
-          {submitting ? (
-            <ActivityIndicator size="small" color={colors.textOnPrimary} />
-          ) : (
-            <Text style={styles.submitText}>{s('vcrSubmit')}</Text>
-          )}
+          <View style={styles.field}>
+            <Text style={styles.label}>{s('addPhotoOptional')}</Text>
+            <PhotoPickerButton
+              photoUri={image?.uri ?? null}
+              onPress={handlePickImage}
+              addLabel={s('vcrAddPhoto')}
+              changeLabel={s('changePhoto')}
+              testID="vcr-photo-pick"
+            />
+          </View>
+          <Pressable
+            onPress={handleSubmit}
+            disabled={!hasChange || submitting}
+            style={[styles.submitBtn, (!hasChange || submitting) && styles.submitBtnDisabled]}
+            testID="vcr-submit"
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color={colors.textOnPrimary} />
+            ) : (
+              <Text style={styles.submitText}>{s('vcrSubmit')}</Text>
+            )}
+          </Pressable>
+        </KeyboardAwareScrollView>
         </Pressable>
-      </View>
+      </Pressable>
     </Modal>
   );
 }
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-    backdrop: {
-      ...StyleSheet.absoluteFillObject,
+    overlay: {
+      flex: 1,
       backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'flex-end',
     },
     sheet: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
       backgroundColor: colors.bg,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
@@ -320,9 +315,6 @@ function createStyles(colors: ThemeColors) {
       fontSize: 14,
       color: colors.textMuted,
       marginBottom: Spacing.md,
-    },
-    body: {
-      flexGrow: 0,
     },
     bodyContent: {
       paddingHorizontal: Spacing.md,
@@ -433,47 +425,7 @@ function createStyles(colors: ThemeColors) {
       color: colors.text,
       textAlignVertical: 'top',
     },
-    photoPickBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      marginTop: Spacing.md,
-      height: 44,
-      borderRadius: Radius.md,
-      borderWidth: 1,
-      borderColor: colors.primaryDim,
-      backgroundColor: colors.primaryPale,
-    },
-    photoPickText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.md,
-      fontWeight: FontWeight.semibold,
-      color: colors.primaryMid,
-    },
-    photoPreviewWrap: {
-      marginTop: Spacing.md,
-      alignSelf: 'flex-start',
-    },
-    photoPreview: {
-      width: 96,
-      height: 96,
-      borderRadius: Radius.md,
-      backgroundColor: colors.bgAlt,
-    },
-    photoRemoveBtn: {
-      position: 'absolute',
-      top: -8,
-      right: -8,
-      width: 26,
-      height: 26,
-      borderRadius: 13,
-      backgroundColor: colors.red,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     submitBtn: {
-      marginHorizontal: Spacing.md,
       marginTop: Spacing.sm,
       backgroundColor: colors.primary,
       borderRadius: Radius.lg,

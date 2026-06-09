@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
+import { PhotoPickerButton } from '../components/PhotoPickerButton';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
@@ -164,16 +164,12 @@ export function ConditionVotingScreen({ venueId }: Props) {
 
           {/* Photo */}
           <Text style={styles.label}>{s('addPhotoOptional')}</Text>
-          <TouchableOpacity style={styles.photoBtn} onPress={handlePickPhoto}>
-            {photoUri ? (
-              <Image source={photoUri} style={{ width: 48, height: 48, borderRadius: 8 }} cachePolicy="memory-disk" contentFit="cover" />
-            ) : (
-              <Lucide name="camera" size={20} color={colors.textFaint} />
-            )}
-            <Text style={styles.photoBtnText}>
-              {photoUri ? s('changePhoto') || 'Change photo' : s('photographTable')}
-            </Text>
-          </TouchableOpacity>
+          <PhotoPickerButton
+            photoUri={photoUri}
+            onPress={handlePickPhoto}
+            addLabel={s('photographTable')}
+            changeLabel={s('changePhoto')}
+          />
 
           {/* Vote Stats */}
           <View style={styles.voteStats}>
@@ -330,24 +326,6 @@ function createStyles(colors: ThemeColors) {
       fontSize: FontSize.base,
       color: colors.textFaint,
     },
-    photoBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: Radius.md,
-      height: 60,
-      gap: Spacing.xs,
-      borderWidth: 1.5,
-      borderColor: colors.border,
-      borderStyle: 'dashed',
-      ...Shadows.sm,
-    },
-    photoBtnText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.md,
-      fontWeight: FontWeight.medium,
-      color: colors.textFaint,
-    },
     voteStats: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -366,8 +344,10 @@ function createStyles(colors: ThemeColors) {
     },
     footer: {
       flexDirection: 'row',
+      justifyContent: 'center',
       paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.sm,
+      paddingTop: Spacing.sm,
+      paddingBottom: Spacing.lg,
       gap: Spacing.xs,
       borderTopWidth: 1,
       borderTopColor: colors.borderLight,
