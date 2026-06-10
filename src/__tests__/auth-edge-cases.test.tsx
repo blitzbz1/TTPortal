@@ -15,6 +15,10 @@ jest.mock('../hooks/useSession', () => ({
   useSession: () => mockUseSession(),
 }));
 
+// Social auth is currently feature-flagged off; force it on so the
+// (still supported) Google/Apple flows stay covered.
+jest.mock('../lib/featureFlags', () => ({ SOCIAL_AUTH_ENABLED: true }));
+
 jest.mock('../hooks/useI18n', () => ({
   useI18n: () => ({
     s: (key: string) => {

@@ -6,6 +6,10 @@ import { render, userEvent, waitFor } from '@testing-library/react-native';
 const mockSignInWithApple = jest.fn();
 const mockUseSession = jest.fn();
 
+// Social auth is currently feature-flagged off; force it on so the
+// (still supported) Apple flow stays covered.
+jest.mock('../../lib/featureFlags', () => ({ SOCIAL_AUTH_ENABLED: true }));
+
 jest.mock('../../hooks/useSession', () => ({
   useSession: () => mockUseSession(),
 }));

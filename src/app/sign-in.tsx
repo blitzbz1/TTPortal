@@ -20,6 +20,7 @@ import { Fonts, Radius } from '../theme';
 import { Lucide } from '../components/Icon';
 import { logger } from '../lib/logger';
 import { isValidEmail, isStrongPassword, mapAuthErrorToKey, sanitizeRoute } from '../lib/auth-utils';
+import { SOCIAL_AUTH_ENABLED } from '../lib/featureFlags';
 import { getPolicyUrl } from '../lib/policyUrls';
 
 export default function SignInScreen() {
@@ -388,36 +389,41 @@ export default function SignInScreen() {
             )}
           </Pressable>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>{s('authOrContinueWith')}</Text>
-            <View style={styles.dividerLine} />
-          </View>
+          {/* Social sign-in — hidden until providers are enabled (see featureFlags.ts) */}
+          {SOCIAL_AUTH_ENABLED && (
+            <>
+              {/* Divider */}
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>{s('authOrContinueWith')}</Text>
+                <View style={styles.dividerLine} />
+              </View>
 
-          {/* Social Buttons */}
-          <View style={styles.socialRow}>
-            <Pressable
-              style={[styles.googleBtn, loading && styles.socialBtnDisabled]}
-              accessibilityRole="button"
-              onPress={handleGoogleSignIn}
-              disabled={loading}
-              testID="google-button"
-            >
-              <Text style={styles.googleIcon}>G</Text>
-              <Text style={styles.googleText}>Google</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.appleBtn, loading && styles.socialBtnDisabled]}
-              accessibilityRole="button"
-              onPress={handleAppleSignIn}
-              disabled={loading}
-              testID="apple-button"
-            >
-              <Lucide name="apple" size={20} color={isDark ? colors.text : colors.textOnPrimary} />
-              <Text style={styles.appleText}>Apple</Text>
-            </Pressable>
-          </View>
+              {/* Social Buttons */}
+              <View style={styles.socialRow}>
+                <Pressable
+                  style={[styles.googleBtn, loading && styles.socialBtnDisabled]}
+                  accessibilityRole="button"
+                  onPress={handleGoogleSignIn}
+                  disabled={loading}
+                  testID="google-button"
+                >
+                  <Text style={styles.googleIcon}>G</Text>
+                  <Text style={styles.googleText}>Google</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.appleBtn, loading && styles.socialBtnDisabled]}
+                  accessibilityRole="button"
+                  onPress={handleAppleSignIn}
+                  disabled={loading}
+                  testID="apple-button"
+                >
+                  <Lucide name="apple" size={20} color={isDark ? colors.text : colors.textOnPrimary} />
+                  <Text style={styles.appleText}>Apple</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Bottom Section */}
