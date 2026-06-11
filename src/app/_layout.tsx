@@ -31,6 +31,7 @@ import { useSession } from '../hooks/useSession';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
+import { installCrashReporting } from '../lib/telemetry';
 
 function readInitialLocationParamFromUrl(name: string): boolean {
   if (typeof window === 'undefined') return false;
@@ -60,6 +61,10 @@ export const unstable_settings = {
 };
 
 SplashScreen.preventAutoHideAsync();
+
+// Crash reporting (T080): global JS error handlers → ingest-telemetry Edge
+// Function → Grafana Loki. No-op in dev (red box stays authoritative).
+installCrashReporting();
 
 /**
  * Root layout — wraps the app in SessionProvider → I18nProvider,
