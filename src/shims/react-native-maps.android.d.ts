@@ -62,6 +62,11 @@ export interface CalloutProps {
 export const Callout: ComponentType<CalloutProps>;
 
 // Pure helpers exported for unit tests.
+export function viewStateToRegion(viewState?: {
+  center?: [number, number];
+  zoom?: number;
+  bounds?: [number, number, number, number];
+}): Region | null;
 export function deltaToZoom(latitudeDelta: number): number;
 export function regionToCenter(region: { latitude: number; longitude: number }): [number, number];
 export function maplibreDragToRnMaps(feature: {

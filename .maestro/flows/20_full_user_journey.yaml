@@ -27,10 +27,10 @@ appId: com.ttportal.app
     id: "tab-login"
 - tapOn:
     id: "input-email"
-- inputText: "andrei@test.com"
+- inputText: ${E2E_EMAIL}
 - tapOn:
     id: "input-password"
-- inputText: "test1234"
+- inputText: ${E2E_PASSWORD}
 - tapOn:
     id: "submit-button"
 

@@ -1,0 +1,13 @@
+# Two zoom-in steps with a gap — screenshot bursts target the second.
+appId: com.ttportal.app
+---
+- doubleTapOn:
+    point: 50%, 30%
+- waitForAnimationToEnd:
+    timeout: 2500
+- doubleTapOn:
+    point: 50%, 30%
+- waitForAnimationToEnd:
+    timeout: 2500
+- doubleTapOn:
+    point: 50%, 30%

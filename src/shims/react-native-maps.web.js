@@ -1,10 +1,13 @@
-// Web shim for react-native-maps — renders a Leaflet map
+// Web shim for react-native-maps — renders a Leaflet map.
+// Leaflet is bundled from npm (T048): this file only resolves on the web
+// platform (metro.config.js), so the static imports land exclusively in the
+// web bundle — no more unpkg runtime injection (supply-chain trust point +
+// silent single point of failure for the default tab).
 import React, { useEffect, useRef, useImperativeHandle, useState, createContext, useContext } from 'react';
 import { View } from 'react-native';
+import leafletCss from './leafletCss';
 
 const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-const LEAFLET_CSS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-const LEAFLET_JS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
 
 const MapContext = createContext(null);
 
@@ -12,10 +15,11 @@ let cssInjected = false;
 function injectCSS() {
   if (cssInjected || typeof document === 'undefined') return;
   cssInjected = true;
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = LEAFLET_CSS;
-  document.head.appendChild(link);
+  // Leaflet's stylesheet ships in the bundle (vendored string — see
+  // leafletCss.js for why it isn't a plain CSS import).
+  const leafletStyle = document.createElement('style');
+  leafletStyle.textContent = leafletCss;
+  document.head.appendChild(leafletStyle);
   const style = document.createElement('style');
   style.textContent = `
     .custom-pin { background: none !important; border: none !important; }
@@ -71,18 +75,17 @@ function injectCSS() {
   document.head.appendChild(style);
 }
 
-let leafletPromise = null;
+// Bundled leaflet, evaluated lazily: leaflet touches `window` at module
+// scope, which breaks expo-router's static-render pass (Node). The require
+// is static, so Metro still bundles it — no CDN involved. Kept
+// async-shaped so the consuming effects below stay unchanged.
+let leafletModule = null;
 function loadLeaflet() {
   if (typeof window === 'undefined') return Promise.resolve(null);
-  if (window.L) return Promise.resolve(window.L);
-  if (leafletPromise) return leafletPromise;
-  leafletPromise = new Promise((resolve) => {
-    const script = document.createElement('script');
-    script.src = LEAFLET_JS;
-    script.onload = () => resolve(window.L);
-    document.head.appendChild(script);
-  });
-  return leafletPromise;
+  if (!leafletModule) {
+    leafletModule = require('leaflet');
+  }
+  return Promise.resolve(leafletModule);
 }
 
 const MapView = React.forwardRef(({ children, style, initialRegion, onPress, ...props }, ref) => {
@@ -97,7 +100,12 @@ const MapView = React.forwardRef(({ children, style, initialRegion, onPress, ...
   useImperativeHandle(ref, () => ({
     animateToRegion: (region) => {
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.setView([region.latitude, region.longitude], 14, { animate: true });
+        // Derive the zoom from the requested span instead of a fixed 14 —
+        // cluster tap-to-zoom (T040) passes meaningful deltas.
+        const zoom = region.longitudeDelta > 0
+          ? Math.max(2, Math.min(18, Math.round(Math.log2(360 / region.longitudeDelta))))
+          : 14;
+        mapInstanceRef.current.setView([region.latitude, region.longitude], zoom, { animate: true });
       }
     },
   }));

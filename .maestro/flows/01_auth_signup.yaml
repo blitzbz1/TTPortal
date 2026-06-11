@@ -56,11 +56,8 @@ appId: com.ttportal.app
 - assertVisible:
     id: "terms-container"
 
-# Verify social login buttons
-- assertVisible:
-    id: "google-button"
-- assertVisible:
-    id: "apple-button"
+# Social login buttons are hidden behind SOCIAL_AUTH_ENABLED (false since
+# 9a48d1e) — assertions removed (T073). Restore them when the flag flips.
 
 # Verify language selector
 - assertVisible: "RO"

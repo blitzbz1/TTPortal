@@ -75,6 +75,44 @@ export function regionToCenter(region) {
   return [region.longitude, region.latitude];
 }
 
+// MapLibre ViewState ({center: [lng, lat], zoom, bounds: [w, s, e, n]}) →
+// react-native-maps region. The deltas were previously HARDCODED to 0.005,
+// which fed the marker clustering a bogus tiny viewport after every zoom
+// gesture: the whole marker set flipped between clusters and raw pins on
+// each settle, and that mass annotation churn crashed MapLibre on Android.
+// Deltas now come from the real visible bounds, with a zoom-derived
+// fallback, and never from a made-up constant.
+export function viewStateToRegion(viewState) {
+  const center = viewState?.center;
+  if (!center || !Number.isFinite(center[0]) || !Number.isFinite(center[1])) {
+    return null;
+  }
+  const bounds = viewState?.bounds;
+  let latitudeDelta;
+  let longitudeDelta;
+  if (
+    Array.isArray(bounds) &&
+    bounds.length === 4 &&
+    bounds.every(Number.isFinite)
+  ) {
+    const [west, south, east, north] = bounds;
+    latitudeDelta = Math.abs(north - south);
+    longitudeDelta = Math.abs(east - west);
+  }
+  if (!latitudeDelta || !longitudeDelta) {
+    // Fallback: invert deltaToZoom's convention (delta 360° ⇔ zoom 0).
+    const zoom = Number.isFinite(viewState?.zoom) ? viewState.zoom : 13;
+    longitudeDelta = 360 / Math.pow(2, Math.max(0, Math.min(22, zoom)));
+    latitudeDelta = longitudeDelta; // square-ish approximation, bbox padding absorbs it
+  }
+  return {
+    latitude: center[1],
+    longitude: center[0],
+    latitudeDelta,
+    longitudeDelta,
+  };
+}
+
 // Translate MapLibre's drag event (nativeEvent.lngLat tuple) back to the
 // react-native-maps shape, so existing onDragEnd handlers keep working
 // unmodified.
@@ -146,18 +184,12 @@ const MapView = forwardRef(function MapView(
   }, [onLongPressProp]);
 
   // MapLibre's onRegionDidChange fires after the camera settles. Translate
-  // the {center: [lng, lat], ...} payload into the react-native-maps shape
-  // `(region, details)` so consumers can stay platform-agnostic.
+  // the ViewState payload into the react-native-maps shape `(region,
+  // details)` so consumers can stay platform-agnostic.
   const onMapRegionDidChange = useCallback((event) => {
     if (!onRegionChangeCompleteProp) return;
-    const center = event?.nativeEvent?.center;
-    if (!center) return;
-    const region = {
-      latitude: center[1],
-      longitude: center[0],
-      latitudeDelta: 0.005,
-      longitudeDelta: 0.005,
-    };
+    const region = viewStateToRegion(event?.nativeEvent);
+    if (!region) return;
     const details = {
       isGesture: !!event?.nativeEvent?.userInteraction,
     };
