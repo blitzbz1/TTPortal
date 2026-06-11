@@ -50,4 +50,18 @@ coverage/
 /ios
 /android
 
-scripts/
+# OSM import working data (134MB of extracts) — the tooling itself is tracked
+scripts/osm-import/data/
+
+# build artifacts — never commit binaries (store them in GitHub Releases)
+*.apk
+*.aab
+
+# IDE
+.idea/
+
+# Supabase CLI scratch
+supabase/.temp/
+
+# local data dumps
+tables.jsonsupabase/seeds/osm/.geo_dedup_watermarks*

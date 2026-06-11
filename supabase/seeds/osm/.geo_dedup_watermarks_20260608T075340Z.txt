@@ -1,0 +1,6 @@
+target_host=host=aws-1-eu-west-1.pooler.supabase.com port=5432 dbname=postgres user=postgres.vzewwlaqqgukjkqjyfoq sslmode=require
+radius_m=50
+new_cities_only=0
+C0=1058
+V0=3922
+files=al.sql am.sql at.sql ba.sql be.sql bg.sql by.sql ch.sql cy.sql cz.sql de.sql dk.sql dz.sql ee.sql es.sql fi.sql fr.sql gb.sql ge.sql gr.sql hr.sql hu.sql ie.sql ir.sql is.sql it.sql li.sql lt.sql lu.sql lv.sql mc.sql md.sql me.sql nl.sql no.sql pl.sql pt.sql rs.sql ru.sql se.sql si.sql sk.sql tr.sql ua.sql

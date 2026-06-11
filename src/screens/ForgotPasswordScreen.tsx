@@ -1,58 +1,197 @@
-import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Lucide } from '../components/Icon';
+import React, { useState, useCallback, useMemo } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { useSession } from '../hooks/useSession';
+import { useI18n } from '../hooks/useI18n';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
-import { Fonts, FontSize, FontWeight, Spacing, Radius } from '../theme';
+import { Fonts, Radius, Shadows } from '../theme';
+import { Lucide } from '../components/Icon';
+import { isValidEmail } from '../lib/auth-utils';
+import { logger } from '../lib/logger';
 
-export function ForgotPasswordScreen() {
+function isResetRequestThrottled(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+
+  const maybeError = error as { code?: string; message?: string; status?: number };
+  const message = maybeError.message?.toLowerCase() ?? '';
+  return (
+    maybeError.status === 429 ||
+    maybeError.code === 'over_email_send_rate_limit' ||
+    maybeError.code === 'rate_limit_exceeded' ||
+    message.includes('rate limit') ||
+    message.includes('too many') ||
+    message.includes('only request this after')
+  );
+}
+
+/**
+ * Forgot password screen — allows users to request a password reset email.
+ * Shows identical success message for existing and non-existing emails
+ * to prevent user enumeration (FR-007).
+ */
+export default function ForgotPasswordScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { resetPassword } = useSession();
+  const { s } = useI18n();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = useCallback(async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!isValidEmail(normalizedEmail)) {
+      setError(s('validationEmailInvalid'));
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      logger.track('forgot_password_submit', { email: normalizedEmail });
+      const result = await resetPassword(normalizedEmail);
+      if (isResetRequestThrottled(result.error)) {
+        logger.warn('forgot password request throttled', { email: normalizedEmail });
+        setError(s('forgotPasswordRateLimited'));
+        return;
+      }
+      logger.info('forgot password email sent', { email: normalizedEmail });
+      setSent(true);
+    } catch {
+      logger.warn('forgot password request failed', { email: normalizedEmail });
+      setSent(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [email, resetPassword, s]);
+
+  const handleBackToLogin = useCallback(() => {
+    router.replace({ pathname: '/sign-in', params: { initialTab: 'login' } });
+  }, [router]);
+
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        {/* Top Section */}
-        <View style={styles.top}>
-          <Text style={styles.logo}>TT PORTAL</Text>
-          <View style={styles.iconWrap}>
-            <Lucide name="lock" size={36} color={colors.primaryLight} />
-          </View>
-          <Text style={styles.title}>Reseteaz&#259; parola</Text>
-          <Text style={styles.desc}>
-            Introdu adresa de email asociat&#259; contului t&#259;u &#537;i &#238;&#539;i vom trimite un link de resetare.
-          </Text>
-        </View>
-
-        {/* Middle Section */}
-        <View style={styles.mid}>
-          <View style={styles.inputField}>
-            <Lucide name="mail" size={18} color={colors.textFaint} />
-            <Text style={styles.inputPlaceholder}>Email</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View testID="forgot-password-screen">
+          {/* Lock icon */}
+          <View style={styles.iconContainer}>
+            <Lucide name="lock" size={48} color={colors.textOnPrimary} />
           </View>
 
-          <TouchableOpacity style={styles.submitBtn}>
-            <Text style={styles.submitText}>Trimite link de resetare</Text>
-            <Lucide name="send" size={18} color={colors.textOnPrimary} />
-          </TouchableOpacity>
+          <Text style={styles.title}>{s('authResetPasswordTitle')}</Text>
 
-          <View style={styles.hintBox}>
-            <Lucide name="info" size={16} color={colors.primaryLight} />
-            <Text style={styles.hintText}>
-              Verific&#259; inbox-ul &#537;i folderul spam. Link-ul expir&#259; &#238;n 60 de minute.
-            </Text>
-          </View>
-        </View>
+          {sent ? (
+            <View testID="success-container">
+              <Text style={styles.successText} testID="success-message">
+                {s('forgotPasswordSuccess')}
+              </Text>
+              <Pressable
+                onPress={handleBackToLogin}
+                accessibilityRole="button"
+                testID="back-to-login"
+                style={styles.backLink}
+              >
+                <Lucide name="arrow-left" size={16} color={colors.primaryDim} />
+                <Text style={styles.backLinkText}>
+                  {s('authBackToLogin')}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.form}>
+              {/* Email input */}
+              <View style={styles.inputRow}>
+                <Lucide name="mail" size={18} color={colors.textFaint} />
+                <TextInput
+                  placeholder={s('authEmail')}
+                  placeholderTextColor={colors.textFaint}
+                  value={email}
+                  onChangeText={setEmail}
+                  accessibilityLabel={s('authEmail')}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  style={styles.textInput}
+                  testID="input-email"
+                />
+              </View>
 
-        {/* Bottom Section */}
-        <View style={styles.bottom}>
-          <TouchableOpacity style={styles.backRow}>
-            <Lucide name="arrow-left" size={16} color={colors.primaryDim} />
-            <Text style={styles.backText}>&#206;napoi la conectare</Text>
-          </TouchableOpacity>
+              {/* Error message */}
+              {error && (
+                <Text
+                  accessibilityRole="alert"
+                  testID="error-message"
+                  style={styles.errorText}
+                >
+                  {error}
+                </Text>
+              )}
+
+              {/* Submit button */}
+              <Pressable
+                onPress={handleSubmit}
+                disabled={loading}
+                accessibilityRole="button"
+                testID="submit-button"
+                style={[
+                  styles.submitBtn,
+                  loading && styles.submitBtnDisabled,
+                ]}
+              >
+                {loading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={colors.textOnPrimary}
+                    testID="loading-spinner"
+                  />
+                ) : (
+                  <Text style={styles.submitText}>
+                    {s('authSendResetLink')}
+                  </Text>
+                )}
+              </Pressable>
+
+              {/* Back to login link */}
+              <Pressable
+                onPress={handleBackToLogin}
+                accessibilityRole="button"
+                testID="back-to-login"
+                style={styles.backLink}
+              >
+                <Lucide name="arrow-left" size={16} color={colors.primaryDim} />
+                <Text style={styles.backLinkText}>
+                  {s('authBackToLogin')}
+                </Text>
+              </Pressable>
+            </View>
+          )}
         </View>
-      </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -63,47 +202,28 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primary,
     },
     content: {
-      flex: 1,
-      justifyContent: 'space-between',
+      flexGrow: 1,
+      justifyContent: 'center',
       paddingTop: 60,
-      paddingBottom: Spacing.xxl,
+      paddingBottom: 32,
       paddingHorizontal: 28,
     },
-    top: {
+    iconContainer: {
       alignItems: 'center',
-      gap: Spacing.md,
-    },
-    logo: {
-      fontFamily: Fonts.heading,
-      fontSize: FontSize.display,
-      fontWeight: FontWeight.extrabold,
-      color: colors.textOnPrimary,
-    },
-    iconWrap: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      backgroundColor: colors.authInputBg,
-      alignItems: 'center',
-      justifyContent: 'center',
+      marginBottom: 20,
     },
     title: {
       fontFamily: Fonts.heading,
-      fontSize: 22,
-      fontWeight: FontWeight.bold,
+      fontSize: 28,
+      fontWeight: '800',
       color: colors.textOnPrimary,
-    },
-    desc: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.lg,
-      color: colors.primaryDim,
       textAlign: 'center',
-      width: 300,
+      marginBottom: 24,
     },
-    mid: {
+    form: {
       gap: 14,
     },
-    inputField: {
+    inputRow: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.authInputBg,
@@ -111,11 +231,21 @@ function createStyles(colors: ThemeColors) {
       height: 48,
       paddingHorizontal: 14,
       gap: 10,
+      ...Shadows.sm,
     },
-    inputPlaceholder: {
+    textInput: {
+      flex: 1,
       fontFamily: Fonts.body,
-      fontSize: FontSize.lg,
-      color: colors.textFaint,
+      fontSize: 14,
+      color: colors.textOnPrimary,
+      height: 48,
+      paddingVertical: 0,
+    },
+    errorText: {
+      fontFamily: Fonts.body,
+      fontSize: 13,
+      color: colors.red,
+      textAlign: 'center',
     },
     submitBtn: {
       flexDirection: 'row',
@@ -124,40 +254,36 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.primaryLight,
       borderRadius: 12,
       height: 50,
-      gap: Spacing.xs,
+      gap: 8,
+      ...Shadows.md,
+    },
+    submitBtnDisabled: {
+      opacity: 0.6,
     },
     submitText: {
       fontFamily: Fonts.body,
-      fontSize: 15,
-      fontWeight: FontWeight.bold,
+      fontSize: 16,
+      fontWeight: '700',
       color: colors.textOnPrimary,
     },
-    hintBox: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.authInputBg,
-      borderRadius: Radius.md,
-      padding: 14,
-      gap: 10,
-    },
-    hintText: {
-      flex: 1,
+    successText: {
       fontFamily: Fonts.body,
-      fontSize: FontSize.base,
-      color: colors.textFaint,
+      fontSize: 15,
+      color: colors.primaryDim,
+      textAlign: 'center',
+      lineHeight: 22,
+      marginBottom: 24,
     },
-    bottom: {
-      alignItems: 'center',
-    },
-    backRow: {
+    backLink: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 6,
+      paddingVertical: 12,
     },
-    backText: {
+    backLinkText: {
       fontFamily: Fonts.body,
-      fontSize: FontSize.lg,
-      fontWeight: FontWeight.medium,
+      fontSize: 14,
       color: colors.primaryDim,
     },
   });

@@ -19,3 +19,8 @@ enable_signup = true
 
 [functions.healthz]
 verify_jwt = false
+
+# Crash reports must arrive from signed-out users too (T080); payloads are
+# capped server-side and the anon key is still required.
+[functions.ingest-telemetry]
+verify_jwt = false
