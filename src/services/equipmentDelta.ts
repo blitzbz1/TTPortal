@@ -21,7 +21,7 @@ export async function getEquipmentCatalogDelta(
 ): Promise<{ data: EquipmentCatalogDeltaResponse | null; error: any }> {
   const { data, error } = await supabase.rpc('get_equipment_catalog_delta', {
     p_category: category,
-    p_since: since,
+    p_since: since ?? undefined,
   });
   return { data: (data as EquipmentCatalogDeltaResponse | null) ?? null, error };
 }

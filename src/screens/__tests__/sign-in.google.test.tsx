@@ -44,7 +44,7 @@ jest.mock('../../hooks/useTheme', () => ({
 }));
 
  
-import SignInScreen from '../sign-in';
+import { SignInScreen } from '../SignInScreen';
 
 describe('SignInScreen — Google Sign-In (T021)', () => {
   const user = userEvent.setup();

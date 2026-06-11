@@ -5,8 +5,11 @@ describe('Locale files sync', () => {
   const enKeys = Object.keys(en);
   const roKeys = Object.keys(ro);
 
-  it('en.json and ro.json have the same keys', () => {
-    expect(enKeys.sort()).toEqual(roKeys.sort());
+  it('en.json and ro.json have the same BASE keys', () => {
+    // Plural variants (_one/_few/_many/_other — T063) differ per language.
+    const base = (keys: string[]) =>
+      Array.from(new Set(keys.map((k) => k.replace(/_(one|few|many|other)$/, '')))).sort();
+    expect(base(enKeys)).toEqual(base(roKeys));
   });
 
   it('no key has an empty string value in en.json', () => {

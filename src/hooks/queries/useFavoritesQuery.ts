@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { addFavorite, getFavorites, removeFavorite } from '../../services/favorites';
+import { loadCachedFavorites, saveCachedFavorites } from '../../lib/favoritesCache';
 import { useOfflineQueue } from '../../contexts/OfflineQueueProvider';
 
 export const favoritesQueryKey = (userId: string | undefined) => ['favorites', userId] as const;
@@ -12,8 +12,14 @@ export function useFavoritesQuery(userId: string | undefined) {
       if (!userId) return [];
       const { data, error } = await getFavorites(userId);
       if (error) throw error;
-      return (data ?? []) as any[];
+      const favorites = (data ?? []) as any[];
+      // Mirror to the domain cache (blessed useLeaderboardQuery pattern,
+      // T050/T055) — the cache was previously write-only on the
+      // invalidate side with load/save never called.
+      saveCachedFavorites(userId, favorites);
+      return favorites;
     },
+    initialData: () => (userId ? loadCachedFavorites<any>(userId)?.data : undefined),
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,
   });
@@ -21,20 +27,11 @@ export function useFavoritesQuery(userId: string | undefined) {
 
 export function useToggleFavoriteMutation(userId: string | undefined) {
   const qc = useQueryClient();
-  const { isOnline, enqueue, registerHandler } = useOfflineQueue();
+  const { isOnline, enqueue } = useOfflineQueue();
 
-  useEffect(() => {
-    return registerHandler('favorite', async (change) => {
-      const payload = change.payload as { userId: string; venueId: number; operation: 'add' | 'remove' };
-      const result =
-        payload.operation === 'remove'
-          ? await removeFavorite(payload.userId, payload.venueId)
-          : await addFavorite(payload.userId, payload.venueId);
-      if (result.error) return { error: result.error };
-      qc.invalidateQueries({ queryKey: favoritesQueryKey(payload.userId) });
-    });
-  }, [qc, registerHandler]);
-
+  // Replay of queued toggles is handled by the module-level 'favorite'
+  // handler in lib/offlineHandlers — it exists regardless of mounted
+  // screens, so a toggle queued here replays even after navigating away.
   return useMutation({
     mutationFn: async ({ venueId, isFav }: { venueId: number; isFav: boolean }) => {
       if (!userId) throw new Error('not signed in');

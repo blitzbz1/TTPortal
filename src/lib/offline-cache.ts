@@ -1,69 +1,115 @@
+// MMKV-backed KV cache (T047). Previously this rode on synchronous
+// expo-sqlite, which did sync disk reads + JSON parse on the JS thread in
+// the tab-switch path; the venues/cities caches already proved MMKV is the
+// better fit. Exported signatures are unchanged — every domain cache built
+// on cacheUtils keeps working as-is. As a side effect, the cache now also
+// works on web (the SQLite version was a no-op there).
+//
+// Storage shape: one envelope per key — JSON { v: <value>, t: <written-at ms> }.
+// Schema versioning (T034): a CACHE_SCHEMA_VERSION mismatch wipes the store
+// — hydrating stale-shaped JSON is worse than a cold refetch.
+
+import { createMMKV } from 'react-native-mmkv';
 import { Platform } from 'react-native';
+import { CACHE_SCHEMA_VERSION } from './cacheSchema';
 
-let db: any = null;
+const SCHEMA_VERSION_KEY = '__schema_version__';
+const SQLITE_MIGRATED_KEY = '__migrated_from_sqlite__';
 
-function getDb() {
-  if (db) return db;
-  if (Platform.OS === 'web') return null;
+const store = createMMKV({ id: 'offline-kv-cache' });
+
+interface Envelope {
+  v: unknown;
+  t: number;
+}
+
+/**
+ * One-time migration from the legacy `ttportal_cache` SQLite store so
+ * existing devices don't cold-start their domain caches. Rows older than
+ * the schema bump are not migrated (the version gate below would discard
+ * them anyway). Failures are swallowed — worst case is a cold cache.
+ */
+function migrateFromSqliteOnce(): void {
+  if (Platform.OS === 'web') return;
+  if (store.getBoolean(SQLITE_MIGRATED_KEY)) return;
   try {
     const SQLite = require('expo-sqlite');
-    db = SQLite.openDatabaseSync('ttportal_cache');
-    db.execSync(`CREATE TABLE IF NOT EXISTS cache (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL,
-      updated_at INTEGER NOT NULL
-    )`);
-    return db;
+    const db = SQLite.openDatabaseSync('ttportal_cache');
+    const rows: { key: string; value: string; updated_at: number }[] =
+      db.getAllSync?.('SELECT key, value, updated_at FROM cache') ?? [];
+    for (const row of rows) {
+      if (row.key.startsWith('__')) continue;
+      try {
+        const envelope: Envelope = { v: JSON.parse(row.value), t: row.updated_at };
+        store.set(row.key, JSON.stringify(envelope));
+      } catch {
+        // skip unparseable rows
+      }
+    }
+    // Free the old store; the table itself stays (cheap, and dropping the
+    // db file needs APIs that differ across expo-sqlite versions).
+    db.runSync?.('DELETE FROM cache');
+  } catch {
+    // expo-sqlite unavailable or legacy db missing — nothing to migrate.
+  } finally {
+    try {
+      store.set(SQLITE_MIGRATED_KEY, true);
+    } catch {}
+  }
+}
+
+(function ensureSchema() {
+  try {
+    const stored = store.getString(SCHEMA_VERSION_KEY);
+    if (Number(stored) !== CACHE_SCHEMA_VERSION) {
+      store.clearAll();
+      store.set(SCHEMA_VERSION_KEY, String(CACHE_SCHEMA_VERSION));
+      migrateFromSqliteOnce();
+    }
+  } catch {
+    // Storage unavailable — every read below degrades to a miss.
+  }
+})();
+
+function readEnvelope(key: string): Envelope | null {
+  try {
+    const raw = store.getString(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Envelope;
+    if (parsed == null || typeof parsed.t !== 'number') return null;
+    return parsed;
   } catch {
     return null;
   }
 }
 
 export function setCacheItem(key: string, value: any): void {
-  const d = getDb();
-  if (!d) return;
   try {
-    d.runSync(
-      'INSERT OR REPLACE INTO cache (key, value, updated_at) VALUES (?, ?, ?)',
-      [key, JSON.stringify(value), Date.now()],
-    );
+    const envelope: Envelope = { v: value, t: Date.now() };
+    store.set(key, JSON.stringify(envelope));
   } catch {}
 }
 
 export function getCacheItem<T>(key: string): T | null {
-  const d = getDb();
-  if (!d) return null;
-  try {
-    const row = d.getFirstSync('SELECT value FROM cache WHERE key = ?', [key]);
-    return row ? JSON.parse(row.value) : null;
-  } catch {
-    return null;
-  }
+  const envelope = readEnvelope(key);
+  return envelope ? ((envelope.v as T) ?? null) : null;
 }
 
 export function removeCacheItem(key: string): void {
-  const d = getDb();
-  if (!d) return;
   try {
-    d.runSync('DELETE FROM cache WHERE key = ?', [key]);
+    store.remove(key);
   } catch {}
 }
 
 export function removeCacheItemsByPrefix(prefix: string): void {
-  const d = getDb();
-  if (!d) return;
   try {
-    d.runSync('DELETE FROM cache WHERE key LIKE ?', [`${prefix}%`]);
+    for (const key of store.getAllKeys()) {
+      if (key.startsWith(prefix)) store.remove(key);
+    }
   } catch {}
 }
 
 export function getCacheAge(key: string): number | null {
-  const d = getDb();
-  if (!d) return null;
-  try {
-    const row = d.getFirstSync('SELECT updated_at FROM cache WHERE key = ?', [key]);
-    return row ? Date.now() - row.updated_at : null;
-  } catch {
-    return null;
-  }
+  const envelope = readEnvelope(key);
+  return envelope ? Date.now() - envelope.t : null;
 }

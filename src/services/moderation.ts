@@ -29,7 +29,7 @@ export async function reportContent(
     p_content_type: contentType,
     p_content_id: String(contentId),
     p_reason: reason,
-    p_notes: notes ?? null,
+    p_notes: notes ?? undefined,
   });
   return { data: data as number | null, error };
 }

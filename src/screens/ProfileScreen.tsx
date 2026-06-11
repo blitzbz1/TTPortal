@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, Platform, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Platform, RefreshControl } from 'react-native';
+import { showConfirm } from '../lib/dialogs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -56,7 +57,9 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
     try {
       const profileRes = await getProfile(user.id);
       if (profileRes.data) {
-        setProfile(profileRes.data as Profile);
+        // email is no longer served by profiles (migration 085); the session
+        // user is the source of truth for the caller's own address.
+        setProfile({ ...profileRes.data, email: user.email ?? null } as Profile);
         saveCachedProfile(user.id, profileRes.data);
       }
     } catch {
@@ -91,15 +94,12 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
     if (Platform.OS === 'web') {
       if (!window.confirm(s('confirmLogout'))) return;
       await signOut();
-      router.replace('/sign-in' as any);
+      router.replace('/sign-in');
     } else {
-      Alert.alert(s('logout'), s('confirmLogout'), [
-        { text: s('cancel'), style: 'cancel' },
-        { text: s('logout'), style: 'destructive', onPress: async () => {
-          await signOut();
-          router.replace('/sign-in' as any);
-        }},
-      ]);
+      if (await showConfirm(s('logout'), s('confirmLogout'), { confirmLabel: s('logout'), cancelLabel: s('cancel'), destructive: true })) {
+        await signOut();
+        router.replace('/sign-in');
+      }
     }
   }, [signOut, router, s]);
 
@@ -161,7 +161,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
                 <TouchableOpacity
                   testID="profile-challenges-pill"
                   style={styles.challengeChip}
-                  onPress={() => router.push({ pathname: '/(tabs)/challenges', params: { tab: 'badges' } } as any)}
+                  onPress={() => router.push({ pathname: '/(tabs)/challenges', params: { tab: 'badges' } })}
                   activeOpacity={0.78}
                 >
                   <Lucide name="medal" size={12} color={colors.primary} />
@@ -177,42 +177,42 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
 
         {/* Navigation Links */}
         <View style={styles.section}>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/friends' as any)}>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/friends')}>
             <View style={[styles.navIcon, { backgroundColor: colors.primaryPale }]}>
               <Lucide name="users" size={18} color={colors.primaryMid} />
             </View>
             <Text style={styles.navLabel}>{s('friends')}</Text>
             <Lucide name="chevron-right" size={16} color={colors.textFaint} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/play-history' as any)}>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/play-history')}>
             <View style={[styles.navIcon, { backgroundColor: colors.purplePale }]}>
               <Lucide name="trophy" size={18} color={colors.purple} />
             </View>
             <Text style={styles.navLabel}>{s('playHistory')}</Text>
             <Lucide name="chevron-right" size={16} color={colors.textFaint} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/equipment' as any)}>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/equipment')}>
             <View style={[styles.navIcon, { backgroundColor: colors.primaryPale }]}>
               <MaterialCommunityIcons name="table-tennis" size={18} color={colors.primaryMid} />
             </View>
             <Text style={styles.navLabel}>{s('equipment')}</Text>
             <Lucide name="chevron-right" size={16} color={colors.textFaint} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/favorites' as any)}>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/favorites')}>
             <View style={[styles.navIcon, { backgroundColor: colors.redPale }]}>
               <Lucide name="heart" size={18} color={colors.red} />
             </View>
             <Text style={styles.navLabel}>{s('favorites')}</Text>
             <Lucide name="chevron-right" size={16} color={colors.textFaint} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/leaderboard' as any)}>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/leaderboard')}>
             <View style={[styles.navIcon, { backgroundColor: colors.amberPale }]}>
               <Lucide name="bar-chart-3" size={18} color={colors.accent} />
             </View>
             <Text style={styles.navLabel}>{s('leaderboard')}</Text>
             <Lucide name="chevron-right" size={16} color={colors.textFaint} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/settings' as any)}>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/settings')}>
             <View style={[styles.navIcon, { backgroundColor: colors.bgMuted }]}>
               <Lucide name="settings" size={18} color={colors.textMuted} />
             </View>
@@ -221,7 +221,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
           </TouchableOpacity>
 
           {(profile?.is_admin || profile?.is_moderator) && (
-            <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/admin' as any)}>
+            <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/admin')}>
               <View style={[styles.navIcon, { backgroundColor: colors.primaryPale }]}>
                 <Lucide name="shield-check" size={18} color={colors.primaryMid} />
               </View>

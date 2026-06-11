@@ -17,9 +17,10 @@ export function useFriendsAtVenueQuery(venueId: number | undefined, userId: stri
     queryKey: friendsAtVenueQueryKey(venueId ?? 0, userId),
     queryFn: async () => {
       if (!venueId || !userId) return [];
+      // Friendships are derived from auth.uid() server-side (migration 083);
+      // userId stays in the query key only for account-switch correctness.
       const { data, error } = await supabase.rpc('get_friends_at_venue', {
         p_venue_id: venueId,
-        p_user_id: userId,
       });
       if (error) throw error;
       return (data as FriendAtVenue[]) ?? [];

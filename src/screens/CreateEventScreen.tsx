@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Alert, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { showAlert } from '../lib/dialogs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -9,10 +10,11 @@ import { useI18n } from '@/src/hooks/useI18n';
 import { getDateLocale } from '@/src/contexts/I18nProvider';
 import type { ThemeColors } from '@/src/theme';
 import { Fonts } from '@/src/theme';
-import { createStyles } from './create-event.styles';
+import { createStyles } from './CreateEventScreen.styles';
 import { createEvent, joinEvent, sendEventInvites } from '@/src/services/events';
 import { invalidateEventsCache } from '@/src/lib/eventsCache';
 import { rateLimitMessageFor } from '@/src/lib/rateLimit';
+import { ProductEvents, trackProductEvent } from '@/src/lib/analytics';
 import {
   addChallengeToEvent,
   getChallengeById,
@@ -41,19 +43,19 @@ function getDefaultEndDate() {
   return d;
 }
 
-const DURATION_OPTIONS: { label: string; value: number | null }[] = [
-  { label: 'Fără', value: null },
+const durationOptions = (t: (k: string) => string): { label: string; value: number | null }[] => [
+  { label: t('durationNone'), value: null },
   { label: '1h', value: 1 },
   { label: '1.5h', value: 1.5 },
   { label: '2h', value: 2 },
   { label: '3h', value: 3 },
 ];
 
-const RECURRENCE_OPTIONS: { label: string; value: RecurrenceRule | null }[] = [
-  { label: 'Niciuna', value: null },
-  { label: 'Zilnic', value: 'daily' },
-  { label: 'Săptămânal', value: 'weekly' },
-  { label: 'Lunar', value: 'monthly' },
+const recurrenceOptions = (t: (k: string) => string): { label: string; value: RecurrenceRule | null }[] => [
+  { label: t('recurrenceNone'), value: null },
+  { label: t('recurrenceDaily'), value: 'daily' },
+  { label: t('recurrenceWeekly'), value: 'weekly' },
+  { label: t('recurrenceMonthly'), value: 'monthly' },
 ];
 
 const VISIBILITY_OPTIONS: { value: EventVisibility; icon: string; titleKey: string; descKey: string }[] = [
@@ -127,12 +129,12 @@ function Dropdown<T>({ value, options, onSelect, label, colors, s: sStyles }: {
   );
 }
 
-export default function CreateEventRoute() {
+export function CreateEventScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ challengeId?: string }>();
   const { user } = useSession();
   const { colors, isDark } = useTheme();
-  const { s: t, lang } = useI18n();
+  const { s: t, sn, lang } = useI18n();
   const s = useMemo(() => createStyles(colors), [colors]);
   const currentSelectedChallenge = useCurrentSelectedChallenge();
 
@@ -220,16 +222,16 @@ export default function CreateEventRoute() {
 
   const privateInviteMissing = visibility === 'private' && invitedFriendIds.length === 0;
   const returnToFutureEvents = useCallback(() => {
-    router.replace(`/(tabs)/events?tab=upcoming&refreshEvents=${Date.now()}` as any);
+    router.replace({ pathname: '/(tabs)/events', params: { tab: 'upcoming', refreshEvents: String(Date.now()) } });
   }, [router]);
 
   /* -- submit -- */
   const handleCreate = useCallback(async () => {
     if (!title.trim() || !user) return;
-    if (date <= new Date()) { Alert.alert('Eroare', 'Data evenimentului trebuie să fie în viitor.'); return; }
-    if (eventType === 'tournament' && endDate <= date) { Alert.alert('Eroare', 'Data de final trebuie să fie după data de start.'); return; }
+    if (date <= new Date()) { showAlert(t('error'), t('createEventDateFuture')); return; }
+    if (eventType === 'tournament' && endDate <= date) { showAlert(t('error'), t('createEventEndAfterStart')); return; }
     if (visibility === 'private' && invitedFriendIds.length === 0) {
-      Alert.alert(t('error'), t('eventPrivateNeedsInvite'));
+      showAlert(t('error'), t('eventPrivateNeedsInvite'));
       return;
     }
 
@@ -258,18 +260,19 @@ export default function CreateEventRoute() {
     setLoading(false);
     if (error) {
       const rateMsg = rateLimitMessageFor(error, t);
-      Alert.alert(t('error'), rateMsg ?? 'Nu s-a putut crea evenimentul.');
+      showAlert(t('error'), rateMsg ?? t('createEventFailed'));
       return;
     }
     // The new event will appear in the user's "mine" tab and (if it starts in
     // the future) on the global "upcoming" tab — drop both caches so the next
     // visit re-fetches.
     invalidateEventsCache(user.id, ['mine', 'upcoming']);
+    trackProductEvent(ProductEvents.eventCreated, { eventType, visibility });
     await joinEvent(data.id, user.id);
     if (effectiveSelectedChallenge && attachChallenge) {
       const challengeRes = await addChallengeToEvent(data.id, effectiveSelectedChallenge.id);
       if (challengeRes.error) {
-        Alert.alert(t('error'), challengeRes.error.message);
+        showAlert(t('error'), challengeRes.error.message);
       } else if (currentEventChallenge?.id === effectiveSelectedChallenge.id) {
         setCurrentSelectedChallenge(null);
       }
@@ -305,8 +308,8 @@ export default function CreateEventRoute() {
   const inviteeLabel = useMemo(() => {
     if (invitedFriendIds.length === 0) return t('eventInvitedFriendsZero');
     if (invitedFriendIds.length === 1) return t('eventInvitedFriendsOne');
-    return t('eventInvitedFriendsCount', String(invitedFriendIds.length));
-  }, [invitedFriendIds.length, t]);
+    return sn('eventInvitedFriendsCount', invitedFriendIds.length);
+  }, [invitedFriendIds.length, t, sn]);
 
   const visibilitySummary = useMemo(() => {
     const label = t(VISIBILITY_OPTIONS.find((o) => o.value === visibility)?.titleKey ?? 'eventVisibilityPublic');
@@ -325,13 +328,13 @@ export default function CreateEventRoute() {
     <ScrollView style={s.scroll} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
 
       {/* -- Header -- */}
-      <Text style={s.header}>Creează eveniment</Text>
+      <Text style={s.header}>{t('createEventTitle')}</Text>
 
       {/* -- Essentials (always visible) -- */}
       <View style={s.inputWrap}>
         <TextInput
           style={s.input}
-          placeholder="Titlu eveniment *"
+          placeholder={t('createEventTitlePlaceholder')}
           placeholderTextColor={colors.textFaint}
           value={title}
           onChangeText={setTitle}
@@ -341,7 +344,7 @@ export default function CreateEventRoute() {
       <View style={s.inputWrap}>
         <TextInput
           style={[s.input, s.textArea]}
-          placeholder="Descriere (opțional)"
+          placeholder={t('createEventDescPlaceholder')}
           placeholderTextColor={colors.textFaint}
           value={description}
           onChangeText={setDescription}
@@ -407,7 +410,7 @@ export default function CreateEventRoute() {
         <View style={s.venuePickerContent}>
           <Lucide name="map-pin" size={18} color={venueName ? colors.primary : colors.textFaint} />
           <Text style={[s.venuePickerText, venueName && s.venuePickerTextSelected]}>
-            {venueName ?? 'Alege locația'}
+            {venueName ?? t('createEventPickVenue')}
           </Text>
         </View>
         <Lucide name="chevron-right" size={18} color={colors.textFaint} />
@@ -474,7 +477,7 @@ export default function CreateEventRoute() {
             </View>
             <Pressable
               style={s.challengeAttachBtn}
-              onPress={() => router.push('/(tabs)/challenges?tab=challenges' as any)}
+              onPress={() => router.push({ pathname: '/(tabs)/challenges', params: { tab: 'challenges' } })}
             >
               <Lucide name="target" size={16} color={colors.primary} />
               <Text style={s.challengeAttachText}>{t('challengeSelect')}</Text>
@@ -554,53 +557,53 @@ export default function CreateEventRoute() {
 
       {/* -- Options section (collapsible) -- */}
       <Section
-        title="Opțiuni"
+        title={t('createEventOptions')}
         icon="sliders"
         defaultOpen={false}
         colors={colors}
         s={s}
         onToggle={closePickers}
         summary={[
-          eventType === 'casual' ? 'Casual' : 'Turneu',
+          eventType === 'casual' ? t('eventTypeCasual') : t('eventTypeTournament'),
           durationHours ? `${durationHours}h` : null,
-          recurrenceRule ? RECURRENCE_OPTIONS.find((o) => o.value === recurrenceRule)?.label : null,
-          maxParticipantsText ? `${maxParticipantsText} locuri` : null,
+          recurrenceRule ? recurrenceOptions(t).find((o) => o.value === recurrenceRule)?.label : null,
+          maxParticipantsText ? `${maxParticipantsText} ${t('spots')}` : null,
         ].filter(Boolean).join(' · ')}
       >
         {/* Event type */}
-        <Text style={s.fieldLabel}>Tip eveniment</Text>
+        <Text style={s.fieldLabel}>{t('createEventTypeLabel')}</Text>
         <View style={s.typeRow}>
           <Pressable
             style={[s.typeBtn, eventType === 'casual' && s.typeBtnSelected]}
             onPress={() => setEventType('casual')}
           >
             <Lucide name="coffee" size={16} color={eventType === 'casual' ? colors.textOnPrimary : colors.text} />
-            <Text style={[s.typeBtnText, eventType === 'casual' && s.typeBtnTextSelected]}>Casual</Text>
+            <Text style={[s.typeBtnText, eventType === 'casual' && s.typeBtnTextSelected]}>{t('eventTypeCasual')}</Text>
           </Pressable>
           <Pressable
             style={[s.typeBtn, eventType === 'tournament' && s.typeBtnSelected]}
             onPress={() => { setEventType('tournament'); setRecurrenceRule(null); }}
           >
             <Lucide name="trophy" size={16} color={eventType === 'tournament' ? colors.textOnPrimary : colors.text} />
-            <Text style={[s.typeBtnText, eventType === 'tournament' && s.typeBtnTextSelected]}>Turneu</Text>
+            <Text style={[s.typeBtnText, eventType === 'tournament' && s.typeBtnTextSelected]}>{t('eventTypeTournament')}</Text>
           </Pressable>
         </View>
 
         {eventType === 'casual' ? (
           <>
-            <Dropdown label="Durată (opțional)" value={durationHours} options={DURATION_OPTIONS} onSelect={setDurationHours} colors={colors} s={s} />
-            <Dropdown label="Recurență" value={recurrenceRule} options={RECURRENCE_OPTIONS} onSelect={setRecurrenceRule} colors={colors} s={s} />
-            {recurrenceRule === 'daily' && <Text style={s.hint}>Se repetă în fiecare zi</Text>}
+            <Dropdown label={t('createEventDurationLabel')} value={durationHours} options={durationOptions(t)} onSelect={setDurationHours} colors={colors} s={s} />
+            <Dropdown label={t('createEventRecurrenceLabel')} value={recurrenceRule} options={recurrenceOptions(t)} onSelect={setRecurrenceRule} colors={colors} s={s} />
+            {recurrenceRule === 'daily' && <Text style={s.hint}>{t('recurrenceHintDaily')}</Text>}
             {recurrenceRule === 'weekly' && (
-              <Text style={s.hint}>Se repetă în fiecare {date.toLocaleDateString('ro-RO', { weekday: 'long' })}</Text>
+              <Text style={s.hint}>{t('recurrenceHintWeekly', date.toLocaleDateString(getDateLocale(lang), { weekday: 'long' }))}</Text>
             )}
             {recurrenceRule === 'monthly' && (
-              <Text style={s.hint}>Se repetă pe {date.getDate()} ale fiecărei luni</Text>
+              <Text style={s.hint}>{t('recurrenceHintMonthly', String(date.getDate()))}</Text>
             )}
           </>
         ) : (
           <>
-            <Text style={s.fieldLabel}>Data final</Text>
+            <Text style={s.fieldLabel}>{t('createEventEndDateLabel')}</Text>
             {Platform.OS === 'web' ? (
               <View style={[s.dateBtn, { alignSelf: 'flex-start' }]}>
                 <Lucide name="calendar-check" size={16} color={colors.accentBright} />
@@ -629,11 +632,11 @@ export default function CreateEventRoute() {
           </>
         )}
 
-        <Text style={s.fieldLabel}>Număr locuri (opțional)</Text>
+        <Text style={s.fieldLabel}>{t('createEventMaxLabel')}</Text>
         <View style={s.inputWrap}>
           <TextInput
             style={s.input}
-            placeholder="ex: 6"
+            placeholder={t('createEventMaxPlaceholder')}
             placeholderTextColor={colors.textFaint}
             value={maxParticipantsText}
             onChangeText={setMaxParticipantsText}
@@ -667,7 +670,7 @@ export default function CreateEventRoute() {
         onPress={handleCreate}
         disabled={loading || privateInviteMissing}
       >
-        <Text style={s.btnText}>{loading ? 'Se creează...' : 'Creează'}</Text>
+        <Text style={s.btnText}>{loading ? t('createEventSubmitting') : t('createEventSubmit')}</Text>
       </Pressable>
       <Pressable onPress={() => router.back()} style={s.cancelBtn}>
         <Text style={s.cancelText}>Anulează</Text>

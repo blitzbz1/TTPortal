@@ -43,7 +43,7 @@ jest.mock('../../hooks/useTheme', () => ({
 }));
 
  
-import SignInScreen from '../sign-in';
+import { SignInScreen } from '../SignInScreen';
 
 describe('SignInScreen — forgot password link (T029)', () => {
   const user = userEvent.setup();

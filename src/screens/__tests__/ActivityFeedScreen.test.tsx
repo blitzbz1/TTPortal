@@ -65,11 +65,6 @@ jest.mock('../../components/SkeletonLoader', () => ({
   SkeletonList: ({ children }: any) => children,
 }));
 
-const mockGetFriendIds = jest.fn();
-jest.mock('../../services/friends', () => ({
-  getFriendIds: (...args: any[]) => mockGetFriendIds(...args),
-}));
-
 const mockGetFriendFeed = jest.fn();
 jest.mock('../../services/feed', () => ({
   getFriendFeed: (...args: any[]) => mockGetFriendFeed(...args),
@@ -78,7 +73,6 @@ jest.mock('../../services/feed', () => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockS.mockImplementation((key: string) => key);
-  mockGetFriendIds.mockResolvedValue([]);
   mockGetFriendFeed.mockResolvedValue({ data: [], error: null });
 });
 
@@ -91,7 +85,6 @@ describe('ActivityFeedScreen', () => {
 
   it('shows empty state when authenticated but no feed items', async () => {
     mockUseSession.mockReturnValue({ user: { id: 'u1' } });
-    mockGetFriendIds.mockResolvedValue([]);
     mockGetFriendFeed.mockResolvedValue({ data: [], error: null });
 
     const { findByTestId } = render(<ActivityFeedScreen />);
@@ -101,7 +94,6 @@ describe('ActivityFeedScreen', () => {
 
   it('renders feed items when data exists', async () => {
     mockUseSession.mockReturnValue({ user: { id: 'u1' } });
-    mockGetFriendIds.mockResolvedValue(['f1']);
     mockGetFriendFeed.mockResolvedValue({
       data: [
         {
@@ -136,7 +128,6 @@ describe('ActivityFeedScreen', () => {
 
   it('navigates to venue when feed item is tapped', async () => {
     mockUseSession.mockReturnValue({ user: { id: 'u1' } });
-    mockGetFriendIds.mockResolvedValue(['f1']);
     mockGetFriendFeed.mockResolvedValue({
       data: [
         {
@@ -155,6 +146,6 @@ describe('ActivityFeedScreen', () => {
     const { findByTestId } = render(<ActivityFeedScreen />);
     const card = await findByTestId('feed-item-checkin-1');
     fireEvent.press(card);
-    expect(mockPush).toHaveBeenCalledWith('/venue/99');
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/venue/[id]', params: { id: '99' } });
   });
 });

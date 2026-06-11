@@ -4,8 +4,8 @@ import { BadgeTrackIcon } from '../../components/BadgeTrackIcon';
 import { Lucide } from '../../components/Icon';
 import { getDateLocale } from '../../contexts/I18nProvider';
 import type { ThemeColors } from '../../theme';
-import type { BadgeTier, BadgeTrack } from '../../lib/badgeChallenges';
-import { TIER_TARGETS, getBadgeTierPalette } from '../../lib/badgeChallenges';
+import type { BadgeTier, BadgeTrack } from '../../features/challenges/badgeDefinitions';
+import { TIER_TARGETS, getBadgeTierPalette } from '../../features/challenges/badgeDefinitions';
 import type { createStyles } from '../ChallengeScreen.styles';
 
 export function formatEarnedMonth(value: string | null | undefined, lang: string) {
@@ -26,6 +26,7 @@ interface Props {
   tierLabel: (tier: BadgeTier) => string;
   trackName: (badge: BadgeTrack) => string;
   s: (key: string, ...args: string[]) => string;
+  sn: (key: string, count: number, ...args: string[]) => string;
   lang: string;
 }
 
@@ -39,6 +40,7 @@ export function EarnedBadgeCard({
   tierLabel,
   trackName,
   s,
+  sn,
   lang,
 }: Props) {
   const scale = useRef(new Animated.Value(isLatest ? 0.94 : 1)).current;
@@ -98,7 +100,7 @@ export function EarnedBadgeCard({
           <Lucide name="calendar-check" size={13} color={tierPalette.accent} />
           <Text style={[styles.wonMeta, { color: tierPalette.accent }]}>{s('challengeEarnedMonth', formatEarnedMonth(earnedAt, lang))}</Text>
         </View>
-        <Text style={[styles.wonSubMeta, { color: tierPalette.accent }]}>{s('challengeCompletedCount', String(TIER_TARGETS[tier]))}</Text>
+        <Text style={[styles.wonSubMeta, { color: tierPalette.accent }]}>{sn('challengeCompletedCount', TIER_TARGETS[tier])}</Text>
       </View>
     </Animated.View>
   );

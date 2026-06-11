@@ -15,6 +15,7 @@ const mockOnAuthStateChange = jest.fn(
   },
 );
 
+const mockUpdateEq = jest.fn();
 const mockUpsert = jest.fn().mockResolvedValue({ data: null, error: null });
 
 jest.mock('../../lib/supabase', () => ({
@@ -28,7 +29,13 @@ jest.mock('../../lib/supabase', () => ({
       resetPasswordForEmail: jest.fn().mockResolvedValue({ data: {}, error: null }),
       onAuthStateChange: (...a: Parameters<typeof mockOnAuthStateChange>) => mockOnAuthStateChange(...a),
     },
-    from: () => ({ upsert: (...a: unknown[]) => mockUpsert(...a) }),
+    from: () => ({
+      upsert: (...a: unknown[]) => mockUpsert(...a),
+      update: (...a: unknown[]) => {
+        mockUpsert(...a); // same spy: tests assert the written payload
+        return { eq: (...e: unknown[]) => { mockUpdateEq(...e); return Promise.resolve({ data: null, error: null }); } };
+      },
+    }),
   },
 }));
 
@@ -178,18 +185,15 @@ describe('SessionProvider — Google-to-email account linking', () => {
       expect(mockUpsert).toHaveBeenCalledTimes(1);
     });
 
-    expect(mockUpsert).toHaveBeenCalledWith(
-      {
-        id: 'user-existing-email',
-        full_name: 'Existing User',
-        email: 'existing@example.com',
-        auth_provider: 'google',
-      },
-      { onConflict: 'id' },
-    );
+    // update().eq('id', …) since T051 — the row always exists (handle_new_user).
+    expect(mockUpsert).toHaveBeenCalledWith({
+      full_name: 'Existing User',
+      email: 'existing@example.com',
+      auth_provider: 'google',
+    });
   });
 
-  it('uses onConflict id to update existing profile row instead of duplicating', async () => {
+  it('updates the existing profile row instead of inserting a duplicate', async () => {
     mockGoogleSignIn.mockResolvedValue(googleSignInSuccessResult);
     mockSignInWithIdToken.mockResolvedValue({
       data: { user: linkedUser, session: linkedSession },
@@ -204,8 +208,9 @@ describe('SessionProvider — Google-to-email account linking', () => {
       expect(mockUpsert).toHaveBeenCalledTimes(1);
     });
 
-    const upsertCall = mockUpsert.mock.calls[0];
-    expect(upsertCall[1]).toEqual({ onConflict: 'id' });
+    // The write carries no id — it can only ever target the existing row.
+    const writeCall = mockUpsert.mock.calls[0];
+    expect(writeCall[0]).not.toHaveProperty('id');
   });
 
   it('preserves the same user ID for a linked account', async () => {
@@ -223,8 +228,8 @@ describe('SessionProvider — Google-to-email account linking', () => {
       expect(mockUpsert).toHaveBeenCalled();
     });
 
-    const upsertData = mockUpsert.mock.calls[0][0];
-    expect(upsertData.id).toBe('user-existing-email');
+    // The id rides in .eq('id', …) now, not the payload.
+    expect(mockUpdateEq).toHaveBeenCalledWith('id', 'user-existing-email');
   });
 
   it('logs account linking when user has both email and google identities', async () => {

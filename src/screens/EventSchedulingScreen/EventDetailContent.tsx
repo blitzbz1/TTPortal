@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking, Modal, Pressable, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Linking, Modal, Pressable, TextInput } from 'react-native';
+import { showAlert, showConfirm } from '../../lib/dialogs';
 import MapView, { Marker } from 'react-native-maps';
 import { useRouter } from 'expo-router';
 import { BadgeTrackIcon } from '../../components/BadgeTrackIcon';
@@ -9,7 +10,7 @@ import { useI18n } from '../../hooks/useI18n';
 import { stopRecurrence, sendEventUpdate } from '../../services/events';
 import { sendRequest } from '../../services/friends';
 import { invalidateEventsCache } from '../../lib/eventsCache';
-import { BADGE_TRACKS } from '../../lib/badgeChallenges';
+import { BADGE_TRACKS } from '../../features/challenges/badgeDefinitions';
 import type { DbChallenge, EventChallengeSubmission } from '../../features/challenges';
 import { createStyles } from '../EventSchedulingScreen.styles';
 
@@ -157,7 +158,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
     && ['pending', 'approved', 'auto_approved'].includes(submission.status)
   ));
 
-  const handleParticipantPress = (participant: any) => {
+  const handleParticipantPress = async (participant: any) => {
     const participantId = participant.user_id;
     if (!participantId || !user?.id) return;
     const profile = participant.profiles;
@@ -166,28 +167,18 @@ export function EventDetailContent(props: EventDetailContentProps) {
     const isFriend = friendIds.has(participantId);
 
     if (isMe || isFriend) {
-      router.push(`/(protected)/player/${participantId}` as any);
+      router.push({ pathname: '/(protected)/player/[userId]', params: { userId: participantId } });
       return;
     }
 
-    Alert.alert(
-      fullName,
-      s('addFriend'),
-      [
-        { text: s('cancel'), style: 'cancel' },
-        {
-          text: s('addFriend'),
-          onPress: async () => {
-            const { error } = await sendRequest(user.id, participantId);
-            if (error) {
-              Alert.alert(s('error'), error.message);
-            } else {
-              Alert.alert(s('friendRequestSent'));
-            }
-          },
-        },
-      ],
-    );
+    if (await showConfirm(fullName, s('addFriend'), { confirmLabel: s('addFriend'), cancelLabel: s('cancel') })) {
+      const { error } = await sendRequest(user.id, participantId);
+      if (error) {
+        showAlert(s('error'), error.message);
+      } else {
+        showAlert(s('friendRequestSent'));
+      }
+    }
   };
 
   return (
@@ -334,7 +325,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
                 if (currentEventChallenge) {
                   onAddChallenge(currentEventChallenge);
                 } else {
-                  router.push('/(tabs)/challenges?tab=challenges' as any);
+                  router.push({ pathname: '/(tabs)/challenges', params: { tab: 'challenges' } });
                 }
               }}
               accessibilityLabel={userEventChallenge
@@ -448,7 +439,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
                 if (currentEventChallenge) {
                   onAddChallenge(currentEventChallenge);
                 } else {
-                  router.push('/(tabs)/challenges?tab=challenges' as any);
+                  router.push({ pathname: '/(tabs)/challenges', params: { tab: 'challenges' } });
                 }
               }}
               activeOpacity={0.85}
@@ -549,10 +540,10 @@ export function EventDetailContent(props: EventDetailContentProps) {
               const { error } = await sendEventUpdate(ev.id, updateText.trim());
               setSendingUpdate(false);
               if (error) {
-                Alert.alert(s('error'), error.message);
+                showAlert(s('error'), error.message);
               } else {
                 setUpdateText('');
-                Alert.alert(s('success'), s('updateSent'));
+                showAlert(s('success'), s('updateSent'));
               }
             }}
           >
@@ -646,28 +637,17 @@ export function EventDetailContent(props: EventDetailContentProps) {
           {ev.recurrence_rule && (
             <TouchableOpacity
               style={ms.dangerBtn}
-              onPress={() => {
-                Alert.alert(
-                  s('stopRecurrence'),
-                  s('stopRecurrenceConfirm'),
-                  [
-                    { text: s('cancel'), style: 'cancel' },
-                    {
-                      text: s('stopRecurrence'),
-                      style: 'destructive',
-                      onPress: async () => {
-                        const { error } = await stopRecurrence(ev.id, user!.id);
-                        if (error) {
-                          Alert.alert(s('error'), error.message);
-                        } else {
-                          invalidateEventsCache(user!.id, ['upcoming', 'mine']);
-                          closeDetail();
-                          fetchEvents();
-                        }
-                      },
-                    },
-                  ],
-                );
+              onPress={async () => {
+                if (await showConfirm(s('stopRecurrence'), s('stopRecurrenceConfirm'), { confirmLabel: s('stopRecurrence'), cancelLabel: s('cancel'), destructive: true })) {
+                  const { error } = await stopRecurrence(ev.id, user!.id);
+                  if (error) {
+                    showAlert(s('error'), error.message);
+                  } else {
+                    invalidateEventsCache(user!.id, ['upcoming', 'mine']);
+                    closeDetail();
+                    fetchEvents();
+                  }
+                }
               }}
             >
               <Lucide name="repeat" size={14} color={colors.red} />

@@ -47,7 +47,7 @@ jest.mock('../../hooks/useTheme', () => ({
 }));
 
  
-import SignInScreen from '../sign-in';
+import { SignInScreen } from '../SignInScreen';
 
 jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
 

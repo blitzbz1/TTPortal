@@ -58,19 +58,19 @@ describe('submitVenueChangeRequest', () => {
     expect(error).toBeNull();
   });
 
-  it('defaults missing fields to null / false', async () => {
+  it('omits missing fields (undefined → RPC defaults) and defaults mark_unavailable to false', async () => {
     mockRpc.mockResolvedValue({ data: 1, error: null });
 
     await submitVenueChangeRequest(9, {});
 
     expect(mockRpc).toHaveBeenCalledWith('submit_venue_change_request', {
       p_venue_id: 9,
-      p_nets: null,
-      p_night_lighting: null,
-      p_tables_count: null,
+      p_nets: undefined,
+      p_night_lighting: undefined,
+      p_tables_count: undefined,
       p_mark_unavailable: false,
-      p_note: null,
-      p_photo_url: null,
+      p_note: undefined,
+      p_photo_url: undefined,
     });
   });
 

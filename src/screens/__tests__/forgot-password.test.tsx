@@ -38,7 +38,7 @@ jest.mock('../../hooks/useTheme', () => ({
 }));
 
  
-import ForgotPasswordScreen from '../forgot-password';
+import { ForgotPasswordScreen } from '../ForgotPasswordScreen';
 
 describe('ForgotPasswordScreen — T027', () => {
   const user = userEvent.setup();

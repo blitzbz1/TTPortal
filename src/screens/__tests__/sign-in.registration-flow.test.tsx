@@ -41,7 +41,7 @@ jest.mock('../../hooks/useTheme', () => ({
 }));
 
  
-import SignInScreen from '../sign-in';
+import { SignInScreen } from '../SignInScreen';
 
 /** Fills the signup form with valid data, confirms 16+ age, and presses submit. */
 async function fillAndSubmit(
@@ -129,7 +129,9 @@ describe('SignInScreen — registration flow (T013)', () => {
     });
   });
 
-  it('duplicate email error from server shows account exists message with OAuth suggestion', async () => {
+  it('duplicate email error from server shows account exists message without OAuth suggestion', async () => {
+    // Social auth is flagged off (no featureFlags mock here), so the copy
+    // must not steer the user toward the hidden Google/Apple buttons.
     mockSignUp.mockResolvedValue({
       error: {
         message: 'User already registered',
@@ -145,7 +147,7 @@ describe('SignInScreen — registration flow (T013)', () => {
     await fillAndSubmit(getByTestId, user);
 
     await waitFor(() => {
-      expect(getByText('Acest email este deja folosit. Încearcă conectarea cu Google sau Apple.')).toBeTruthy();
+      expect(getByText('Acest email este deja folosit. Încearcă să te conectezi sau să îți resetezi parola.')).toBeTruthy();
     });
     expect(mockReplace).not.toHaveBeenCalled();
   });

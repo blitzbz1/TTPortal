@@ -10,9 +10,12 @@ import { clearCitiesCache } from '../lib/citiesPersistentCache';
 // this granularity.
 
 /**
- * Ensures a city exists in the cities table and returns its id.
- * If the city already exists (matched by name), returns the existing row.
- * Otherwise inserts a new row with the given name.
+ * Ensures a city (and its country) exists in the catalog and returns its id.
+ *
+ * Backed by the find_or_create_city SECURITY DEFINER RPC (migration 088),
+ * which normalizes, validates, dedupes diacritic/case variants, and repairs
+ * stale rows server-side — direct INSERTs into cities/countries are
+ * admin-only now.
  */
 interface UpsertCityOptions {
   countryCode?: string | null;
@@ -24,10 +27,6 @@ interface UpsertCityOptions {
 
 function isFiniteCoordinate(value: number | null | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value);
-}
-
-function hasMeaningfullyDifferentCoordinate(current: number | null | undefined, next: number): boolean {
-  return !isFiniteCoordinate(current) || Math.abs(current - next) > 0.000001;
 }
 
 export async function upsertCity(
@@ -43,94 +42,18 @@ export async function upsertCity(
   const countryName = options.countryName ?? country.name;
   const hasMapCenter = isFiniteCoordinate(options.lat) && isFiniteCoordinate(options.lng);
 
-  const { data: existingCountry, error: countrySelectError } = await supabase
-    .from('countries')
-    .select('code')
-    .eq('code', country.code)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('find_or_create_city', {
+    p_name: canonicalName,
+    p_country_code: country.code,
+    p_country_name: countryName,
+    p_lat: hasMapCenter ? options.lat ?? undefined : undefined,
+    p_lng: hasMapCenter ? options.lng ?? undefined : undefined,
+    p_zoom: hasMapCenter ? options.zoom ?? 12 : undefined,
+  });
 
-  if (countrySelectError) return { id: null, error: countrySelectError.message };
+  if (error) return { id: null, error: error.message };
+  if (typeof data !== 'number') return { id: null, error: 'city_upsert_failed' };
 
-  if (!existingCountry) {
-    const { error: countryInsertError } = await supabase
-      .from('countries')
-      .insert({
-        code: country.code,
-        name: countryName,
-        active: true,
-      });
-
-    if (countryInsertError && countryInsertError.code !== '23505') {
-      return { id: null, error: countryInsertError.message };
-    }
-  }
-
-  const { data: existing, error: selectError } = await supabase
-    .from('cities')
-    .select('id, country_name, lat, lng, zoom, active, expansion_status')
-    .eq('name', canonicalName)
-    .eq('country_code', country.code)
-    .maybeSingle();
-
-  if (selectError) return { id: null, error: selectError.message };
-  if (existing?.id) {
-    const repair: Record<string, unknown> = {};
-    if (countryName && existing.country_name !== countryName) repair.country_name = countryName;
-    if (hasMapCenter && hasMeaningfullyDifferentCoordinate(existing.lat, options.lat!)) repair.lat = options.lat;
-    if (hasMapCenter && hasMeaningfullyDifferentCoordinate(existing.lng, options.lng!)) repair.lng = options.lng;
-    if (hasMapCenter && (existing.zoom == null || existing.zoom !== (options.zoom ?? 12))) repair.zoom = options.zoom ?? 12;
-    if (existing.active !== true) repair.active = true;
-    if (existing.expansion_status == null || existing.expansion_status === 'hidden') repair.expansion_status = 'active';
-
-    if (Object.keys(repair).length > 0) {
-      const { error: updateError } = await supabase
-        .from('cities')
-        .update(repair)
-        .eq('id', existing.id);
-      if (updateError) return { id: null, error: updateError.message };
-      clearCitiesCache();
-    }
-
-    return { id: existing.id, error: null };
-  }
-  if (!hasMapCenter) {
-    return { id: null, error: 'city_map_center_required' };
-  }
-
-  const { data: inserted, error: insertError } = await supabase
-    .from('cities')
-    .insert({
-      name: canonicalName,
-      country_code: country.code,
-      country_name: countryName,
-      ...(hasMapCenter ? { lat: options.lat, lng: options.lng, zoom: options.zoom ?? 12 } : {}),
-      active: true,
-      expansion_status: 'active',
-    })
-    .select('id')
-    .single();
-
-  if (!insertError) {
-    clearCitiesCache();
-    return { id: inserted.id, error: null };
-  }
-
-  // If another browser created the city between our SELECT and INSERT, recover
-  // by reading the existing row instead of surfacing the unique violation.
-  if (insertError.code === '23505') {
-    const { data: raced, error: raceSelectError } = await supabase
-      .from('cities')
-      .select('id')
-      .eq('name', canonicalName)
-      .eq('country_code', country.code)
-      .maybeSingle();
-
-    if (raceSelectError) return { id: null, error: raceSelectError.message };
-    if (raced?.id) {
-      clearCitiesCache();
-      return { id: raced.id, error: null };
-    }
-  }
-
-  return { id: null, error: insertError.message };
+  clearCitiesCache();
+  return { id: data, error: null };
 }

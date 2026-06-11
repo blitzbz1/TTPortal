@@ -1,3 +1,4 @@
+import { createQueryChain } from '../../test-utils/supabaseMock';
 import {
   acceptRequest,
   declineRequest,
@@ -17,23 +18,6 @@ jest.mock('expo-sqlite', () => ({
   }),
 }));
 
-function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
-  const result = { data: resolvedData, error: resolvedError };
-  const chain: any = {
-    select: jest.fn(() => chain),
-    insert: jest.fn(() => chain),
-    update: jest.fn(() => chain),
-    eq: jest.fn(() => chain),
-    or: jest.fn(() => chain),
-    in: jest.fn(() => chain),
-    order: jest.fn(() => chain),
-    maybeSingle: jest.fn(() => Promise.resolve(result)),
-    single: jest.fn(() => Promise.resolve(result)),
-    returns: jest.fn(() => chain),
-    then: (resolve: any) => Promise.resolve(result).then(resolve),
-  };
-  return chain;
-}
 
 const mockFrom = jest.fn();
 jest.mock('../../lib/supabase', () => ({

@@ -288,8 +288,12 @@ describe('auth edge cases', () => {
       await user.type(getByTestId('input-name'), 'Test User');
       await user.type(getByTestId('input-email'), 'oauth@example.com');
       await user.type(getByTestId('input-password'), 'Password1');
+      await user.press(getByTestId('age-confirmation'));
       await user.press(getByTestId('submit-button'));
 
+      // SOCIAL_AUTH_ENABLED is mocked true above, so the copy suggests
+      // the OAuth providers. The flag-off variant is covered in
+      // src/lib/__tests__/auth-utils.test.ts.
       await waitFor(() => {
         expect(
           getByText(
@@ -316,6 +320,7 @@ describe('auth edge cases', () => {
       await user.type(getByTestId('input-name'), 'Test User');
       await user.type(getByTestId('input-email'), 'linked@example.com');
       await user.type(getByTestId('input-password'), 'Password1');
+      await user.press(getByTestId('age-confirmation'));
       await user.press(getByTestId('submit-button'));
 
       await waitFor(() => {

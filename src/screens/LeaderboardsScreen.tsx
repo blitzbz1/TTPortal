@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -231,19 +230,20 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
             onRefresh={onRefresh}
             drawDistance={400}
             renderItem={({ item: r, index: idx }) => (
+              // No entering animation on FlashList rows (T046): recycling
+              // re-triggers it on every remount, making rows pop blank
+              // then fade during scroll.
               <View style={styles.rankList}>
-                <Animated.View entering={FadeInDown.delay(Math.min(idx, 8) * 60).duration(300)}>
-                  <View style={styles.rankRow}>
-                    <Text style={styles.rankNum}>{r.rank ?? idx + 4}</Text>
-                    <View style={[styles.rankAvatar, { backgroundColor: PODIUM_COLORS[idx % PODIUM_COLORS.length] }]}>
-                      <Text style={styles.rankInitials}>{getInitials(r.full_name)}</Text>
-                    </View>
-                    <View style={styles.rankInfo}>
-                      <Text style={styles.rankName}>{r.full_name ?? s('user')}</Text>
-                      <Text style={styles.rankScore}>{getScoreLabel(r)}</Text>
-                    </View>
+                <View style={styles.rankRow}>
+                  <Text style={styles.rankNum}>{r.rank ?? idx + 4}</Text>
+                  <View style={[styles.rankAvatar, { backgroundColor: PODIUM_COLORS[idx % PODIUM_COLORS.length] }]}>
+                    <Text style={styles.rankInitials}>{getInitials(r.full_name)}</Text>
                   </View>
-                </Animated.View>
+                  <View style={styles.rankInfo}>
+                    <Text style={styles.rankName}>{r.full_name ?? s('user')}</Text>
+                    <Text style={styles.rankScore}>{getScoreLabel(r)}</Text>
+                  </View>
+                </View>
               </View>
             )}
           />

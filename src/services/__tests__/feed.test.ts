@@ -8,24 +8,24 @@ jest.mock('../../lib/supabase', () => ({
 beforeEach(() => jest.clearAllMocks());
 
 describe('getFriendFeed', () => {
-  // Implementation now calls the get_friend_feed RPC (migration 052)
-  // which does the UNION ALL + ORDER BY + LIMIT server-side. The client
-  // just rehydrates the FeedItem shape.
+  // Implementation calls the get_friend_feed RPC (migrations 052/083),
+  // which derives the caller's accepted friendships from auth.uid() and
+  // does the UNION ALL + ORDER BY + LIMIT server-side. The client just
+  // rehydrates the FeedItem shape.
 
-  it('returns empty array when no friend IDs provided', async () => {
-    const result = await getFriendFeed([]);
-    expect(result.data).toEqual([]);
-    expect(result.error).toBeNull();
-    // Short-circuits before making the RPC call.
-    expect(mockRpc).not.toHaveBeenCalled();
+  it('passes only the limit to the RPC (identity comes from auth.uid())', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
+    await getFriendFeed(25);
+    expect(mockRpc).toHaveBeenCalledWith('get_friend_feed', {
+      p_limit: 25,
+    });
   });
 
-  it('passes the friend ids and limit to the RPC', async () => {
+  it('defaults the limit to 30', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null });
-    await getFriendFeed(['f1', 'f2'], 25);
+    await getFriendFeed();
     expect(mockRpc).toHaveBeenCalledWith('get_friend_feed', {
-      p_friend_ids: ['f1', 'f2'],
-      p_limit: 25,
+      p_limit: 30,
     });
   });
 
@@ -46,7 +46,7 @@ describe('getFriendFeed', () => {
       error: null,
     });
 
-    const { data } = await getFriendFeed(['f1', 'f2']);
+    const { data } = await getFriendFeed();
 
     expect(data).toEqual([
       {
@@ -64,14 +64,14 @@ describe('getFriendFeed', () => {
 
   it('forwards an empty list when the RPC returns no rows', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null });
-    const { data, error } = await getFriendFeed(['f1']);
+    const { data, error } = await getFriendFeed();
     expect(data).toEqual([]);
     expect(error).toBeNull();
   });
 
   it('returns empty data and the error on RPC failure', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } });
-    const { data, error } = await getFriendFeed(['f1']);
+    const { data, error } = await getFriendFeed();
     expect(data).toEqual([]);
     expect(error).toEqual({ message: 'boom' });
   });

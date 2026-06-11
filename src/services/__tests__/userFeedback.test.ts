@@ -1,15 +1,6 @@
 import { submitUserFeedback } from '../userFeedback';
+import { createQueryChain } from '../../test-utils/supabaseMock';
 
-function createQueryChain(resolvedData: any = null, resolvedError: any = null) {
-  const result = { data: resolvedData, error: resolvedError };
-  const chain: any = {
-    select: jest.fn(() => chain),
-    insert: jest.fn(() => chain),
-    single: jest.fn(() => Promise.resolve(result)),
-    then: (resolve: any) => Promise.resolve(result).then(resolve),
-  };
-  return chain;
-}
 
 const mockFrom = jest.fn();
 jest.mock('../../lib/supabase', () => ({

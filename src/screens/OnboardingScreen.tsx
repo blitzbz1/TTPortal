@@ -15,8 +15,9 @@ import Animated, {
 import { Springs } from '../lib/motion';
 import { hapticSelection } from '../lib/haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams , type Href } from 'expo-router';
 import { useI18n } from '../hooks/useI18n';
+import { sanitizeRoute } from '../lib/auth-utils';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
@@ -24,6 +25,7 @@ import { CityPickerModal } from '../components/CityPickerModal';
 import { Lucide } from '../components/Icon';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { getCityDisplayName } from '../lib/locationHelpers';
+import { ProductEvents, trackProductEvent } from '../lib/analytics';
 
 const INTEREST_KEYS = [
   'onboardingInterest1',
@@ -48,8 +50,13 @@ export function OnboardingScreen() {
     new Set(),
   );
 
+  // Resume the action that brought the user into the signup funnel (T062);
+  // sanitizeRoute falls back to the tabs root for missing/foreign routes.
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+
   const finish = () => {
-    router.replace('/(tabs)/' as any);
+    trackProductEvent(ProductEvents.onboardingCompleted, { interests: selectedInterests.size });
+    router.replace(sanitizeRoute(returnTo) as Href);
   };
 
   const handleSkip = () => {

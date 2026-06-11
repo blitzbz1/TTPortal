@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { showAlert } from '../lib/dialogs';
 import {
   View,
   Text,
@@ -11,7 +12,6 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
@@ -78,7 +78,7 @@ export function FeedbackReplyModal({ feedback, onClose }: FeedbackReplyModalProp
     const { data, error } = await replyToFeedback(feedback.id, user.id, trimmed);
     setSending(false);
     if (error) {
-      Alert.alert(s('error'), s('feedbackReplyError'));
+      showAlert(s('error'), s('feedbackReplyError'));
       return;
     }
     if (data) {

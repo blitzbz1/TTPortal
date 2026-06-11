@@ -1,4 +1,5 @@
 import { createEventFeedback, getEventFeedback, getUserEventFeedback } from '../eventFeedback';
+import { createQueryChain } from '../../test-utils/supabaseMock';
 
 jest.mock('expo-sqlite', () => ({
   openDatabaseSync: () => ({
@@ -8,19 +9,6 @@ jest.mock('expo-sqlite', () => ({
   }),
 }));
 
-function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
-  const result = { data: resolvedData, error: resolvedError };
-  const chain: any = {
-    select: jest.fn(() => chain),
-    eq: jest.fn(() => chain),
-    insert: jest.fn(() => chain),
-    order: jest.fn(() => chain),
-    single: jest.fn(() => Promise.resolve(result)),
-    maybeSingle: jest.fn(() => Promise.resolve(result)),
-    then: (resolve: any) => Promise.resolve(result).then(resolve),
-  };
-  return chain;
-}
 
 const mockFrom = jest.fn();
 jest.mock('../../lib/supabase', () => ({

@@ -1,4 +1,4 @@
-import { getCurrentChallenge, getChallengeProgress } from '../challenges';
+import { getCurrentChallenge, getChallengeProgress } from '../monthlyChallenges';
 
 describe('challenges', () => {
   describe('getCurrentChallenge', () => {

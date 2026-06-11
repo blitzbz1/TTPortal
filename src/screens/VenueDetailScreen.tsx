@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
+// eslint-disable-next-line no-restricted-imports -- dynamic review action sheet keeps Alert; it has an explicit web fallback
 import { View, Text, TouchableOpacity, Alert, Linking, Share, ActivityIndicator, Platform, FlatList, Dimensions, Animated } from 'react-native';
+import { showAlert, showConfirm } from '../lib/dialogs';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,7 +18,8 @@ import { venueImageUrl } from '../lib/imageTransforms';
 import { prepareImageForUpload, ImageProcessingUnavailableError } from '../lib/imageUpload';
 import * as ImagePicker from 'expo-image-picker';
 import { checkin, checkout, getUserAnyActiveCheckin } from '../services/checkins';
-import { addFavorite, removeFavorite } from '../services/favorites';
+import { useToggleFavoriteMutation } from '../hooks/queries/useFavoritesQuery';
+import { useOfflineQueue } from '../contexts/OfflineQueueProvider';
 import { useQueryClient } from '@tanstack/react-query';
 import { useVenueDetailQuery, useInvalidateVenueDetail } from '../hooks/queries/useVenueDetailQuery';
 import { useFriendsAtVenueQuery } from '../hooks/queries/useFriendsAtVenueQuery';
@@ -29,6 +32,7 @@ import { rateLimitMessageFor } from '../lib/rateLimit';
 import { VenueActionRow } from '../components/VenueActionRow';
 import { CheckinSuccessSheet } from '../components/CheckinSuccessSheet';
 import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { ReportReasonModal } from '../components/ReportReasonModal';
 import { VenueChangeRequestModal } from '../components/VenueChangeRequestModal';
 import type { SelectedImage } from '../components/VenueChangeRequestModal';
@@ -37,6 +41,8 @@ import { submitVenueChangeRequest, uploadChangeRequestImage } from '../services/
 import type { VenueChangeRequestInput } from '../services/venueChangeRequests';
 import { reportContent, blockUser, type ReportReason } from '../services/moderation';
 import { hapticLight } from '../lib/haptics';
+import { sharePayload, venueUrl } from '../lib/shareLinks';
+import { ProductEvents, trackProductEvent } from '../lib/analytics';
 import Reanimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -61,7 +67,13 @@ export function VenueDetailScreen({ venueId }: Props) {
 
   // ── Phase 1 (critical, single RPC): venue + stats + is_favorited
   //    + active checkin + upcoming-event count + champion + top-5 reviews.
-  const { data: bundle, isLoading: bundleLoading } = useVenueDetailQuery(vIdNum, user?.id);
+  const {
+    data: bundle,
+    isLoading: bundleLoading,
+    isError: bundleError,
+    refetch: refetchBundle,
+  } = useVenueDetailQuery(vIdNum, user?.id);
+  const fromCache = !!bundle?.fromCache;
 
   // ── Phase 2 (lazy): full reviews (top-N comes from bundle).
   const [showAllReviews, setShowAllReviews] = useState(false);
@@ -78,6 +90,7 @@ export function VenueDetailScreen({ venueId }: Props) {
 
   const invalidateVenueDetail = useInvalidateVenueDetail();
   const queryClient = useQueryClient();
+  const toggleFavoriteMutation = useToggleFavoriteMutation(user?.id);
 
   const venue = useMemo(
     () =>
@@ -126,6 +139,8 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [untilMinute, setUntilMinute] = useState('');
   const [successSheetVisible, setSuccessSheetVisible] = useState(false);
   const [lastCheckinEndTime, setLastCheckinEndTime] = useState<string | undefined>();
+  const [checkinQueuedOffline, setCheckinQueuedOffline] = useState(false);
+  const { isOnline, enqueue } = useOfflineQueue();
   const [reportingReview, setReportingReview] = useState<Review | null>(null);
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [vcrVisible, setVcrVisible] = useState(false);
@@ -159,26 +174,21 @@ export function VenueDetailScreen({ venueId }: Props) {
 
 
   const handleReview = useCallback(() => {
-    router.push(`/(protected)/review/${venueId}` as any);
+    router.push({ pathname: '/(protected)/review/[venueId]', params: { venueId: String(venueId) } });
   }, [router, venueId]);
 
   const handleShare = useCallback(() => {
-    if (!venue) return;
-    Share.share({ message: venue.name + ' - ' + (venue.address || '') });
-  }, [venue]);
-
-  const showAlert = useCallback((title: string, msg: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(`${title}\n${msg}`);
-    } else {
-      Alert.alert(title, msg);
-    }
-  }, []);
+    if (!venue || !vIdNum) return;
+    // T061: share an openable link, not just text — the web build renders
+    // /venue/[id] publicly, so the link works for everyone.
+    trackProductEvent(ProductEvents.shareInitiated, { surface: 'venue', venueId: vIdNum });
+    Share.share(sharePayload(venue.name + ' - ' + (venue.address || ''), venueUrl(vIdNum)));
+  }, [venue, vIdNum]);
 
   const handleSuggestEdit = useCallback(() => {
     // Submitting requires a session; bounce to sign-in if signed out.
     if (!user) {
-      router.push('/sign-in' as any);
+      router.push('/sign-in');
       return;
     }
     setVcrVisible(true);
@@ -210,7 +220,7 @@ export function VenueDetailScreen({ venueId }: Props) {
     }
     setVcrVisible(false);
     showAlert(s('vcrSubmittedTitle'), s('vcrSubmittedMessage'));
-  }, [venueId, s, showAlert]);
+  }, [venueId, s]);
 
   const performBlockUser = useCallback(async (targetUserId: string) => {
     const { error } = await blockUser(targetUserId);
@@ -221,7 +231,7 @@ export function VenueDetailScreen({ venueId }: Props) {
     showAlert(s('blockedToastTitle'), s('blockedToastBody'));
     invalidateVenueDetail(Number(venueId));
     queryClient.invalidateQueries({ queryKey: venueReviewsQueryKey(Number(venueId)) });
-  }, [s, showAlert, invalidateVenueDetail, venueId, queryClient]);
+  }, [s, invalidateVenueDetail, venueId, queryClient]);
 
   const openReviewActions = useCallback((review: Review) => {
     if (!user) return;
@@ -235,14 +245,9 @@ export function VenueDetailScreen({ venueId }: Props) {
       buttons.push({
         text: s('blockUserAction'),
         style: 'destructive',
-        onPress: () => {
-          if (Platform.OS === 'web') {
-            if (window.confirm(s('blockUserConfirm'))) void performBlockUser(targetId);
-          } else {
-            Alert.alert(s('blockUserAction'), s('blockUserConfirm'), [
-              { text: s('cancel'), style: 'cancel' },
-              { text: s('blockUserAction'), style: 'destructive', onPress: () => void performBlockUser(targetId) },
-            ]);
+        onPress: async () => {
+          if (await showConfirm(s('blockUserAction'), s('blockUserConfirm'), { confirmLabel: s('blockUserAction'), cancelLabel: s('cancel'), destructive: true })) {
+            void performBlockUser(targetId);
           }
         },
       });
@@ -276,7 +281,7 @@ export function VenueDetailScreen({ venueId }: Props) {
       }
       showAlert(s('reportedToastTitle'), s('reportedToastBody'));
     },
-    [reportingReview, s, showAlert],
+    [reportingReview, s],
   );
 
   const showDurationModal = useCallback(() => {
@@ -287,24 +292,20 @@ export function VenueDetailScreen({ venueId }: Props) {
     setCheckinModalVisible(true);
   }, []);
 
+  // Note: check-ins stay ENABLED when serving a cached bundle — offline
+  // check-ins queue with their own messaging (T031). Only the favorite
+  // toggle is blocked: its semantics flip on is_favorited, which a cached
+  // bundle doesn't know.
   const openCheckinModal = useCallback(async () => {
     if (!user) return;
     // Check if user has an active checkin at a DIFFERENT venue
     const { data: existing } = await getUserAnyActiveCheckin(user.id);
     if (existing && existing.venue_id !== Number(venueId)) {
       const venueName = existing.venues?.name ?? '';
-      const msg = `${s('alreadyCheckedIn')} ${venueName}. ${s('checkoutAndContinue')}`;
-      if (Platform.OS === 'web') {
-        if (!window.confirm(msg)) return;
-        await checkout(existing.id, user.id);
-      } else {
-        return new Promise<void>((resolve) => {
-          Alert.alert(s('alreadyCheckedIn') + ' ' + venueName, s('checkoutAndContinue'), [
-            { text: s('cancel'), style: 'cancel', onPress: () => resolve() },
-            { text: s('yes'), onPress: async () => { await checkout(existing.id, user.id); showDurationModal(); resolve(); } },
-          ]);
-        });
+      if (!(await showConfirm(`${s('alreadyCheckedIn')} ${venueName}`, s('checkoutAndContinue'), { confirmLabel: s('yes'), cancelLabel: s('cancel') }))) {
+        return;
       }
+      await checkout(existing.id, user.id);
     }
     showDurationModal();
   }, [user, venueId, showDurationModal, s]);
@@ -312,17 +313,40 @@ export function VenueDetailScreen({ venueId }: Props) {
   const doCheckin = useCallback(async (durationMinutes: number) => {
     if (!user || !venueId) return;
     setCheckinModalVisible(false);
-    setCheckinLoading(true);
     const now = new Date();
     const endedAt = new Date(now.getTime() + durationMinutes * 60_000);
-    const { error } = await checkin({
+    const endTimeStr = endedAt.toLocaleTimeString(getDateLocale(lang), { hour: '2-digit', minute: '2-digit' });
+    const payload = {
       user_id: user.id,
       venue_id: Number(venueId),
       table_number: null,
       started_at: now.toISOString(),
       ended_at: endedAt.toISOString(),
       friends: [],
-    });
+    };
+
+    // Offline: queue the check-in with its original timestamps (the
+    // 'checkin' handler in lib/offlineHandlers replays it) and confirm
+    // optimistically with a "will sync" note. Gyms and basements are
+    // exactly where signal dies — dropping the action loses real sessions.
+    if (!isOnline) {
+      enqueue({
+        entityType: 'checkin',
+        // Timestamped entityId: multiple offline check-ins (different
+        // venues/times) must not dedupe each other away.
+        entityId: `${user.id}:${venueId}:${now.getTime()}`,
+        operation: 'create',
+        payload,
+      });
+      setLastCheckinEndTime(endTimeStr);
+      setCheckinQueuedOffline(true);
+      setSuccessSheetVisible(true);
+      trackProductEvent(ProductEvents.checkinQueuedOffline, { venueId: vIdNum });
+      return;
+    }
+
+    setCheckinLoading(true);
+    const { error } = await checkin(payload);
     setCheckinLoading(false);
     if (error) {
       const rateMsg = rateLimitMessageFor(error, s);
@@ -330,10 +354,11 @@ export function VenueDetailScreen({ venueId }: Props) {
       return;
     }
     if (vIdNum) invalidateVenueDetail(vIdNum);
-    const endTimeStr = endedAt.toLocaleTimeString(getDateLocale(lang), { hour: '2-digit', minute: '2-digit' });
     setLastCheckinEndTime(endTimeStr);
+    setCheckinQueuedOffline(false);
     setSuccessSheetVisible(true);
-  }, [user, venueId, vIdNum, invalidateVenueDetail, showAlert, s, lang]);
+    trackProductEvent(ProductEvents.checkinCompleted, { venueId: vIdNum });
+  }, [user, venueId, vIdNum, invalidateVenueDetail, s, lang, isOnline, enqueue]);
 
   const handleCustomConfirm = useCallback(() => {
     if (customMode === 'minutes') {
@@ -354,7 +379,7 @@ export function VenueDetailScreen({ venueId }: Props) {
       const diffMin = Math.round((target.getTime() - now.getTime()) / 60_000);
       doCheckin(diffMin);
     }
-  }, [customMode, customMinutes, untilHour, untilMinute, doCheckin, showAlert, s]);
+  }, [customMode, customMinutes, untilHour, untilMinute, doCheckin, s]);
 
   const handleCheckout = useCallback(async () => {
     if (!activeCheckin || !user) return;
@@ -363,7 +388,7 @@ export function VenueDetailScreen({ venueId }: Props) {
     setCheckinLoading(false);
     if (error) { showAlert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
     if (vIdNum) invalidateVenueDetail(vIdNum);
-  }, [activeCheckin, vIdNum, invalidateVenueDetail, showAlert, user, s]);
+  }, [activeCheckin, vIdNum, invalidateVenueDetail, user, s]);
 
   const handleAddPhoto = useCallback(async () => {
     if (!venue || !venueId) return;
@@ -433,7 +458,7 @@ export function VenueDetailScreen({ venueId }: Props) {
     } finally {
       setUploading(false);
     }
-  }, [venue, venueId, vIdNum, invalidateVenueDetail, showAlert, s]);
+  }, [venue, venueId, vIdNum, invalidateVenueDetail, s]);
 
   const animateHeart = useCallback(() => {
     Animated.sequence([
@@ -443,15 +468,26 @@ export function VenueDetailScreen({ venueId }: Props) {
   }, [heartScale]);
 
   const handleToggleFavorite = useCallback(async () => {
-    if (!user || !venueId) return;
+    if (!user || !vIdNum) return;
+    // A cached bundle doesn't know is_favorited, so the toggle direction
+    // would be a guess — block with honest messaging instead.
+    if (fromCache) {
+      showAlert(s('error'), s('offlineActionError'));
+      return;
+    }
     hapticLight();
-    const { error } = favorited
-      ? await removeFavorite(user.id, Number(venueId))
-      : await addFavorite(user.id, Number(venueId));
-    if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
-    if (vIdNum) invalidateVenueDetail(vIdNum);
+    try {
+      // The mutation hook owns optimistic updates, ['favorites', userId]
+      // invalidation, and offline queueing — the previous direct service
+      // calls bypassed all three (§5.2).
+      await toggleFavoriteMutation.mutateAsync({ venueId: vIdNum, isFav: favorited });
+    } catch (error) {
+      showAlert(s('error'), safeErrorMessage(error, 'genericError', s));
+      return;
+    }
+    invalidateVenueDetail(vIdNum);
     animateHeart();
-  }, [user, venueId, vIdNum, favorited, invalidateVenueDetail, animateHeart, s]);
+  }, [user, vIdNum, favorited, fromCache, toggleFavoriteMutation, invalidateVenueDetail, animateHeart, s]);
 
   const handleDirectionGoogle = useCallback(() => {
     if (!venue) return;
@@ -482,6 +518,30 @@ export function VenueDetailScreen({ venueId }: Props) {
     );
   }
 
+  // Network failure with no cache to fall back on (the queryFn rethrows in
+  // that case) — offer Retry + Back instead of mislabeling it "not found".
+  if (bundleError && !venue) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center' }]}>
+        <ErrorState
+          title={s('venueLoadError')}
+          description={s('venueLoadErrorDesc')}
+          ctaLabel={s('retry')}
+          onRetry={() => void refetchBundle()}
+        />
+        <TouchableOpacity
+          style={{ alignSelf: 'center', padding: 12 }}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          testID="venue-detail-error-back"
+        >
+          <Text style={{ color: colors.textMuted }}>{s('back')}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // The RPC answered and the venue genuinely doesn't exist.
   if (!venue) {
     return (
       <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
@@ -655,7 +715,7 @@ export function VenueDetailScreen({ venueId }: Props) {
           )}
 
           {/* Evaluate Condition */}
-          <TouchableOpacity style={styles.evalBtn} onPress={() => router.push(`/(protected)/condition-vote/${venueId}` as any)}>
+          <TouchableOpacity style={styles.evalBtn} onPress={() => router.push({ pathname: '/(protected)/condition-vote/[venueId]', params: { venueId: String(venueId) } })}>
             <Lucide name="vote" size={16} color={colors.primaryMid} />
             <Text style={styles.evalText}>{s('evaluateCondition')}</Text>
             <Lucide name="chevron-right" size={14} color={colors.primaryMid} />
@@ -687,7 +747,7 @@ export function VenueDetailScreen({ venueId }: Props) {
               <TouchableOpacity
                 key={fc.id || fc.user_id}
                 style={styles.checkinRow}
-                onPress={() => router.push(`/(protected)/player/${fc.user_id}` as any)}
+                onPress={() => router.push({ pathname: '/(protected)/player/[userId]', params: { userId: fc.user_id } })}
                 accessibilityRole="button"
                 accessibilityLabel={name}
                 testID={`friends-here-${fc.user_id}`}
@@ -744,7 +804,7 @@ export function VenueDetailScreen({ venueId }: Props) {
         <View style={styles.navSection}>
           <TouchableOpacity
             style={[styles.navRow, styles.navRowLast]}
-            onPress={() => router.push(`/(protected)/venue-events/${venueId}` as any)}
+            onPress={() => router.push({ pathname: '/(protected)/venue-events/[venueId]', params: { venueId: String(venueId) } })}
             testID="venue-events-nav"
           >
             <View style={[styles.navIcon, { backgroundColor: colors.amberPale }]}>
@@ -783,7 +843,7 @@ export function VenueDetailScreen({ venueId }: Props) {
         <View style={styles.reviewsSection}>
           <View style={styles.reviewsHeader}>
             <Text style={styles.reviewsTitle}>{s('reviewsCount') + ' (' + reviews.length + ')'}</Text>
-            <TouchableOpacity style={styles.writeReviewBtn} onPress={() => router.push(`/(protected)/review/${venueId}` as any)} testID="write-review-btn" accessibilityLabel={s('writeBtn')}>
+            <TouchableOpacity style={styles.writeReviewBtn} onPress={() => router.push({ pathname: '/(protected)/review/[venueId]', params: { venueId: String(venueId) } })} testID="write-review-btn" accessibilityLabel={s('writeBtn')}>
               <Lucide name="pen-line" size={12} color={colors.primaryMid} />
               <Text style={styles.writeReviewText}>{s('writeBtn')}</Text>
             </TouchableOpacity>
@@ -795,7 +855,7 @@ export function VenueDetailScreen({ venueId }: Props) {
               title={s('emptyReviewsTitle')}
               description={s('emptyReviewsDesc')}
               ctaLabel={s('emptyReviewsCta')}
-              onCtaPress={() => router.push(`/(protected)/review/${venueId}` as any)}
+              onCtaPress={() => router.push({ pathname: '/(protected)/review/[venueId]', params: { venueId: String(venueId) } })}
               iconColor={colors.primaryMid}
               iconBg={colors.primaryPale}
             />
@@ -842,7 +902,9 @@ export function VenueDetailScreen({ venueId }: Props) {
       <CheckinSuccessSheet
         visible={successSheetVisible}
         venueName={venue?.name ?? ''}
+        venueId={vIdNum ?? null}
         endTime={lastCheckinEndTime}
+        queuedOffline={checkinQueuedOffline}
         onDismiss={() => setSuccessSheetVisible(false)}
       />
 

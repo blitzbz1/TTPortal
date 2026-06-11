@@ -89,7 +89,7 @@ export function VenueEventsScreen({ venueId }: Props) {
   };
 
   const openEvent = (ev: EventItem) => {
-    router.push(`/(protected)/event/${ev.id}` as any);
+    router.push({ pathname: '/(protected)/event/[eventId]', params: { eventId: String(ev.id) } });
   };
 
   return (

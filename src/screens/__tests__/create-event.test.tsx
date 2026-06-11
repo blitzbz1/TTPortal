@@ -14,21 +14,21 @@ jest.mock('expo-router', () => ({
 }));
 
 const mockUser = { id: 'user-123' };
-jest.mock('../../../hooks/useSession', () => ({
+jest.mock('../../hooks/useSession', () => ({
   useSession: () => ({ user: mockUser }),
 }));
 
 const mockCreateEvent = jest.fn();
 const mockJoinEvent = jest.fn();
 const mockSendEventInvites = jest.fn();
-jest.mock('../../../services/events', () => ({
+jest.mock('../../services/events', () => ({
   createEvent: (...args: any[]) => mockCreateEvent(...args),
   joinEvent: (...args: any[]) => mockJoinEvent(...args),
   sendEventInvites: (...args: any[]) => mockSendEventInvites(...args),
 }));
 
 const mockSearchVenues = jest.fn();
-jest.mock('../../../services/venues', () => ({
+jest.mock('../../services/venues', () => ({
   searchVenues: (...args: any[]) => mockSearchVenues(...args),
 }));
 
@@ -37,17 +37,25 @@ jest.mock('../../../services/venues', () => ({
 // list through this mock; mockUseVenuesQueryData is reassigned in
 // beforeEach so each test sees the same fixture.
 let mockUseVenuesQueryData: any[] = [];
-jest.mock('../../../hooks/queries/useVenuesQuery', () => ({
+jest.mock('../../hooks/queries/useVenuesQuery', () => ({
   useVenuesQuery: () => ({ data: mockUseVenuesQueryData, isFetching: false }),
 }));
 
 const mockGetFriends = jest.fn();
-jest.mock('../../../services/friends', () => ({
+jest.mock('../../services/friends', () => ({
   getFriends: (...args: any[]) => mockGetFriends(...args),
 }));
 
-jest.mock('../../../hooks/useI18n', () => ({
-  useI18n: () => ({ s: (key: string) => key, lang: 'en' }),
+jest.mock('../../hooks/useI18n', () => ({
+  useI18n: () => ({
+    s: (key: string, ...args: string[]) => {
+      const ro: Record<string, string> = require('../../locales/ro.json');
+      let v = ro[key] || key;
+      args.forEach((a, i) => { v = v.replace(`{${i}}`, a); });
+      return v;
+    },
+    lang: 'ro',
+  }),
 }));
 
 jest.mock('@react-native-community/datetimepicker', () => {
@@ -58,9 +66,9 @@ jest.mock('@react-native-community/datetimepicker', () => {
   };
 });
 
-jest.mock('../../../hooks/useTheme', () => ({
+jest.mock('../../hooks/useTheme', () => ({
   useTheme: () => ({
-    colors: require('../../../theme').lightColors,
+    colors: require('../../theme').lightColors,
     mode: 'light',
     resolved: 'light',
     isDark: false,
@@ -73,7 +81,7 @@ import React from 'react';
  
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
  
-import CreateEventRoute from '../create-event';
+import { CreateEventScreen as CreateEventRoute } from '../CreateEventScreen';
 
 const venues = [
   { id: 1, name: 'Parcul Herăstrău', city: 'București', type: 'parc_exterior' },
@@ -156,7 +164,7 @@ describe('CreateEventRoute – essentials', () => {
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
     await act(async () => { fireEvent.press(screen.getByText('Creează')); });
-    expect(alertSpy).toHaveBeenCalledWith('error', 'Nu s-a putut crea evenimentul.');
+    expect(alertSpy).toHaveBeenCalledWith('Eroare', 'Nu s-a putut crea evenimentul.');
     expect(mockBack).not.toHaveBeenCalled();
   });
 
@@ -174,7 +182,7 @@ describe('CreateEventRoute – essentials', () => {
     await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     // i18n mock returns the key — proves the rateLimit branch was taken
     // and that the action is mapped to rateLimitCreateEvent specifically.
-    expect(alertSpy).toHaveBeenCalledWith('error', 'rateLimitCreateEvent');
+    expect(alertSpy).toHaveBeenCalledWith('Eroare', expect.stringContaining('Ai creat prea multe evenimente'));
     expect(mockBack).not.toHaveBeenCalled();
   });
 
@@ -187,7 +195,7 @@ describe('CreateEventRoute – essentials', () => {
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
     await act(async () => { fireEvent.press(screen.getByText('Creează')); });
-    expect(alertSpy).toHaveBeenCalledWith('error', 'rateLimitIpBlocked');
+    expect(alertSpy).toHaveBeenCalledWith('Eroare', expect.stringContaining('IP-ul tău este blocat temporar'));
     expect(mockBack).not.toHaveBeenCalled();
   });
 
@@ -458,12 +466,12 @@ describe('CreateEventRoute – friend invites', () => {
     await waitFor(() => { expect(screen.getByText('Andrei P.')).toBeTruthy(); });
 
     fireEvent.press(screen.getByText('Andrei P.'));
-    const confirmButtons = screen.getAllByText(/inviteToEvent/);
+    const confirmButtons = screen.getAllByText(/Invită la eveniment/);
     fireEvent.press(confirmButtons[confirmButtons.length - 1]);
     await act(async () => {});
 
     expect(mockSendEventInvites).toHaveBeenCalledWith(42, ['friend-1']);
-    expect(mockReplace).toHaveBeenCalledWith(expect.stringMatching(/^\/\(tabs\)\/events\?tab=upcoming&refreshEvents=\d+$/));
+    expect(mockReplace).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/(tabs)/events', params: expect.objectContaining({ tab: 'upcoming', refreshEvents: expect.stringMatching(/^\d+$/) }) }));
   });
 
   it('skips invites and navigates back when skip is pressed', async () => {
@@ -473,9 +481,9 @@ describe('CreateEventRoute – friend invites', () => {
     await act(async () => { jest.runAllTimers(); });
     await waitFor(() => { expect(screen.getByText('Andrei P.')).toBeTruthy(); });
 
-    fireEvent.press(screen.getByText(/skip/i));
+    fireEvent.press(screen.getByText(/Sari peste/i));
     expect(mockSendEventInvites).not.toHaveBeenCalled();
-    expect(mockReplace).toHaveBeenCalledWith(expect.stringMatching(/^\/\(tabs\)\/events\?tab=upcoming&refreshEvents=\d+$/));
+    expect(mockReplace).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/(tabs)/events', params: expect.objectContaining({ tab: 'upcoming', refreshEvents: expect.stringMatching(/^\d+$/) }) }));
   });
 });
 
@@ -493,8 +501,8 @@ describe('CreateEventRoute – visibility', () => {
   it('passes visibility=friends to createEvent when friends-only is selected', async () => {
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    openSection('eventVisibility');
-    fireEvent.press(screen.getByText('eventVisibilityFriends'));
+    openSection("Vizibilitate");
+    fireEvent.press(screen.getByText("Doar prieteni"));
     await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     expect(mockCreateEvent).toHaveBeenCalledWith(
       expect.objectContaining({ visibility: 'friends' }),
@@ -504,30 +512,30 @@ describe('CreateEventRoute – visibility', () => {
   it('blocks Create when private is selected with no invitees', async () => {
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    openSection('eventVisibility');
-    fireEvent.press(screen.getByText('eventVisibilityPrivate'));
+    openSection("Vizibilitate");
+    fireEvent.press(screen.getByText("Privat"));
     await act(async () => { fireEvent.press(screen.getByText('Creează')); });
     expect(mockCreateEvent).not.toHaveBeenCalled();
     // The warning copy is rendered (via i18n key, since the test mock
     // returns the key itself).
-    expect(screen.getByText('eventPrivateNeedsInvite')).toBeTruthy();
+    expect(screen.getByText("Adaug\u0103 cel pu\u021bin un prieten pentru a crea evenimentul privat.")).toBeTruthy();
   });
 
   it('private flow: pre-submit picker grants access and post-create modal is skipped', async () => {
     render(<CreateEventRoute />);
     fireEvent.changeText(screen.getByPlaceholderText('Titlu eveniment *'), 'Test');
-    openSection('eventVisibility');
-    fireEvent.press(screen.getByText('eventVisibilityPrivate'));
+    openSection("Vizibilitate");
+    fireEvent.press(screen.getByText("Privat"));
 
     // Open the pre-submit invitee picker (state: 0 invitees, label =
-    // i18n key 'eventInvitedFriendsZero').
-    fireEvent.press(screen.getByText('eventInvitedFriendsZero'));
+    // i18n key "Alege prietenii pe care \u00eei invi\u021bi").
+    fireEvent.press(screen.getByText("Alege prietenii pe care \u00eei invi\u021bi"));
     await act(async () => { jest.runAllTimers(); });
     await waitFor(() => { expect(screen.getByText('Andrei P.')).toBeTruthy(); });
 
     // Select a friend and confirm.
     fireEvent.press(screen.getByText('Andrei P.'));
-    const confirmButtons = screen.getAllByText(/inviteToEvent/);
+    const confirmButtons = screen.getAllByText(/Invită la eveniment/);
     fireEvent.press(confirmButtons[confirmButtons.length - 1]);
     await act(async () => {});
 
@@ -539,6 +547,6 @@ describe('CreateEventRoute – visibility', () => {
       expect.objectContaining({ visibility: 'private' }),
     );
     expect(mockSendEventInvites).toHaveBeenCalledWith(42, ['friend-1']);
-    expect(mockReplace).toHaveBeenCalledWith(expect.stringMatching(/^\/\(tabs\)\/events\?tab=upcoming&refreshEvents=\d+$/));
+    expect(mockReplace).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/(tabs)/events', params: expect.objectContaining({ tab: 'upcoming', refreshEvents: expect.stringMatching(/^\d+$/) }) }));
   });
 });

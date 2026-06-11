@@ -44,7 +44,7 @@ jest.mock('../../hooks/useTheme', () => ({
 }));
 
  
-import SignInScreen from '../sign-in';
+import { SignInScreen } from '../SignInScreen';
 
 describe('SignInScreen — Apple Sign-In (T024)', () => {
   const user = userEvent.setup();

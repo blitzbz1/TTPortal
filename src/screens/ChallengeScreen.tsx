@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Easing, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Easing, RefreshControl, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
+import { showAlert } from '../lib/dialogs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { NotificationBellButton } from '../components/NotificationBellButton';
 import { FeedbackHeaderButton } from '../components/FeedbackHeaderButton';
 import { BadgeTrackIcon } from '../components/BadgeTrackIcon';
@@ -22,7 +23,7 @@ import {
   getBadgeLevel,
   getCurrentAwardTier,
   getBadgeTierPalette,
-} from '../lib/badgeChallenges';
+} from '../features/challenges/badgeDefinitions';
 import {
   completeSelfChallenge,
   getVisibleChallengeChoices,
@@ -35,7 +36,7 @@ import {
   type DbChallenge,
 } from '../features/challenges';
 import { getMonthlyMasterySummary, getTrackProgressSummaries } from '../features/challenges/progression';
-import type { BadgeTrack } from '../lib/badgeChallenges';
+import type { BadgeTrack } from '../features/challenges/badgeDefinitions';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
 
 type TopTab = 'challenges' | 'badges';
@@ -111,7 +112,7 @@ const CooldownTimer = React.memo(function CooldownTimer({
 export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
-  const { s, lang } = useI18n();
+  const { s, sn, lang } = useI18n();
   const { user } = useSession();
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
@@ -190,6 +191,27 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     isLoading,
     refresh: refreshChoices,
   } = useChallengeChoices(activeCategory, { visibleCount: 20 });
+  // Pull-to-refresh + refetch-on-focus (T068): the postmortem removed
+  // realtime in favor of fetch-on-focus, but this screen had neither.
+  const [refreshing, setRefreshing] = useState(false);
+  const focusedOnceRef = useRef(false);
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([refreshProgress(), refreshChoices()]);
+    setRefreshing(false);
+  }, [refreshProgress, refreshChoices]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!focusedOnceRef.current) {
+        focusedOnceRef.current = true;
+        return;
+      }
+      void refreshProgress();
+      void refreshChoices();
+    }, [refreshProgress, refreshChoices]),
+  );
+
   const trackSummaries = useMemo(
     () => getTrackProgressSummaries(progressRows, badgeAwards),
     [badgeAwards, progressRows],
@@ -326,7 +348,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     try {
       const { error } = await completeSelfChallenge(completedId);
       if (error) {
-        Alert.alert(s('error'), error.message);
+        showAlert(s('error'), error.message);
         return;
       }
 
@@ -371,7 +393,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
       challengeId: selectedChallenge.id,
       category: activeBadge.category,
     });
-    router.push('/(tabs)/events' as any);
+    router.push('/(tabs)/events');
   };
 
   const handleKeepSelected = () => {
@@ -382,7 +404,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const handleCreateEventWithChallenge = () => {
     if (!selectedChallenge) return;
     setCurrentSelectedChallenge(selectedChallenge);
-    router.push(`/(protected)/create-event?challengeId=${selectedChallenge.id}` as any);
+    router.push({ pathname: '/(protected)/create-event', params: { challengeId: selectedChallenge.id } });
   };
 
   const renderTrackPicker = () => (
@@ -482,7 +504,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
       <Text style={styles.progressHint}>
         {getBadgeLevel(completedCount) === 'Gold'
           ? s('challengeGoldEarned')
-          : s('challengeMoreToEarn', String(currentTarget - currentProgress), tierLabel(currentAwardTier))}
+          : sn('challengeMoreToEarn', currentTarget - currentProgress, tierLabel(currentAwardTier))}
       </Text>
     </View>
   );
@@ -587,7 +609,12 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   );
 
   const renderChallengesTab = () => (
-    <ScrollView ref={challengesScrollRef} style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      ref={challengesScrollRef}
+      style={styles.scroll}
+      contentContainerStyle={styles.scrollContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
+    >
       <View style={[styles.sectionHeader, styles.centeredHeader]}>
         <Text style={styles.sectionTitle}>{s('challengeChooseTrack')}</Text>
       </View>
@@ -767,6 +794,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
       styles={styles}
       colors={colors}
       s={s}
+      sn={sn}
       lang={lang}
       tierLabel={tierLabel}
       trackName={trackName}

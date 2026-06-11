@@ -11,7 +11,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams , type Href } from 'expo-router';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { useTheme } from '../hooks/useTheme';
@@ -22,8 +22,9 @@ import { logger } from '../lib/logger';
 import { isValidEmail, isStrongPassword, mapAuthErrorToKey, sanitizeRoute } from '../lib/auth-utils';
 import { SOCIAL_AUTH_ENABLED } from '../lib/featureFlags';
 import { getPolicyUrl } from '../lib/policyUrls';
+import { ProductEvents, trackProductEvent } from '../lib/analytics';
 
-export default function SignInScreen() {
+export function SignInScreen() {
   const { returnTo, initialTab } = useLocalSearchParams<{
     returnTo?: string;
     initialTab?: 'signup' | 'login';
@@ -93,6 +94,7 @@ export default function SignInScreen() {
         return;
       }
       logger.info(isLogin ? 'login success' : 'signup success');
+      if (!isLogin) trackProductEvent(ProductEvents.signupCompleted, { method: 'email' });
       if (!isLogin) {
         if (authResult.requiresEmailVerification) {
           setSuccessMessage(s('authVerifyEmailNotice'));
@@ -101,9 +103,12 @@ export default function SignInScreen() {
           setActiveTab('login');
           return;
         }
-        router.replace('/onboarding' as any);
+        // Thread returnTo through onboarding (T062): the highest-intent
+        // funnel moment (anonymous user tried to check in, registered on
+        // the spot) should land back on the venue, not the map.
+        router.replace({ pathname: '/onboarding', params: returnTo ? { returnTo } : {} });
       } else {
-        router.replace(sanitizeRoute(returnTo) as any);
+        router.replace(sanitizeRoute(returnTo) as Href);
       }
     } catch (err) {
       logger.error(activeTab === 'login' ? 'login exception' : 'signup exception', err);
@@ -152,7 +157,7 @@ export default function SignInScreen() {
       }
       logger.info('Google sign-in success');
       if (!isRedirecting) {
-        router.replace(sanitizeRoute(returnTo) as any);
+        router.replace(sanitizeRoute(returnTo) as Href);
       }
     } catch (err) {
       logger.error('Google sign-in exception', err);
@@ -176,7 +181,7 @@ export default function SignInScreen() {
       }
       logger.info('Apple sign-in success');
       if (!isRedirecting) {
-        router.replace(sanitizeRoute(returnTo) as any);
+        router.replace(sanitizeRoute(returnTo) as Href);
       }
     } catch (err) {
       logger.error('Apple sign-in exception', err);
@@ -193,7 +198,7 @@ export default function SignInScreen() {
     >
       <View style={[styles.content, { paddingTop: insets.top + 12 }]} testID="sign-in-screen">
         {/* Back button */}
-        <Pressable style={styles.backBtn} onPress={() => router.replace('/(tabs)/' as any)}>
+        <Pressable style={styles.backBtn} onPress={() => router.replace('/(tabs)')}>
           <Lucide name="arrow-left" size={22} color={isDark ? colors.text : colors.textOnPrimary} />
         </Pressable>
 

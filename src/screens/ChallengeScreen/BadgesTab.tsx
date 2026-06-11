@@ -9,7 +9,7 @@ import {
   getBadgeTierPalette,
   type BadgeTier,
   type BadgeTrack,
-} from '../../lib/badgeChallenges';
+} from '../../features/challenges/badgeDefinitions';
 import type { createStyles } from '../ChallengeScreen.styles';
 import { EarnedBadgeCard } from './EarnedBadgeCard';
 
@@ -22,6 +22,7 @@ interface Props {
   styles: ReturnType<typeof createStyles>;
   colors: ThemeColors;
   s: (key: string, ...args: string[]) => string;
+  sn: (key: string, count: number, ...args: string[]) => string;
   lang: string;
   tierLabel: (tier: BadgeTier) => string;
   trackName: (badge?: BadgeTrack) => string;
@@ -39,6 +40,7 @@ export function BadgesTab({
   styles,
   colors,
   s,
+  sn,
   lang,
   tierLabel,
   trackName,
@@ -150,6 +152,7 @@ export function BadgesTab({
               tierLabel={tierLabel}
               trackName={trackName}
               s={s}
+              sn={sn}
               lang={lang}
             />
           ))}

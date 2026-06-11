@@ -37,7 +37,7 @@ jest.mock('../../hooks/useTheme', () => ({
   }),
 }));
 
-import SignInScreen from '../sign-in';
+import { SignInScreen } from '../SignInScreen';
 
 describe('SignInScreen — social auth feature flag', () => {
   beforeEach(() => {

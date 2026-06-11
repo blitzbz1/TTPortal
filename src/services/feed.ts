@@ -24,14 +24,11 @@ interface FeedRpcRow {
   ts: string;
 }
 
-export async function getFriendFeed(friendIds: string[], limit = 30): Promise<{ data: FeedItem[]; error: any }> {
-  if (!friendIds.length) return { data: [], error: null };
-
-  // Single RPC (migration 052) returns the merged-and-sorted top-N feed.
-  // Replaces the previous two-query JS merge that hauled back up to 2×n
-  // rows just to drop half of them.
+export async function getFriendFeed(limit = 30): Promise<{ data: FeedItem[]; error: any }> {
+  // Single RPC (migrations 052/083) returns the merged-and-sorted top-N feed.
+  // The server derives the caller's accepted friendships from auth.uid() —
+  // clients no longer pass friend IDs.
   const { data, error } = await supabase.rpc('get_friend_feed', {
-    p_friend_ids: friendIds,
     p_limit: limit,
   });
   if (error || !data) return { data: [], error };

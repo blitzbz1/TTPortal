@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { usePathname, useRouter } from 'expo-router';
+import { usePathname, useRouter , type Href } from 'expo-router';
 import { recoverRouteFromUnmatchedPath } from '../lib/routeRecovery';
 
 export default function NotFoundRoute() {
@@ -7,7 +7,7 @@ export default function NotFoundRoute() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace(recoverRouteFromUnmatchedPath(pathname) as any);
+    router.replace(recoverRouteFromUnmatchedPath(pathname) as Href);
   }, [pathname, router]);
 
   return null;

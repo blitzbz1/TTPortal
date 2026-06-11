@@ -321,7 +321,7 @@ describe('EventSchedulingScreen — deep link via eventId param', () => {
     render(<EventSchedulingScreen />);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/(protected)/event/42');
+      expect(mockReplace).toHaveBeenCalledWith({ pathname: '/(protected)/event/[eventId]', params: { eventId: '42' } });
     });
   });
 
@@ -361,7 +361,7 @@ describe('EventSchedulingScreen — card tap navigation', () => {
     const card = await findByText(/Arena X .* Past Tournament/);
     fireEvent.press(card);
 
-    expect(mockPush).toHaveBeenCalledWith('/(protected)/event/1');
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/(protected)/event/[eventId]', params: { eventId: '1' } });
   });
 });
 
@@ -387,7 +387,8 @@ describe('EventSchedulingScreen — create-event refresh params', () => {
     const { findByText } = render(<EventSchedulingScreen />);
 
     await waitFor(() => {
-      expect(mockGetEvents).toHaveBeenCalledWith('upcoming', undefined, { limit: 50, offset: 0, city: 'Bucure\u0219ti' });
+      // userId is passed for every tab since T043 (my_participation alias).
+      expect(mockGetEvents).toHaveBeenCalledWith('upcoming', 'u-1', { limit: 50, offset: 0, city: 'Bucure\u0219ti' });
     });
 
     fireEvent.press(await findByText(/past|trecute/i));

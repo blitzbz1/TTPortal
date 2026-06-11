@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Lucide } from './Icon';
 import { useNotifications } from '../hooks/useNotifications';
+import { useI18n } from '../hooks/useI18n';
 import { useTheme } from '../hooks/useTheme';
 import { Fonts, FontWeight, Spacing } from '../theme';
 import { NotificationInboxModal, type NotificationInboxModalRef } from './NotificationInboxModal';
@@ -47,6 +48,7 @@ interface NotificationBellButtonProps {
 export function NotificationBellButton({ color }: NotificationBellButtonProps) {
   const { unreadCount } = useNotifications();
   const { colors } = useTheme();
+  const { s } = useI18n();
   const pulseStyle = usePulseAnimation(unreadCount > 0);
   const modalRef = useRef<NotificationInboxModalRef>(null);
 
@@ -60,6 +62,13 @@ export function NotificationBellButton({ color }: NotificationBellButtonProps) {
         style={styles.bellBtn}
         onPress={handlePress}
         hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+        accessibilityRole="button"
+        // T065: announce the unread count — the visual badge says nothing to AT.
+        accessibilityLabel={
+          unreadCount > 0
+            ? `${s('notifications')}, ${unreadCount > 9 ? '9+' : unreadCount}`
+            : s('notifications')
+        }
       >
         <Lucide name="bell" size={18} color={color} />
         {unreadCount > 0 && (

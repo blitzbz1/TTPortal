@@ -1,19 +1,18 @@
 import React, {
   createContext,
   useCallback,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import * as Localization from 'expo-localization';
 import { getStringSync, setString } from '../lib/mmkv';
-import roStrings from '../locales/ro.json';
+// Only the English fallback is parsed at startup (T045). The other seven
+// locales (~590KB of JSON) load lazily: inline require() on native (Hermes
+// defers the parse until first require) and dynamic import() on web (each
+// locale becomes its own split chunk).
 import enStrings from '../locales/en.json';
-import deStrings from '../locales/de.json';
-import itStrings from '../locales/it.json';
-import frStrings from '../locales/fr.json';
-import esStrings from '../locales/es.json';
-import plStrings from '../locales/pl.json';
-import csStrings from '../locales/cs.json';
 
 /** Supported language codes. */
 export type Lang = 'ro' | 'en' | 'de' | 'it' | 'fr' | 'es' | 'pl' | 'cs';
@@ -71,25 +70,73 @@ export interface I18nContextValue {
   setLang: (lang: Lang) => void;
   /** Resolve a localized string by key with optional interpolation args. Falls back to English, then to the key itself. */
   s: (key: string, ...args: string[]) => string;
+  /**
+   * Plural-aware resolver (T063): picks `key_one`/`key_few`/`key_many`/…
+   * via Intl.PluralRules for the active language, falling back to the bare
+   * key (the "other" form). `{0}` is the count; further args fill `{1}`+.
+   */
+  sn: (key: string, count: number, ...args: string[]) => string;
 }
 
 /** @internal Exported for useI18n hook consumption. */
 export const I18nContext = createContext<I18nContextValue | null>(null);
 
 const STORAGE_KEY = 'ttportal-lang';
-const DEFAULT_LANG: Lang = 'ro';
+// T067: unsupported device locales used to land on a fully Romanian first
+// launch. English is the fallback now; Romanian only when the DEVICE REGION
+// is Romania (a Hungarian-language phone in RO still gets ro, a Hungarian
+// phone in HU gets en).
+const DEFAULT_LANG: Lang = 'en';
 const VALID_LANGS: ReadonlySet<string> = new Set(SUPPORTED_LANGS);
 
-const locales: Record<Lang, Record<string, string>> = {
-  ro: roStrings,
-  en: enStrings,
-  de: deStrings,
-  it: itStrings,
-  fr: frStrings,
-  es: esStrings,
-  pl: plStrings,
-  cs: csStrings,
-};
+type Strings = Record<string, string>;
+
+/** Locales parsed so far; en is always present as the fallback. */
+const loadedLocales: Partial<Record<Lang, Strings>> = { en: enStrings };
+
+/**
+ * Native path: synchronous require keyed by language. The active language
+ * is known synchronously from MMKV, so the selected locale is parsed before
+ * the first paint — no fallback flash. The switch keeps every locale
+ * statically analyzable for Metro.
+ */
+function loadLocaleSync(lang: Lang): Strings {
+  const cached = loadedLocales[lang];
+  if (cached) return cached;
+  let strings: Strings;
+  switch (lang) {
+    case 'ro': strings = require('../locales/ro.json'); break;
+    case 'de': strings = require('../locales/de.json'); break;
+    case 'it': strings = require('../locales/it.json'); break;
+    case 'fr': strings = require('../locales/fr.json'); break;
+    case 'es': strings = require('../locales/es.json'); break;
+    case 'pl': strings = require('../locales/pl.json'); break;
+    case 'cs': strings = require('../locales/cs.json'); break;
+    default: strings = enStrings;
+  }
+  loadedLocales[lang] = strings;
+  return strings;
+}
+
+/** Web path: dynamic import so each locale is a split chunk. */
+async function loadLocaleAsync(lang: Lang): Promise<Strings> {
+  const cached = loadedLocales[lang];
+  if (cached) return cached;
+  let mod: { default: Strings } | Strings;
+  switch (lang) {
+    case 'ro': mod = await import('../locales/ro.json'); break;
+    case 'de': mod = await import('../locales/de.json'); break;
+    case 'it': mod = await import('../locales/it.json'); break;
+    case 'fr': mod = await import('../locales/fr.json'); break;
+    case 'es': mod = await import('../locales/es.json'); break;
+    case 'pl': mod = await import('../locales/pl.json'); break;
+    case 'cs': mod = await import('../locales/cs.json'); break;
+    default: mod = enStrings;
+  }
+  const strings = ((mod as { default?: Strings }).default ?? mod) as Strings;
+  loadedLocales[lang] = strings;
+  return strings;
+}
 
 /**
  * Pick the first supported language from the device's preferred locales.
@@ -102,6 +149,9 @@ function detectDeviceLang(): Lang | null {
       const code = entry?.languageCode?.toLowerCase();
       if (code && VALID_LANGS.has(code)) return code as Lang;
     }
+    // No supported language — devices physically in Romania still default
+    // to Romanian rather than English (T067).
+    if (locales[0]?.regionCode?.toUpperCase() === 'RO') return 'ro';
   } catch {
     // expo-localization unavailable — caller falls through to DEFAULT_LANG
   }
@@ -148,6 +198,29 @@ export function I18nProvider({ children, initialLang }: I18nProviderProps) {
   const [lang, setLangState] = useState<Lang>(
     () => initialLang ?? loadLangSync(),
   );
+  // Native parses the active locale synchronously (no flash); web starts on
+  // the en fallback and swaps in the split chunk when it arrives.
+  const [strings, setStrings] = useState<Strings>(() =>
+    Platform.OS === 'web' ? loadedLocales[lang] ?? enStrings : loadLocaleSync(lang),
+  );
+
+  useEffect(() => {
+    const cached = loadedLocales[lang];
+    if (cached) {
+      setStrings(cached);
+      return;
+    }
+    if (Platform.OS === 'web') {
+      let cancelled = false;
+      void loadLocaleAsync(lang).then((next) => {
+        if (!cancelled) setStrings(next);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    setStrings(loadLocaleSync(lang));
+  }, [lang]);
 
   const setLang = useCallback((newLang: Lang) => {
     setLangState(newLang);
@@ -156,16 +229,41 @@ export function I18nProvider({ children, initialLang }: I18nProviderProps) {
 
   const s = useCallback(
     (key: string, ...args: string[]): string => {
-      let result = locales[lang][key] ?? locales.en[key] ?? key;
+      let result = strings[key] ?? enStrings[key as keyof typeof enStrings] ?? key;
       for (let i = 0; i < args.length; i++) {
         result = result.replace(`{${i}}`, args[i]);
       }
       return result;
     },
-    [lang]
+    [strings]
   );
 
-  const value = useMemo(() => ({ lang, setLang, s }), [lang, setLang, s]);
+  const sn = useCallback(
+    (key: string, count: number, ...args: string[]): string => {
+      let category = 'other';
+      try {
+        category = new Intl.PluralRules(getDateLocale(lang)).select(count);
+      } catch {
+        category = count === 1 ? 'one' : 'other';
+      }
+      const variant = `${key}_${category}`;
+      const lookup =
+        strings[variant] ??
+        enStrings[variant as keyof typeof enStrings] ??
+        strings[key] ??
+        enStrings[key as keyof typeof enStrings] ??
+        key;
+      let result: string = lookup;
+      const all = [String(count), ...args];
+      for (let i = 0; i < all.length; i++) {
+        result = result.replace(`{${i}}`, all[i]);
+      }
+      return result;
+    },
+    [strings, lang]
+  );
+
+  const value = useMemo(() => ({ lang, setLang, s, sn }), [lang, setLang, s, sn]);
 
   return (
     <I18nContext.Provider value={value}>{children}</I18nContext.Provider>

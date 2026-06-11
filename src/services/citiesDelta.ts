@@ -10,6 +10,6 @@ export interface CitiesDeltaResponse {
 export async function getCitiesDelta(
   since: string | null,
 ): Promise<{ data: CitiesDeltaResponse | null; error: any }> {
-  const { data, error } = await supabase.rpc('get_cities_delta', { p_since: since });
+  const { data, error } = await supabase.rpc('get_cities_delta', { p_since: since ?? undefined });
   return { data: (data as CitiesDeltaResponse | null) ?? null, error };
 }

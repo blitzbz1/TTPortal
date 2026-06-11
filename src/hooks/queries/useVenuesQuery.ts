@@ -26,6 +26,12 @@ export const venuesQueryKey = (city?: string | null, type?: VenueType | null) =>
  * If the network call fails we fall back to whatever the cache already
  * holds — the screen never blocks on a flaky connection.
  */
+interface VenuesQueryData {
+  venues: PersistedVenue[];
+  /** True when the last sync FAILED and this list was served from MMKV. */
+  fromCache: boolean;
+}
+
 export function useVenuesQuery(
   city?: string | null,
   type?: VenueType | null,
@@ -34,7 +40,7 @@ export function useVenuesQuery(
 ) {
   const stableCityId = cityId != null && cityId > 0 ? cityId : null;
 
-  return useQuery<PersistedVenue[]>({
+  const query = useQuery<VenuesQueryData>({
     queryKey: ['venues', stableCityId ?? city ?? 'all', type ?? 'all'] as const,
     queryFn: async () => {
       const scope = stableCityId != null ? `id:${stableCityId}` : city;
@@ -43,7 +49,8 @@ export function useVenuesQuery(
       const { data, error } = await getVenuesDelta(since, city, type, stableCityId);
 
       if (error || !data) {
-        if (cached) return cached.venues;
+        // The screen's staleness banner keys off this flag (T035).
+        if (cached) return { venues: cached.venues, fromCache: true };
         throw error ?? new Error('venues delta failed and no cache available');
       }
 
@@ -54,13 +61,24 @@ export function useVenuesQuery(
         data.tombstone_ids ?? [],
         data.synced_at,
       );
-      return next.venues;
+      return { venues: next.venues, fromCache: false };
     },
-    initialData: () => readVenueScope(stableCityId != null ? `id:${stableCityId}` : city, type)?.venues,
+    initialData: () => {
+      // Cache-first hydration is the normal fast path (a background delta
+      // refresh follows) — it does NOT count as the failed-sync banner case.
+      const cached = readVenueScope(stableCityId != null ? `id:${stableCityId}` : city, type);
+      return cached ? { venues: cached.venues, fromCache: false } : undefined;
+    },
     enabled,
     staleTime: 30 * 1000,
     gcTime: 60 * 60 * 1000,
   });
+
+  return {
+    ...query,
+    data: query.data?.venues,
+    fromCache: query.data?.fromCache ?? false,
+  };
 }
 
 export function useInvalidateVenues() {

@@ -111,7 +111,7 @@ describe('FriendsScreen — tap navigates to player profile', () => {
     fireEvent.press(friendName);
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/(protected)/player/friend-9');
+      expect(mockPush).toHaveBeenCalledWith({ pathname: '/(protected)/player/[userId]', params: { userId: 'friend-9' } });
     });
   });
 
@@ -135,7 +135,7 @@ describe('FriendsScreen — tap navigates to player profile', () => {
     fireEvent.press(playingName);
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/(protected)/player/friend-9');
+      expect(mockPush).toHaveBeenCalledWith({ pathname: '/(protected)/player/[userId]', params: { userId: 'friend-9' } });
     });
   });
 });

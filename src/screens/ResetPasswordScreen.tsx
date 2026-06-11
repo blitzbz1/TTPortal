@@ -123,7 +123,7 @@ function resetPasswordUpdateErrorKey(error: { code?: string; message?: string; s
  * clicking the reset link from their email. Handles expired and
  * already-used tokens with appropriate error messages.
  */
-export default function ResetPasswordScreen() {
+export function ResetPasswordScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams() as Record<string, string | string[] | undefined>;

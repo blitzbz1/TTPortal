@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { showAlert, showConfirm } from '../lib/dialogs';
 import {
   View,
   Text,
@@ -7,8 +8,6 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
-  Alert,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -41,33 +40,26 @@ export function DeleteAccountScreen() {
     if (error) {
       logger.warn('request_account_deletion failed', { code: error.code, message: error.message });
       setSubmitting(false);
-      const message = s('deleteAccountError');
-      if (Platform.OS === 'web') window.alert(message);
-      else Alert.alert(s('error'), message);
+      showAlert(s('error'), s('deleteAccountError'));
       return;
     }
     logger.info('account deletion requested', { hard_delete_at: data });
     await signOut();
-    router.replace('/sign-in' as any);
+    router.replace('/sign-in');
   }, [router, s, signOut]);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     if (!isReady || submitting) return;
 
-    const title = s('deleteAccountConfirmTitle');
-    const message = s('deleteAccountConfirmBody');
-
-    if (Platform.OS === 'web') {
-      if (window.confirm(`${title}\n\n${message}`)) {
-        void performDelete();
-      }
-      return;
+    if (
+      await showConfirm(s('deleteAccountConfirmTitle'), s('deleteAccountConfirmBody'), {
+        confirmLabel: s('deleteAccountButton'),
+        cancelLabel: s('cancel'),
+        destructive: true,
+      })
+    ) {
+      void performDelete();
     }
-
-    Alert.alert(title, message, [
-      { text: s('cancel'), style: 'cancel' },
-      { text: s('deleteAccountButton'), style: 'destructive', onPress: () => void performDelete() },
-    ]);
   }, [isReady, submitting, s, performDelete]);
 
   const bullets: { icon: Parameters<typeof Lucide>[0]['name']; key: string }[] = [

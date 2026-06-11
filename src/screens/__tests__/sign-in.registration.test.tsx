@@ -40,7 +40,7 @@ jest.mock('../../hooks/useTheme', () => ({
 }));
 
  
-import SignInScreen from '../sign-in';
+import { SignInScreen } from '../SignInScreen';
 
 describe('SignInScreen — registration form validation (T012)', () => {
   const user = userEvent.setup();

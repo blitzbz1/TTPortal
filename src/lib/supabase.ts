@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import { Platform } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../types/supabase';
 import { mmkvAsyncStorage } from './mmkv';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
@@ -40,7 +41,7 @@ const storage = createStorage();
  * Supabase client configured with platform-appropriate session storage.
  * Reads URL and anon key from EXPO_PUBLIC_ environment variables.
  */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage,
     autoRefreshToken: true,

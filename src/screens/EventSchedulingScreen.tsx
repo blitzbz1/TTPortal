@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ActivityIndicator, View, Text, TouchableOpacity, ScrollView, Alert, RefreshControl, Linking } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { ActivityIndicator, View, Text, TouchableOpacity, RefreshControl, Linking } from 'react-native';
+import { showAlert } from '../lib/dialogs';
+import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Spacing } from '../theme';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { NotificationBellButton } from '../components/NotificationBellButton';
@@ -33,7 +35,7 @@ import { hapticMedium } from '../lib/haptics';
 import { getAmaturEvents, type AmaturEvent } from '../services/amatur';
 import { LogHoursModal } from '../components/LogHoursModal';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
-import { BADGE_TRACKS } from '../lib/badgeChallenges';
+import { BADGE_TRACKS } from '../features/challenges/badgeDefinitions';
 import { getCityDisplayName } from '../lib/locationHelpers';
 import {
   requiresOtherPlayer,
@@ -68,6 +70,10 @@ type EventListItem = {
     hours_played?: number | null;
     profiles?: { full_name?: string | null } | null;
   }[];
+  /** Count aggregate (T043) — the embed above is capped at 6 rows. */
+  participants_count?: { count: number }[];
+  /** The caller's own participant row, via a filtered embed alias (T043). */
+  my_participation?: { user_id: string; hours_played?: number | null }[];
 };
 
 interface EventSchedulingScreenProps {
@@ -80,6 +86,8 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const [events, setEvents] = useState<EventListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [eventsError, setEventsError] = useState(false);
+  // A refetch failed but cached events are on screen — banner, not error page.
+  const [showingCached, setShowingCached] = useState(false);
   const [feedbackEventId, setFeedbackEventId] = useState<number | null>(null);
   const [feedbackGivenIds, setFeedbackGivenIds] = useState<Set<number>>(new Set());
   const [logHoursEvent, setLogHoursEvent] = useState<{ id: number; title: string; initialHours: number } | null>(null);
@@ -131,9 +139,11 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     // from instant render. We only show the spinner if there's no cached data
     // to display. "upcoming" still hits the network on entry but takes the
     // cache fast-path if it's fresh (60s TTL) to handle quick tab toggles.
+    let servedFromCache = false;
     if (!force && userId && (tab === 'mine' || tab === 'past' || tab === 'upcoming')) {
       const cached = loadCachedEvents<EventListItem>(userId, tab, selectedCityName);
       if (cached) {
+        servedFromCache = true;
         setEvents(cached.data);
         setEventsError(false);
         if (tab === 'past') {
@@ -159,15 +169,22 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       // Past tab paginates: fetch the first 20, then lazy-load on scroll.
       // Other tabs keep the existing 50-cap behavior.
       const limit = tab === 'past' ? PAST_EVENTS_PAGE_SIZE : 50;
+      // userId is passed for every tab since T043: the participants embed is
+      // capped at 6, so the caller's joined-state comes from the filtered
+      // my_participation alias instead of scanning the full embed.
       const { data, error } = await getEvents(
         tab,
-        (tab === 'mine' || tab === 'past') ? userId : undefined,
+        userId,
         { limit, offset: 0, city: selectedCityName },
       );
       if (fetchSeq !== eventFetchSeqRef.current) return;
       if (error) {
-        setEventsError(true);
+        // Don't replace a visible cached list with a full-screen error —
+        // keep the data and flag it as cached instead (T035).
+        if (servedFromCache) setShowingCached(true);
+        else setEventsError(true);
       } else {
+        setShowingCached(false);
         const list = (data ?? []) as unknown as EventListItem[];
         setEvents(list);
         if (tab === 'past') setPastHasMore(list.length === PAST_EVENTS_PAGE_SIZE);
@@ -184,7 +201,8 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       }
     } catch {
       if (fetchSeq !== eventFetchSeqRef.current) return;
-      setEventsError(true);
+      if (servedFromCache) setShowingCached(true);
+      else setEventsError(true);
     } finally {
       if (fetchSeq === eventFetchSeqRef.current) setLoading(false);
     }
@@ -235,7 +253,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     setAmaturLoading(true);
     const { data, error } = await getAmaturEvents();
     if (error && data.length === 0) {
-      Alert.alert(s('error'), s('ampiLoadError'));
+      showAlert(s('error'), s('ampiLoadError'));
     }
     setAmaturEvents(data);
     setAmaturLoading(false);
@@ -266,7 +284,9 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       if (activeTab === 'amatur') {
         fetchAmatur();
       } else {
-        fetchEvents(true);
+        // force=false (T043): quick Map↔Events toggles take the 60s
+        // cache fast-path instead of refetching on every focus.
+        fetchEvents(false);
       }
     }, [activeTab, fetchAmatur, fetchEvents]),
   );
@@ -297,7 +317,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   }, [activeTab]);
 
   const openDetail = useCallback((event: EventListItem) => {
-    router.push(`/(protected)/event/${event.id}` as any);
+    router.push({ pathname: '/(protected)/event/[eventId]', params: { eventId: String(event.id) } });
   }, [router]);
 
   // Legacy deep-link compatibility: notifications still navigate to
@@ -307,7 +327,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   useEffect(() => {
     if (!eventIdParam || handledEventIdRef.current === eventIdParam) return;
     handledEventIdRef.current = eventIdParam;
-    router.replace(`/(protected)/event/${eventIdParam}` as any);
+    router.replace({ pathname: '/(protected)/event/[eventId]', params: { eventId: String(eventIdParam) } });
   }, [eventIdParam, router]);
 
   const challengeTitle = useCallback((challenge: {
@@ -325,22 +345,22 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       return;
     }
     if (event.status === 'closed') {
-      Alert.alert(s('closed'), s('eventClosedJoinError'));
+      showAlert(s('closed'), s('eventClosedJoinError'));
       return;
     }
-    const isJoined = event.event_participants?.some(
-      (p: any) => p.user_id === user.id,
-    );
+    const isJoined =
+      (event.my_participation?.length ?? 0) > 0 ||
+      event.event_participants?.some((p: any) => p.user_id === user.id);
     if (isJoined) {
       const { error } = await leaveEvent(event.id, user.id);
       if (error) {
-        Alert.alert(s('error'), s('leaveError'));
+        showAlert(s('error'), s('leaveError'));
         return;
       }
     } else {
       const { error } = await joinEvent(event.id, user.id);
       if (error) {
-        Alert.alert(s('error'), s('joinError'));
+        showAlert(s('error'), s('joinError'));
         return;
       }
     }
@@ -444,19 +464,14 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         </View>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        keyboardDismissMode="on-drag"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
-        scrollEventThrottle={200}
-        onScroll={(e) => {
-          if (activeTab !== 'past' || !pastHasMore || pastLoadingMore) return;
-          const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-          const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
-          if (distanceFromBottom < 400) loadMorePastEvents();
-        }}
-      >
-        <View style={styles.tabs}>
+      {(() => {
+        const refreshControl = (
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />
+        );
+
+        const listHeader = (
+          <>
+      <View style={styles.tabs}>
           {[
             { key: 'upcoming' as EventTab, label: `${s('upcoming')} (${activeTab === 'upcoming' ? events.length : ''})`.replace('()', '').trim() },
             { key: 'past' as EventTab, label: s('past') },
@@ -503,41 +518,77 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
           </View>
         )}
 
-        {/* Event Cards — regular tabs */}
-        {activeTab !== 'amatur' && (
-          loading ? (
+        {showingCached && activeTab !== 'amatur' && (
+          <View
+            testID="events-cached-banner"
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+              gap: 6, paddingVertical: 6,
+            }}
+          >
+            <Lucide name="wifi-off" size={12} color={colors.textFaint} />
+            <Text style={{ fontSize: 12, color: colors.textFaint }}>{s('offlineData')}</Text>
+          </View>
+        )}
+          </>
+        );
+
+        const isAmatur = activeTab === 'amatur';
+        const listData: any[] = isAmatur
+          ? (amaturLoading ? [] : amaturEvents)
+          : (loading || eventsError ? [] : events);
+
+        const listEmpty = isAmatur ? (
+          amaturLoading ? (
             <View style={{ padding: 16, gap: 12 }}>
               <SkeletonList count={3}><EventCardSkeleton /></SkeletonList>
             </View>
-          ) : eventsError ? (
-            <ErrorState
-              title={s('eventsLoadError')}
-              description={s('eventsLoadErrorDesc')}
-              ctaLabel={s('retry')}
-              onRetry={fetchEvents}
-            />
-          ) : events.length === 0 ? (
-            <EmptyState
-              icon="calendar"
-              title={s('emptyEventsCityTitle', selectedCityName)}
-              description={s('emptyEventsCityDesc', selectedCityName)}
-              ctaLabel={user ? s('emptyEventsCta') : undefined}
-              onCtaPress={user ? () => router.push('/(protected)/create-event' as any) : undefined}
-              iconColor={colors.accentBright}
-              iconBg={colors.amberPale}
-            />
           ) : (
-            <View style={styles.eventsList}>
-              {events.map((event, index) => {
+            <EmptyState
+              icon="trophy"
+              title={s('ampiEmptyTitle')}
+              description={s('ampiEmptyDesc')}
+              iconColor={colors.blue}
+              iconBg={colors.bluePale}
+            />
+          )
+        ) : loading ? (
+          <View style={{ padding: 16, gap: 12 }}>
+            <SkeletonList count={3}><EventCardSkeleton /></SkeletonList>
+          </View>
+        ) : eventsError ? (
+          <ErrorState
+            title={s('eventsLoadError')}
+            description={s('eventsLoadErrorDesc')}
+            ctaLabel={s('retry')}
+            onRetry={fetchEvents}
+          />
+        ) : (
+          <EmptyState
+            icon="calendar"
+            title={s('emptyEventsCityTitle', selectedCityName)}
+            description={s('emptyEventsCityDesc', selectedCityName)}
+            ctaLabel={user ? s('emptyEventsCta') : undefined}
+            onCtaPress={user ? () => router.push('/(protected)/create-event') : undefined}
+            iconColor={colors.accentBright}
+            iconBg={colors.amberPale}
+          />
+        );
+
+        const renderEventRow = (event: EventListItem) => {
                 const badge = getBadgeInfo(event);
-                const isJoined = event.event_participants?.some(
-                  (p: any) => p.user_id === user?.id,
-                );
+                // Joined-state from the filtered alias (T043) — the visible
+                // embed is capped at 6 and may not include the caller.
+                const isJoined =
+                  (event.my_participation?.length ?? 0) > 0 ||
+                  event.event_participants?.some((p: any) => p.user_id === user?.id);
                 const participants = event.event_participants ?? [];
+                const participantsTotal =
+                  event.participants_count?.[0]?.count ?? participants.length;
                 const venueName = event.venues?.name ?? s('unknownVenue');
 
                 return (
-                  <Animated.View key={event.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
+                  <View style={{ paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm }}>
                   <Card shadow="sm" borderRadius={14}>
                     <TouchableOpacity style={styles.eventCard} activeOpacity={0.7} onPress={() => openDetail(event)}>
                       {/* Top */}
@@ -586,7 +637,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                             </View>
                           ))}
                           <Text style={styles.attendeesText}>
-                            {participants.length}/{event.max_participants ?? '\u221E'} {s('spots')}
+                            {participantsTotal}/{event.max_participants ?? '\u221E'} {s('spots')}
                           </Text>
                         </View>
                         {activeTab !== 'past' && !isPast(event) && event.status !== 'closed' && event.organizer_id !== user?.id && (
@@ -606,7 +657,9 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                         )}
                         {(() => {
                           if (!isPast(event) || event.status === 'cancelled') return null;
-                          const myRow = (event.event_participants ?? []).find((p: any) => p.user_id === user?.id);
+                          const myRow =
+                            event.my_participation?.[0] ??
+                            (event.event_participants ?? []).find((p: any) => p.user_id === user?.id);
                           const canInteract = !!myRow || event.organizer_id === user?.id;
                           if (!canInteract) return null;
                           const loggedHours = Number(myRow?.hours_played ?? 0);
@@ -638,39 +691,12 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                       </View>
                     </TouchableOpacity>
                   </Card>
-                  </Animated.View>
+                  </View>
                 );
-              })}
-              {activeTab === 'past' && pastLoadingMore && (
-                <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-                  <ActivityIndicator size="small" color={colors.primaryMid} />
-                </View>
-              )}
-            </View>
-          )
-        )}
+        };
 
-        {/* AmaTur tab content */}
-        {activeTab === 'amatur' && (
-          amaturLoading ? (
-            <View style={{ padding: 16, gap: 12 }}>
-              <SkeletonList count={3}><EventCardSkeleton /></SkeletonList>
-            </View>
-          ) : (
-            <>
-              {amaturEvents.length === 0 ? (
-                <EmptyState
-                  icon="trophy"
-                  title={s('ampiEmptyTitle')}
-                  description={s('ampiEmptyDesc')}
-                  iconColor={colors.blue}
-                  iconBg={colors.bluePale}
-                />
-              ) : (
-                <View style={styles.eventsList}>
-                  {amaturEvents.map((ev, index) => {
-                    return (
-                      <Animated.View key={ev.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
+        const renderAmaturRow = (ev: AmaturEvent) => (
+                <View style={{ paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm }}>
                         <Card shadow="sm" borderRadius={14}>
                           <TouchableOpacity
                             style={styles.eventCard}
@@ -746,24 +772,48 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
                             </View>
                           </TouchableOpacity>
                         </Card>
-                      </Animated.View>
-                    );
-                  })}
-
-                  {/* Attribution */}
-                  <Text style={styles.amaturAttribution}>{s('ampiPoweredBy')}</Text>
                 </View>
-              )}
-            </>
-          )
-        )}
-      </ScrollView>
+        );
+
+        // One always-mounted FlashList (T042): the tab bar lives in its
+        // header, so it never remounts across loading/error/empty/data
+        // transitions; ListEmptyComponent carries the state screens. The
+        // manual onScroll pagination is replaced by onEndReached. No
+        // entering animations on rows — recycling breaks them (T046).
+        return (
+          <FlashList
+            data={listData}
+            keyExtractor={(item: any) => String(item.id)}
+            testID="events-list"
+            keyboardDismissMode="on-drag"
+            refreshControl={refreshControl}
+            ListHeaderComponent={listHeader}
+            ListEmptyComponent={listEmpty}
+            contentContainerStyle={{ paddingBottom: Spacing.md }}
+            onEndReached={!isAmatur && activeTab === 'past' ? loadMorePastEvents : undefined}
+            onEndReachedThreshold={0.6}
+            drawDistance={400}
+            ListFooterComponent={
+              isAmatur && listData.length > 0 ? (
+                <Text style={styles.amaturAttribution}>{s('ampiPoweredBy')}</Text>
+              ) : !isAmatur && activeTab === 'past' && pastLoadingMore ? (
+                <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={colors.primaryMid} />
+                </View>
+              ) : null
+            }
+            renderItem={({ item }) =>
+              isAmatur ? renderAmaturRow(item as AmaturEvent) : renderEventRow(item as EventListItem)
+            }
+          />
+        );
+      })()}
 
       {/* FAB — Create Event */}
       {user && (
         <TouchableOpacity
           style={styles.fab}
-          onPress={() => router.push('/(protected)/create-event' as any)}
+          onPress={() => router.push('/(protected)/create-event')}
           activeOpacity={0.8}
           testID="create-event-fab"
         >

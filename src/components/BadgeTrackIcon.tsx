@@ -1,6 +1,6 @@
 import React from 'react';
 import { Image, type ImageSourcePropType } from 'react-native';
-import type { BadgeTrack } from '../lib/badgeChallenges';
+import type { BadgeTrack } from '../features/challenges/badgeDefinitions';
 import { Lucide } from './Icon';
 
 type BadgeTrackIconVariant = 'picker' | 'hero' | 'feature' | 'earned' | 'modal' | 'challenge-card';

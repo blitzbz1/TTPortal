@@ -85,9 +85,15 @@ jest.mock('expo-image-manipulator', () => ({
  
 import React from 'react';
  
-import { render, waitFor } from '@testing-library/react-native';
- 
+import { render as rtlRender, waitFor } from '@testing-library/react-native';
+
 import { VenueDetailScreen } from '../VenueDetailScreen';
+import { OfflineQueueProvider } from '../../contexts/OfflineQueueProvider';
+
+// The favorite toggle goes through useToggleFavoriteMutation, which needs
+// the offline-queue context.
+const render = (ui: React.ReactElement) =>
+  rtlRender(<OfflineQueueProvider>{ui}</OfflineQueueProvider>);
 
 const VENUE = {
   id: 1,

@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, Linking, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, Linking } from 'react-native';
+import { showAlert } from '../lib/dialogs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -8,34 +9,86 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getProfile, updateProfile } from '../services/profiles';
+import { getProfile, updateProfile, type CheckinVisibility } from '../services/profiles';
+import { useQueryClient } from '@tanstack/react-query';
+import { profileQueryKey } from '../hooks/queries/useProfileQuery';
 import { NotificationInboxModal, type NotificationInboxModalRef } from '../components/NotificationInboxModal';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { getPolicyUrl } from '../lib/policyUrls';
+import { isAnalyticsOptedOut, setAnalyticsOptOut } from '../lib/telemetry';
+import { downloadMyData } from '../lib/dataExport';
+import { UserFeedbackModal } from '../components/UserFeedbackModal';
 
 export function SettingsScreen() {
   const router = useRouter();
   const { user } = useSession();
+  const queryClient = useQueryClient();
   const { s, lang } = useI18n();
   const { colors, mode, setMode, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [notifyCheckins, setNotifyCheckins] = useState(true);
+  // T086: sparse map — only categories the user turned OFF are stored.
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
+  const [checkinVisibility, setCheckinVisibility] = useState<CheckinVisibility>('friends');
+  // GDPR (T082): UI shows "share data" semantics; storage is opt-OUT.
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(() => !isAnalyticsOptedOut());
+  const [exporting, setExporting] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const inboxRef = useRef<NotificationInboxModalRef>(null);
 
   useEffect(() => {
     if (!user) return;
     getProfile(user.id).then((res) => {
-      if (res.data) setNotifyCheckins((res.data as any).notify_friend_checkins ?? true);
+      if (res.data) {
+        setNotifyCheckins((res.data as any).notify_friend_checkins ?? true);
+        setCheckinVisibility((res.data as any).checkin_visibility ?? 'friends');
+        setNotifPrefs((res.data as any).notification_prefs ?? {});
+      }
     });
   }, [user]);
+
+  const handleToggleNotifCategory = useCallback(async (category: string, enabled: boolean) => {
+    const next = { ...notifPrefs };
+    if (enabled) delete next[category];
+    else next[category] = false;
+    setNotifPrefs(next);
+    if (user) {
+      await updateProfile(user.id, { notification_prefs: next });
+      queryClient.invalidateQueries({ queryKey: profileQueryKey(user.id) });
+    }
+  }, [notifPrefs, user, queryClient]);
 
   const handleToggleCheckinNotif = useCallback(async (value: boolean) => {
     setNotifyCheckins(value);
     if (user) {
       await updateProfile(user.id, { notify_friend_checkins: value });
+      // T059: the service refreshes the domain cache; the react-query key
+      // would otherwise stay stale for its full 5min TTL.
+      queryClient.invalidateQueries({ queryKey: profileQueryKey(user.id) });
     }
-  }, [user]);
+  }, [user, queryClient]);
+
+  const handleToggleAnalytics = useCallback((value: boolean) => {
+    setAnalyticsEnabled(value);
+    setAnalyticsOptOut(!value);
+  }, []);
+
+  const handleDownloadMyData = useCallback(async () => {
+    if (exporting) return;
+    setExporting(true);
+    const { error } = await downloadMyData();
+    setExporting(false);
+    if (error) showAlert(s('error'), s('exportError'));
+  }, [exporting, s]);
+
+  const handleSetCheckinVisibility = useCallback(async (value: CheckinVisibility) => {
+    setCheckinVisibility(value);
+    if (user) {
+      await updateProfile(user.id, { checkin_visibility: value });
+      queryClient.invalidateQueries({ queryKey: profileQueryKey(user.id) });
+    }
+  }, [user, queryClient]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -74,6 +127,30 @@ export function SettingsScreen() {
             thumbColor={colors.bgAlt}
           />
         </View>
+
+        {/* Per-category notification prefs (T086) */}
+        {([
+          { key: 'friend_requests', icon: 'users', labelKey: 'notifFriendRequests' },
+          { key: 'events', icon: 'calendar', labelKey: 'notifEvents' },
+          { key: 'reviews_on_my_venue', icon: 'star', labelKey: 'notifReviews' },
+          { key: 'feedback_replies', icon: 'message-circle', labelKey: 'notifFeedbackReplies' },
+        ] as const).map(({ key, icon, labelKey }) => (
+          <View style={styles.row} key={key} testID={`settings-notif-${key}`}>
+            <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>
+              <Lucide name={icon} size={18} color={colors.textMuted} />
+            </View>
+            <View style={styles.rowContent}>
+              <Text style={styles.rowLabel}>{s(labelKey)}</Text>
+            </View>
+            <Switch
+              value={notifPrefs[key] !== false}
+              onValueChange={(v) => handleToggleNotifCategory(key, v)}
+              trackColor={{ false: colors.border, true: colors.primaryLight }}
+              thumbColor={colors.bgAlt}
+              accessibilityLabel={s(labelKey)}
+            />
+          </View>
+        ))}
 
         {/* Language */}
         <View style={styles.row}>
@@ -153,7 +230,7 @@ export function SettingsScreen() {
 
         <TouchableOpacity
           style={styles.row}
-          onPress={() => Alert.alert(s('dataSources'), s('dataSourcesBody'))}
+          onPress={() => showAlert(s('dataSources'), s('dataSourcesBody'))}
           testID="settings-data-sources"
         >
           <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>
@@ -166,9 +243,44 @@ export function SettingsScreen() {
         {/* Privacy */}
         <Text style={styles.sectionHeader}>{s('privacy')}</Text>
 
+        {/* Check-in visibility */}
+        <View style={styles.row} testID="settings-checkin-visibility">
+          <View style={[styles.rowIcon, { backgroundColor: colors.primaryPale }]}>
+            <Lucide name="eye" size={18} color={colors.primaryMid} />
+          </View>
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>{s('checkinVisibility')}</Text>
+            <Text style={styles.rowDesc}>{s('checkinVisibilityDesc')}</Text>
+          </View>
+          <View style={styles.toggle}>
+            {([
+              { key: 'friends', label: s('visibilityFriends') },
+              { key: 'private', label: s('visibilityPrivate') },
+            ] as const).map(({ key, label }) => (
+              <TouchableOpacity
+                key={key}
+                style={[styles.toggleOption, checkinVisibility === key && styles.toggleOptionActive]}
+                onPress={() => handleSetCheckinVisibility(key)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: checkinVisibility === key }}
+                testID={`checkin-visibility-${key}`}
+              >
+                <Text
+                  style={[
+                    styles.toggleLabel,
+                    checkinVisibility === key && styles.toggleLabelActive,
+                  ]}
+                >
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         <TouchableOpacity
           style={styles.row}
-          onPress={() => router.push('/(protected)/blocked-users' as any)}
+          onPress={() => router.push('/(protected)/blocked-users')}
           testID="settings-blocked-users"
         >
           <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>
@@ -178,12 +290,73 @@ export function SettingsScreen() {
           <Lucide name="chevron-right" size={16} color={colors.textFaint} />
         </TouchableOpacity>
 
+        {/* Analytics opt-out (T082) */}
+        <View style={styles.row} testID="settings-analytics-toggle">
+          <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>
+            <Lucide name="bar-chart-3" size={18} color={colors.textMuted} />
+          </View>
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>{s('analyticsOptOut')}</Text>
+            <Text style={styles.rowDesc}>{s('analyticsOptOutDesc')}</Text>
+          </View>
+          <Switch
+            value={analyticsEnabled}
+            onValueChange={handleToggleAnalytics}
+            trackColor={{ true: colors.primaryLight }}
+            accessibilityLabel={s('analyticsOptOut')}
+          />
+        </View>
+
+        {/* Data export (T082, mspec §11) */}
+        <TouchableOpacity
+          style={styles.row}
+          onPress={handleDownloadMyData}
+          disabled={exporting}
+          testID="settings-download-data"
+        >
+          <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>
+            <Lucide name="download" size={18} color={colors.textMuted} />
+          </View>
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>{s('downloadMyData')}</Text>
+            <Text style={styles.rowDesc}>{s('downloadMyDataDesc')}</Text>
+          </View>
+          <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+        </TouchableOpacity>
+
+        {/* Support (T085) */}
+        <Text style={styles.sectionHeader}>{s('supportSection')}</Text>
+
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => setFeedbackOpen(true)}
+          testID="settings-send-feedback"
+        >
+          <View style={[styles.rowIcon, { backgroundColor: colors.primaryPale }]}>
+            <Lucide name="message-square" size={18} color={colors.primaryMid} />
+          </View>
+          <Text style={styles.rowLabel}>{s('sendFeedback')}</Text>
+          <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => Linking.openURL('mailto:ttportal.info@gmail.com?subject=TT%20Portal%20support')}
+          testID="settings-contact-support"
+        >
+          <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>
+            <Lucide name="mail" size={18} color={colors.textMuted} />
+          </View>
+          <Text style={styles.rowLabel}>{s('contactSupport')}</Text>
+          <Lucide name="external-link" size={16} color={colors.textFaint} />
+        </TouchableOpacity>
+
         {/* Danger zone */}
         <Text style={styles.sectionHeader}>{s('dangerZone')}</Text>
 
         <TouchableOpacity
           style={styles.row}
-          onPress={() => router.push('/(protected)/delete-account' as any)}
+          onPress={() => router.push('/(protected)/delete-account')}
           testID="settings-delete-account"
         >
           <View style={[styles.rowIcon, { backgroundColor: colors.redPale }]}>
@@ -194,6 +367,7 @@ export function SettingsScreen() {
         </TouchableOpacity>
 
       </ScrollView>
+      {feedbackOpen && <UserFeedbackModal visible onClose={() => setFeedbackOpen(false)} />}
     </SafeAreaView>
   );
 }
@@ -281,6 +455,15 @@ function createStyles(colors: ThemeColors) {
     },
     toggleOptionActive: {
       backgroundColor: colors.bgAlt,
+    },
+    toggleLabel: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.medium,
+      color: colors.textFaint,
+    },
+    toggleLabelActive: {
+      color: colors.text,
     },
   });
 }

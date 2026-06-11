@@ -4,8 +4,10 @@ import { render, fireEvent } from '@testing-library/react-native';
 import { OnboardingScreen } from '../OnboardingScreen';
 
 const mockReplace = jest.fn();
+let mockSearchParams: Record<string, string> = {};
 jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: (...a: unknown[]) => mockReplace(...a) }),
+  useLocalSearchParams: () => mockSearchParams,
 }));
 
 const mockS = jest.fn((key: string) => key);
@@ -42,6 +44,7 @@ jest.mock('../../lib/haptics', () => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockSearchParams = {};
   mockS.mockImplementation((key: string) => key);
 });
 
@@ -72,12 +75,35 @@ describe('OnboardingScreen', () => {
     fireEvent.press(getByText('onboardingContinue'));
     fireEvent.press(getByText('onboardingContinue'));
     fireEvent.press(getByText('onboardingStart'));
-    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/');
+    expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
   });
 
   it('skip navigates to tabs from any step', () => {
     const { getByText } = render(<OnboardingScreen />);
     fireEvent.press(getByText('onboardingSkip'));
-    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/');
+    expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
+  });
+
+  it('finishes to the returnTo route — resumes the interrupted action (T062)', () => {
+    mockSearchParams = { returnTo: '/venue/42' };
+    const { getByText } = render(<OnboardingScreen />);
+    fireEvent.press(getByText('onboardingContinue'));
+    fireEvent.press(getByText('onboardingContinue'));
+    fireEvent.press(getByText('onboardingStart'));
+    expect(mockReplace).toHaveBeenCalledWith('/venue/42');
+  });
+
+  it('skip also honors returnTo (T062)', () => {
+    mockSearchParams = { returnTo: '/venue/42' };
+    const { getByText } = render(<OnboardingScreen />);
+    fireEvent.press(getByText('onboardingSkip'));
+    expect(mockReplace).toHaveBeenCalledWith('/venue/42');
+  });
+
+  it('sanitizes hostile returnTo values to the tabs root', () => {
+    mockSearchParams = { returnTo: 'https://evil.example' };
+    const { getByText } = render(<OnboardingScreen />);
+    fireEvent.press(getByText('onboardingSkip'));
+    expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
   });
 });

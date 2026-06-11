@@ -3,7 +3,7 @@ import { Modal, Text, TouchableOpacity, View } from 'react-native';
 import { BadgeTrackIcon } from '../../components/BadgeTrackIcon';
 import { Lucide } from '../../components/Icon';
 import type { ThemeColors } from '../../theme';
-import type { BadgeTier, BadgeTrack } from '../../lib/badgeChallenges';
+import type { BadgeTier, BadgeTrack } from '../../features/challenges/badgeDefinitions';
 import type { createStyles } from '../ChallengeScreen.styles';
 
 interface Props {

@@ -185,9 +185,23 @@ describe('I18nProvider', () => {
     expect(screen.getByTestId('lang')).toHaveTextContent('it');
   });
 
-  it('falls back to ro when no device locale is supported', () => {
+  it('falls back to en when no device locale is supported (T067)', () => {
     mockGetLocales.mockReturnValueOnce([
       { languageCode: 'ja', languageTag: 'ja-JP', regionCode: 'JP' },
+    ]);
+
+    render(
+      <I18nProvider>
+        <TestConsumer />
+      </I18nProvider>
+    );
+
+    expect(screen.getByTestId('lang')).toHaveTextContent('en');
+  });
+
+  it('keeps the ro fallback for unsupported languages when the device region is Romania (T067)', () => {
+    mockGetLocales.mockReturnValueOnce([
+      { languageCode: 'hu', languageTag: 'hu-RO', regionCode: 'RO' },
     ]);
 
     render(
@@ -237,5 +251,45 @@ describe('useI18n', () => {
     );
 
     spy.mockRestore();
+  });
+});
+
+describe('sn — plural rules (T063)', () => {
+  function PluralConsumer({ count }: { count: number }) {
+    const { sn } = require('../../hooks/useI18n').useI18n();
+    const { Text } = require('react-native');
+    return <Text testID="plural">{sn('challengeCompletedCount', count)}</Text>;
+  }
+
+  it('en: selects one/other', () => {
+    const { getByTestId, rerender } = render(
+      <I18nProvider initialLang="en"><PluralConsumer count={1} /></I18nProvider>,
+    );
+    expect(getByTestId('plural')).toHaveTextContent('1 challenge');
+    rerender(<I18nProvider initialLang="en"><PluralConsumer count={2} /></I18nProvider>);
+    expect(getByTestId('plural')).toHaveTextContent('2 challenges');
+  });
+
+  it('pl: selects one/few/many', () => {
+    const { getByTestId, rerender } = render(
+      <I18nProvider initialLang="pl"><PluralConsumer count={1} /></I18nProvider>,
+    );
+    expect(getByTestId('plural')).toHaveTextContent('1 wyzwanie');
+    rerender(<I18nProvider initialLang="pl"><PluralConsumer count={2} /></I18nProvider>);
+    expect(getByTestId('plural')).toHaveTextContent('2 wyzwania');
+    rerender(<I18nProvider initialLang="pl"><PluralConsumer count={5} /></I18nProvider>);
+    expect(getByTestId('plural')).toHaveTextContent('5 wyzwań');
+  });
+
+  it('falls back to the bare key when no variant exists', () => {
+    function BareConsumer() {
+      const { sn } = require('../../hooks/useI18n').useI18n();
+      const { Text } = require('react-native');
+      return <Text testID="plural">{sn('cityHeaderPlacesMapped', 3)}</Text>;
+    }
+    const { getByTestId } = render(
+      <I18nProvider initialLang="en"><BareConsumer /></I18nProvider>,
+    );
+    expect(getByTestId('plural')).toHaveTextContent('3 places mapped');
   });
 });

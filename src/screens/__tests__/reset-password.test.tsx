@@ -69,7 +69,7 @@ jest.mock('../../services/securityEmails', () => ({
 }));
 
  
-import ResetPasswordScreen from '../reset-password';
+import { ResetPasswordScreen } from '../ResetPasswordScreen';
 
 describe('ResetPasswordScreen — T040', () => {
   const user = userEvent.setup();

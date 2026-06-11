@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, Modal, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Modal, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { showAlert } from '../lib/dialogs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
@@ -70,6 +71,7 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
     setEventTitle('');
 
     async function load() {
+      if (eventId == null) return;
       const { data: event } = await supabase
         .from('events')
         .select('title')
@@ -89,7 +91,7 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
 
   const handleSubmit = useCallback(async () => {
     if (rating < 1) {
-      Alert.alert(s('error'), s('feedbackRequired'));
+      showAlert(s('error'), s('feedbackRequired'));
       return;
     }
     if (!user || !eventId) return;
@@ -112,7 +114,7 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
       // falling through to the generic error copy.
       const isDuplicate = (error as { code?: string }).code === '23505';
       const msg = isDuplicate ? s('feedbackAlreadySent') : safeErrorMessage(error, 'genericError', s);
-      Alert.alert(s('error'), msg);
+      showAlert(s('error'), msg);
       return;
     }
 
@@ -122,7 +124,7 @@ export function WriteEventFeedbackScreen({ visible, eventId, onDismiss }: Props)
     invalidateFeedbackGivenCache(user.id);
     invalidateEventsCache(user.id, ['past']);
     hapticSuccess();
-    Alert.alert(s('success'), s('feedbackSubmitted'));
+    showAlert(s('success'), s('feedbackSubmitted'));
     onDismiss();
   }, [rating, reviewText, user, eventId, onDismiss, s]);
 

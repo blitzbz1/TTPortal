@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter , type Href } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { useI18n } from '../../hooks/useI18n';
 import { useTheme } from '../../hooks/useTheme';
@@ -250,7 +250,7 @@ export default function AuthCallbackScreen() {
 
       logger.info('Auth callback completed', { next });
       if (!cancelled) {
-        router.replace(next as any);
+        router.replace(next as Href);
       }
     }
 

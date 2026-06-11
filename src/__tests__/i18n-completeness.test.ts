@@ -24,11 +24,12 @@ const ACTIVE_CHALLENGE_TITLE_KEY_COUNT = 344;
 const PACK_2_3_CHALLENGE_TITLE_KEY_COUNT = 160;
 const PACK_2_3_TITLE_WORDING_MIGRATION = 'supabase/migrations/079_pack_2_3_challenge_title_wording.sql';
 
-/** Auth screen files to audit for hardcoded strings. */
+/** Auth screen files to audit for hardcoded strings (implementations moved
+ * to src/screens in T057 — the app/ files are 5-line wrappers now). */
 const AUTH_SCREEN_FILES = [
-  'src/app/sign-in.tsx',
-  'src/app/forgot-password.tsx',
-  'src/app/reset-password.tsx',
+  'src/screens/SignInScreen.tsx',
+  'src/screens/ForgotPasswordScreen.tsx',
+  'src/screens/ResetPasswordScreen.tsx',
 ];
 
 /** Brand names and symbols acceptable as hardcoded JSX text. */
@@ -72,8 +73,11 @@ describe('i18n completeness', () => {
       expect(authKeys.length).toBeGreaterThanOrEqual(15);
     });
 
-    it.each(NON_EN_LOCALES)('%s.json has the same key set as en.json', (_code, locale) => {
-      expect(Object.keys(locale).sort()).toEqual(enKeys);
+    it.each(NON_EN_LOCALES)('%s.json has the same BASE key set as en.json', (_code, locale) => {
+      // Plural variants (_one/_few/_many/_other — T063) are language-specific.
+      const base = (keys: string[]) =>
+        Array.from(new Set(keys.map((k) => k.replace(/_(one|few|many|other)$/, '')))).sort();
+      expect(base(Object.keys(locale))).toEqual(base(enKeys));
     });
 
     it.each(NON_EN_LOCALES)('%s.json has no empty values', (_code, locale) => {

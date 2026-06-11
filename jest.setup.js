@@ -21,8 +21,13 @@ jest.mock('react-native-mmkv', () => {
       getAllKeys() { return Array.from(store.keys()); },
     };
   }
+  // Test-only escape hatch so the global beforeEach below can isolate tests.
+  createMMKV.__resetAllStores = () => {
+    for (const store of stores.values()) store.clear();
+  };
   return { createMMKV };
 });
+
 
 // Mock expo-sqlite (native module not available in test environment)
 jest.mock('expo-sqlite', () => ({
@@ -70,6 +75,7 @@ jest.mock('expo-notifications', () => ({
   setNotificationChannelAsync: jest.fn(() => Promise.resolve()),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
   addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponseAsync: jest.fn(() => Promise.resolve(null)),
 }));
 
 jest.mock('expo-device', () => ({
@@ -197,14 +203,6 @@ jest.mock('react-native-keyboard-controller', () => {
     useReanimatedKeyboardAnimation: () => ({ height: { value: 0 }, progress: { value: 0 } }),
   };
 }, { virtual: true });
-
-// Mock react-native-map-clustering
-jest.mock('react-native-map-clustering', () => {
-  return {
-    __esModule: true,
-    default: 'ClusteredMapView',
-  };
-});
 
 // Mock @tanstack/react-query so screens that call useQuery/useMutation
 // can render in unit tests without a QueryClientProvider wrapper.

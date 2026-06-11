@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, Pressable, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Modal, Pressable, Platform } from 'react-native';
+import { showAlert } from '../lib/dialogs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { EquipmentSummaryCard } from '../components/EquipmentSummaryCard';
@@ -9,6 +10,7 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
+import { getDateLocale } from '../contexts/I18nProvider';
 import { getProfile, getProfileStats } from '../services/profiles';
 import {
   loadCachedProfile,
@@ -27,7 +29,7 @@ interface Props {
 export function PlayerProfileScreen({ userId }: Props) {
   const router = useRouter();
   const { user } = useSession();
-  const { s } = useI18n();
+  const { s, lang } = useI18n();
   const { colors, isDark } = useTheme();
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
@@ -121,14 +123,14 @@ export function PlayerProfileScreen({ userId }: Props) {
     const { error } = await sendEventInvites(event.id, [userId]);
     setSendingInviteId(null);
     if (error) {
-      Alert.alert(s('error'), error.message ?? s('genericError'));
+      showAlert(s('error'), error.message ?? s('genericError'));
       return;
     }
     setPickerVisible(false);
     if (Platform.OS === 'web') {
       window.alert(s('inviteSent'));
     } else {
-      Alert.alert(s('success'), s('inviteSent'));
+      showAlert(s('success'), s('inviteSent'));
     }
   }, [user, userId, s]);
 
@@ -211,7 +213,7 @@ export function PlayerProfileScreen({ userId }: Props) {
             ) : (
               <ScrollView style={{ maxHeight: 360 }}>
                 {myEvents.map((ev) => {
-                  const dateStr = new Date(ev.starts_at).toLocaleString('ro-RO', {
+                  const dateStr = new Date(ev.starts_at).toLocaleString(getDateLocale(lang), {
                     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
                   });
                   return (

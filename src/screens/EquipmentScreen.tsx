@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { showAlert } from '../lib/dialogs';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   Platform,
@@ -571,7 +571,7 @@ export function EquipmentScreen() {
   const isDirty = latest ? currentSnapshot !== savedSnapshot : currentSnapshot !== defaultSnapshot;
   const handleSave = async () => {
     if (!user || !canSave) {
-      Alert.alert(s('equipment'), s('equipmentCompleteRequired'));
+      showAlert(s('equipment'), s('equipmentCompleteRequired'));
       return;
     }
 
@@ -596,7 +596,7 @@ export function EquipmentScreen() {
     setSaving(false);
 
     if (error || !data) {
-      Alert.alert(s('equipment'), s('equipmentSaveError'));
+      showAlert(s('equipment'), s('equipmentSaveError'));
       return;
     }
 

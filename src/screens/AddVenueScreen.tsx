@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import { showAlert } from '../lib/dialogs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -547,8 +548,8 @@ export function AddVenueScreen() {
   }, [closeCitySuggestions, knownCityRecords]);
 
   const handleSubmit = useCallback(async () => {
-    if (!name.trim()) { Alert.alert(s('error'), s('nameRequired')); return; }
-    if (!city.trim()) { Alert.alert(s('error'), s('cityRequired')); return; }
+    if (!name.trim()) { showAlert(s('error'), s('nameRequired')); return; }
+    if (!city.trim()) { showAlert(s('error'), s('cityRequired')); return; }
     const canonicalCity = canonicalizeCityName(city);
     let resolvedCountryCode = cityCountryCode;
     let resolvedCountryName = cityCountryName;
@@ -557,18 +558,18 @@ export function AddVenueScreen() {
     let resolvedCityZoom = cityZoom;
 
     if (resolvedCityCenterLat == null || resolvedCityCenterLng == null || !resolvedCountryCode) {
-      Alert.alert(s('error'), s('cityRequired'));
+      showAlert(s('error'), s('cityRequired'));
       return;
     }
-    if (!address.trim()) { Alert.alert(s('error'), s('addressRequired')); return; }
+    if (!address.trim()) { showAlert(s('error'), s('addressRequired')); return; }
     if (!venueLocationConfirmed || geoLat == null || geoLng == null) {
-      Alert.alert(s('error'), s('dragPinHint'));
+      showAlert(s('error'), s('dragPinHint'));
       return;
     }
     if (tablesCount) {
       const count = parseInt(tablesCount, 10);
       if (isNaN(count) || count < 1 || count > 100) {
-        Alert.alert(s('error'), s('genericError'));
+        showAlert(s('error'), s('genericError'));
         return;
       }
     }
@@ -585,7 +586,7 @@ export function AddVenueScreen() {
         zoom: selectedCity?.name === canonicalCity ? selectedCity.zoom : resolvedCityZoom ?? 12,
       },
     );
-    if (cityError || !cityId) { setLoading(false); Alert.alert(s('error'), safeErrorMessage(cityError ?? 'genericError', 'genericError', s)); return; }
+    if (cityError || !cityId) { setLoading(false); showAlert(s('error'), safeErrorMessage(cityError ?? 'genericError', 'genericError', s)); return; }
 
     const { error } = await createVenue({
       name: name.trim(),
@@ -619,10 +620,10 @@ export function AddVenueScreen() {
       const isDuplicate = (error as { code?: string }).code === '23505';
       const msg = rateMsg
         ?? (isDuplicate ? s('venueAlreadyExists') : safeErrorMessage(error, 'genericError', s));
-      Alert.alert(s('error'), msg);
+      showAlert(s('error'), msg);
       return;
     }
-    Alert.alert(s('success'), s('venueSubmitted'));
+    showAlert(s('success'), s('venueSubmitted'));
     router.back();
   }, [name, address, type, city, tablesCount, notes, router, geoLat, geoLng, venueLocationConfirmed, selectedCity, cityCountryCode, cityCountryName, cityCenterLat, cityCenterLng, cityZoom, s]);
 

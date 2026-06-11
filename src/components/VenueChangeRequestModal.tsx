@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { showAlert } from '../lib/dialogs';
 import {
   Modal,
   View,
@@ -7,7 +8,6 @@ import {
   TextInput,
   ActivityIndicator,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import * as ImagePicker from 'expo-image-picker';
@@ -83,7 +83,7 @@ export function VenueChangeRequestModal({
   const handlePickImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(s('error'), s('photoPermissionDenied'));
+      showAlert(s('error'), s('photoPermissionDenied'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -94,12 +94,12 @@ export function VenueChangeRequestModal({
     if (result.canceled || result.assets.length === 0) return;
     const asset = result.assets[0];
     if (asset.fileSize && asset.fileSize > 10 * 1024 * 1024) {
-      Alert.alert(s('error'), s('photoTooLarge'));
+      showAlert(s('error'), s('photoTooLarge'));
       return;
     }
     const allowed = ['image/jpeg', 'image/png', 'image/heic', 'image/heif'];
     if (asset.mimeType && !allowed.includes(asset.mimeType)) {
-      Alert.alert(s('error'), s('photoUploadError'));
+      showAlert(s('error'), s('photoUploadError'));
       return;
     }
     setImage({ uri: asset.uri, width: asset.width ?? null, height: asset.height ?? null });

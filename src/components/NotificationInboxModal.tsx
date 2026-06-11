@@ -1,8 +1,9 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { showConfirm } from '../lib/dialogs';
 import { BottomSheetBackdrop, BottomSheetFlatList, BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter , type Href } from 'expo-router';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
@@ -11,7 +12,7 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { useNotificationHistory, type NotificationRecord } from '../hooks/useNotificationHistory';
 import { acceptRequest, declineRequest, getPendingRequests } from '../services/friends';
-import { sanitizeRoute } from '../lib/auth-utils';
+import { buildRouteFromNotificationData } from '../lib/notificationRoutes';
 import { NotificationSkeleton, SkeletonList } from './SkeletonLoader';
 import { EmptyState } from './EmptyState';
 import { SwipeableDeleteRow } from './SwipeableDeleteRow';
@@ -94,15 +95,10 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
       if (!notification.read) {
         await markAsRead(notification.id);
       }
-      const data = notification.data as { screen?: string; eventId?: number | string } | null;
-      if (data?.screen) {
-        const safeRoute = sanitizeRoute(data.screen);
-        const withParams =
-          data.eventId != null && !safeRoute.includes('?')
-            ? `${safeRoute}?eventId=${data.eventId}`
-            : safeRoute;
+      const route = buildRouteFromNotificationData(notification.data);
+      if (route) {
         dismiss();
-        router.push(withParams as any);
+        router.push(route as Href);
       }
     },
     [dismiss, markAsRead, router],
@@ -113,10 +109,9 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
     if (Platform.OS === 'web') {
       if (window.confirm(s('deleteAllConfirm'))) await deleteAll();
     } else {
-      Alert.alert(s('deleteAllNotifications'), s('deleteAllConfirm'), [
-        { text: s('cancel'), style: 'cancel' },
-        { text: s('deleteNotification'), style: 'destructive', onPress: () => void deleteAll() },
-      ]);
+      if (await showConfirm(s('deleteAllNotifications'), s('deleteAllConfirm'), { confirmLabel: s('deleteNotification'), cancelLabel: s('cancel'), destructive: true })) {
+        void deleteAll();
+      }
     }
   }, [deleteAll, s, user]);
 
@@ -182,6 +177,8 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
               style={[styles.card, !n.read && styles.cardUnread]}
               onPress={() => handleTap(n)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`${n.title}. ${n.body}`}
             >
               <View style={[styles.iconWrap, { backgroundColor: icon.bg }]}>
                 <Lucide name={icon.name} size={20} color={icon.color} />
@@ -191,11 +188,11 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
                 <Text style={styles.cardBody}>{n.body}</Text>
                 {n.type === 'friend_request' && n.sender_id && pendingMap.has(n.sender_id) && !respondedIds.has(n.sender_id) && (
                   <View style={styles.inlineActions}>
-                    <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAcceptFriend(n.sender_id!, n.id)}>
+                    <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAcceptFriend(n.sender_id!, n.id)} accessibilityRole="button" accessibilityLabel={s('accept')}>
                       <Lucide name="check" size={14} color={colors.textOnPrimary} />
                       <Text style={styles.acceptBtnText}>{s('accept')}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.declineBtn} onPress={() => handleDeclineFriend(n.sender_id!, n.id)}>
+                    <TouchableOpacity style={styles.declineBtn} onPress={() => handleDeclineFriend(n.sender_id!, n.id)} accessibilityRole="button" accessibilityLabel={s('decline')}>
                       <Lucide name="x" size={14} color={colors.red} />
                       <Text style={styles.declineBtnText}>{s('decline')}</Text>
                     </TouchableOpacity>
@@ -228,7 +225,7 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
       <View style={styles.header}>
         <View style={styles.headerSide}>
           {unreadCount > 0 && (
-            <TouchableOpacity onPress={markAllAsRead} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+            <TouchableOpacity onPress={markAllAsRead} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }} accessibilityRole="button">
               <Text style={styles.actionText}>{s('markAllRead')}</Text>
             </TouchableOpacity>
           )}
@@ -236,11 +233,11 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
         <Text style={styles.headerTitle}>{s('notifications')}</Text>
         <View style={[styles.headerSide, styles.headerSideRight]}>
           {notifications.length > 0 && (
-            <TouchableOpacity onPress={handleDeleteAll} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+            <TouchableOpacity onPress={handleDeleteAll} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }} accessibilityRole="button" accessibilityLabel={s('deleteAllNotifications')}>
               <Lucide name="trash-2" size={18} color={colors.text} />
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={dismiss} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+          <TouchableOpacity onPress={dismiss} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }} accessibilityRole="button" accessibilityLabel={s('close')}>
             <Lucide name="x" size={22} color={colors.textMuted} />
           </TouchableOpacity>
         </View>

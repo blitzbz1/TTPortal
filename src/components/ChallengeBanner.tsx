@@ -8,7 +8,7 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { useSession } from '../hooks/useSession';
-import { getCurrentChallenge, getChallengeProgress } from '../lib/challenges';
+import { getCurrentChallenge, getChallengeProgress } from '../features/challenges/monthlyChallenges';
 import { getMonthlyStats } from '../services/challenges';
 
 export function ChallengeBanner() {

@@ -1,9 +1,14 @@
+// NOTE (T055 decision, 2026-06): this screen is deliberately unrouted.
+// The feed chain (screen + useFeedQuery + services/feed + feedCache) is kept
+// — not deleted — because features_suggestions.md resurrects it for the
+// Session Moments feature, and the service layer was just migrated to the
+// auth.uid()-derived get_friend_feed RPC (migration 083). Route it when the
+// feature ships; if Session Moments is descoped, delete the whole chain.
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
 import { Lucide } from '../components/Icon';
 import { EmptyState } from '../components/EmptyState';
 import { NotificationSkeleton, SkeletonList } from '../components/SkeletonLoader';
@@ -12,7 +17,6 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getFriendIds } from '../services/friends';
 import { useFeedQuery } from '../hooks/queries/useFeedQuery';
 
 export function ActivityFeedScreen() {
@@ -25,14 +29,9 @@ export function ActivityFeedScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data: friendIds = [] } = useQuery({
-    queryKey: ['friend-ids', user?.id],
-    queryFn: async () => (user ? await getFriendIds(user.id) : []),
-    enabled: !!user,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const { data: feed = [], isLoading, refetch } = useFeedQuery(friendIds, !!user);
+  // The feed RPC derives friendships from auth.uid() server-side
+  // (migration 083) — no client-side friend-id fetch needed.
+  const { data: feed = [], isLoading, refetch } = useFeedQuery(user?.id, !!user);
   const loading = isLoading && feed.length === 0;
 
   const onRefresh = useCallback(async () => {
@@ -111,7 +110,7 @@ export function ActivityFeedScreen() {
               <Animated.View key={item.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
               <TouchableOpacity
                 style={styles.feedCard}
-                onPress={() => router.push(`/venue/${item.venueId}` as any)}
+                onPress={() => router.push({ pathname: '/venue/[id]', params: { id: String(item.venueId) } })}
                 activeOpacity={0.7}
                 testID={`feed-item-${item.id}`}
               >

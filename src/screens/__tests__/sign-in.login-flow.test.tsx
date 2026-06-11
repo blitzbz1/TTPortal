@@ -91,7 +91,7 @@ jest.mock('../../hooks/useTheme', () => ({
 }));
 
  
-import SignInScreen from '../sign-in';
+import { SignInScreen } from '../SignInScreen';
  
 import { SessionProvider, SessionContext } from '../../contexts/SessionProvider';
 

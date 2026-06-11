@@ -41,7 +41,7 @@ function isResetRequestThrottled(error: unknown): boolean {
  * Shows identical success message for existing and non-existing emails
  * to prevent user enumeration (FR-007).
  */
-export default function ForgotPasswordScreen() {
+export function ForgotPasswordScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { resetPassword } = useSession();

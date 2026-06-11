@@ -15,6 +15,7 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { hapticSuccess } from '../lib/haptics';
+import { sharePayload, venueUrl } from '../lib/shareLinks';
 import { Springs, Duration, Easings } from '../lib/motion';
 
 /* ── Tiny particle burst (confetti-lite, no deps) ── */
@@ -96,14 +97,20 @@ function ParticleDot({ angle, color, visible, index }: { angle: number; color: s
 interface CheckinSuccessSheetProps {
   visible: boolean;
   venueName: string;
+  /** When provided, the share button includes an openable venue link (T061). */
+  venueId?: number | null;
   endTime?: string;
+  /** True when the check-in was queued offline and will sync later. */
+  queuedOffline?: boolean;
   onDismiss: () => void;
 }
 
 export function CheckinSuccessSheet({
   visible,
   venueName,
+  venueId = null,
   endTime,
+  queuedOffline = false,
   onDismiss,
 }: CheckinSuccessSheetProps) {
   const { colors } = useTheme();
@@ -152,6 +159,13 @@ export function CheckinSuccessSheet({
             </View>
           )}
 
+          {queuedOffline && (
+            <View style={styles.timeRow} testID="checkin-queued-note">
+              <Lucide name="cloud-off" size={14} color={colors.textFaint} />
+              <Text style={styles.timeText}>{s('checkinQueuedNote')}</Text>
+            </View>
+          )}
+
           {/* XP animation — slides up after checkmark */}
           <Animated.View
             entering={FadeInUp.delay(600).duration(400).easing(Easings.decelerate)}
@@ -160,14 +174,18 @@ export function CheckinSuccessSheet({
             <Text style={styles.xpText}>+10 XP</Text>
           </Animated.View>
 
-          <TouchableOpacity style={styles.shareBtn} onPress={() => {
-            Share.share({ message: `${s('checkinSuccess')} ${venueName} | TT Portal` });
+          <TouchableOpacity accessibilityRole="button" style={styles.shareBtn} onPress={() => {
+            Share.share(
+              venueId != null
+                ? sharePayload(`${s('checkinSuccess')} ${venueName} | TT Portal`, venueUrl(venueId))
+                : { message: `${s('checkinSuccess')} ${venueName} | TT Portal` },
+            );
           }} testID="checkin-success-share">
             <Lucide name="share-2" size={16} color={colors.textOnPrimary} />
             <Text style={styles.shareBtnText}>{s('shareCard')}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.dismissBtn} onPress={onDismiss} testID="checkin-success-dismiss">
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={s('close')} style={styles.dismissBtn} onPress={onDismiss} testID="checkin-success-dismiss">
             <Text style={styles.dismissText}>{s('close')}</Text>
           </TouchableOpacity>
         </Pressable>

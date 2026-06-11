@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { showAlert } from '../lib/dialogs';
 import {
   View,
   Text,
@@ -7,8 +8,6 @@ import {
   ActivityIndicator,
   Image,
   StyleSheet,
-  Alert,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -44,14 +43,12 @@ export function BlockedUsersScreen() {
     void load();
   }, [load]);
 
-  const showAlert = useCallback((title: string, msg: string) => {
-    if (Platform.OS === 'web') window.alert(`${title}\n${msg}`);
-    else Alert.alert(title, msg);
-  }, []);
-
   const handleUnblock = useCallback(
     async (userId: string) => {
       setUnblocking((prev) => new Set(prev).add(userId));
+      // T059 audit note: the blocked list is plain local state (no
+      // react-query key, no domain cache) and refetches on every mount,
+      // so removing the row locally is sufficient — no invalidation needed.
       const { error } = await unblockUser(userId);
       setUnblocking((prev) => {
         const next = new Set(prev);
@@ -64,7 +61,7 @@ export function BlockedUsersScreen() {
       }
       setUsers((prev) => prev.filter((u) => u.user_id !== userId));
     },
-    [s, showAlert],
+    [s],
   );
 
   return (

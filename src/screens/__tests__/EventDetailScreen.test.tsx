@@ -5,6 +5,10 @@ const mockBack = jest.fn();
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
 const mockSearchParams: { eventId?: string } = {};
+jest.mock('../../contexts/OfflineQueueProvider', () => ({
+  useOfflineQueue: () => ({ isOnline: true, pendingCount: 0, enqueue: jest.fn(), flush: jest.fn() }),
+}));
+
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: mockBack, push: mockPush, replace: mockReplace }),
   useLocalSearchParams: () => mockSearchParams,
@@ -84,7 +88,7 @@ jest.mock('../../features/challenges', () => ({
   }),
 }));
 
-jest.mock('../../lib/badgeChallenges', () => ({
+jest.mock('../../features/challenges/badgeDefinitions', () => ({
   BADGE_TRACKS: [{ id: 'track-1', category: 'cat-1' }],
 }));
 
@@ -218,7 +222,7 @@ describe('EventDetailScreen', () => {
       expect(mockCloseEvent).toHaveBeenCalledWith(42, 'org-1');
     });
     expect(mockBack).not.toHaveBeenCalled();
-    expect(mockReplace).toHaveBeenCalledWith(expect.stringMatching(/^\/\(tabs\)\/events\?tab=upcoming&refreshEvents=\d+$/));
+    expect(mockReplace).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/(tabs)/events', params: expect.objectContaining({ tab: 'upcoming', refreshEvents: expect.stringMatching(/^\d+$/) }) }));
   });
 
   it('does not close an event before it has started', async () => {

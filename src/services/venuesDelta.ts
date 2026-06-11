@@ -14,10 +14,10 @@ export async function getVenuesDelta(
   cityId?: number | null,
 ): Promise<{ data: VenuesDeltaResponse | null; error: any }> {
   const { data, error } = await supabase.rpc('get_venues_delta', {
-    p_since: since,
-    p_city: city ?? null,
-    p_type: type ?? null,
-    p_city_id: cityId ?? null,
+    p_since: since ?? undefined,
+    p_city: city ?? undefined,
+    p_type: type ?? undefined,
+    p_city_id: cityId ?? undefined,
   });
   return { data: (data as VenuesDeltaResponse | null) ?? null, error };
 }

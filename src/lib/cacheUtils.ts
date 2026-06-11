@@ -10,6 +10,8 @@ import {
   removeCacheItemsByPrefix as _removeCacheItemsByPrefix,
 } from './offline-cache';
 
+export { CACHE_SCHEMA_VERSION } from './cacheSchema';
+
 export const removeCacheItemsByPrefix = _removeCacheItemsByPrefix;
 
 export type CacheRead<T> = { data: T; fresh: boolean };
@@ -27,4 +29,19 @@ export function cachedSave<T>(key: string, data: T): void {
 
 export function cachedInvalidate(key: string): void {
   removeCacheItem(key);
+}
+
+/**
+ * Invalidates BOTH caching systems for a domain in one call (T050): the
+ * react-query key and the persistent domain cache. The two systems used to
+ * be invalidated independently from different layers (query keys in hooks,
+ * SQLite keys in services) and drifted. Use from mutation `onSettled`.
+ */
+export function invalidateDomain(
+  queryClient: { invalidateQueries: (filter: { queryKey: readonly unknown[]; exact?: boolean }) => unknown },
+  queryKey: readonly unknown[],
+  domainCacheKey?: string,
+): void {
+  queryClient.invalidateQueries({ queryKey, exact: false });
+  if (domainCacheKey) removeCacheItem(domainCacheKey);
 }

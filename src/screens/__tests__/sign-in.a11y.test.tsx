@@ -39,7 +39,7 @@ import React from 'react';
  
 import { render, fireEvent } from '@testing-library/react-native';
  
-import SignInScreen from '../sign-in';
+import { SignInScreen } from '../SignInScreen';
 
 describe('SignIn accessibility labels', () => {
   beforeEach(() => jest.clearAllMocks());

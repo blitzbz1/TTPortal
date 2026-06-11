@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { useRouter } from 'expo-router';
+import { useRouter , type Href } from 'expo-router';
 import { useSession } from '../hooks/useSession';
 import { registerForPushNotificationsAsync, getDeviceType } from '../lib/notifications';
 import { upsertPushToken, deletePushToken } from '../services/pushTokens';
@@ -13,7 +13,7 @@ import {
   deleteAllNotifications as deleteAllNotificationsService,
 } from '../services/notifications';
 import { logger } from '../lib/logger';
-import { sanitizeRoute } from '../lib/auth-utils';
+import { buildRouteFromNotificationData } from '../lib/notificationRoutes';
 import { withOptimistic } from '../lib/optimistic';
 import { useOfflineQueue } from './OfflineQueueProvider';
 
@@ -59,11 +59,12 @@ export function NotificationProvider({ children }: Props) {
   const { user } = useSession();
   const router = useRouter();
   const userId = user?.id;
-  const { isOnline, enqueue, registerHandler } = useOfflineQueue();
+  const { isOnline, enqueue } = useOfflineQueue();
   const [pushToken, setPushToken] = useState<string | null>(null);
   const prevUserIdRef = useRef<string | null>(null);
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  const coldStartHandled = useRef(false);
 
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -205,22 +206,8 @@ export function NotificationProvider({ children }: Props) {
     }
   }, [userId, fetchPage]);
 
-  useEffect(() => {
-    const unregisterRead = registerHandler('notification-read', async (change) => {
-      const { id, userId: uid } = change.payload as { id: number; userId: string };
-      const result = await markAsReadService(id, uid);
-      if (result.error) return { error: result.error };
-    });
-    const unregisterDelete = registerHandler('notification-delete', async (change) => {
-      const { id, userId: uid } = change.payload as { id: number; userId: string };
-      const result = await deleteNotificationService(id, uid);
-      if (result.error) return { error: result.error };
-    });
-    return () => {
-      unregisterRead();
-      unregisterDelete();
-    };
-  }, [registerHandler]);
+  // Replay of queued read/delete operations is handled by the module-level
+  // 'notification-read'/'notification-delete' handlers in lib/offlineHandlers.
 
   useEffect(() => {
     const currentUserId = user?.id ?? null;
@@ -256,18 +243,35 @@ export function NotificationProvider({ children }: Props) {
   }, [user, pushToken]);
 
   useEffect(() => {
+    const routeFromResponse = (response: Notifications.NotificationResponse) => {
+      const route = buildRouteFromNotificationData(response.notification.request.content.data);
+      if (route) {
+        router.push(route as Href);
+      }
+    };
+
     try {
       notificationListener.current = Notifications.addNotificationReceivedListener(() => {
         void refresh();
       });
 
-      responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-        const data = response.notification.request.content.data;
-        if (data?.screen) {
-          const safeRoute = sanitizeRoute(data.screen as string);
-          router.push(safeRoute as any);
-        }
-      });
+      responseListener.current =
+        Notifications.addNotificationResponseReceivedListener(routeFromResponse);
+
+      // Cold start: a push tapped while the app was killed launches the app
+      // without firing the response listener — fetch that tap explicitly.
+      // One-shot: re-runs of this effect (router/refresh identity) and
+      // OS-cached responses must not re-navigate.
+      if (!coldStartHandled.current) {
+        coldStartHandled.current = true;
+        void Notifications.getLastNotificationResponseAsync()
+          .then((response) => {
+            if (response) routeFromResponse(response);
+          })
+          .catch(() => {
+            // Expo Go / web: API unavailable — nothing to route.
+          });
+      }
     } catch {
       logger.warn('Notification listeners not available (Expo Go)');
     }

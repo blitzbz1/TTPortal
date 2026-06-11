@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, Modal, Pressable, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal, Pressable, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
+import { showAlert } from '../lib/dialogs';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -156,7 +157,7 @@ export function FriendsScreen() {
     if (!user) return;
     const { error } = await acceptRequest(id, user.id);
     if (error) {
-      Alert.alert(s('error'), s('acceptError'));
+      showAlert(s('error'), s('acceptError'));
       return;
     }
     fetchData();
@@ -166,7 +167,7 @@ export function FriendsScreen() {
     if (!user) return;
     const { error } = await declineRequest(id, user.id);
     if (error) {
-      Alert.alert(s('error'), s('declineError'));
+      showAlert(s('error'), s('declineError'));
       return;
     }
     setPending((prev) => prev.filter((p) => p.id !== id));
@@ -291,7 +292,7 @@ export function FriendsScreen() {
 
   const openPlayerProfile = useCallback((profile: any) => {
     if (!profile?.id) return;
-    router.push(`/(protected)/player/${profile.id}` as any);
+    router.push({ pathname: '/(protected)/player/[userId]', params: { userId: profile.id } });
   }, [router]);
 
   const filteredFriends = friends.filter((f) => {

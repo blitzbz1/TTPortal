@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { showAlert } from '../lib/dialogs';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lucide } from './Icon';
@@ -41,7 +42,7 @@ export function LogHoursModal({ visible, eventId, eventTitle, initialHours, onDi
   const submit = useCallback(async () => {
     const parsed = parseFloat(hours);
     if (isNaN(parsed) || parsed <= 0) {
-      Alert.alert(s('error'), s('hoursPlayedPlaceholder'));
+      showAlert(s('error'), s('hoursPlayedPlaceholder'));
       return;
     }
     if (!user || !eventId) return;
@@ -51,7 +52,7 @@ export function LogHoursModal({ visible, eventId, eventTitle, initialHours, onDi
     setSaving(false);
 
     if (error) {
-      Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s));
+      showAlert(s('error'), safeErrorMessage(error, 'genericError', s));
       return;
     }
     // Hours changed; the past tab embeds participant.hours_played, so the

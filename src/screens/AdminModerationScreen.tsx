@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput, Modal, Pressable, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, TextInput, Modal, Pressable, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { showAlert, showConfirm } from '../lib/dialogs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -54,355 +55,17 @@ import {
   saveCachedVenueChangeRequests,
 } from '../lib/adminListsCache';
 
-// Cached at module scope so each per-row format call doesn't construct a fresh
-// Intl.DateTimeFormat. Use lazy access to keep startup cheap.
-const _roDateFmt: { current: Intl.DateTimeFormat | null } = { current: null };
-function formatRoDate(iso: string) {
-  if (!_roDateFmt.current) _roDateFmt.current = new Intl.DateTimeFormat('ro-RO');
-  return _roDateFmt.current.format(new Date(iso));
-}
-const _localizedDateTimeFmt: { current: Intl.DateTimeFormat | null } = { current: null };
-function formatLocalizedDateTime(iso: string) {
-  if (!_localizedDateTimeFmt.current) {
-    _localizedDateTimeFmt.current = new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    });
-  }
-  return _localizedDateTimeFmt.current.format(new Date(iso));
-}
-
-function formatVenueCoordinates(lat: number | null | undefined, lng: number | null | undefined): string | null {
-  if (typeof lat !== 'number' || typeof lng !== 'number') return null;
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-}
-
-function formatVenueCountry(venue: any): string | null {
-  const countryName = venue.cities?.country_name;
-  const countryCode = venue.cities?.country_code;
-  if (countryName && countryCode) return `${countryName} (${countryCode})`;
-  return countryName ?? countryCode ?? null;
-}
-
-const CONDITION_OPTIONS: { value: VenueCondition; labelKey: string }[] = [
-  { value: 'buna', labelKey: 'conditionGood' },
-  { value: 'acceptabila', labelKey: 'conditionAcceptable' },
-  { value: 'deteriorata', labelKey: 'conditionDegraded' },
-  { value: 'profesionala', labelKey: 'conditionPro' },
-  { value: 'necunoscuta', labelKey: 'conditionUnknown' },
-];
-
-const BOOLEAN_OPTIONS: { value: boolean | null; labelKey: string }[] = [
-  { value: true, labelKey: 'yes' },
-  { value: false, labelKey: 'no' },
-  { value: null, labelKey: 'conditionUnknown' },
-];
-
-const REQUIRED_BOOLEAN_OPTIONS: { value: boolean; labelKey: string }[] = [
-  { value: true, labelKey: 'yes' },
-  { value: false, labelKey: 'no' },
-];
-
-interface PendingVenueCardProps {
-  venue: any;
-  styles: any;
-  colors: any;
-  s: (key: string) => string;
-  onApprove: (id: number) => void;
-  onEdit: (venue: any) => void;
-  onReject: (venue: any) => void;
-}
-const PendingVenueCard = React.memo(function PendingVenueCard({
-  venue, styles, colors, s, onApprove, onEdit, onReject,
-}: PendingVenueCardProps) {
-  return (
-    <View style={styles.modCard}>
-      <View style={styles.modTop}>
-        <Text style={styles.modTitle}>{venue.name}</Text>
-        <View style={styles.modBadge}>
-          <Text style={styles.modBadgeText}>{s('newBadge')}</Text>
-        </View>
-      </View>
-      <Text style={styles.modMeta}>
-        {s('addedBy')}{venue.profiles?.full_name ?? s('user').toLowerCase()} {'·'}{' '}
-        {formatRoDate(venue.created_at)} {'·'}{' '}
-        {venue.city ?? ''}{venue.address ? `, ${venue.address}` : ''}
-      </Text>
-      <Text style={styles.modMeta}>
-        {[formatVenueCountry(venue), formatVenueCoordinates(venue.lat, venue.lng)]
-          .filter(Boolean)
-          .join(' / ')}
-      </Text>
-      <View style={styles.modActions}>
-        <TouchableOpacity style={styles.approveBtn} onPress={() => onApprove(venue.id)}>
-          <Lucide name="check" size={14} color={colors.textOnPrimary} />
-          <Text style={styles.approveBtnText}>{s('approve')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.editBtn} onPress={() => onEdit(venue)}>
-          <Lucide name="pencil" size={14} color={colors.textMuted} />
-          <Text style={styles.editBtnText}>{s('edit')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.rejectBtn} onPress={() => onReject(venue)}>
-          <Lucide name="x" size={14} color={colors.red} />
-          <Text style={styles.rejectBtnText}>{s('reject')}</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-});
-
-interface FlaggedReviewCardProps {
-  review: any;
-  styles: any;
-  colors: any;
-  s: (key: string) => string;
-  onKeep: (id: number) => void;
-  onDelete: (id: number) => void;
-}
-const FlaggedReviewCard = React.memo(function FlaggedReviewCard({
-  review, styles, colors, s, onKeep, onDelete,
-}: FlaggedReviewCardProps) {
-  return (
-    <View style={styles.flagCard}>
-      <View style={styles.flagTop}>
-        <View style={styles.flagInfo}>
-          <Text style={styles.flagAuthor}>{review.profiles?.full_name ?? s('user')}</Text>
-          <Text style={styles.flagMeta}>
-            {review.venues?.name ?? s('venue')} {'·'}{' '}
-            {formatRoDate(review.created_at)}
-          </Text>
-        </View>
-        <View style={styles.flagBadge}>
-          <Text style={styles.flagBadgeText}>{review.flag_count ?? 0} {s('reports')}</Text>
-        </View>
-      </View>
-      <Text style={styles.flagText}>{`"${review.body ?? review.text ?? ''}"`}</Text>
-      <View style={styles.flagActions}>
-        <TouchableOpacity style={styles.keepBtn} onPress={() => onKeep(review.id)}>
-          <Lucide name="check" size={14} color={colors.textMuted} />
-          <Text style={styles.keepBtnText}>{s('keep')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(review.id)}>
-          <Lucide name="trash-2" size={14} color={colors.textOnPrimary} />
-          <Text style={styles.deleteBtnText}>{s('deleteBtn')}</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-});
-
-interface FeedbackCardProps {
-  item: any;
-  styles: any;
-  colors: any;
-  s: (key: string) => string;
-  onReply: (item: any) => void;
-  onDelete: (id: any) => void;
-}
-const FeedbackCard = React.memo(function FeedbackCard({
-  item, styles, colors, s, onReply, onDelete,
-}: FeedbackCardProps) {
-  const authorName = item.profiles?.full_name || item.profiles?.email || s('anon');
-  const iconName = item.category === 'bug' ? 'bug' : 'message-square';
-  const categoryLabel = item.category === 'bug' ? s('feedbackCategoryBug') : s('feedbackCategoryGeneral');
-  return (
-    <View style={styles.flagCard} testID={`feedback-row-${item.id}`}>
-      <View style={styles.flagTop}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-          <Lucide name={iconName} size={14} color={colors.textMuted} />
-          <Text style={styles.flagAuthor} numberOfLines={1}>{authorName}</Text>
-        </View>
-        <View style={styles.flagBadge}>
-          <Text style={styles.flagBadgeText}>{categoryLabel}</Text>
-        </View>
-      </View>
-      <Text style={styles.flagText}>{item.message}</Text>
-      <Text style={styles.flagMeta}>
-        {item.page}
-        {' · '}
-        {formatLocalizedDateTime(item.created_at)}
-      </Text>
-      <View style={styles.modActions}>
-        <TouchableOpacity
-          style={styles.keepBtn}
-          onPress={() => onReply(item)}
-          testID={`feedback-reply-${item.id}`}
-        >
-          <Lucide name="message-circle" size={14} color={colors.primary} />
-          <Text style={styles.keepBtnText}>{s('feedbackReply')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.deleteBtn}
-          onPress={() => onDelete(item.id)}
-          testID={`feedback-delete-${item.id}`}
-        >
-          <Lucide name="trash-2" size={14} color={colors.textOnPrimary} />
-          <Text style={styles.deleteBtnText}>{s('deleteBtn')}</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-});
-
-interface VenueChangeRequestCardProps {
-  request: any;
-  styles: any;
-  colors: any;
-  s: (key: string) => string;
-  onApply: (request: any, decision: VenueChangeRequestDecision) => Promise<boolean>;
-  onDismiss: (id: number) => Promise<boolean>;
-  onViewPhoto: (url: string) => void;
-  canRemove: boolean;
-}
-const VenueChangeRequestCard = React.memo(function VenueChangeRequestCard({
-  request, styles, colors, s, onApply, onDismiss, onViewPhoto, canRemove,
-}: VenueChangeRequestCardProps) {
-  const [acceptNets, setAcceptNets] = useState(true);
-  const [acceptLighting, setAcceptLighting] = useState(true);
-  const [acceptTables, setAcceptTables] = useState(true);
-  const [availability, setAvailability] = useState<'none' | 'hide' | 'remove'>('none');
-  const [busy, setBusy] = useState(false);
-
-  const v = request.venues ?? {};
-  const fmtBool = (b: boolean | null | undefined) =>
-    b == null ? s('conditionUnknown') : b ? s('yes') : s('no');
-
-  const fields: {
-    key: string; label: string; current: string; proposed: string;
-    accepted: boolean; set: (next: boolean) => void;
-  }[] = [];
-  if (request.proposed_nets != null) {
-    fields.push({ key: 'nets', label: s('fieldNets'), current: fmtBool(v.nets), proposed: fmtBool(request.proposed_nets), accepted: acceptNets, set: setAcceptNets });
-  }
-  if (request.proposed_night_lighting != null) {
-    fields.push({ key: 'lighting', label: s('fieldLighting'), current: fmtBool(v.night_lighting), proposed: fmtBool(request.proposed_night_lighting), accepted: acceptLighting, set: setAcceptLighting });
-  }
-  if (request.proposed_tables_count != null) {
-    fields.push({ key: 'tables', label: s('fieldTables'), current: String(v.tables_count ?? '?'), proposed: String(request.proposed_tables_count), accepted: acceptTables, set: setAcceptTables });
-  }
-
-  // Permanent removal is admin-only (also enforced by resolve_venue_change_request);
-  // moderators may hide but not delete a venue.
-  const availOptions = ([
-    { v: 'none', labelKey: 'vcrAvailIgnore' },
-    { v: 'hide', labelKey: 'vcrAvailHide' },
-    { v: 'remove', labelKey: 'vcrAvailRemove' },
-  ] as { v: 'none' | 'hide' | 'remove'; labelKey: string }[]).filter((o) => o.v !== 'remove' || canRemove);
-
-  const handleApply = async () => {
-    setBusy(true);
-    const ok = await onApply(request, {
-      applyNets: acceptNets,
-      applyNightLighting: acceptLighting,
-      applyTablesCount: acceptTables,
-      availability,
-    });
-    if (!ok) setBusy(false);
-  };
-
-  const handleDismiss = async () => {
-    setBusy(true);
-    const ok = await onDismiss(request.id);
-    if (!ok) setBusy(false);
-  };
-
-  return (
-    <View style={styles.modCard} testID={`vcr-card-${request.id}`}>
-      <View style={styles.modTop}>
-        <Text style={styles.modTitle}>{v.name ?? s('venue')}</Text>
-        <View style={styles.modBadge}>
-          <Text style={styles.modBadgeText}>{s('tabChanges')}</Text>
-        </View>
-      </View>
-      <Text style={styles.modMeta}>
-        {(request.profiles?.full_name ?? s('user'))} {'·'} {formatRoDate(request.created_at)}
-        {v.city ? ` · ${v.city}` : ''}
-      </Text>
-      {request.note ? <Text style={styles.vcrNote}>{`"${request.note}"`}</Text> : null}
-
-      {request.photo_url ? (
-        <TouchableOpacity
-          onPress={() => onViewPhoto(request.photo_url)}
-          accessibilityRole="imagebutton"
-          accessibilityLabel={s('vcrViewPhoto')}
-          testID={`vcr-photo-${request.id}`}
-        >
-          <Image source={{ uri: request.photo_url }} style={styles.vcrPhoto} />
-        </TouchableOpacity>
-      ) : null}
-
-      {fields.map((f) => (
-        <View key={f.key} style={styles.vcrFieldRow}>
-          <View style={styles.vcrFieldInfo}>
-            <Text style={styles.vcrFieldLabel}>{f.label}</Text>
-            <Text style={styles.vcrFieldChange}>{`${f.current} → ${f.proposed}`}</Text>
-          </View>
-          <TouchableOpacity
-            style={[styles.vcrDecisionBtn, f.accepted ? styles.vcrDecisionAccept : styles.vcrDecisionReject]}
-            onPress={() => f.set(!f.accepted)}
-            testID={`vcr-${request.id}-${f.key}`}
-          >
-            <Lucide name={f.accepted ? 'check' : 'x'} size={13} color={f.accepted ? colors.greenDeep : colors.red} />
-            <Text style={[styles.vcrDecisionText, { color: f.accepted ? colors.greenDeep : colors.red }]}>
-              {f.accepted ? s('vcrAccept') : s('vcrReject')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ))}
-
-      {request.mark_unavailable ? (
-        <View style={styles.vcrAvailBlock}>
-          <Text style={styles.vcrAvailHeader}>{s('vcrAvailabilityHeader')}</Text>
-          <View style={styles.modalChoiceGrid}>
-            {availOptions.map((o) => {
-              const active = availability === o.v;
-              return (
-                <TouchableOpacity
-                  key={o.v}
-                  style={[styles.modalChoiceBtn, active && styles.modalChoiceBtnActive]}
-                  onPress={() => setAvailability(o.v)}
-                  testID={`vcr-avail-${o.v}`}
-                >
-                  <Text style={[styles.modalChoiceText, active && styles.modalChoiceTextActive]}>
-                    {s(o.labelKey)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-      ) : null}
-
-      <View style={styles.modActions}>
-        <TouchableOpacity
-          style={[styles.approveBtn, busy && { opacity: 0.6 }]}
-          onPress={handleApply}
-          disabled={busy}
-          testID={`vcr-apply-${request.id}`}
-        >
-          {busy ? (
-            <ActivityIndicator size="small" color={colors.textOnPrimary} />
-          ) : (
-            <>
-              <Lucide name="check" size={14} color={colors.textOnPrimary} />
-              <Text style={styles.approveBtnText}>{s('vcrApply')}</Text>
-            </>
-          )}
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.editBtn}
-          onPress={handleDismiss}
-          disabled={busy}
-          testID={`vcr-dismiss-${request.id}`}
-        >
-          <Lucide name="x" size={14} color={colors.textMuted} />
-          <Text style={styles.editBtnText}>{s('vcrDismiss')}</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-});
+import {
+  PendingVenueCard,
+  FlaggedReviewCard,
+  FeedbackCard,
+  VenueChangeRequestCard,
+  CONDITION_OPTIONS,
+  BOOLEAN_OPTIONS,
+  REQUIRED_BOOLEAN_OPTIONS,
+  formatShortDate,
+  formatLocalizedDateTime,
+} from './AdminModeration/cards';
 
 export function AdminModerationScreen() {
   const [pendingVenues, setPendingVenues] = useState<any[]>([]);
@@ -460,7 +123,7 @@ export function AdminModerationScreen() {
   // Reject confirmation bottom sheet — set to a venue to open, null to close.
   const [rejectTarget, setRejectTarget] = useState<any | null>(null);
   const [rejectSubmitting, setRejectSubmitting] = useState(false);
-  // Delete (approved) venue confirmation — Alert.alert's button callbacks
+  // Delete (approved) venue confirmation — the dialog's button callbacks
   // don't fire on react-native-web, so we use the same bottom sheet here.
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
@@ -575,7 +238,7 @@ export function AdminModerationScreen() {
     const { error } = await setUserModerator(user.id, u.id, next);
     setTogglingUserId(null);
     if (error) {
-      Alert.alert(s('error'), s('moderatorUpdateError'));
+      showAlert(s('error'), s('moderatorUpdateError'));
       return;
     }
     setUserResults((prev) => prev.map((r) => (r.id === u.id ? { ...r, is_moderator: next } : r)));
@@ -592,7 +255,7 @@ export function AdminModerationScreen() {
   const handleApprove = useCallback(async (id: number) => {
     const { error } = await approveVenue(id, user!.id);
     if (error) {
-      Alert.alert(s('error'), s('approveError'));
+      showAlert(s('error'), s('approveError'));
       return;
     }
     await Promise.all([
@@ -612,7 +275,7 @@ export function AdminModerationScreen() {
     const { error } = await rejectVenue(rejectTarget.id, user.id);
     setRejectSubmitting(false);
     if (error) {
-      Alert.alert(s('error'), s('rejectError'));
+      showAlert(s('error'), s('rejectError'));
       return;
     }
     const rejectedId = rejectTarget.id;
@@ -630,7 +293,7 @@ export function AdminModerationScreen() {
     const { error } = await deleteVenue(deleteTarget.id, user.id);
     setDeleteSubmitting(false);
     if (error) {
-      Alert.alert(s('error'), s('deleteVenueError'));
+      showAlert(s('error'), s('deleteVenueError'));
       return;
     }
     const deletedId = deleteTarget.id;
@@ -708,7 +371,7 @@ export function AdminModerationScreen() {
       });
       if (cityError || !upsertedId) {
         setEditSaving(false);
-        Alert.alert(s('error'), s('genericError'));
+        showAlert(s('error'), s('genericError'));
         return;
       }
       cityIdUpdate = upsertedId;
@@ -731,7 +394,7 @@ export function AdminModerationScreen() {
       lng: editLng,
     });
     setEditSaving(false);
-    if (error) { Alert.alert(s('error'), s('genericError')); return; }
+    if (error) { showAlert(s('error'), s('genericError')); return; }
     // Update in search results
     setVenueResults((prev) => prev.map((v) => v.id === editVenue.id ? { ...v, ...data } : v));
     // Update in pending list too
@@ -742,7 +405,7 @@ export function AdminModerationScreen() {
   const handleKeep = useCallback(async (id: number) => {
     const { error } = await keepReview(id, user!.id);
     if (error) {
-      Alert.alert(s('error'), s('keepError'));
+      showAlert(s('error'), s('keepError'));
       return;
     }
     setFlaggedReviews((prev) => prev.filter((r) => r.id !== id));
@@ -751,7 +414,7 @@ export function AdminModerationScreen() {
   const handleDelete = useCallback(async (id: number) => {
     const { error } = await deleteReview(id, user!.id);
     if (error) {
-      Alert.alert(s('error'), s('deleteError'));
+      showAlert(s('error'), s('deleteError'));
       return;
     }
     setFlaggedReviews((prev) => prev.filter((r) => r.id !== id));
@@ -833,7 +496,7 @@ export function AdminModerationScreen() {
     const { error } = await resolveReport(reportId, 'reviewed');
     setResolvingReportId(null);
     if (error) {
-      Alert.alert(s('error'), error.message);
+      showAlert(s('error'), error.message);
       return;
     }
     setReports((prev) => prev.filter((r) => r.id !== reportId));
@@ -842,7 +505,7 @@ export function AdminModerationScreen() {
   const handleApplyChangeRequest = useCallback(async (request: any, decision: VenueChangeRequestDecision) => {
     const { error } = await resolveVenueChangeRequest(request.id, request.venue_id, user!.id, decision);
     if (error) {
-      Alert.alert(s('error'), s('vcrApplyError'));
+      showAlert(s('error'), s('vcrApplyError'));
       return false;
     }
     await queryClient.invalidateQueries({ queryKey: ['venues'], exact: false });
@@ -853,26 +516,19 @@ export function AdminModerationScreen() {
   const handleDismissChangeRequest = useCallback(async (id: number) => {
     const { error } = await dismissVenueChangeRequest(id, user!.id);
     if (error) {
-      Alert.alert(s('error'), s('vcrDismissError'));
+      showAlert(s('error'), s('vcrDismissError'));
       return false;
     }
     setChangeRequests((prev) => prev.filter((r) => r.id !== id));
     return true;
   }, [user, s]);
 
-  const handleDeleteFeedback = useCallback((id: string) => {
-    Alert.alert(s('confirmDeleteFeedback'), '', [
-      { text: s('cancel'), style: 'cancel' },
-      {
-        text: s('deleteBtn'),
-        style: 'destructive',
-        onPress: async () => {
-          const { error } = await deleteUserFeedback(id, user!.id);
-          if (error) { Alert.alert(s('error'), s('deleteError')); return; }
-          setUserFeedback((prev) => prev.filter((f) => f.id !== id));
-        },
-      },
-    ]);
+  const handleDeleteFeedback = useCallback(async (id: string) => {
+    if (await showConfirm(s('confirmDeleteFeedback'), '', { confirmLabel: s('deleteBtn'), cancelLabel: s('cancel'), destructive: true })) {
+      const { error } = await deleteUserFeedback(id, user!.id);
+      if (error) { showAlert(s('error'), s('deleteError')); return; }
+      setUserFeedback((prev) => prev.filter((f) => f.id !== id));
+    }
   }, [user, s]);
 
   if (adminLoading) {

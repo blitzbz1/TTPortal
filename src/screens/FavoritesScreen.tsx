@@ -135,7 +135,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
             title={s('emptyFavoritesTitle')}
             description={s('emptyFavoritesDesc')}
             ctaLabel={s('emptyFavoritesCta')}
-            onCtaPress={() => router.push('/(tabs)/' as any)}
+            onCtaPress={() => router.push('/(tabs)')}
             iconColor={colors.red}
             iconBg={colors.redPale}
           />
@@ -152,7 +152,7 @@ export function FavoritesScreen({ hideTabBar = false }: FavoritesScreenProps) {
               <Card shadow="sm" borderRadius={14} style={styles.favCard}>
                 <TouchableOpacity
                   style={styles.favCardInner}
-                  onPress={() => router.push(`/venue/${fav.venue_id}` as any)}
+                  onPress={() => router.push({ pathname: '/venue/[id]', params: { id: String(fav.venue_id) } })}
                   accessibilityLabel={venue?.name ?? 'venue'}
                 >
                   <View style={[styles.favIcon, { backgroundColor: typeInfo.iconBg }]}>

@@ -1,3 +1,4 @@
+import { createQueryChain } from '../../test-utils/supabaseMock';
 import {
   addChallengeToEvent,
   awardEventChallengeSubmission,
@@ -8,17 +9,6 @@ import {
   getUserBadgeProgress,
 } from '../challenges';
 
-function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
-  const result = { data: resolvedData, error: resolvedError };
-  const chain: any = {
-    select: jest.fn(() => chain),
-    eq: jest.fn(() => chain),
-    in: jest.fn(() => chain),
-    order: jest.fn(() => chain),
-    then: (resolve: any) => Promise.resolve(result).then(resolve),
-  };
-  return chain;
-}
 
 const mockFrom = jest.fn();
 const mockRpc = jest.fn();

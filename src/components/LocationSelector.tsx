@@ -40,7 +40,7 @@ export function LocationSelector({
   onClose,
   onDone,
 }: LocationSelectorProps) {
-  const { s, lang } = useI18n();
+  const { s, sn, lang } = useI18n();
   const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const styles = useMemo(() => createStyles(colors, isDark, mode, width), [colors, isDark, mode, width]);
@@ -205,7 +205,7 @@ export function LocationSelector({
                 {pendingCity ? pendingCity.name : s('initialLocationChooseCity')}
               </Text>
               <Text style={styles.activeMeta} numberOfLines={1}>
-                {pendingCity ? getLocalizedCitySupportLine(pendingCity, s, lang) : s('locationSelectorSelectedHint')}
+                {pendingCity ? getLocalizedCitySupportLine(pendingCity, sn, lang) : s('locationSelectorSelectedHint')}
               </Text>
             </View>
             {pendingCity ? (
@@ -358,7 +358,7 @@ export function LocationSelector({
                   {pendingCity ? pendingCity.name : s('initialLocationChooseCity')}
                 </Text>
                 <Text style={styles.selectedPreviewMeta} numberOfLines={1}>
-                  {pendingCity ? getLocalizedCitySupportLine(pendingCity, s, lang) : s('locationSelectorSelectedHint')}
+                  {pendingCity ? getLocalizedCitySupportLine(pendingCity, sn, lang) : s('locationSelectorSelectedHint')}
                 </Text>
               </View>
             </View>
@@ -562,17 +562,17 @@ function getCityCountryLabel(city: LocationCity, lang: string): string {
   return getCountryLabel({ code: city.country_code, name: city.country_name, active: true }, lang);
 }
 
-function getLocalizedCitySupportLine(city: LocationCity, s: (key: string, ...args: string[]) => string, lang: string): string {
+function getLocalizedCitySupportLine(city: LocationCity, sn: (key: string, count: number, ...args: string[]) => string, lang: string): string {
   void getCitySupportLine;
-  return `${getCityCountryLabel(city, lang)} · ${getVenueCountLabel(city.venue_count ?? 0, s)}`;
+  return `${getCityCountryLabel(city, lang)} · ${getVenueCountLabel(city.venue_count ?? 0, sn)}`;
 }
 
-function getVenueCountLabel(count: number, s: (key: string, ...args: string[]) => string): string {
-  return count === 1 ? s('cityModalVenueCountOne') : s('cityModalVenueCount', String(count));
+function getVenueCountLabel(count: number, sn: (key: string, count: number, ...args: string[]) => string): string {
+  return sn('cityModalVenueCount', count);
 }
 
-function getCitySupportLine(city: LocationCity, s: (key: string, ...args: string[]) => string): string {
-  return `${city.country_name} · ${getVenueCountLabel(city.venue_count ?? 0, s)}`;
+function getCitySupportLine(city: LocationCity, sn: (key: string, count: number, ...args: string[]) => string): string {
+  return `${city.country_name} · ${getVenueCountLabel(city.venue_count ?? 0, sn)}`;
 }
 
 function getNearestCity(cities: LocationCity[], lat: number, lng: number): LocationCity | null {

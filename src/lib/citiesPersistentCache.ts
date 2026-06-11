@@ -1,4 +1,5 @@
 import { createMMKV } from 'react-native-mmkv';
+import { CACHE_SCHEMA_VERSION } from './cacheSchema';
 
 const store = createMMKV({ id: 'cities-cache-v2' });
 const KEY = 'cities';
@@ -21,6 +22,7 @@ export interface PersistedCity {
 }
 
 export interface CitiesCache {
+  v?: number;
   cities: PersistedCity[];
   syncedAt: string;
 }
@@ -31,6 +33,8 @@ export function readCities(): CitiesCache | null {
   try {
     const parsed = JSON.parse(raw) as CitiesCache;
     if (!parsed || !Array.isArray(parsed.cities)) return null;
+    // Schema mismatch ⇒ miss (forces a full delta re-sync from since=null).
+    if (parsed.v !== CACHE_SCHEMA_VERSION) return null;
     return parsed;
   } catch {
     return null;
@@ -38,7 +42,7 @@ export function readCities(): CitiesCache | null {
 }
 
 export function writeCities(cache: CitiesCache): void {
-  store.set(KEY, JSON.stringify(cache));
+  store.set(KEY, JSON.stringify({ ...cache, v: CACHE_SCHEMA_VERSION }));
 }
 
 export function applyCitiesDelta(

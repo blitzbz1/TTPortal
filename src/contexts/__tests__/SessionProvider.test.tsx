@@ -74,7 +74,13 @@ jest.mock('../../lib/supabase', () => ({
       resend: (...a: any[]) => mockResend(...a),
       onAuthStateChange: (...a: any[]) => mockOnAuthStateChange(...a),
     },
-    from: () => ({ upsert: (...a: any[]) => mockUpsert(...a) }),
+    from: () => ({
+      upsert: (...a: any[]) => mockUpsert(...a),
+      update: (...a: any[]) => {
+        mockUpsert(...a); // same spy: tests assert the written payload
+        return { eq: jest.fn().mockResolvedValue({ data: null, error: null }) };
+      },
+    }),
   },
 }));
 
@@ -489,8 +495,7 @@ describe('SessionProvider', () => {
 
     await waitFor(() => {
       expect(mockUpsert).toHaveBeenCalledWith(
-        { id: 'user-123', full_name: 'Jane Doe', email: 'test@example.com', auth_provider: 'google' },
-        { onConflict: 'id' },
+        { full_name: 'Jane Doe', email: 'test@example.com', auth_provider: 'google' },
       );
     });
   });
@@ -641,8 +646,7 @@ describe('SessionProvider', () => {
 
     await waitFor(() => {
       expect(mockUpsert).toHaveBeenCalledWith(
-        { id: 'user-123', full_name: 'Ion Ionescu', email: 'test@example.com', auth_provider: 'apple' },
-        { onConflict: 'id' },
+        { full_name: 'Ion Ionescu', email: 'test@example.com', auth_provider: 'apple' },
       );
     });
   });

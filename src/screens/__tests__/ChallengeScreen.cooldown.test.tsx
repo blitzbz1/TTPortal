@@ -7,6 +7,7 @@ const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
   useLocalSearchParams: () => ({}),
+  useFocusEffect: (cb: () => void) => { const React = require('react'); React.useEffect(cb, [cb]); },
 }));
 
 jest.mock('../../hooks/useSession', () => ({
@@ -20,6 +21,10 @@ jest.mock('../../hooks/useI18n', () => ({
     s: (key: string, ...args: string[]) => {
       const template = mockStrings[key] ?? key;
       return args.reduce((text, arg, index) => text.replace(`{${index}}`, arg), template);
+    },
+    sn: (key: string, count: number, ...args: string[]) => {
+      const template = mockStrings[key] ?? key;
+      return [String(count), ...args].reduce((text, arg, index) => text.replace(`{${index}}`, arg), template);
     },
   }),
 }));

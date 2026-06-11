@@ -1,6 +1,10 @@
 import { createMMKV } from 'react-native-mmkv';
+import { CACHE_SCHEMA_VERSION } from './cacheSchema';
 
 // Persistent on-device venue list, scoped by (city, type). Each scope holds:
+//   - v: CACHE_SCHEMA_VERSION at write time (mismatch ⇒ cache miss ⇒ the
+//     delta client re-syncs from since=null — delta sync never backfills
+//     shape changes on its own)
 //   - venues: full list as currently known to the device
 //   - syncedAt: ISO timestamp passed back to the server on the next delta call
 const store = createMMKV({ id: 'venues-cache-v2' });
@@ -26,6 +30,7 @@ export interface PersistedVenue {
 }
 
 export interface VenueScopeCache {
+  v?: number;
   venues: PersistedVenue[];
   syncedAt: string;
 }
@@ -40,6 +45,8 @@ export function readVenueScope(city?: string | null, type?: string | null): Venu
   try {
     const parsed = JSON.parse(raw) as VenueScopeCache;
     if (!parsed || !Array.isArray(parsed.venues)) return null;
+    // Schema mismatch ⇒ miss (pre-versioning envelopes have v undefined).
+    if (parsed.v !== CACHE_SCHEMA_VERSION) return null;
     return parsed;
   } catch {
     return null;
@@ -51,7 +58,7 @@ export function writeVenueScope(
   type: string | null | undefined,
   cache: VenueScopeCache,
 ): void {
-  store.set(scopeKey(city, type), JSON.stringify(cache));
+  store.set(scopeKey(city, type), JSON.stringify({ ...cache, v: CACHE_SCHEMA_VERSION }));
 }
 
 export function applyVenuesDelta(

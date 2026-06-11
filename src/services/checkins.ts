@@ -41,16 +41,14 @@ export async function checkout(checkinId: number, userId: string) {
 const activeFilter = (now: string) =>
   `ended_at.gt.${now},and(ended_at.is.null,started_at.gte.${now.split('T')[0]}T00:00:00.000Z)`;
 
-export async function getActiveCheckins(venueId: number) {
-  const now = new Date().toISOString();
-  return supabase
-    .from('checkins')
-    .select(
-      'id, user_id, venue_id, table_number, started_at, ended_at, profiles!checkins_user_profiles_fk(full_name, avatar_url)',
-    )
-    .eq('venue_id', venueId)
-    .or(activeFilter(now))
-    .order('started_at', { ascending: false });
+// Checkins RLS is scoped to self + friends (migration 084), so a broad
+// per-venue row read no longer works for strangers. Anonymous-safe surfaces
+// ("who's here now" badges, busyness) get a count instead.
+export async function getVenueActiveCheckinCount(venueId: number) {
+  const { data, error } = await supabase.rpc('get_venue_active_checkin_count', {
+    p_venue_id: venueId,
+  });
+  return { data: (data as number | null) ?? 0, error };
 }
 
 export async function getActiveFriendCheckins(friendIds: string[]) {

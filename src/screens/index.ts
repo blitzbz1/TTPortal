@@ -1,5 +1,3 @@
-export { SignupLoginScreen } from './SignupLoginScreen';
-export { SplashScreen } from './SplashScreen';
 export { MapViewScreen } from './MapViewScreen';
 export { VenueDetailScreen } from './VenueDetailScreen';
 export { AddVenueScreen } from './AddVenueScreen';
@@ -9,7 +7,6 @@ export { EquipmentScreen } from './EquipmentScreen';
 export { PlayerProfileScreen } from './PlayerProfileScreen';
 export { FriendsScreen } from './FriendsScreen';
 export { PlayHistoryScreen } from './PlayHistoryScreen';
-export { ForgotPasswordScreen } from './ForgotPasswordScreen';
 export { ConditionVotingScreen } from './ConditionVotingScreen';
 export { EventSchedulingScreen } from './EventSchedulingScreen';
 export { VenueEventsScreen } from './VenueEventsScreen';

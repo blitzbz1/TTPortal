@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Platform } from 'react-native';
@@ -15,6 +16,31 @@ import {
   getOAuthRedirectUrl,
   getPasswordResetRedirectUrl,
 } from '../lib/auth-redirects';
+import { clear as clearOfflineQueue } from '../lib/offlineQueue';
+import { clearAllEventsCacheForUser } from '../lib/eventsCache';
+import { removeCacheItemsByPrefix } from '../lib/cacheUtils';
+import { queryClient } from '../lib/queryClient';
+
+/**
+ * Clears everything keyed to (or readable by) the signed-out user so the
+ * next account on this device can't read their data, and so the previous
+ * user's queued offline writes don't replay under the new session (where
+ * they would fail RLS forever).
+ */
+function clearPerUserStateOnSignOut(prevUserId: string | null | undefined): void {
+  try {
+    clearOfflineQueue();
+    if (prevUserId) {
+      clearAllEventsCacheForUser(prevUserId);
+      removeCacheItemsByPrefix(`playHistory:${prevUserId}:`);
+      removeCacheItemsByPrefix(`profile:${prevUserId}:`);
+    }
+    queryClient.clear();
+    logger.info('Per-user state cleared on sign-out', { hadUser: !!prevUserId });
+  } catch (err) {
+    logger.warn('Per-user state cleanup failed', { err: String(err) });
+  }
+}
 
 // Lazy-load GoogleSignin to avoid crashing in Expo Go where native module is unavailable
 let GoogleSignin: typeof import('@react-native-google-signin/google-signin').GoogleSignin | null = null;
@@ -77,6 +103,10 @@ interface SessionProviderProps {
 export function SessionProvider({ children }: SessionProviderProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // Mirror for the auth listener: the callback below closes over the
+  // initial render, so it reads the outgoing user id from this ref.
+  const sessionRef = useRef<Session | null>(null);
+  sessionRef.current = session;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: restored } }) => {
@@ -89,6 +119,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
+        if (_event === 'SIGNED_OUT') {
+          clearPerUserStateOnSignOut(sessionRef.current?.user?.id);
+        }
         setSession(newSession);
         logger.debug('Auth state changed', { event: _event });
       },
@@ -191,10 +224,13 @@ export function SessionProvider({ children }: SessionProviderProps) {
     }
     if (data.user) {
       const fullName = result.data.user.name || data.user.user_metadata?.full_name || '';
-      const { error: profileError } = await supabase.from('profiles').upsert(
-        { id: data.user.id, full_name: fullName, email: data.user.email || '', auth_provider: 'google' },
-        { onConflict: 'id' },
-      );
+      // handle_new_user creates the row (incl. the required generated
+      // username); this only ever updates it — the old upsert's insert path
+      // could never succeed (username NOT NULL since migration 036).
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ full_name: fullName, email: data.user.email || '', auth_provider: 'google' })
+        .eq('id', data.user.id);
       if (profileError) {
         logger.warn('Profile upsert failed after Google sign-in', { error: profileError.message });
       }
@@ -254,18 +290,18 @@ export function SessionProvider({ children }: SessionProviderProps) {
     }
 
     if (data.user) {
-      const profileData: { id: string; email: string; auth_provider: string; full_name?: string } = {
-        id: data.user.id,
+      const profileData: { email: string; auth_provider: string; full_name?: string } = {
         email: data.user.email || '',
         auth_provider: 'apple',
       };
       if (appleName) {
         profileData.full_name = appleName;
       }
-      const { error: profileError } = await supabase.from('profiles').upsert(
-        profileData,
-        { onConflict: 'id' },
-      );
+      // Update-only for the same reason as the Google path above.
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update(profileData)
+        .eq('id', data.user.id);
       if (profileError) {
         logger.warn('Profile upsert failed after Apple sign-in', { error: profileError.message });
       }

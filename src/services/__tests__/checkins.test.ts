@@ -1,7 +1,8 @@
+import { createQueryChain } from '../../test-utils/supabaseMock';
 // Mock expo-sqlite before any imports
 import {
   checkin,
-  getActiveCheckins,
+  getVenueActiveCheckinCount,
   getActiveFriendCheckins,
   getUserActiveCheckin,
   getUserAnyActiveCheckin,
@@ -15,30 +16,14 @@ jest.mock('expo-sqlite', () => ({
   }),
 }));
 
-function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
-  const result = { data: resolvedData, error: resolvedError };
-  const chain: any = {
-    select: jest.fn(() => chain),
-    eq: jest.fn(() => chain),
-    in: jest.fn(() => chain),
-    not: jest.fn(() => chain),
-    or: jest.fn(() => chain),
-    gt: jest.fn(() => chain),
-    order: jest.fn(() => chain),
-    insert: jest.fn(() => chain),
-    update: jest.fn(() => chain),
-    range: jest.fn(() => chain),
-    limit: jest.fn(() => chain),
-    single: jest.fn(() => Promise.resolve(result)),
-    returns: jest.fn(() => chain),
-    then: (resolve: any) => Promise.resolve(result).then(resolve),
-  };
-  return chain;
-}
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn();
 jest.mock('../../lib/supabase', () => ({
-  supabase: { from: (...args: any[]) => mockFrom(...args) },
+  supabase: {
+    from: (...args: any[]) => mockFrom(...args),
+    rpc: (...args: any[]) => mockRpc(...args),
+  },
 }));
 
 beforeEach(() => jest.clearAllMocks());
@@ -105,21 +90,25 @@ describe('checkin', () => {
   });
 });
 
-describe('getActiveCheckins', () => {
-  it('uses or filter for active checkins at a venue', async () => {
-    const checkins = [
-      { id: 1, user_id: 'u-1', venue_id: 5, started_at: '2026-03-30T14:00:00Z', ended_at: '2026-03-30T16:00:00Z' },
-    ];
-    mockFrom.mockReturnValue(createQueryChain(checkins));
+describe('getVenueActiveCheckinCount', () => {
+  // Direct per-venue row reads were removed with the RLS scoping in
+  // migration 084; anonymous-safe surfaces use the count-only RPC.
+  it('calls the count RPC with the venue id', async () => {
+    mockRpc.mockResolvedValue({ data: 3, error: null });
 
-    const { data } = await getActiveCheckins(5);
+    const { data, error } = await getVenueActiveCheckinCount(5);
 
-    expect(mockFrom).toHaveBeenCalledWith('checkins');
-    const chain = mockFrom.mock.results[0].value;
-    expect(chain.eq).toHaveBeenCalledWith('venue_id', 5);
-    expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('ended_at.gt.'));
-    expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('ended_at.is.null'));
-    expect(data).toHaveLength(1);
+    expect(mockRpc).toHaveBeenCalledWith('get_venue_active_checkin_count', {
+      p_venue_id: 5,
+    });
+    expect(data).toBe(3);
+    expect(error).toBeNull();
+  });
+
+  it('returns 0 when the RPC yields no data', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null });
+    const { data } = await getVenueActiveCheckinCount(5);
+    expect(data).toBe(0);
   });
 });
 
@@ -235,7 +224,7 @@ describe('activeFilter format', () => {
   it('includes both ended_at.gt and ended_at.is.null conditions', async () => {
     mockFrom.mockReturnValue(createQueryChain([]));
 
-    await getActiveCheckins(1);
+    await getActiveFriendCheckins(['f-1']);
 
     const chain = mockFrom.mock.results[0].value;
     const filterArg = chain.or.mock.calls[0][0];

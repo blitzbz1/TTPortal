@@ -153,7 +153,16 @@ export async function updateVenue(
   },
 ) {
   if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
-  const result = await supabase.from('venues').update(updates).eq('id', id).select().single();
+  // lat/lng/tables_count are NOT NULL columns — drop null entries (callers
+  // pass null to mean "leave unchanged").
+  const { lat, lng, tables_count, ...rest } = updates;
+  const payload = {
+    ...rest,
+    ...(lat != null ? { lat } : {}),
+    ...(lng != null ? { lng } : {}),
+    ...(tables_count != null ? { tables_count } : {}),
+  };
+  const result = await supabase.from('venues').update(payload).eq('id', id).select().single();
   if (!result.error) {
     invalidateMapVenuesCache();
     invalidateVenueMetaCache(id);
@@ -183,7 +192,7 @@ export async function getFlaggedReviews() {
     .eq('flagged', true)
     .order('flag_count', { ascending: false });
   if (result.error || !result.data) return result;
-  const data = await attachProfiles(result.data, 'user_id', 'profiles', 'full_name');
+  const data = await attachProfiles(result.data as unknown as Record<string, unknown>[], 'user_id', 'profiles', 'full_name');
   return { ...result, data };
 }
 
@@ -213,7 +222,10 @@ export async function getUserFeedback(limit = 100) {
     .order('created_at', { ascending: false })
     .limit(limit);
   if (result.error || !result.data) return result;
-  const data = await attachProfiles(result.data, 'user_id', 'profiles', 'full_name, email');
+  // email is no longer selectable through profiles (migration 085); admins
+  // look up a user's email via admin_search_users when they need to reply
+  // out-of-band.
+  const data = await attachProfiles(result.data, 'user_id', 'profiles', 'full_name');
   return { ...result, data };
 }
 

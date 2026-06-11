@@ -7,6 +7,10 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn() }),
 }));
 
+jest.mock('../../contexts/OfflineQueueProvider', () => ({
+  useOfflineQueue: () => ({ isOnline: true, pendingCount: 0, enqueue: jest.fn(), flush: jest.fn() }),
+}));
+
 jest.mock('../../hooks/useSession', () => ({
   useSession: () => ({
     user: { id: 'u1', user_metadata: { full_name: 'Test' } },

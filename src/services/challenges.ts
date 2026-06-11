@@ -212,7 +212,7 @@ export async function createChallengeSubmission(input: {
       challenge_id: input.challengeId,
       verification_type: input.verificationType,
       event_id: input.eventId ?? null,
-      metadata: input.metadata ?? {},
+      metadata: (input.metadata ?? {}) as import('../types/supabase').Json,
     })
     .select(CHALLENGE_SUBMISSION_COLS)
     .single();
@@ -256,7 +256,7 @@ export async function respondToChallengeValidation(
   return supabase.rpc('respond_to_validation', {
     v_submission_id: submissionId,
     v_status: status,
-    v_comment: comment ?? null,
+    v_comment: comment ?? undefined,
   });
 }
 

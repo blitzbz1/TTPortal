@@ -52,6 +52,15 @@ jest.mock('../../hooks/useI18n', () => ({
       });
       return value;
     },
+    sn: (key: string, count: number, ...args: string[]) => {
+      const strings = require('../../locales/en.json');
+      const variant = count === 1 ? `${key}_one` : key;
+      let value = strings[variant] || strings[key] || key;
+      [String(count), ...args].forEach((arg, index) => {
+        value = value.replace(`{${index}}`, arg);
+      });
+      return value;
+    },
   }),
 }));
 

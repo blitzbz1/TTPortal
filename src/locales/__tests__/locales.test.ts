@@ -9,6 +9,7 @@ const REQUIRED_AUTH_KEYS = [
   'validationPasswordMin',
   'validationNameRequired',
   'errorDuplicateEmail',
+  'errorDuplicateEmailNoSocial',
   'errorInvalidCredentials',
   'errorNetwork',
   'logout',
@@ -34,10 +35,12 @@ describe('locale files', () => {
     }
   });
 
-  it('ro.json and en.json have identical key sets', () => {
-    const roKeys = Object.keys(ro).sort();
-    const enKeys = Object.keys(en).sort();
-    expect(roKeys).toEqual(enKeys);
+  it('ro.json and en.json have identical BASE key sets', () => {
+    // Plural-variant suffixes (_one/_few/_many/_other — T063) are
+    // legitimately language-specific: ro needs _few, en doesn't.
+    const baseKeys = (obj: object) =>
+      Array.from(new Set(Object.keys(obj).map((k) => k.replace(/_(one|few|many|other)$/, '')))).sort();
+    expect(baseKeys(ro)).toEqual(baseKeys(en));
   });
 
   it.each(REQUIRED_AUTH_KEYS)(

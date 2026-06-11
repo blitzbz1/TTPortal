@@ -1,3 +1,4 @@
+import { createQueryChain } from '../../test-utils/supabaseMock';
 import {
   approveVenue,
   searchVenuesAdmin,
@@ -21,24 +22,6 @@ jest.mock('../../lib/citiesPersistentCache', () => ({
   clearCitiesCache: (...args: any[]) => mockClearCitiesCache(...args),
 }));
 
-function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
-  const result = { data: resolvedData, error: resolvedError };
-  const chain: any = {
-    select: jest.fn(() => chain),
-    eq: jest.fn(() => chain),
-    or: jest.fn(() => chain),
-    in: jest.fn(() => chain),
-    order: jest.fn(() => chain),
-    limit: jest.fn(() => chain),
-    insert: jest.fn(() => chain),
-    update: jest.fn(() => chain),
-    delete: jest.fn(() => chain),
-    single: jest.fn(() => Promise.resolve(result)),
-    maybeSingle: jest.fn(() => Promise.resolve(result)),
-    then: (resolve: any) => Promise.resolve(result).then(resolve),
-  };
-  return chain;
-}
 
 const mockFrom = jest.fn();
 const mockRpc = jest.fn();
@@ -262,7 +245,9 @@ describe('getUserFeedback', () => {
     );
     expect(feedbackChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
     expect(feedbackChain.limit).toHaveBeenCalledWith(100);
-    expect(profilesChain.select).toHaveBeenCalledWith('id, full_name, email');
+    // email dropped from the direct profiles attach (migration 085) —
+    // admins use admin_search_users for email lookups.
+    expect(profilesChain.select).toHaveBeenCalledWith('id, full_name');
     expect(profilesChain.in).toHaveBeenCalledWith('id', ['u-1']);
     expect(data).toEqual([
       { id: 'f-1', user_id: 'u-1', category: 'bug', message: 'boom', profiles: { id: 'u-1', full_name: 'Alex', email: 'a@x.com' } },

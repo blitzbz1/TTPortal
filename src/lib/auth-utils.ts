@@ -1,6 +1,7 @@
 import type { AuthError } from '@supabase/supabase-js';
 import { logger } from './logger';
 import { sanitizeAppRoute } from './auth-redirects';
+import { SOCIAL_AUTH_ENABLED } from './featureFlags';
 
 /** Validates email format using basic RFC 5322 pattern. */
 export function isValidEmail(email: string): boolean {
@@ -34,7 +35,8 @@ export function mapAuthErrorToKey(error: AuthError): string {
     error.code === 'user_already_exists' ||
     error.message?.includes('already registered')
   ) {
-    return 'errorDuplicateEmail';
+    // Only suggest Google/Apple sign-in while the social buttons are visible.
+    return SOCIAL_AUTH_ENABLED ? 'errorDuplicateEmail' : 'errorDuplicateEmailNoSocial';
   }
   if (
     error.code === 'invalid_credentials' ||

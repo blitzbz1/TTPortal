@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { showAlert } from '../lib/dialogs';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -9,10 +10,13 @@ import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
+import { useInvalidateVenueDetail } from '../hooks/queries/useVenueDetailQuery';
 import { useI18n } from '../hooks/useI18n';
 import { getVenueById } from '../services/venues';
-import { submitVote, getVoteSummary } from '../services/conditions';
+import { submitVote, getVoteSummary, uploadConditionVotePhoto } from '../services/conditions';
+import { rateLimitMessageFor } from '../lib/rateLimit';
 import type { ConditionVoteValue } from '../types/database';
+import type { EvidenceImageAsset } from '../services/imageEvidence';
 
 type ConditionOption = 'good' | 'acceptable' | 'damaged';
 
@@ -27,6 +31,7 @@ interface Props {
 }
 
 export function ConditionVotingScreen({ venueId }: Props) {
+  const invalidateVenueDetail = useInvalidateVenueDetail();
   const router = useRouter();
   const { user } = useSession();
   const { s } = useI18n();
@@ -43,7 +48,7 @@ export function ConditionVotingScreen({ venueId }: Props) {
   const [venueName, setVenueName] = useState('');
   const [voteStatsText, setVoteStatsText] = useState('');
   const [loading, setLoading] = useState(false);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoAsset, setPhotoAsset] = useState<EvidenceImageAsset | null>(null);
 
   useEffect(() => {
     if (!venueId) return;
@@ -78,7 +83,7 @@ export function ConditionVotingScreen({ venueId }: Props) {
   const handlePickPhoto = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(s('error'), 'Photo library permission denied');
+      showAlert(s('error'), 'Photo library permission denied');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -87,24 +92,47 @@ export function ConditionVotingScreen({ venueId }: Props) {
       quality: 0.7,
     });
     if (!result.canceled && result.assets.length > 0) {
-      setPhotoUri(result.assets[0].uri);
+      const asset = result.assets[0];
+      setPhotoAsset({ uri: asset.uri, width: asset.width, height: asset.height });
     }
   }, [s]);
 
   const handleSubmit = useCallback(async () => {
     if (!user || !venueId) return;
     setLoading(true);
+
+    // Upload the photo first (resize → daily-cap RPC → Storage), storing
+    // its public URL — never the device-local picker URI, which no other
+    // device can render.
+    let photoUrl: string | null = null;
+    if (photoAsset) {
+      const uploadResult = await uploadConditionVotePhoto(Number(venueId), photoAsset);
+      if (!uploadResult.ok) {
+        setLoading(false);
+        const message =
+          uploadResult.reason === 'rate_limited'
+            ? rateLimitMessageFor(uploadResult.error, s) ?? s('photoUploadError')
+            : s('photoUploadError');
+        showAlert(s('error'), message);
+        return;
+      }
+      photoUrl = uploadResult.url;
+    }
+
     const { error } = await submitVote({
       user_id: user.id,
       venue_id: Number(venueId),
       condition: CONDITION_MAP[selected],
-      photo_url: photoUri,
+      photo_url: photoUrl,
     });
     setLoading(false);
-    if (error) { Alert.alert(s('error'), error.message); return; }
-    Alert.alert(s('success'), s('voteRecorded'));
+    if (error) { showAlert(s('error'), error.message); return; }
+    // T059: the vote feeds the venue-detail condition summary — without
+    // this, the screen the user lands back on shows the pre-vote state.
+    invalidateVenueDetail(Number(venueId));
+    showAlert(s('success'), s('voteRecorded'));
     router.back();
-  }, [user, venueId, selected, router, photoUri, s]);
+  }, [user, venueId, selected, router, photoAsset, s, invalidateVenueDetail]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -165,7 +193,7 @@ export function ConditionVotingScreen({ venueId }: Props) {
           {/* Photo */}
           <Text style={styles.label}>{s('addPhotoOptional')}</Text>
           <PhotoPickerButton
-            photoUri={photoUri}
+            photoUri={photoAsset?.uri ?? null}
             onPress={handlePickPhoto}
             addLabel={s('photographTable')}
             changeLabel={s('changePhoto')}

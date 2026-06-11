@@ -83,10 +83,12 @@ describe('ProfileScreen — logout confirmation', () => {
     });
     fireEvent.press(getByText('Sign out'));
 
+    // showConfirm (T054) delegates to Alert.alert with buttons + options.
     expect(alertSpy).toHaveBeenCalledWith(
       'Sign out',
       'Are you sure you want to sign out?',
       expect.any(Array),
+      expect.objectContaining({ cancelable: true }),
     );
     alertSpy.mockRestore();
   });

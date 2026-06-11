@@ -4,6 +4,10 @@ import { render } from '@testing-library/react-native';
 
 import { DraggableSheet } from '../DraggableSheet';
 
+jest.mock('../../hooks/useI18n', () => ({
+  useI18n: () => ({ s: (key: string) => key, lang: 'en', setLang: jest.fn() }),
+}));
+
 jest.mock('../../hooks/useTheme', () => ({
   useTheme: () => ({
     colors: require('../../theme').lightColors,

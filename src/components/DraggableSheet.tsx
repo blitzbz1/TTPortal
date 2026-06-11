@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { View, PanResponder, Dimensions, Keyboard, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -6,6 +6,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useTheme } from '../hooks/useTheme';
+import { useI18n } from '../hooks/useI18n';
 import type { ThemeColors } from '../theme';
 import { Shadows } from '../theme';
 
@@ -22,17 +23,24 @@ interface DraggableSheetProps {
   floatingContent?: React.ReactNode;
 }
 
+const SNAP_POINTS = [SNAP_BOTTOM, SNAP_MID, SNAP_TOP] as const; // ordered small→large visible area
+
 export function DraggableSheet({ children, floatingContent }: DraggableSheetProps) {
   const { colors } = useTheme();
+  const { s } = useI18n();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const translateY = useSharedValue(SNAP_MID);
   const lastSnap = useRef(SNAP_MID);
   const preKeyboardSnap = useRef<number | null>(null);
+  // Mirrored snap index for accessibility announcements (0=peek..2=full).
+  const [snapIndex, setSnapIndex] = useState(1);
 
   const snapTo = (value: number) => {
     lastSnap.current = value;
     translateY.value = withSpring(value, SNAP_SPRING);
+    const idx = SNAP_POINTS.indexOf(value as (typeof SNAP_POINTS)[number]);
+    if (idx >= 0) setSnapIndex(idx);
   };
 
   // When the keyboard opens, lift the sheet to SNAP_TOP so inputs (e.g. the
@@ -103,7 +111,24 @@ export function DraggableSheet({ children, floatingContent }: DraggableSheetProp
           {floatingContent}
         </View>
       )}
-      <View style={styles.handleArea} {...panResponder.panHandlers}>
+      <View
+        style={styles.handleArea}
+        {...panResponder.panHandlers}
+        // T065: the drag handle is the ONLY way to resize the list — without
+        // the adjustable role, VoiceOver/TalkBack users can never expand it.
+        accessible
+        accessibilityRole="adjustable"
+        accessibilityLabel={s('sheetHandleLabel')}
+        accessibilityValue={{ min: 0, max: SNAP_POINTS.length - 1, now: snapIndex }}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === 'increment') {
+            snapTo(SNAP_POINTS[Math.min(snapIndex + 1, SNAP_POINTS.length - 1)]);
+          } else if (event.nativeEvent.actionName === 'decrement') {
+            snapTo(SNAP_POINTS[Math.max(snapIndex - 1, 0)]);
+          }
+        }}
+        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+      >
         <View style={styles.handle} />
       </View>
       <View style={styles.content}>

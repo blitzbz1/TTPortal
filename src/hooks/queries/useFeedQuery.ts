@@ -1,18 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import { getFriendFeed } from '../../services/feed';
 
-export const feedQueryKey = (friendIds: string[]) =>
-  ['feed', [...friendIds].sort().join(',')] as const;
+export const feedQueryKey = (userId: string | undefined) =>
+  ['feed', userId ?? null] as const;
 
-export function useFeedQuery(friendIds: string[], enabled = true) {
+export function useFeedQuery(userId: string | undefined, enabled = true) {
   return useQuery({
-    queryKey: feedQueryKey(friendIds),
+    queryKey: feedQueryKey(userId),
     queryFn: async () => {
-      const { data, error } = await getFriendFeed(friendIds);
+      const { data, error } = await getFriendFeed();
       if (error) throw error;
       return data ?? [];
     },
     staleTime: 60 * 1000,
-    enabled: enabled && friendIds.length > 0,
+    enabled: enabled && !!userId,
   });
 }

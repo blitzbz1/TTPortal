@@ -573,7 +573,7 @@ export function PlayHistoryScreen() {
                     <TouchableOpacity
                       key={entry.id}
                       style={styles.entry}
-                      onPress={() => router.push(`/venue/${entry.venue_id}` as any)}
+                      onPress={() => router.push({ pathname: '/venue/[id]', params: { id: String(entry.venue_id) } })}
                     >
                       <View style={[styles.entryIcon, { backgroundColor: colors.primaryPale }]}>
                         <Lucide name="map-pin" size={18} color={colors.primaryLight} />

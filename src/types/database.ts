@@ -6,7 +6,7 @@ export interface Profile {
   email: string | null;
   avatar_url: string | null;
   city: string | null;
-  lang: string | null;
+  lang: string;
   auth_provider: string | null;
   created_at: string;
   username: string | null;
@@ -37,13 +37,13 @@ export interface Venue {
   id: number;
   name: string;
   type: VenueType;
-  city: string | null;
+  city: string;
   city_id: number;
   county: string | null;
   sector: string | null;
-  address: string | null;
-  lat: number | null;
-  lng: number | null;
+  address: string;
+  lat: number;
+  lng: number;
   tables_count: number | null;
   condition: VenueCondition | null;
   hours: string | null;
@@ -67,7 +67,7 @@ export interface Review {
   user_id: string;
   reviewer_name: string | null;
   rating: number;
-  body: string | null;
+  body: string;
   flagged: boolean;
   flag_count: number;
   created_at: string;

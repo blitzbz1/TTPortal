@@ -33,7 +33,13 @@ jest.mock('../../lib/supabase', () => ({
         return { data: { subscription: { unsubscribe: jest.fn() } } };
       },
     },
-    from: () => ({ upsert: (...a: any[]) => mockUpsert(...a) }),
+    from: () => ({
+      upsert: (...a: any[]) => mockUpsert(...a),
+      update: (...a: any[]) => {
+        mockUpsert(...a); // same spy: tests assert the written payload
+        return { eq: jest.fn().mockResolvedValue({ data: null, error: null }) };
+      },
+    }),
   },
 }));
 
@@ -148,15 +154,11 @@ describe('SessionProvider — Apple name capture edge case', () => {
       });
     });
 
-    expect(mockUpsert).toHaveBeenCalledWith(
-      {
-        id: 'apple-user-123',
-        full_name: 'Maria Popescu',
-        email: 'apple@privaterelay.appleid.com',
-        auth_provider: 'apple',
-      },
-      { onConflict: 'id' },
-    );
+    expect(mockUpsert).toHaveBeenCalledWith({
+      full_name: 'Maria Popescu',
+      email: 'apple@privaterelay.appleid.com',
+      auth_provider: 'apple',
+    });
   });
 
   it('first Apple sign-in with only givenName updates name correctly', async () => {
@@ -188,7 +190,6 @@ describe('SessionProvider — Apple name capture edge case', () => {
 
     expect(mockUpsert).toHaveBeenCalledWith(
       expect.objectContaining({ full_name: 'Ion' }),
-      { onConflict: 'id' },
     );
   });
 
@@ -242,14 +243,10 @@ describe('SessionProvider — Apple name capture edge case', () => {
     await user.press(screen.getByTestId('apple'));
 
     await waitFor(() => {
-      expect(mockUpsert).toHaveBeenCalledWith(
-        {
-          id: 'apple-user-123',
-          email: 'apple@privaterelay.appleid.com',
-          auth_provider: 'apple',
-        },
-        { onConflict: 'id' },
-      );
+      expect(mockUpsert).toHaveBeenCalledWith({
+        email: 'apple@privaterelay.appleid.com',
+        auth_provider: 'apple',
+      });
     });
 
     // Verify full_name key is NOT present in the upsert data

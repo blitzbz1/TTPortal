@@ -5,7 +5,7 @@ import {
   getUserBadgeProgress,
   getUserPendingChallengeSubmissions,
 } from '../api';
-import { TIER_TARGETS } from '../../../lib/badgeChallenges';
+import { TIER_TARGETS } from '../badgeDefinitions';
 import { loadCachedBadgeBundle, saveCachedBadgeBundle } from '../../../lib/challengeCache';
 import type {
   ApprovedChallengeCompletion,

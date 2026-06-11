@@ -2,27 +2,46 @@ import { supabase } from '../lib/supabase';
 import type { Profile } from '../types/database';
 import { invalidateProfileCache } from '../lib/profileCache';
 
+// Column-level grants (migration 085) exclude email/pending_deletion_at —
+// selecting them (or select=*) now errors for the authenticated role. Self
+// email comes from auth.getUser()/the session, not from profiles.
+const PUBLIC_PROFILE_COLUMNS =
+  'id, full_name, avatar_url, city, lang, auth_provider, created_at, ' +
+  'username, is_admin, is_moderator, notify_friend_checkins, checkin_visibility, notification_prefs';
+
+export type CheckinVisibility = 'friends' | 'private';
+
 export async function getProfile(userId: string) {
   return supabase
     .from('profiles')
-    .select(
-      'id, full_name, email, avatar_url, city, lang, auth_provider, created_at, ' +
-        'username, is_admin, is_moderator, notify_friend_checkins',
-    )
+    .select(PUBLIC_PROFILE_COLUMNS)
     .eq('id', userId)
     .single()
-    .returns<Profile & { notify_friend_checkins: boolean }>();
+    .returns<
+      Omit<Profile, 'email'> & {
+        notify_friend_checkins: boolean;
+        checkin_visibility: CheckinVisibility;
+      }
+    >();
 }
 
 export async function updateProfile(
   userId: string,
-  data: Partial<Pick<Profile, 'full_name' | 'avatar_url' | 'city' | 'lang' | 'username'>> & { notify_friend_checkins?: boolean },
+  data: Partial<Pick<Profile, 'avatar_url' | 'city' | 'lang'>> & {
+    // full_name/username are NOT NULL columns — null is not a valid update.
+    full_name?: string;
+    username?: string;
+    notify_friend_checkins?: boolean;
+    checkin_visibility?: CheckinVisibility;
+    /** Sparse per-category map (T086): only disabled categories stored. */
+    notification_prefs?: Record<string, boolean>;
+  },
 ) {
   const result = await supabase
     .from('profiles')
     .update(data)
     .eq('id', userId)
-    .select()
+    .select(PUBLIC_PROFILE_COLUMNS)
     .single();
   if (!result.error) invalidateProfileCache(userId);
   return result;

@@ -6,7 +6,7 @@ import {
   getCurrentAwardTier,
   type BadgeTier,
   type BadgeTrack,
-} from '../../lib/badgeChallenges';
+} from './badgeDefinitions';
 import type { BadgeAward, ChallengeCategory, UserBadgeProgress } from './types';
 
 export interface TrackProgressSummary {

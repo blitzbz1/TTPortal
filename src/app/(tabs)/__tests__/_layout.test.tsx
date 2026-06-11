@@ -173,7 +173,7 @@ describe('TabLayout', () => {
     it('uses theme textFaint color as inactive tint color', () => {
       const { getByTestId } = render(<TabLayout />);
       const inactiveTint = getByTestId('inactive-tint-color');
-      expect(inactiveTint.props.children).toBe('#9ca39a');
+      expect(inactiveTint.props.children).toBe('#6b736a'); // darkened in T064 (WCAG)
     });
 
     it('uses DM Sans font family for tab labels', () => {

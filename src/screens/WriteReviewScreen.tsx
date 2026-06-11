@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { showAlert } from '../lib/dialogs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -10,8 +11,10 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getVenueById } from '../services/venues';
 import { createReview } from '../services/reviews';
+import { useOfflineQueue } from '../contexts/OfflineQueueProvider';
 import { safeErrorMessage } from '../lib/auth-utils';
 import { hapticLight } from '../lib/haptics';
+import { ProductEvents, trackProductEvent } from '../lib/analytics';
 
 interface Props {
   venueId?: string;
@@ -83,6 +86,7 @@ export function WriteReviewScreen({ venueId }: Props) {
   const router = useRouter();
   const { user } = useSession();
   const { s } = useI18n();
+  const { isOnline } = useOfflineQueue();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [rating, setRating] = useState(4);
@@ -115,9 +119,12 @@ export function WriteReviewScreen({ venueId }: Props) {
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (rating < 1) { Alert.alert(s('error'), s('selectRating')); return; }
-    if (!reviewText.trim()) { Alert.alert(s('error'), s('writeReviewRequired')); return; }
+    if (rating < 1) { showAlert(s('error'), s('selectRating')); return; }
+    if (!reviewText.trim()) { showAlert(s('error'), s('writeReviewRequired')); return; }
     if (!user || !venueId) return;
+    // Reviews stay online-only (T031 tier 1): tell the user why instead of
+    // a generic failure, and keep their text in the form for a retry.
+    if (!isOnline) { showAlert(s('error'), s('offlineActionError')); return; }
     setLoading(true);
     let body = reviewText.trim();
     if (tags.length > 0) {
@@ -131,10 +138,11 @@ export function WriteReviewScreen({ venueId }: Props) {
       body,
     });
     setLoading(false);
-    if (error) { Alert.alert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
-    Alert.alert(s('success'), s('reviewPublished'));
+    if (error) { showAlert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
+    trackProductEvent(ProductEvents.reviewSubmitted, { venueId: Number(venueId) });
+    showAlert(s('success'), s('reviewPublished'));
     router.back();
-  }, [rating, reviewText, tags, user, venueId, router, s]);
+  }, [rating, reviewText, tags, user, venueId, router, s, isOnline]);
 
   return (
     <SafeAreaView style={styles.container}>

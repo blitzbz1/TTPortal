@@ -12,19 +12,32 @@ export async function getEvents(
   const now = new Date().toISOString();
   const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
   const needsParticipantFilter = filter === 'past' && !!userId;
+  // Explicit columns (T043): select('*') shipped every event column the
+  // list never renders.
+  const eventColumns =
+    'id, title, description, starts_at, ends_at, status, event_type, organizer_id, ' +
+    'max_participants, recurrence_rule, table_number, venue_id, created_at';
   // Profiles embedded via event_participants_user_profiles_fk (migration 038)
-  // — single round trip, no manual merge.
+  // — single round trip, no manual merge. The embed is CAPPED to 6 rows
+  // below (the card draws at most 5 avatars); the spots text comes from the
+  // count aggregate, and the caller's own row from the filtered
+  // my_participation alias — so a 60-person event no longer ships 60
+  // profile rows per card.
   const participantsEmbed =
     'event_participants(user_id, hours_played, profiles!event_participants_user_profiles_fk(id, full_name))';
+  const participantsCount = 'participants_count:event_participants(count)';
+  const myParticipation = userId ? ', my_participation:event_participants(user_id, hours_played)' : '';
   const venueEmbed = city ? 'venues!inner(name, city, lat, lng)' : 'venues(name, city, lat, lng)';
   let query = supabase
     .from('events')
     .select(
       needsParticipantFilter
-        ? `*, ${venueEmbed}, ${participantsEmbed}, ep_filter:event_participants!inner(user_id)`
-        : `*, ${venueEmbed}, ${participantsEmbed}`,
-    );
+        ? `${eventColumns}, ${venueEmbed}, ${participantsEmbed}, ${participantsCount}${myParticipation}, ep_filter:event_participants!inner(user_id)`
+        : `${eventColumns}, ${venueEmbed}, ${participantsEmbed}, ${participantsCount}${myParticipation}`,
+    )
+    .limit(6, { referencedTable: 'event_participants' });
 
+  if (userId) query = query.eq('my_participation.user_id', userId);
   if (city) query = query.eq('venues.city', city);
 
   if (filter === 'upcoming') {
@@ -178,7 +191,7 @@ export async function joinEvent(eventId: number, userId: string) {
     return { data: null, error: eventError };
   }
 
-  if (!event || !['open', 'confirmed'].includes(event.status)) {
+  if (!event || !['open', 'confirmed'].includes(event.status ?? '')) {
     return {
       data: null,
       error: { message: 'Event is closed for new joins.' },

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, Share } from 'react-native';
+import { showAlert } from '../lib/dialogs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Lucide } from '../components/Icon';
@@ -35,6 +36,8 @@ import {
   useCurrentSelectedChallenge,
   useEventChallenges,
 } from '../features/challenges';
+import { useOfflineQueue } from '../contexts/OfflineQueueProvider';
+import { eventUrl, sharePayload } from '../lib/shareLinks';
 
 export function EventDetailScreen() {
   const router = useRouter();
@@ -43,6 +46,7 @@ export function EventDetailScreen() {
   const eventId = Number(eventIdParam);
   const { user } = useSession();
   const { s, lang } = useI18n();
+  const { isOnline } = useOfflineQueue();
   const { colors, isDark } = useTheme();
   const { styles } = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
@@ -94,7 +98,7 @@ export function EventDetailScreen() {
     [s],
   );
   const returnToFutureEvents = useCallback(() => {
-    router.replace(`/(tabs)/events?tab=upcoming&refreshEvents=${Date.now()}` as any);
+    router.replace({ pathname: '/(tabs)/events', params: { tab: 'upcoming', refreshEvents: String(Date.now()) } });
   }, [router]);
 
   // Initial data fetch — event + participants + (if past) feedback.
@@ -153,7 +157,7 @@ export function EventDetailScreen() {
     const { error } = await addEventChallenge(challenge);
     setChallengeActionId(null);
     if (error) {
-      Alert.alert(s('error'), error.message);
+      showAlert(s('error'), error.message);
       return;
     }
     trackProductEvent(ProductEvents.eventChallengeAttached, {
@@ -172,7 +176,7 @@ export function EventDetailScreen() {
     const { error } = await awardEventChallenge(submission.submission_id);
     setChallengeActionId(null);
     if (error) {
-      Alert.alert(s('error'), error.message);
+      showAlert(s('error'), error.message);
       return;
     }
     trackProductEvent(ProductEvents.eventChallengeAwarded, {
@@ -181,6 +185,8 @@ export function EventDetailScreen() {
       category: submission.category,
     });
   }, [awardEventChallenge, s, event]);
+
+  const [detailRefreshing, setDetailRefreshing] = useState(false);
 
   const refreshEvent = useCallback(async (statusOverride?: 'closed' | 'cancelled') => {
     if (!Number.isFinite(eventId)) return;
@@ -196,26 +202,38 @@ export function EventDetailScreen() {
     }
   }, [eventId]);
 
+  const onPullRefresh = useCallback(async () => {
+    setDetailRefreshing(true);
+    await refreshEvent();
+    setDetailRefreshing(false);
+  }, [refreshEvent]);
+
   const handleJoin = useCallback(async (ev: any) => {
     if (!user) {
       router.push('/sign-in');
       return;
     }
+    // RSVPs stay online-only (T031 tier 1): say why instead of a generic
+    // join/leave failure.
+    if (!isOnline) {
+      showAlert(s('error'), s('offlineActionError'));
+      return;
+    }
     if (ev.status === 'closed') {
-      Alert.alert(s('closed'), s('eventClosedJoinError'));
+      showAlert(s('closed'), s('eventClosedJoinError'));
       return;
     }
     const isJoined = ev.event_participants?.some((p: any) => p.user_id === user.id);
     if (isJoined) {
       const { error } = await leaveEvent(ev.id, user.id);
       if (error) {
-        Alert.alert(s('error'), s('leaveError'));
+        showAlert(s('error'), s('leaveError'));
         return;
       }
     } else {
       const { error } = await joinEvent(ev.id, user.id);
       if (error) {
-        Alert.alert(s('error'), s('joinError'));
+        showAlert(s('error'), s('joinError'));
         return;
       }
     }
@@ -226,7 +244,7 @@ export function EventDetailScreen() {
     });
     invalidateEventsCache(user.id, ['upcoming', 'mine']);
     await refreshEvent();
-  }, [user, router, s, refreshEvent]);
+  }, [user, router, s, refreshEvent, isOnline]);
 
   const handleCloseEvent = useCallback(async () => {
     if (!user || !event) return;
@@ -239,7 +257,7 @@ export function EventDetailScreen() {
     try {
       const { data, error } = await closeEvent(event.id, user.id);
       if (error) {
-        Alert.alert(s('error'), error.message);
+        showAlert(s('error'), error.message);
         return;
       }
       invalidateEventsCache(user.id, ['upcoming', 'mine', 'past']);
@@ -260,7 +278,7 @@ export function EventDetailScreen() {
     try {
       const { data, error } = await cancelEvent(event.id, user.id);
       if (error) {
-        Alert.alert(s('error'), error.message);
+        showAlert(s('error'), error.message);
         return;
       }
       invalidateEventsCache(user.id, ['upcoming', 'mine', 'past']);
@@ -314,13 +332,40 @@ export function EventDetailScreen() {
         <Text style={styles.headerTitle} numberOfLines={1}>
           {s('eventDetails')}
         </Text>
-        <View style={styles.headerSpacer} />
+        {/* T061: events were previously unshareable. Public events get an
+            openable web link; non-public stay link-less (visibility-gated
+            content shouldn't leak via copy-paste). */}
+        {event?.visibility === 'public' || event?.visibility == null ? (
+          <TouchableOpacity
+            onPress={() => {
+              if (!event) return;
+              Share.share(sharePayload(event.title ?? s('eventDetails'), eventUrl(event.id)));
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={s('shareCard')}
+            testID="event-share-button"
+          >
+            <Lucide name="share-2" size={20} color={headerFg} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
       </View>
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.detailContent, { paddingBottom: insets.bottom + 16 }]}
         keyboardDismissMode="on-drag"
+        // T068: organizers can pull to see new RSVPs.
+        refreshControl={
+          <RefreshControl
+            refreshing={detailRefreshing}
+            onRefresh={onPullRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
       >
         <EventDetailContent
           event={event}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Pressable, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Lucide } from './Icon';
+import { useI18n } from '../hooks/useI18n';
 
 export type FullscreenImageViewerProps = {
   /** Image URL to display full-screen, or null to keep the viewer closed. */
@@ -15,6 +16,7 @@ export type FullscreenImageViewerProps = {
  * no theme.
  */
 export function FullscreenImageViewer({ url, onClose }: FullscreenImageViewerProps) {
+  const { s } = useI18n();
   return (
     <Modal visible={url !== null} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose} testID="image-viewer">
@@ -26,6 +28,8 @@ export function FullscreenImageViewer({ url, onClose }: FullscreenImageViewerPro
           onPress={onClose}
           hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
           testID="image-viewer-close"
+          accessibilityRole="button"
+          accessibilityLabel={s('close')}
         >
           <Lucide name="x" size={24} color="#fff" />
         </TouchableOpacity>
