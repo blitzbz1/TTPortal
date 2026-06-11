@@ -127,8 +127,8 @@ Social feed showing friend check-ins and reviews, with venue navigation.
 ### 4.2 Map Bottom Sheet (draggable) - DONE
 DraggableSheet component using Animated + PanResponder. Three snap points (peek/half/full). Map is now full-screen behind the sheet.
 
-### 4.3 Map Pin Clustering - DONE
-react-native-map-clustering integrated. Clusters nearby pins at low zoom, expands on zoom-in. Falls back to regular MapView on web.
+### 4.3 Map Pin Clustering - DONE (re-done 2026-06: supercluster)
+Originally shipped with react-native-map-clustering, but a later map rewrite silently dropped the integration (the dep remained, unimported). Re-implemented app-side with `supercluster` (T040): memoized index over the venue list, visible clusters recomputed on `onRegionChangeComplete`, count bubbles with tap-to-zoom. Feeds plain Markers, so it works identically across Apple Maps / the Android MapLibre shim / the web Leaflet shim.
 
 ### 4.4 Monthly Community Challenges - DONE
 Rotating monthly challenges (explorer/active/critic). ChallengeBanner with progress bar on Map screen. Progress computed from existing check-in/review data.
@@ -164,7 +164,7 @@ SQLite-based cache for venue data. Shows cached venues with "offline" banner on 
 | 3.4 Profile Enrichment | Done | 4-stat strip (checkins, venues, reviews, friends), badge showcase with unlock logic, getUserReviewCount service |
 | 4.1 Activity Feed | Done | Social feed tab with friend check-ins/reviews, feed service, navigation to venues |
 | 4.2 Map Bottom Sheet | Done | DraggableSheet component with 3 snap points, full-screen map behind |
-| 4.3 Map Pin Clustering | Done | react-native-map-clustering, falls back to MapView on web |
+| 4.3 Map Pin Clustering | Done | supercluster (app-side; T040 re-implementation), works on all map shims |
 | 4.4 Monthly Challenges | Done | ChallengeBanner, rotating challenges, progress from existing data |
 | 4.5 Venue Champion | Done | getVenueChampion service, crown row on VenueDetailScreen |
 | 4.6 Share Cards | Done | ShareCard component, view-shot capture, share button in CheckinSuccessSheet |

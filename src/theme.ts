@@ -83,7 +83,10 @@ export const lightColors: ThemeColors = {
 
   text: '#111810',
   textMuted: '#4a4f47',
-  textFaint: '#9ca39a',
+  // T064: was #9ca39a (≈2.6:1 on white — below the 3:1 large-text floor for
+  // ~140 usages: placeholders, 10px tab labels, timestamps). #6b736a is
+  // ≈4.6:1 on white and still clearly tertiary next to textMuted.
+  textFaint: '#6b736a',
   textOnPrimary: '#ffffff',
 
   border: '#e2e4de',

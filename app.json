@@ -10,6 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ttportal.app",
+      "associatedDomains": ["applinks:www.ttportal.org"],
       "infoPlist": {
         "NSCameraUsageDescription": "TTPortal uses the camera so you can take photos of venues and table conditions to share in your reviews and check-ins.",
         "NSPhotoLibraryUsageDescription": "TTPortal accesses your photo library so you can attach existing photos to venue reviews and check-ins.",
@@ -99,6 +100,17 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "package": "com.ttportal.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "www.ttportal.org", "pathPrefix": "/TTPortal/app/venue" },
+            { "scheme": "https", "host": "www.ttportal.org", "pathPrefix": "/TTPortal/app/event" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "blockedPermissions": ["com.google.android.gms.permission.AD_ID"]
     },
     "web": {
@@ -107,6 +119,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./plugins/withStripEntitlements.js",
       "expo-router",
       "expo-sqlite",
       "expo-localization",
@@ -118,7 +131,7 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "@maplibre/maplibre-react-native",
+      "./plugins/withMapLibreAndroidOnly.js",
       [
         "expo-splash-screen",
         {
