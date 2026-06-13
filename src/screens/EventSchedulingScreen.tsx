@@ -21,18 +21,20 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getDateLocale } from '../contexts/I18nProvider';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
-import { getEvents, joinEvent, leaveEvent, PAST_EVENTS_PAGE_SIZE } from '../services/events';
-import { getUserEventFeedbackForEvents } from '../services/eventFeedback';
+import { joinEvent, leaveEvent } from '../services/events';
+import { invalidateEventsCache, type EventTabKey } from '../lib/eventsCache';
+import { useQueryClient } from '@tanstack/react-query';
 import {
-  loadCachedEvents,
-  saveCachedEvents,
-  loadCachedFeedbackGiven,
-  saveCachedFeedbackGiven,
-  type EventTabKey,
-} from '../lib/eventsCache';
+  useEventsQuery,
+  usePastEventsInfiniteQuery,
+  useAmaturEventsQuery,
+  isEventsCacheFresh,
+  eventsQueryKeyPrefix,
+  type EventListItem,
+} from '../hooks/queries/useEventsQuery';
 import { WriteEventFeedbackScreen } from './WriteEventFeedbackScreen';
 import { hapticMedium } from '../lib/haptics';
-import { getAmaturEvents, type AmaturEvent } from '../services/amatur';
+import { type AmaturEvent } from '../services/amatur';
 import { LogHoursModal } from '../components/LogHoursModal';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
 import { BADGE_TRACKS } from '../features/challenges/badgeDefinitions';
@@ -47,35 +49,6 @@ import {
 
 type EventTab = 'upcoming' | 'past' | 'mine' | 'amatur';
 
-type EventListItem = {
-  id: number;
-  title?: string | null;
-  description?: string | null;
-  starts_at: string;
-  ends_at?: string | null;
-  status: string;
-  event_type?: string | null;
-  organizer_id?: string | null;
-  max_participants?: number | null;
-  recurrence_rule?: string | null;
-  table_number?: number | null;
-  venues?: {
-    name?: string | null;
-    city?: string | null;
-    lat?: number | null;
-    lng?: number | null;
-  } | null;
-  event_participants?: {
-    user_id: string;
-    hours_played?: number | null;
-    profiles?: { full_name?: string | null } | null;
-  }[];
-  /** Count aggregate (T043) — the embed above is capped at 6 rows. */
-  participants_count?: { count: number }[];
-  /** The caller's own participant row, via a filtered embed alias (T043). */
-  my_participation?: { user_id: string; hours_played?: number | null }[];
-};
-
 interface EventSchedulingScreenProps {
   hideTabBar?: boolean;
 }
@@ -83,19 +56,12 @@ interface EventSchedulingScreenProps {
 export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScreenProps) {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<EventTab>('upcoming');
-  const [events, setEvents] = useState<EventListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [eventsError, setEventsError] = useState(false);
-  // A refetch failed but cached events are on screen — banner, not error page.
-  const [showingCached, setShowingCached] = useState(false);
   const [feedbackEventId, setFeedbackEventId] = useState<number | null>(null);
-  const [feedbackGivenIds, setFeedbackGivenIds] = useState<Set<number>>(new Set());
+  // Feedback submitted from this screen — layered over the per-page ids
+  // from the past query until its next refetch (T050).
+  const [localFeedbackGiven, setLocalFeedbackGiven] = useState<Set<number>>(new Set());
   const [logHoursEvent, setLogHoursEvent] = useState<{ id: number; title: string; initialHours: number } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [pastHasMore, setPastHasMore] = useState(true);
-  const [pastLoadingMore, setPastLoadingMore] = useState(false);
-  const [amaturEvents, setAmaturEvents] = useState<AmaturEvent[]>([]);
-  const [amaturLoading, setAmaturLoading] = useState(false);
   const [selectedAmatur, setSelectedAmatur] = useState<AmaturEvent | null>(null);
   const [cityModalVisible, setCityModalVisible] = useState(false);
   const { user } = useSession();
@@ -117,7 +83,6 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
   const currentChallengeTrack = currentEventChallenge
     ? BADGE_TRACKS.find((track) => track.category === currentEventChallenge.category)
     : null;
-  const eventFetchSeqRef = React.useRef(0);
   const handledRefreshRef = React.useRef<string | null>(null);
   const hasFocusedOnceRef = React.useRef(false);
   const selectedCityName = getCityDisplayName(selectedCity);
@@ -129,145 +94,85 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
     return null;
   }, [tabParam]);
 
-  const fetchEvents = useCallback(async (force = false) => {
-    if (activeTab === 'amatur') return;
+  // T050: react-query owns the list data — fetching, the persistent-cache
+  // mirror and offline hydration all live in useEventsQuery.ts. The screen
+  // only picks which query is active and decides when a refetch is forced.
+  const queryClient = useQueryClient();
+  const listTab = activeTab === 'mine' ? ('mine' as const) : ('upcoming' as const);
+  const {
+    data: tabEventsData,
+    isLoading: tabEventsLoading,
+    isError: tabEventsIsError,
+    refetch: refetchTabEvents,
+  } = useEventsQuery(listTab, user?.id, selectedCityName, activeTab === 'upcoming' || activeTab === 'mine');
+  const {
+    data: pastData,
+    isLoading: pastIsLoading,
+    isError: pastIsError,
+    refetch: refetchPast,
+    fetchNextPage: fetchNextPastPage,
+    hasNextPage: pastHasMore,
+    isFetchingNextPage: pastLoadingMore,
+  } = usePastEventsInfiniteQuery(user?.id, selectedCityName, activeTab === 'past');
+  const {
+    data: amaturData,
+    isLoading: amaturIsLoading,
+    isError: amaturIsError,
+    errorUpdatedAt: amaturErrorAt,
+    refetch: refetchAmatur,
+  } = useAmaturEventsQuery(activeTab === 'amatur');
+
+  const pastEvents = useMemo(
+    () => (pastData?.pages ?? []).flatMap((page) => page.events),
+    [pastData],
+  );
+  const events: EventListItem[] = activeTab === 'past' ? pastEvents : (tabEventsData ?? []);
+  const hasEventsData = activeTab === 'past' ? !!pastData : !!tabEventsData;
+  const loading = (activeTab === 'past' ? pastIsLoading : tabEventsLoading) && !hasEventsData;
+  const activeIsError = activeTab === 'past' ? pastIsError : tabEventsIsError;
+  // No data at all → full-screen error; a failed refetch with cached events
+  // on screen shows the 'offlineData' banner instead (T035).
+  const eventsError = activeIsError && !hasEventsData;
+  const showingCached = activeIsError && hasEventsData;
+  const amaturEvents = amaturData ?? [];
+  const amaturLoading = amaturIsLoading && !amaturData;
+
+  // Feedback-given ids ride along on each past page (fetched in the same
+  // round trip as the page, exactly as before T050).
+  const feedbackGivenIds = useMemo(() => {
+    const ids = new Set(localFeedbackGiven);
+    for (const page of pastData?.pages ?? []) {
+      for (const id of page.feedbackGivenIds) ids.add(id);
+    }
+    return ids;
+  }, [pastData, localFeedbackGiven]);
+
+  const refetchActive = useCallback(async (force = false) => {
+    if (activeTab === 'amatur') {
+      await refetchAmatur();
+      return;
+    }
     const tab = activeTab as EventTabKey;
-    const userId = user?.id;
-    const fetchSeq = ++eventFetchSeqRef.current;
+    // force=false (T043): quick Map↔Events toggles take the disk-cache TTL
+    // fast-path. Disk invalidation by mutation sites (event edits, logged
+    // hours, feedback) still forces a refetch through here even when the
+    // in-memory query is within staleTime.
+    if (!force && isEventsCacheFresh(user?.id, tab, selectedCityName)) return;
+    if (tab === 'past') await refetchPast();
+    else await refetchTabEvents();
+  }, [activeTab, refetchAmatur, refetchPast, refetchTabEvents, selectedCityName, user?.id]);
 
-    // Cache-first for "mine" and "past": these tabs change rarely and benefit
-    // from instant render. We only show the spinner if there's no cached data
-    // to display. "upcoming" still hits the network on entry but takes the
-    // cache fast-path if it's fresh (60s TTL) to handle quick tab toggles.
-    let servedFromCache = false;
-    if (!force && userId && (tab === 'mine' || tab === 'past' || tab === 'upcoming')) {
-      const cached = loadCachedEvents<EventListItem>(userId, tab, selectedCityName);
-      if (cached) {
-        servedFromCache = true;
-        setEvents(cached.data);
-        setEventsError(false);
-        if (tab === 'past') {
-          const fb = loadCachedFeedbackGiven(userId);
-          if (fb) setFeedbackGivenIds(new Set(fb));
-        }
-        if (cached.fresh) {
-          setLoading(false);
-          return;
-        }
-        // Stale cache — show data, fetch in the background without flashing
-        // a spinner.
-        setLoading(false);
-      } else {
-        setLoading(true);
-      }
-    } else {
-      setLoading(true);
-    }
-    setEventsError(false);
-
-    try {
-      // Past tab paginates: fetch the first 20, then lazy-load on scroll.
-      // Other tabs keep the existing 50-cap behavior.
-      const limit = tab === 'past' ? PAST_EVENTS_PAGE_SIZE : 50;
-      // userId is passed for every tab since T043: the participants embed is
-      // capped at 6, so the caller's joined-state comes from the filtered
-      // my_participation alias instead of scanning the full embed.
-      const { data, error } = await getEvents(
-        tab,
-        userId,
-        { limit, offset: 0, city: selectedCityName },
-      );
-      if (fetchSeq !== eventFetchSeqRef.current) return;
-      if (error) {
-        // Don't replace a visible cached list with a full-screen error —
-        // keep the data and flag it as cached instead (T035).
-        if (servedFromCache) setShowingCached(true);
-        else setEventsError(true);
-      } else {
-        setShowingCached(false);
-        const list = (data ?? []) as unknown as EventListItem[];
-        setEvents(list);
-        if (tab === 'past') setPastHasMore(list.length === PAST_EVENTS_PAGE_SIZE);
-        if (userId) saveCachedEvents(userId, tab, list, selectedCityName);
-        // Check which past events already have user feedback (single round trip).
-        if (tab === 'past' && userId && list.length) {
-          const eventIds = list.map((ev) => ev.id);
-          const { data: feedbackEventIds } = await getUserEventFeedbackForEvents(userId, eventIds);
-          if (fetchSeq !== eventFetchSeqRef.current) return;
-          const ids = feedbackEventIds ?? [];
-          setFeedbackGivenIds(new Set(ids));
-          saveCachedFeedbackGiven(userId, ids);
-        }
-      }
-    } catch {
-      if (fetchSeq !== eventFetchSeqRef.current) return;
-      if (servedFromCache) setShowingCached(true);
-      else setEventsError(true);
-    } finally {
-      if (fetchSeq === eventFetchSeqRef.current) setLoading(false);
-    }
-  }, [activeTab, selectedCityName, user?.id]);
-
-  const loadMorePastEvents = useCallback(async () => {
-    if (activeTab !== 'past' || !user?.id) return;
-    if (pastLoadingMore || !pastHasMore || loading) return;
-    const fetchSeq = eventFetchSeqRef.current;
-    setPastLoadingMore(true);
-    try {
-      const offset = events.length;
-      const { data, error } = await getEvents('past', user.id, {
-        limit: PAST_EVENTS_PAGE_SIZE,
-        offset,
-        city: selectedCityName,
-      });
-      if (activeTab !== 'past' || fetchSeq !== eventFetchSeqRef.current) return;
-      if (error) return;
-      const more = (data ?? []) as unknown as EventListItem[];
-      if (more.length === 0) {
-        setPastHasMore(false);
-        return;
-      }
-      const merged = [...events, ...more];
-      setEvents(merged);
-      setPastHasMore(more.length === PAST_EVENTS_PAGE_SIZE);
-      if (user.id) saveCachedEvents(user.id, 'past', merged, selectedCityName);
-      // Augment feedback-given set with the new page.
-      const newIds = more.map((ev) => ev.id);
-      const { data: fb } = await getUserEventFeedbackForEvents(user.id, newIds);
-      if (activeTab !== 'past' || fetchSeq !== eventFetchSeqRef.current) return;
-      if (fb && fb.length) {
-        setFeedbackGivenIds((prev) => {
-          const next = new Set(prev);
-          fb.forEach((id) => next.add(id));
-          saveCachedFeedbackGiven(user.id, Array.from(next));
-          return next;
-        });
-      }
-    } finally {
-      setPastLoadingMore(false);
-    }
-  }, [activeTab, user, events, pastLoadingMore, pastHasMore, loading, selectedCityName]);
-
-  // Fetch AmaTur events
-  const fetchAmatur = useCallback(async () => {
-    setAmaturLoading(true);
-    const { data, error } = await getAmaturEvents();
-    if (error && data.length === 0) {
-      showAlert(s('error'), s('ampiLoadError'));
-    }
-    setAmaturEvents(data);
-    setAmaturLoading(false);
-  }, [s]);
+  const loadMorePastEvents = useCallback(() => {
+    if (activeTab !== 'past' || loading) return;
+    if (pastLoadingMore || !pastHasMore) return;
+    fetchNextPastPage();
+  }, [activeTab, loading, pastLoadingMore, pastHasMore, fetchNextPastPage]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    if (activeTab === 'amatur') {
-      await fetchAmatur();
-    } else {
-      await fetchEvents(true);
-    }
+    await refetchActive(true);
     setRefreshing(false);
-  }, [fetchEvents, fetchAmatur, activeTab]);
+  }, [refetchActive]);
 
   useEffect(() => {
     if (!requestedTab || !refreshEventsParam) return;
@@ -281,40 +186,22 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         hasFocusedOnceRef.current = true;
         return;
       }
-      if (activeTab === 'amatur') {
-        fetchAmatur();
-      } else {
-        // force=false (T043): quick Map↔Events toggles take the 60s
-        // cache fast-path instead of refetching on every focus.
-        fetchEvents(false);
-      }
-    }, [activeTab, fetchAmatur, fetchEvents]),
+      refetchActive(false);
+    }, [refetchActive]),
   );
 
   useEffect(() => {
     if (!refreshEventsParam || handledRefreshRef.current === refreshEventsParam) return;
     if (requestedTab && requestedTab !== activeTab) return;
     handledRefreshRef.current = refreshEventsParam;
-    if (activeTab === 'amatur') {
-      fetchAmatur();
-    } else {
-      fetchEvents(true);
-    }
-  }, [refreshEventsParam, requestedTab, activeTab, fetchEvents, fetchAmatur]);
+    refetchActive(true);
+  }, [refreshEventsParam, requestedTab, activeTab, refetchActive]);
 
+  // AmaTur fetch failed with nothing to show — the service falls back to
+  // its own stale cache when it can, so this is the truly-offline case.
   useEffect(() => {
-    // Reset pagination when leaving or entering the past tab so a fresh
-    // visit always starts at offset 0 with hasMore unknown-but-true.
-    setPastHasMore(true);
-    fetchEvents();
-  }, [fetchEvents]);
-
-  useEffect(() => {
-    if (activeTab === 'amatur' && amaturEvents.length === 0) {
-      fetchAmatur();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+    if (amaturIsError) showAlert(s('error'), s('ampiLoadError'));
+  }, [amaturIsError, amaturErrorAt, s]);
 
   const openDetail = useCallback((event: EventListItem) => {
     router.push({ pathname: '/(protected)/event/[eventId]', params: { eventId: String(event.id) } });
@@ -368,8 +255,12 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
       eventId: event.id,
       action: isJoined ? 'leave' : 'join',
     });
-    fetchEvents();
-  }, [user, router, s, fetchEvents]);
+    // T050: join/leave changes joined-state and counts everywhere — drop the
+    // disk mirror and re-pull through react-query (the active query refetches
+    // immediately, inactive tabs on their next mount).
+    invalidateEventsCache(user.id, ['upcoming', 'mine']);
+    queryClient.invalidateQueries({ queryKey: eventsQueryKeyPrefix });
+  }, [user, router, s, queryClient]);
 
   const locale = getDateLocale(lang);
 
@@ -561,7 +452,7 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
             title={s('eventsLoadError')}
             description={s('eventsLoadErrorDesc')}
             ctaLabel={s('retry')}
-            onRetry={fetchEvents}
+            onRetry={() => refetchActive()}
           />
         ) : (
           <EmptyState
@@ -825,9 +716,10 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         visible={feedbackEventId !== null}
         eventId={feedbackEventId}
         onDismiss={() => {
-          if (feedbackEventId) setFeedbackGivenIds(prev => new Set(prev).add(feedbackEventId));
+          if (feedbackEventId) setLocalFeedbackGiven((prev) => new Set(prev).add(feedbackEventId));
           setFeedbackEventId(null);
-          fetchEvents();
+          // A submit invalidated the disk cache — the stale path refetches.
+          refetchActive(false);
         }}
       />
 
@@ -838,7 +730,8 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
         initialHours={logHoursEvent?.initialHours}
         onDismiss={() => {
           setLogHoursEvent(null);
-          fetchEvents();
+          // Logged hours invalidate the past disk cache — stale path refetches.
+          refetchActive(false);
         }}
       />
 

@@ -64086,3 +64086,22 @@ index 07a4638..0437b25 100644
  }
  #pragma clang diagnostic pop
  
+diff --git a/node_modules/react-native-maps/ios/AirMaps/AIRMapMarker.m b/node_modules/react-native-maps/ios/AirMaps/AIRMapMarker.m
+index 8c17ac7..783b1fa 100644
+--- a/node_modules/react-native-maps/ios/AirMaps/AIRMapMarker.m
++++ b/node_modules/react-native-maps/ios/AirMaps/AIRMapMarker.m
+@@ -34,6 +34,14 @@ - (instancetype)initWithFrame:(CGRect)frame {
+     self = [super initWithFrame:frame];
+     if (self) {
+         [self.layer addObserver:self forKeyPath:@"zPosition" options:NSKeyValueObservingOptionNew context:nil];
++        // PATCH (TTPortal): keep annotations out of the accessibility tree.
++        // MKMapView exposes every pin as a default "Map pin" element; with
++        // 1000+ venue markers the a11y snapshot balloons to megabytes,
++        // VoiceOver becomes a thousand-stop tour, and the subtrees below
++        // the map (the venue list — the intended accessible surface) get
++        // starved. RNM 1.x ignores the JS-side accessibility props here.
++        self.accessibilityElementsHidden = YES;
++        self.isAccessibilityElement = NO;
+     }
+     return self;
+ }

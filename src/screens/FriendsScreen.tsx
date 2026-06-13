@@ -11,10 +11,16 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getDateLocale } from '../contexts/I18nProvider';
 import { useFocusRefresh } from '../hooks/useFocusRefresh';
-import { getFriends, getPendingRequests, acceptRequest, declineRequest, findUserByUsername, getFriendshipBetweenUsers, sendRequest } from '../services/friends';
-import { loadCachedFriends, saveCachedFriends, loadCachedPending, saveCachedPending } from '../lib/friendsCache';
+import { acceptRequest, declineRequest, findUserByUsername, getFriendshipBetweenUsers, sendRequest } from '../services/friends';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  useFriendsQuery,
+  usePendingFriendRequestsQuery,
+  usePlayingFriendsQuery,
+  friendsQueryKey,
+  pendingFriendsQueryKey,
+} from '../hooks/queries/useFriendsQuery';
 import { sendAppInviteEmail } from '../services/invites';
-import { getActiveFriendCheckins } from '../services/checkins';
 import { Card } from '../components/Card';
 import { EmptyState } from '../components/EmptyState';
 import { isValidEmail } from '../lib/auth-utils';
@@ -25,10 +31,6 @@ type InviteEmailResult = 'idle' | 'sent' | 'invalid' | 'already_registered' | 'e
 
 export function FriendsScreen() {
   const [activeTab, setActiveTab] = useState<FriendsTab>('all');
-  const [friends, setFriends] = useState<any[]>([]);
-  const [pending, setPending] = useState<any[]>([]);
-  const [playingFriends, setPlayingFriends] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -40,6 +42,16 @@ export function FriendsScreen() {
   const [addFriendResult, setAddFriendResult] = useState<AddFriendResult>('idle');
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useSession();
+  // T050: react-query owns all three lists (friends/pending hydrate from
+  // the persistent friendsCache inside the hooks; playing is live data).
+  const queryClient = useQueryClient();
+  const { data: friendsData, isLoading: friendsLoading, refetch: refetchFriends } = useFriendsQuery(user?.id);
+  const friends = (friendsData ?? []) as any[];
+  const { data: pendingData, refetch: refetchPending } = usePendingFriendRequestsQuery(user?.id);
+  const pending = (pendingData ?? []) as any[];
+  const { data: playingData, refetch: refetchPlaying } = usePlayingFriendsQuery(user?.id, friendsData ?? []);
+  const playingFriends = (playingData ?? []) as any[];
+  const loading = friendsLoading && friends.length === 0;
   const router = useRouter();
   const { s, lang } = useI18n();
   const { colors } = useTheme();
@@ -59,95 +71,13 @@ export function FriendsScreen() {
     [playingFriends, lang],
   );
 
-  const fetchData = useCallback(async (force = false) => {
-    if (!user) return;
-    let normalizedFriends: any[] = [];
-
-    // Cache-first hydrate of the friends + pending lists. Active-friend
-    // checkins are always fetched fresh further down (live data).
-    if (!force) {
-      const cachedFriends = loadCachedFriends<any>(user.id);
-      const cachedPending = loadCachedPending<any>(user.id);
-      if (cachedFriends) {
-        normalizedFriends = cachedFriends.data;
-        setFriends(normalizedFriends);
-      }
-      if (cachedPending) setPending(cachedPending.data);
-      const friendsFresh = !!cachedFriends?.fresh;
-      const pendingFresh = !!cachedPending?.fresh;
-      if (friendsFresh && pendingFresh) {
-        // Skip the network for friends + pending; still refresh active checkins.
-        setLoading(false);
-      } else if (cachedFriends || cachedPending) {
-        setLoading(false); // already showing cached data; refresh in background
-      } else {
-        setLoading(true);
-      }
-    } else {
-      setLoading(true);
-    }
-
-    try {
-      const cachedFriends = !force ? loadCachedFriends<any>(user.id) : null;
-      const cachedPending = !force ? loadCachedPending<any>(user.id) : null;
-      const skipFriendsFetch = !!cachedFriends?.fresh;
-      const skipPendingFetch = !!cachedPending?.fresh;
-
-      const [friendsRes, pendingRes] = await Promise.all([
-        skipFriendsFetch ? Promise.resolve({ data: cachedFriends!.data, error: null }) : getFriends(user.id),
-        skipPendingFetch ? Promise.resolve({ data: cachedPending!.data, error: null }) : getPendingRequests(user.id),
-      ]);
-
-      if (friendsRes.data && !skipFriendsFetch) {
-        normalizedFriends = (friendsRes.data as any[]).map((f: any) => {
-          const isRequester = f.requester_id === user.id;
-          const profile = isRequester ? f.addressee : f.requester;
-          return { ...f, friend: profile };
-        });
-        setFriends(normalizedFriends);
-        saveCachedFriends(user.id, normalizedFriends);
-      } else if (skipFriendsFetch) {
-        normalizedFriends = cachedFriends!.data;
-      }
-      if (pendingRes.data && !skipPendingFetch) {
-        setPending(pendingRes.data as any[]);
-        saveCachedPending(user.id, pendingRes.data as any[]);
-      }
-
-      if (normalizedFriends.length > 0) {
-        const friendIds = normalizedFriends.map((f: any) =>
-          f.requester_id === user.id ? f.addressee_id : f.requester_id,
-        );
-        const { data: checkins } = await getActiveFriendCheckins(friendIds);
-        if (checkins?.length) {
-          const checkinMap = new Map<string, any>();
-          for (const c of checkins) {
-            if (!checkinMap.has(c.user_id)) checkinMap.set(c.user_id, c);
-          }
-          const playing = normalizedFriends
-            .filter((f: any) => {
-              const fid = f.requester_id === user.id ? f.addressee_id : f.requester_id;
-              return checkinMap.has(fid);
-            })
-            .map((f: any) => {
-              const fid = f.requester_id === user.id ? f.addressee_id : f.requester_id;
-              return { ...f, checkin: checkinMap.get(fid) };
-            });
-          setPlayingFriends(playing);
-        } else {
-          setPlayingFriends([]);
-        }
-      } else {
-        setPlayingFriends([]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
+  const fetchData = useCallback(async () => {
+    await Promise.all([refetchFriends(), refetchPending(), refetchPlaying()]);
+  }, [refetchFriends, refetchPending, refetchPlaying]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchData(true);
+    await fetchData();
     setRefreshing(false);
   }, [fetchData]);
 
@@ -160,8 +90,9 @@ export function FriendsScreen() {
       showAlert(s('error'), s('acceptError'));
       return;
     }
-    fetchData();
-  }, [fetchData, s, user]);
+    queryClient.invalidateQueries({ queryKey: friendsQueryKey(user.id) });
+    queryClient.invalidateQueries({ queryKey: pendingFriendsQueryKey(user.id) });
+  }, [queryClient, s, user]);
 
   const handleDecline = useCallback(async (id: number) => {
     if (!user) return;
@@ -170,8 +101,10 @@ export function FriendsScreen() {
       showAlert(s('error'), s('declineError'));
       return;
     }
-    setPending((prev) => prev.filter((p) => p.id !== id));
-  }, [s, user]);
+    queryClient.setQueryData<any[]>(pendingFriendsQueryKey(user.id), (prev) =>
+      (prev ?? []).filter((p) => p.id !== id),
+    );
+  }, [queryClient, s, user]);
 
   const handleOpenAddFriend = useCallback(() => {
     setEnteredUsername('');
@@ -268,8 +201,9 @@ export function FriendsScreen() {
 
     setAddFriendResult('sent');
     setEnteredUsername('');
-    fetchData();
-  }, [enteredUsername, fetchData, user]);
+    queryClient.invalidateQueries({ queryKey: pendingFriendsQueryKey(user.id) });
+    queryClient.invalidateQueries({ queryKey: friendsQueryKey(user.id) });
+  }, [enteredUsername, queryClient, user]);
 
   const getInitials = (name?: string) => {
     if (!name) return '?';

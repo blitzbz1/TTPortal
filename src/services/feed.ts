@@ -1,3 +1,4 @@
+import type { PostgrestError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
 export interface FeedItem {
@@ -24,7 +25,7 @@ interface FeedRpcRow {
   ts: string;
 }
 
-export async function getFriendFeed(limit = 30): Promise<{ data: FeedItem[]; error: any }> {
+export async function getFriendFeed(limit = 30): Promise<{ data: FeedItem[]; error: PostgrestError | null }> {
   // Single RPC (migrations 052/083) returns the merged-and-sorted top-N feed.
   // The server derives the caller's accepted friendships from auth.uid() —
   // clients no longer pass friend IDs.

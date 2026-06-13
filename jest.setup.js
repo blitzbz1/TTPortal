@@ -281,6 +281,104 @@ jest.mock('@tanstack/react-query', () => {
         refetch,
       };
     },
+    // T050: infinite-query flavor of the eager useQuery mock above — the
+    // first page fetches on mount (when enabled), fetchNextPage appends a
+    // page using getNextPageParam, refetch resets to page one.
+    useInfiniteQuery: ({ queryKey, queryFn, enabled = true, initialData, initialPageParam, getNextPageParam }) => {
+      const initial = typeof initialData === 'function' ? initialData() : initialData;
+      const [data, setData] = React.useState(initial);
+      const [isLoading, setIsLoading] = React.useState(true);
+      const [isError, setIsError] = React.useState(false);
+      const [error, setError] = React.useState(null);
+      const [isFetchingNextPage, setIsFetchingNextPage] = React.useState(false);
+      const dataRef = React.useRef(data);
+      dataRef.current = data;
+      const nextPageParam = (cur) =>
+        cur && getNextPageParam
+          ? getNextPageParam(
+              cur.pages[cur.pages.length - 1],
+              cur.pages,
+              cur.pageParams[cur.pageParams.length - 1],
+              cur.pageParams,
+            )
+          : undefined;
+      const fetchFirstPage = React.useCallback(async () => {
+        if (!queryFn) return { data: dataRef.current };
+        try {
+          const page = await queryFn({ pageParam: initialPageParam });
+          const next = { pages: [page], pageParams: [initialPageParam] };
+          setData(next);
+          setIsError(false);
+          setError(null);
+          setIsLoading(false);
+          return { data: next };
+        } catch (err) {
+          setIsError(true);
+          setError(err);
+          setIsLoading(false);
+          return { data: undefined };
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [queryFn]);
+      React.useEffect(() => {
+        if (enabled === false) {
+          setIsLoading(false);
+          return;
+        }
+        if (queryFn) {
+          if (!dataRef.current) setIsLoading(true);
+          let cancelled = false;
+          (async () => {
+            try {
+              const page = await queryFn({ pageParam: initialPageParam });
+              if (!cancelled) {
+                setData({ pages: [page], pageParams: [initialPageParam] });
+                setIsError(false);
+                setError(null);
+                setIsLoading(false);
+              }
+            } catch (err) {
+              if (!cancelled) {
+                setIsError(true);
+                setError(err);
+                setIsLoading(false);
+              }
+            }
+          })();
+          return () => {
+            cancelled = true;
+          };
+        }
+        setIsLoading(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [JSON.stringify(queryKey), enabled]);
+      const fetchNextPage = React.useCallback(async () => {
+        const cur = dataRef.current;
+        const pageParam = nextPageParam(cur);
+        if (pageParam == null || !queryFn) return;
+        setIsFetchingNextPage(true);
+        try {
+          const page = await queryFn({ pageParam });
+          setData({ pages: [...cur.pages, page], pageParams: [...cur.pageParams, pageParam] });
+        } catch (err) {
+          setIsError(true);
+          setError(err);
+        } finally {
+          setIsFetchingNextPage(false);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [queryFn]);
+      return {
+        data,
+        isLoading,
+        isError,
+        error,
+        refetch: fetchFirstPage,
+        fetchNextPage,
+        hasNextPage: nextPageParam(data) != null,
+        isFetchingNextPage,
+      };
+    },
     useMutation: ({ mutationFn, onMutate, onSuccess, onError, onSettled } = {}) => {
       const mutate = (vars) => {
         Promise.resolve()

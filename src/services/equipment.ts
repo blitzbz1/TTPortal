@@ -1,3 +1,4 @@
+import type { PostgrestError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { invalidateEquipmentCache } from '../lib/equipmentCache';
 import type { EquipmentCategory, EquipmentManufacturer, EquipmentSelection, EquipmentSelectionInsert } from '../types/database';
@@ -62,7 +63,7 @@ export async function getEquipmentHistory(userId: string, limit = 4) {
 export async function getCurrentEquipmentForUser(userId: string) {
   return supabase.rpc('current_equipment_for_user', {
     v_user_id: userId,
-  }) as unknown as Promise<{ data: EquipmentSelection[] | null; error: any }>;
+  }) as unknown as Promise<{ data: EquipmentSelection[] | null; error: PostgrestError | null }>;
 }
 
 export async function saveEquipmentSelection(data: EquipmentSelectionInsert) {

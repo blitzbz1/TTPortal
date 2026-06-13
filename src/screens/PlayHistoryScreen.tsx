@@ -16,8 +16,8 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getDateLocale } from '../contexts/I18nProvider';
 import { getPlayHistory } from '../services/checkins';
+import { usePlayHistoryQuery } from '../hooks/queries/usePlayHistoryQuery';
 import { supabase } from '../lib/supabase';
-import { loadCachedPlayHistory, saveCachedPlayHistory } from '../lib/playHistoryCache';
 
 const PAGE_SIZE = 20;
 
@@ -53,17 +53,15 @@ function AnimatedCounter({ value, style }: { value: string; style: any }) {
 }
 
 export function PlayHistoryScreen() {
-  const [history, setHistory] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  // Pages beyond the bundle's first are imperative view state (T050).
+  const [extraPages, setExtraPages] = useState<any[]>([]);
+  const [noMore, setNoMore] = useState(false);
   const [period, setPeriod] = useState<'week' | 'month' | 'year' | 'all'>('week');
-  const [eventHours, setEventHours] = useState<{ hours_played: number; starts_at: string; venue_id: number | null }[]>([]);
+
   const [calMonthOffset, setCalMonthOffset] = useState(0);
   const [selectedDay, setSelectedDay] = useState<string | null>(new Date().toDateString());
-  const [allCheckins, setAllCheckins] = useState<{ venue_id: number; venue_name: string; started_at: string; ended_at: string | null }[]>([]);
-  const [eventVenues, setEventVenues] = useState<{ venue_id: number; venue_name: string; event_title: string; starts_at: string; hours_played: number | null }[]>([]);
+
   const { user } = useSession();
   const router = useRouter();
   const { s, lang } = useI18n();
@@ -95,110 +93,41 @@ export function PlayHistoryScreen() {
     return new Date(Math.min(periodStart.getTime(), calStart.getTime())).toISOString();
   }, [period, calMonthOffset]);
 
-  const fetchData = useCallback(async (force = false) => {
-    if (!user) return;
+  // T050: the composite bundle (page one + calendar/stat sources) comes
+  // from usePlayHistoryQuery — fetch, persistent-cache mirror, and offline
+  // hydration all live in the hook.
+  const { data: bundle, isLoading } = usePlayHistoryQuery(user?.id, sinceIso);
+  const allCheckins = bundle?.allCheckins ?? [];
+  const eventHours = bundle?.eventHours ?? [];
+  const eventVenues = bundle?.eventVenues ?? [];
+  const history = useMemo(
+    () => [...(bundle?.history ?? []), ...extraPages],
+    [bundle, extraPages],
+  );
+  const loading = isLoading && !bundle;
+  const hasMore = !noMore && (bundle?.history?.length ?? 0) >= PAGE_SIZE;
 
-    // Cache-first hydrate; show whatever the previous window had immediately.
-    if (!force) {
-      const cached = loadCachedPlayHistory(user.id, sinceIso);
-      if (cached) {
-        setHistory(cached.data.history);
-        setAllCheckins(cached.data.allCheckins);
-        setEventHours(cached.data.eventHours);
-        setEventVenues(cached.data.eventVenues);
-        setOffset(cached.data.history.length);
-        setHasMore(cached.data.history.length >= PAGE_SIZE);
-        if (cached.fresh) {
-          setLoading(false);
-          return;
-        }
-        setLoading(false); // background refresh
-      } else {
-        setLoading((prev) => (history.length === 0 ? true : prev));
-      }
-    } else {
-      setLoading((prev) => (history.length === 0 ? true : prev));
-    }
-
-    try {
-      let allCheckinsQuery = supabase
-        .from('checkins')
-        .select('venue_id, started_at, ended_at, venues(name)')
-        .eq('user_id', user.id);
-      let eventsQuery = supabase
-        .from('event_participants')
-        .select('event_id, hours_played, events(venue_id, starts_at, title, venues(name))')
-        .eq('user_id', user.id);
-      if (sinceIso) {
-        allCheckinsQuery = allCheckinsQuery.gte('started_at', sinceIso);
-        eventsQuery = eventsQuery.gte('events.starts_at', sinceIso);
-      }
-      const [historyRes, allCheckinsRes, eventParticipationsRes] = await Promise.all([
-        getPlayHistory(user.id, PAGE_SIZE, 0, sinceIso ?? undefined),
-        allCheckinsQuery,
-        eventsQuery,
-      ]);
-      const allCheckinsMapped = (allCheckinsRes.data ?? []).map((c: any) => ({
-        venue_id: c.venue_id, venue_name: c.venues?.name ?? '', started_at: c.started_at, ended_at: c.ended_at,
-      }));
-      setAllCheckins(allCheckinsMapped);
-
-      const participants = eventParticipationsRes.data ?? [];
-      const eventHoursMapped = participants
-        .map((ep: any) => ({
-          hours_played: Number(ep.hours_played ?? 0),
-          starts_at: ep.events?.starts_at,
-          venue_id: ep.events?.venue_id ?? null,
-        }))
-        .filter((r: any) => r.starts_at && r.hours_played > 0);
-      setEventHours(eventHoursMapped);
-      const eventVenuesMapped = participants.map((ep: any) => ({
-        venue_id: ep.events?.venue_id,
-        venue_name: ep.events?.venues?.name ?? ep.events?.title ?? '',
-        event_title: ep.events?.title ?? '',
-        starts_at: ep.events?.starts_at,
-        hours_played: Number(ep.hours_played ?? 0) > 0 ? Number(ep.hours_played) : null,
-      })).filter((v: any) => v.venue_id);
-      setEventVenues(eventVenuesMapped);
-      const historyData = historyRes.data ?? [];
-      if (historyRes.data) {
-        setHistory(historyData);
-        setOffset(historyData.length);
-        setHasMore(historyData.length >= PAGE_SIZE);
-      }
-
-      saveCachedPlayHistory(user.id, sinceIso, {
-        history: historyData,
-        allCheckins: allCheckinsMapped,
-        eventHours: eventHoursMapped,
-        eventVenues: eventVenuesMapped,
-      });
-    } finally {
-      setLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, sinceIso]);
-
+  // New window (period/calendar change) → drop appended pages.
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    setExtraPages([]);
+    setNoMore(false);
+  }, [sinceIso]);
 
   const loadMore = useCallback(async () => {
     if (!user || loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
-      const { data } = await getPlayHistory(user.id, PAGE_SIZE, offset);
+      const { data } = await getPlayHistory(user.id, PAGE_SIZE, history.length);
       if (data && data.length > 0) {
-        setHistory((prev) => [...prev, ...data]);
-        setOffset((prev) => prev + data.length);
-        setHasMore(data.length >= PAGE_SIZE);
+        setExtraPages((prev) => [...prev, ...data]);
+        if (data.length < PAGE_SIZE) setNoMore(true);
       } else {
-        setHasMore(false);
+        setNoMore(true);
       }
     } finally {
       setLoadingMore(false);
     }
-  }, [user, offset, loadingMore, hasMore]);
+  }, [user, history.length, loadingMore, hasMore]);
 
   // Group history entries by day. Sort by timestamp once (input may be unsorted),
   // then walk in order and create a group only on the first occurrence of each

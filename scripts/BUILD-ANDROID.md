@@ -1,5 +1,35 @@
 # Building TTPortal Android APK on Windows
 
+> ⚠️ **WARNING — local builds are DEBUG-SIGNED and must never be distributed.**
+> The local `assembleRelease` output from this script is signed with the
+> auto-generated debug keystore, not a release key. Anything handed to users
+> or uploaded to a store MUST come from EAS:
+>
+> ```
+> eas build --profile production --platform android
+> ```
+>
+> which uses the real release keystore (managed via `eas credentials`) and a
+> remote, auto-incremented `versionCode` (`eas.json`: `appVersionSource:
+> "remote"`, `autoIncrement: true`). Verify any distributable with
+> `apksigner verify --print-certs`. This script stays for local dev/testing
+> only.
+
+## OTA updates (expo-updates)
+
+JS-only fixes do NOT need a new build — ship them over the air:
+
+```
+eas update --channel preview     # internal testers (preview builds)
+eas update --channel production  # store/production builds
+```
+
+`runtimeVersion.policy` is `appVersion` (see `app.json`): any native change
+(new native module, SDK upgrade, config-plugin change) requires bumping
+`expo.version` and producing a **new build**; OTA only reaches builds whose
+runtime version matches. One-time setup: `eas init` (writes the EAS
+`projectId` + `updates.url` into `app.json`).
+
 ## Prerequisites
 
 ### 1. Node.js (v18+)

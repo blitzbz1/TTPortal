@@ -26,9 +26,8 @@ import { useSession } from '../hooks/useSession';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
 import { getDateLocale } from '../contexts/I18nProvider';
-import { getEquipmentHistory, saveEquipmentSelection } from '../services/equipment';
 import { useEquipmentCatalogQuery } from '../hooks/queries/useEquipmentCatalogQuery';
-import { loadCachedEquipmentHistory, saveCachedEquipmentHistory } from '../lib/equipmentCache';
+import { useEquipmentHistoryQuery, useSaveEquipmentMutation } from '../hooks/queries/useEquipmentHistoryQuery';
 import type {
   DominantHand,
   EquipmentManufacturer,
@@ -440,12 +439,15 @@ export function EquipmentScreen() {
   const colorLabel = useCallback((color: RubberColor) => s(`equipmentColor_${color}`), [s]);
 
   const [activeTab, setActiveTab] = useState<TabKey>('edit');
-  const [history, setHistory] = useState<EquipmentSelection[]>([]);
+  // T050: react-query owns history fetch + persistent-cache mirroring.
+  const { data: historyData, isLoading: historyLoading } = useEquipmentHistoryQuery(user?.id);
+  const history = historyData ?? [];
+  const saveMutation = useSaveEquipmentMutation(user?.id);
   const { data: bladeCatalogData, isError: bladeErr } = useEquipmentCatalogQuery('blade');
   const { data: rubberCatalogData, isError: rubberErr } = useEquipmentCatalogQuery('rubber');
   const bladeCatalog = useMemo(() => bladeCatalogData ?? [], [bladeCatalogData]);
   const rubberCatalog = useMemo(() => rubberCatalogData ?? [], [rubberCatalogData]);
-  const [loading, setLoading] = useState(true);
+  const loading = historyLoading && history.length === 0;
   const catalogError = bladeErr || rubberErr;
   const [saving, setSaving] = useState(false);
 
@@ -477,28 +479,6 @@ export function EquipmentScreen() {
     return (manufacturer?.models ?? []).map((name) => ({ id: name, name }));
   }, [backhand.manufacturerId, rubberCatalog]);
 
-  const loadHistory = useCallback(async () => {
-    if (!user) return;
-    // Cache-first: paint history immediately. Catalogs come from
-    // useEquipmentCatalogQuery (delta-synced + persistent).
-    const cached = loadCachedEquipmentHistory<EquipmentSelection>(user.id, 4);
-    if (cached) {
-      setHistory(cached.data);
-      if (!cached.fresh) setLoading(true);
-    } else {
-      setLoading(true);
-    }
-    const historyRes = await getEquipmentHistory(user.id, 4);
-    const { data } = historyRes;
-    const histList = (data ?? []) as EquipmentSelection[];
-    setHistory(histList);
-    saveCachedEquipmentHistory(user.id, 4, histList);
-    setLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    loadHistory();
-  }, [loadHistory]);
 
   const applySelectionToForm = useCallback((selection: EquipmentSelection | null | undefined) => {
     if (!selection) {
@@ -576,7 +556,8 @@ export function EquipmentScreen() {
     }
 
     setSaving(true);
-    const { data, error } = await saveEquipmentSelection({
+    let saveFailed = false;
+    await saveMutation.mutateAsync({
       user_id: user.id,
       blade_manufacturer_id: blade.manufacturerId,
       blade_manufacturer: blade.manufacturer,
@@ -592,15 +573,16 @@ export function EquipmentScreen() {
       dominant_hand: dominantHand,
       playing_style: playingStyle,
       grip,
+    }).catch(() => {
+      saveFailed = true;
     });
     setSaving(false);
 
-    if (error || !data) {
+    if (saveFailed) {
       showAlert(s('equipment'), s('equipmentSaveError'));
       return;
     }
 
-    setHistory((prev) => [data as EquipmentSelection, ...prev].slice(0, 4));
     setActiveTab('current');
   };
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Platform, RefreshControl } from 'react-native';
 import { showConfirm } from '../lib/dialogs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,12 +11,11 @@ import { useTheme } from '../hooks/useTheme';
 import { createStyles } from './ProfileScreen.styles';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
-import { getProfile } from '../services/profiles';
-import { loadCachedProfile, saveCachedProfile } from '../lib/profileCache';
 import type { Profile } from '../types/database';
 import { ProfileSkeleton } from '../components/SkeletonLoader';
 import { ErrorState } from '../components/ErrorState';
 import { useBadgeProgress } from '../features/challenges';
+import { useProfileQuery } from '../hooks/queries/useProfileQuery';
 
 interface ProfileScreenProps {
   hideTabBar?: boolean;
@@ -31,50 +30,30 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
-  const [profileError, setProfileError] = useState(false);
   const {
     progressRows,
   } = useBadgeProgress(user?.id);
 
-  const loadProfile = useCallback(async () => {
-    if (!user) return;
-
-    // Cache-first: paint from cached profile while we refresh in the background.
-    const cached = loadCachedProfile<Profile>(user.id);
-    if (cached) {
-      setProfile(cached.data);
-      setDataLoaded(true);
-      setLoading(false);
-      if (cached.fresh) return;
-    } else {
-      setLoading(true);
-    }
-    setProfileError(false);
-
-    try {
-      const profileRes = await getProfile(user.id);
-      if (profileRes.data) {
-        // email is no longer served by profiles (migration 085); the session
-        // user is the source of truth for the caller's own address.
-        setProfile({ ...profileRes.data, email: user.email ?? null } as Profile);
-        saveCachedProfile(user.id, profileRes.data);
-      }
-    } catch {
-      setProfileError(true);
-    } finally {
-      setLoading(false);
-      setDataLoaded(true);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!user || dataLoaded) return;
-    loadProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, dataLoaded]);
+  // T050: react-query owns fetch + persistent-cache hydration (the hook
+  // mirrors to profileCache and seeds initialData from it). The old
+  // loadCached -> setState -> fetch -> saveCached orchestration is gone.
+  const {
+    data: profileRaw,
+    isLoading,
+    isError,
+    refetch: refetchProfile,
+  } = useProfileQuery(user?.id);
+  const profile = useMemo(
+    () =>
+      profileRaw
+        ? // email is no longer served by profiles (migration 085); the session
+          // user is the source of truth for the caller's own address.
+          ({ ...profileRaw, email: user?.email ?? null } as Profile)
+        : null,
+    [profileRaw, user?.email],
+  );
+  const loading = isLoading && !profile;
+  const profileError = isError && !profile;
 
   const fullName = user?.user_metadata?.full_name || profile?.full_name || '';
   const nameParts = fullName.trim().split(/\s+/);
@@ -103,7 +82,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
     }
   }, [signOut, router, s]);
 
-  if (loading && !dataLoaded) {
+  if (loading) {
     return (
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: insets.top }]}>
@@ -128,7 +107,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
           title={s('profileLoadError')}
           description={s('profileLoadErrorDesc')}
           ctaLabel={s('retry')}
-          onRetry={loadProfile}
+          onRetry={refetchProfile}
         />
       </View>
     );
@@ -147,7 +126,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
 
       <ScrollView
         style={styles.scroll}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadProfile} colors={[colors.primary]} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetchProfile} colors={[colors.primary]} tintColor={colors.primary} />}
       >
         <View style={styles.profileSummaryCard}>
           <View style={styles.identityHeaderRow}>

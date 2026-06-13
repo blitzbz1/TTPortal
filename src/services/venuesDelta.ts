@@ -1,3 +1,4 @@
+import type { PostgrestError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { PersistedVenue } from '../lib/venuesPersistentCache';
 
@@ -12,7 +13,7 @@ export async function getVenuesDelta(
   city?: string | null,
   type?: string | null,
   cityId?: number | null,
-): Promise<{ data: VenuesDeltaResponse | null; error: any }> {
+): Promise<{ data: VenuesDeltaResponse | null; error: PostgrestError | null }> {
   const { data, error } = await supabase.rpc('get_venues_delta', {
     p_since: since ?? undefined,
     p_city: city ?? undefined,

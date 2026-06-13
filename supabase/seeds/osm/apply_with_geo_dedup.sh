@@ -121,17 +121,16 @@ BEGIN { injected = 0; joins = 0 }
 
 # inject the geo gate immediately before each venue ON CONFLICT
 /^ON CONFLICT \(name,city_id\) DO NOTHING;$/ {
+  # PostGIS gate (T027, migration 102): ST_DWithin over venues.geom is
+  # served by the GIST index — replaces the hand-rolled bounding-box +
+  # haversine math that scanned without index support at 34k+ venues.
   print "WHERE NOT EXISTS ("
   print "  SELECT 1 FROM public.venues e"
-  print "  WHERE e.lat BETWEEN (v.lat)::double precision - " LATD
-  print "                  AND (v.lat)::double precision + " LATD
-  print "    AND e.lng BETWEEN (v.lng)::double precision - " LATD " / GREATEST(cos(radians((v.lat)::double precision)), 0.01)"
-  print "                  AND (v.lng)::double precision + " LATD " / GREATEST(cos(radians((v.lat)::double precision)), 0.01)"
-  print "    AND 6371000 * 2 * asin(sqrt("
-  print "          power(sin(radians((e.lat - (v.lat)::double precision) / 2)), 2)"
-  print "          + cos(radians((v.lat)::double precision)) * cos(radians(e.lat))"
-  print "            * power(sin(radians((e.lng - (v.lng)::double precision) / 2)), 2)"
-  print "        )) <= " RADIUS
+  print "  WHERE ST_DWithin("
+  print "          e.geom,"
+  print "          ST_SetSRID(ST_MakePoint((v.lng)::double precision, (v.lat)::double precision), 4326)::geography,"
+  print "          " RADIUS
+  print "        )"
   print ")"
   injected++
   print

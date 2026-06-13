@@ -1,12 +1,16 @@
+// T052: the screen's tabs now own real react-query queries and mutations
+// update the cache via setQueryData, which jest.setup's global react-query
+// mock no-ops — so this suite unmocks the library and runs against a real
+// QueryClient (fresh per test), like the *.real.test.tsx hook suites.
+jest.unmock('@tanstack/react-query');
+
 import React from 'react';
 import { render, fireEvent, act, waitFor } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdminModerationScreen } from '../AdminModerationScreen';
 
-// Mock dependencies
-const mockInvalidateQueries = jest.fn();
-jest.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
-}));
+let queryClient: QueryClient;
+let invalidateQueriesSpy: jest.SpyInstance;
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
@@ -84,6 +88,10 @@ jest.mock('../../services/admin', () => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  invalidateQueriesSpy = jest.spyOn(queryClient, 'invalidateQueries');
   mockGetProfile.mockImplementation(() => ({
     then: (resolve: (value: { data: { is_admin: boolean } }) => void) => {
       resolve({ data: { is_admin: true } });
@@ -101,12 +109,37 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  queryClient.clear();
   jest.useRealTimers();
 });
 
+/**
+ * Flush a few macrotask ticks inside act: react-query's notifyManager
+ * delivers observer updates on a setTimeout(0) tick, so the UI lags the
+ * query cache by a timer tick (and mutation handlers chain several).
+ */
+async function flushAsync(ticks = 3) {
+  await act(async () => {
+    for (let i = 0; i < ticks; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  });
+}
+
+/** Wait until every in-flight query has settled and the UI caught up. */
+async function flushQueries() {
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  await flushAsync();
+}
+
 async function renderAdmin() {
-  const utils = render(<AdminModerationScreen />);
+  const utils = render(
+    <QueryClientProvider client={queryClient}>
+      <AdminModerationScreen />
+    </QueryClientProvider>,
+  );
   await waitFor(() => expect(utils.getByText('tabReviews')).toBeTruthy());
+  await flushQueries();
   return utils;
 }
 
@@ -147,7 +180,6 @@ describe('AdminModerationScreen — venue search', () => {
   });
 
   it('triggers search after debounce with 3+ chars', async () => {
-    jest.useFakeTimers();
     const venues = [{ id: 1, name: 'Parc Tineretului', city: 'București', address: 'Str. X' }];
     mockSearchVenuesAdmin.mockResolvedValue({ data: venues });
 
@@ -156,17 +188,16 @@ describe('AdminModerationScreen — venue search', () => {
     fireEvent.press(getByText('tabVenues'));
     fireEvent.changeText(getByPlaceholderText('searchVenues'), 'Parc');
 
-    // Advance past debounce
-    await act(async () => { jest.advanceTimersByTime(500); });
+    // Wait out the 400ms debounce, then let the query settle
+    await waitFor(() => expect(mockSearchVenuesAdmin).toHaveBeenCalledWith('Parc'));
+    await flushQueries();
 
-    expect(mockSearchVenuesAdmin).toHaveBeenCalledWith('Parc');
     expect(getByText('Parc Tineretului')).toBeTruthy();
   });
 });
 
 describe('AdminModerationScreen — edit modal', () => {
   it('opens edit modal when pencil button is pressed on a search result', async () => {
-    jest.useFakeTimers();
     const venues = [{ id: 1, name: 'Parc Test', city: 'București', address: 'Str. Test', type: 'parc_exterior', tables_count: 2, description: '' }];
     mockSearchVenuesAdmin.mockResolvedValue({ data: venues });
 
@@ -175,13 +206,13 @@ describe('AdminModerationScreen — edit modal', () => {
     // Switch to venues tab and search
     fireEvent.press(getByText('tabVenues'));
     fireEvent.changeText(getByPlaceholderText('searchVenues'), 'Parc');
-    await act(async () => { jest.advanceTimersByTime(500); });
+    await waitFor(() => expect(mockSearchVenuesAdmin).toHaveBeenCalledWith('Parc'));
+    await flushQueries();
 
     expect(getByText('Parc Test')).toBeTruthy();
   });
 
   it('saves venue edits and updates search results', async () => {
-    jest.useFakeTimers();
     const venues = [{ id: 1, name: 'Parc Test', city: 'București', address: 'Str. Test', type: 'parc_exterior', tables_count: 2, description: '' }];
     mockSearchVenuesAdmin.mockResolvedValue({ data: venues });
     mockUpdateVenue.mockResolvedValue({ data: { ...venues[0], name: 'Parc Updated' }, error: null });
@@ -191,14 +222,14 @@ describe('AdminModerationScreen — edit modal', () => {
     // Navigate to venues tab and search
     fireEvent.press(getByText('tabVenues'));
     fireEvent.changeText(getByPlaceholderText('searchVenues'), 'Parc');
-    await act(async () => { jest.advanceTimersByTime(500); });
+    await waitFor(() => expect(mockSearchVenuesAdmin).toHaveBeenCalledWith('Parc'));
+    await flushQueries();
 
     // Verify venue appeared
     expect(getByText('Parc Test')).toBeTruthy();
   });
 
   it('saves table condition, lighting, nets, description, and photo removals', async () => {
-    jest.useFakeTimers();
     const venues = [{
       id: 1,
       name: 'Parc Test',
@@ -233,7 +264,8 @@ describe('AdminModerationScreen — edit modal', () => {
 
     fireEvent.press(getByText('tabVenues'));
     fireEvent.changeText(getByPlaceholderText('searchVenues'), 'Parc');
-    await act(async () => { jest.advanceTimersByTime(500); });
+    await waitFor(() => expect(mockSearchVenuesAdmin).toHaveBeenCalledWith('Parc'));
+    await flushQueries();
 
     await act(async () => { fireEvent.press(getByTestId('venue-edit-1')); });
     await act(async () => { fireEvent.press(getByTestId('condition-deteriorata')); });
@@ -243,7 +275,9 @@ describe('AdminModerationScreen — edit modal', () => {
     await act(async () => { fireEvent.press(getByTestId('remove-photo-0')); });
     await act(async () => { fireEvent.changeText(getByTestId('edit-description'), 'Updated description'); });
     await act(async () => { fireEvent.press(getByText('save')); });
+    await flushAsync();
 
+    await waitFor(() => expect(mockUpdateVenue).toHaveBeenCalled());
     expect(mockUpdateVenue).toHaveBeenCalledWith(1, 'admin-1', expect.objectContaining({
       condition: 'deteriorata',
       night_lighting: true,
@@ -305,11 +339,12 @@ describe('AdminModerationScreen — pending venues', () => {
     expect(getByText('Pending Venue')).toBeTruthy();
 
     await act(async () => { fireEvent.press(getByText('approve')); });
+    await flushAsync();
 
     expect(mockApproveVenue).toHaveBeenCalledWith(10, 'admin-1');
-    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['venues'], exact: false });
-    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['cities', 'delta'] });
-    expect(queryByText('Pending Venue')).toBeNull();
+    await waitFor(() => expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ['venues'], exact: false }));
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ['cities', 'delta'] });
+    await waitFor(() => expect(queryByText('Pending Venue')).toBeNull());
   });
 
   it('shows Lübeck imported locations as pending admin approvals', async () => {
@@ -324,9 +359,10 @@ describe('AdminModerationScreen — pending venues', () => {
     expect(getAllByText('approve')).toHaveLength(14);
 
     await act(async () => { fireEvent.press(getAllByText('approve')[0]); });
+    await flushAsync();
 
     expect(mockApproveVenue).toHaveBeenCalledWith(9000, 'admin-1');
-    expect(queryByText('Tischtennis Carlebach-Park')).toBeNull();
+    await waitFor(() => expect(queryByText('Tischtennis Carlebach-Park')).toBeNull());
   });
 });
 
@@ -336,6 +372,7 @@ describe('AdminModerationScreen — feedback tab', () => {
     expect(mockGetUserFeedback).not.toHaveBeenCalled();
 
     await act(async () => { fireEvent.press(getByText('tabFeedback')); });
+    await flushQueries();
 
     expect(mockGetUserFeedback).toHaveBeenCalledTimes(1);
   });
@@ -357,6 +394,7 @@ describe('AdminModerationScreen — feedback tab', () => {
 
     const { getByText, getByTestId } = await renderAdmin();
     await act(async () => { fireEvent.press(getByText('tabFeedback')); });
+    await flushQueries();
 
     expect(getByTestId('feedback-row-f-1')).toBeTruthy();
     expect(getByText('Ion Popescu')).toBeTruthy();
@@ -367,6 +405,7 @@ describe('AdminModerationScreen — feedback tab', () => {
   it('shows empty state when there is no feedback', async () => {
     const { getByText } = await renderAdmin();
     await act(async () => { fireEvent.press(getByText('tabFeedback')); });
+    await flushQueries();
 
     expect(getByText('noUserFeedback')).toBeTruthy();
   });
@@ -388,6 +427,7 @@ describe('AdminModerationScreen — feedback tab', () => {
 
     const { getByText, getByTestId } = await renderAdmin();
     await act(async () => { fireEvent.press(getByText('tabFeedback')); });
+    await flushQueries();
     await act(async () => { fireEvent.press(getByTestId('feedback-reply-f-3')); });
 
     expect(getByText('feedbackReplyTitle')).toBeTruthy();
@@ -410,6 +450,7 @@ describe('AdminModerationScreen — feedback tab', () => {
 
     const { getByText } = await renderAdmin();
     await act(async () => { fireEvent.press(getByText('tabFeedback')); });
+    await flushQueries();
 
     expect(getByText('anon@x.com')).toBeTruthy();
   });
@@ -421,6 +462,7 @@ describe('AdminModerationScreen — changes tab', () => {
     expect(mockGetVenueChangeRequests).not.toHaveBeenCalled();
 
     await act(async () => { fireEvent.press(getByText('tabChanges')); });
+    await flushQueries();
 
     expect(mockGetVenueChangeRequests).toHaveBeenCalledTimes(1);
   });
@@ -440,6 +482,7 @@ describe('AdminModerationScreen — changes tab', () => {
 
     const { getByText, getByTestId } = await renderAdmin();
     await act(async () => { fireEvent.press(getByText('tabChanges')); });
+    await flushQueries();
 
     expect(getByTestId('vcr-card-1')).toBeTruthy();
     expect(getByText('Park A')).toBeTruthy();
@@ -463,6 +506,7 @@ describe('AdminModerationScreen — changes tab', () => {
 
     const { getByText, getByTestId, queryByTestId } = await renderAdmin();
     await act(async () => { fireEvent.press(getByText('tabChanges')); });
+    await flushQueries();
 
     expect(queryByTestId('image-viewer')).toBeNull();
     await act(async () => { fireEvent.press(getByTestId('vcr-photo-1')); });
@@ -487,7 +531,9 @@ describe('AdminModerationScreen — changes tab', () => {
 
     const { getByText, getByTestId, queryByTestId } = await renderAdmin();
     await act(async () => { fireEvent.press(getByText('tabChanges')); });
+    await flushQueries();
     await act(async () => { fireEvent.press(getByTestId('vcr-apply-1')); });
+    await flushAsync();
 
     expect(mockResolveVenueChangeRequest).toHaveBeenCalledWith(1, 10, 'admin-1', {
       applyNets: true,
@@ -495,7 +541,7 @@ describe('AdminModerationScreen — changes tab', () => {
       applyTablesCount: true,
       availability: 'none',
     });
-    expect(queryByTestId('vcr-card-1')).toBeNull();
+    await waitFor(() => expect(queryByTestId('vcr-card-1')).toBeNull());
   });
 
   it('dismisses a change request', async () => {
@@ -512,9 +558,11 @@ describe('AdminModerationScreen — changes tab', () => {
 
     const { getByText, getByTestId, queryByTestId } = await renderAdmin();
     await act(async () => { fireEvent.press(getByText('tabChanges')); });
+    await flushQueries();
     await act(async () => { fireEvent.press(getByTestId('vcr-dismiss-2')); });
+    await flushAsync();
 
     expect(mockDismissVenueChangeRequest).toHaveBeenCalledWith(2, 'admin-1');
-    expect(queryByTestId('vcr-card-2')).toBeNull();
+    await waitFor(() => expect(queryByTestId('vcr-card-2')).toBeNull());
   });
 });

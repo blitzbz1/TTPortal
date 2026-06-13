@@ -65,3 +65,5 @@ supabase/.temp/
 
 # local data dumps
 tables.jsonsupabase/seeds/osm/.geo_dedup_watermarks*
+
+/old/

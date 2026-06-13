@@ -1,6 +1,6 @@
 # TTPortal — CI/CD Tasks (deferred)
 
-Extracted from [improvement_suggestions_tasks.md](improvement_suggestions_tasks.md) on 2026-06-10 — pipeline/automation work deferred by decision. Source findings live in [improvement_suggestions.md](improvement_suggestions.md). Original task IDs are noted; the main doc keeps one-line stubs so cross-references stay valid.
+Extracted from [improvement_suggestions_tasks.md](old/improvement_suggestions_tasks.md) on 2026-06-10 — pipeline/automation work deferred by decision. Source findings live in [improvement_suggestions.md](old/improvement_suggestions.md). Original task IDs are noted; the main doc keeps one-line stubs so cross-references stay valid.
 
 **Scope note:** only pipeline work moved here. The scheduled *operational* automations stayed in the main doc because they're data-safety/monitoring items that merely happen to use GitHub Actions: T083 (offsite backups) and T087 (egress/cost alert).
 

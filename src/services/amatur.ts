@@ -232,8 +232,8 @@ export async function getAmaturEvents(): Promise<{ data: AmaturEvent[]; error: s
     const events = parseTourneeHtml(html);
     cache = { data: events, ts: Date.now() };
     return { data: events, error: null };
-  } catch (err: any) {
-    return { data: cache?.data ?? [], error: err.message ?? 'Network error' };
+  } catch (err) {
+    return { data: cache?.data ?? [], error: err instanceof Error ? err.message : 'Network error' };
   }
 }
 

@@ -2,13 +2,17 @@
   "expo": {
     "name": "TTPortal",
     "slug": "ttportal",
-    "version": "1.0.0",
+    "version": "0.0.8",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "ttportal",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
+      "buildNumber": "1",
       "bundleIdentifier": "com.ttportal.app",
       "associatedDomains": ["applinks:www.ttportal.org"],
       "infoPlist": {

@@ -17,6 +17,7 @@ import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius } from '../theme';
 import { useI18n } from '../hooks/useI18n';
+import { useVenueForm, parseTablesCount } from '../hooks/useVenueForm';
 import type { VenueChangeRequestInput } from '../services/venueChangeRequests';
 
 type TriValue = boolean | null;
@@ -53,21 +54,18 @@ export function VenueChangeRequestModal({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const [nets, setNets] = useState<TriValue>(null);
-  const [lighting, setLighting] = useState<TriValue>(null);
-  const [tables, setTables] = useState('');
+  // T052: nets / lighting / tables / note ride on the shared venue form
+  // (note maps to `description`); the proposal-only bits stay local.
+  const form = useVenueForm();
+  const { values, set: setForm, reset: resetForm } = form;
   const [markUnavailable, setMarkUnavailable] = useState(false);
-  const [note, setNote] = useState('');
   const [image, setImage] = useState<SelectedImage | null>(null);
 
   const reset = useCallback(() => {
-    setNets(null);
-    setLighting(null);
-    setTables('');
+    resetForm();
     setMarkUnavailable(false);
-    setNote('');
     setImage(null);
-  }, []);
+  }, [resetForm]);
 
   // Start each open with a fresh form. The parent closes the sheet by flipping
   // `visible` (not via handleClose) on success, so reset here rather than on submit.
@@ -105,28 +103,22 @@ export function VenueChangeRequestModal({
     setImage({ uri: asset.uri, width: asset.width ?? null, height: asset.height ?? null });
   }, [s]);
 
-  const tablesTrimmed = tables.trim();
-  const tablesNum = tablesTrimmed === '' ? null : Number(tablesTrimmed);
-  const tablesValid =
-    tablesNum != null &&
-    Number.isInteger(tablesNum) &&
-    tablesNum >= 0 &&
-    tablesNum <= MAX_TABLES;
-  const tablesProvided = tablesTrimmed !== '' && tablesValid;
+  const tablesCheck = parseTablesCount(values.tables, { min: 0, max: MAX_TABLES, integerOnly: true });
+  const tablesProvided = tablesCheck.provided && tablesCheck.valid;
 
   const hasChange =
-    nets !== null || lighting !== null || tablesProvided || markUnavailable;
+    values.nets !== null || values.nightLighting !== null || tablesProvided || markUnavailable;
 
   const handleSubmit = useCallback(() => {
     if (!hasChange) return;
     onSubmit({
-      nets,
-      nightLighting: lighting,
-      tablesCount: tablesProvided ? tablesNum : null,
+      nets: values.nets,
+      nightLighting: values.nightLighting,
+      tablesCount: tablesProvided ? tablesCheck.value : null,
       markUnavailable,
-      note: note.trim() ? note.trim() : null,
+      note: values.description.trim() ? values.description.trim() : null,
     }, image);
-  }, [hasChange, nets, lighting, tablesProvided, tablesNum, markUnavailable, note, image, onSubmit]);
+  }, [hasChange, values, tablesProvided, tablesCheck.value, markUnavailable, image, onSubmit]);
 
   const renderTriState = (
     field: string,
@@ -203,8 +195,8 @@ export function VenueChangeRequestModal({
           bottomOffset={20}
           showsVerticalScrollIndicator={false}
         >
-          {renderTriState('nets', s('vcrFieldNets'), current?.nets, nets, setNets)}
-          {renderTriState('lighting', s('vcrFieldLighting'), current?.night_lighting, lighting, setLighting)}
+          {renderTriState('nets', s('vcrFieldNets'), current?.nets, values.nets, (v) => setForm({ nets: v }))}
+          {renderTriState('lighting', s('vcrFieldLighting'), current?.night_lighting, values.nightLighting, (v) => setForm({ nightLighting: v }))}
 
           <View style={styles.field}>
             <Text style={styles.label}>
@@ -218,8 +210,8 @@ export function VenueChangeRequestModal({
             </Text>
             <TextInput
               style={styles.input}
-              value={tables}
-              onChangeText={setTables}
+              value={values.tables}
+              onChangeText={(text) => setForm({ tables: text })}
               placeholder={s('vcrNoChange')}
               placeholderTextColor={colors.textFaint}
               keyboardType="number-pad"
@@ -243,8 +235,8 @@ export function VenueChangeRequestModal({
 
           <TextInput
             style={styles.notes}
-            value={note}
-            onChangeText={setNote}
+            value={values.description}
+            onChangeText={(text) => setForm({ description: text })}
             placeholder={s('vcrNotePlaceholder')}
             placeholderTextColor={colors.textFaint}
             multiline

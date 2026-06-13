@@ -1,3 +1,4 @@
+import type { PostgrestError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type {
   EquipmentCategory,
@@ -18,7 +19,7 @@ export interface EquipmentCatalogDeltaResponse {
 export async function getEquipmentCatalogDelta(
   category: EquipmentCategory,
   since: string | null,
-): Promise<{ data: EquipmentCatalogDeltaResponse | null; error: any }> {
+): Promise<{ data: EquipmentCatalogDeltaResponse | null; error: PostgrestError | null }> {
   const { data, error } = await supabase.rpc('get_equipment_catalog_delta', {
     p_category: category,
     p_since: since ?? undefined,

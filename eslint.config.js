@@ -56,6 +56,16 @@ module.exports = defineConfig([
     },
   },
   {
+    // T051: stop new `any` growth where the layers are already clean.
+    // Screens/components still carry legacy `any` (count tracked in the
+    // improvement tasks doc) — widen this list as they're burned down.
+    files: ["src/services/**/*.ts", "src/contexts/**/*.tsx", "src/features/**/*.ts"],
+    ignores: ["src/**/__tests__/**"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn",
+    },
+  },
+  {
     files: ["src/shims/**"],
     rules: {
       "react-hooks/exhaustive-deps": "off",

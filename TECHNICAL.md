@@ -127,8 +127,6 @@ TTPortal/
 │   ├── seeds/                  # Local dev seed data (not for production)
 │   ├── docker-compose.yml      # Local Supabase stack
 │   ├── .env                    # Local Supabase credentials
-│   ├── run_migrations.ps1      # PowerShell migration runner
-│   └── full_migration.sql      # Combined migration for SQL Editor
 ├── .maestro/                   # E2E test suite
 │   ├── flows/                  # 20 test flows
 │   └── helpers/                # Reusable test helpers
@@ -409,10 +407,19 @@ npm run e2e:studio                       # Interactive studio
 
 ### Database Migrations
 
-Production migrations can be run via:
-- **PowerShell script:** `supabase/run_migrations.ps1 -Password "db-password"`
-- **SQL Editor:** Paste `supabase/full_migration.sql` into Supabase Dashboard → SQL Editor
-- **Manual:** Run each file in `supabase/migrations/` in order (000-010)
+Migrations 000–099 are applied to production and FROZEN — never edit them;
+all schema changes ship as new migrations (100+).
+
+- **Production:** `supabase db push` against the linked project (records in
+  `supabase_migrations.schema_migrations`). The legacy PowerShell runner and
+  `full_migration.sql` are gone — do not recreate ad-hoc apply paths.
+- **Verification before any push:** replay the full chain on a prod-parity
+  container via `supabase/.migration-test/replay_prod_parity.sh`, then run
+  the per-migration assertion files and the pgTAP invariants
+  (`npm run test:db`).
+- **Local stack:** a literal fresh-clone `supabase db reset` does not replay
+  cleanly inside 000–081 (prod history had manual interventions); use the
+  replay script or a prod baseline dump.
 
 ---
 

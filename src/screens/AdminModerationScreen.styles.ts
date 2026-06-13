@@ -703,3 +703,7 @@ export function createStyles(colors: ThemeColors) {
     },
   });
 }
+
+// T052: the per-tab files under AdminModeration/ receive the shell's
+// memoized stylesheet as a prop instead of each re-creating it.
+export type AdminModerationStyles = ReturnType<typeof createStyles>;

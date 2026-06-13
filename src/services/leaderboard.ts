@@ -70,7 +70,7 @@ async function queryWeeklyCheckins(since: string, _city?: string) {
   if (error || !data) return { data: [], error };
 
   const counts: Record<string, { user_id: string; full_name: string; total_checkins: number }> = {};
-  for (const row of data as any[]) {
+  for (const row of data as { user_id: string; profiles?: { full_name?: string | null } | null }[]) {
     const uid = row.user_id;
     if (!counts[uid]) {
       counts[uid] = {
@@ -99,7 +99,7 @@ async function queryWeeklyReviews(since: string, _city?: string) {
   if (error || !data) return { data: [], error };
 
   const counts: Record<string, { user_id: string; full_name: string; total_reviews: number }> = {};
-  for (const row of data as any[]) {
+  for (const row of data as { user_id: string; profiles?: { full_name?: string | null } | null }[]) {
     const uid = row.user_id;
     if (!counts[uid]) {
       counts[uid] = {

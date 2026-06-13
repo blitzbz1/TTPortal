@@ -65,8 +65,9 @@ async function attachProfiles<T extends Record<string, any>>(
   );
   if (ids.length === 0) return rows.map((r) => ({ ...r, [fieldName]: null }));
   const { data } = await supabase.from('profiles').select(`id, ${columns}`).in('id', ids);
-  const byId = new Map<string, any>();
-  (data ?? []).forEach((p: any) => byId.set(p.id, p));
+  const byId = new Map<string, unknown>();
+  // Dynamic select string defeats the typed client — cast the row shape.
+  ((data ?? []) as unknown as { id: string }[]).forEach((p) => byId.set(p.id, p));
   return rows.map((r) => ({
     ...r,
     [fieldName]: r[idKey] && byId.has(r[idKey] as string) ? byId.get(r[idKey] as string) : null,
@@ -122,7 +123,7 @@ export async function searchVenuesAdmin(query: string) {
     p_limit: 30,
   });
   if (error || !data) return { data: data ?? [], error };
-  const slim = (data as any[]).map((v) => ({
+  const slim = (data as Record<string, unknown>[]).map((v) => ({
     id: v.id, name: v.name, city: v.city, address: v.address, type: v.type,
     tables_count: v.tables_count, lat: v.lat, lng: v.lng,
     condition: v.condition, night_lighting: v.night_lighting, nets: v.nets, verified: v.verified,

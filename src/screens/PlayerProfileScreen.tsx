@@ -11,13 +11,7 @@ import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme'
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getDateLocale } from '../contexts/I18nProvider';
-import { getProfile, getProfileStats } from '../services/profiles';
-import {
-  loadCachedProfile,
-  saveCachedProfile,
-  loadCachedProfileStats,
-  saveCachedProfileStats,
-} from '../lib/profileCache';
+import { useProfileQuery, useProfileStatsQuery } from '../hooks/queries/useProfileQuery';
 import { getEvents, sendEventInvites } from '../services/events';
 import { getCurrentEquipmentForUser } from '../services/equipment';
 import type { Profile, EquipmentSelection } from '../types/database';
@@ -34,11 +28,16 @@ export function PlayerProfileScreen({ userId }: Props) {
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [stats, setStats] = useState<{ total_checkins: number; unique_venues: number; events_joined: number; total_hours_played: number } | null>(null);
+  // T050: profile + stats via react-query (hooks hydrate from / mirror to
+  // the persistent profileCache); equipment keeps its lightweight effect.
+  const { data: profileRaw, isLoading: profileLoading } = useProfileQuery(userId);
+  const profile = (profileRaw ?? null) as Profile | null;
+  const { data: stats } = useProfileStatsQuery(userId) as {
+    data: { total_checkins: number; unique_venues: number; events_joined: number; total_hours_played: number } | null | undefined;
+  };
+  const loading = profileLoading && !profile;
   const [equipment, setEquipment] = useState<EquipmentSelection | null>(null);
   const [equipmentLoading, setEquipmentLoading] = useState(true);
-  const [loading, setLoading] = useState(true);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [myEvents, setMyEvents] = useState<any[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
@@ -46,39 +45,14 @@ export function PlayerProfileScreen({ userId }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      // Cache-first hydrate of profile + stats; equipment loads in parallel.
-      const cachedProfile = loadCachedProfile<Profile>(userId);
-      const cachedStats = loadCachedProfileStats<any>(userId);
-      if (cachedProfile) setProfile(cachedProfile.data);
-      if (cachedStats) setStats(cachedStats.data);
-      if (!cachedProfile) setLoading(true);
-      setEquipmentLoading(true);
-
-      const profileFresh = !!cachedProfile?.fresh;
-      const statsFresh = !!cachedStats?.fresh;
-
-      const [profileRes, statsRes, equipmentRes] = await Promise.allSettled([
-        profileFresh ? Promise.resolve({ data: cachedProfile!.data, error: null }) : getProfile(userId),
-        statsFresh ? Promise.resolve({ data: cachedStats!.data, error: null }) : getProfileStats(userId),
-        getCurrentEquipmentForUser(userId),
-      ]);
+    setEquipmentLoading(true);
+    getCurrentEquipmentForUser(userId).then((res) => {
       if (cancelled) return;
-      if (profileRes.status === 'fulfilled' && profileRes.value.data) {
-        setProfile(profileRes.value.data as Profile);
-        if (!profileFresh) saveCachedProfile(userId, profileRes.value.data);
-      }
-      if (statsRes.status === 'fulfilled' && statsRes.value.data) {
-        setStats(statsRes.value.data);
-        if (!statsFresh) saveCachedProfileStats(userId, statsRes.value.data);
-      }
-      if (equipmentRes.status === 'fulfilled') {
-        setEquipment(equipmentRes.value.data?.[0] ?? null);
-      }
+      setEquipment(res.data?.[0] ?? null);
       setEquipmentLoading(false);
-      setLoading(false);
-    }
-    load();
+    }).catch(() => {
+      if (!cancelled) setEquipmentLoading(false);
+    });
     return () => { cancelled = true; };
   }, [userId]);
 

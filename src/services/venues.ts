@@ -49,7 +49,7 @@ export async function uploadVenuePhoto(venueId: number, fileUri: string): Promis
   try {
     const path = `venues/${venueId}/${Date.now()}.jpg`;
 
-    let uploadData: any;
+    let uploadData: Blob | ArrayBuffer | FormData;
     let contentType: string;
 
     if (Platform.OS === 'web') {
@@ -84,8 +84,8 @@ export async function uploadVenuePhoto(venueId: number, fileUri: string): Promis
 
     const { data } = supabase.storage.from('venue-photos').getPublicUrl(path);
     return { url: data.publicUrl, error: null };
-  } catch (err: any) {
-    return { url: null, error: err?.message || 'Upload failed' };
+  } catch (err) {
+    return { url: null, error: err instanceof Error ? err.message : 'Upload failed' };
   }
 }
 

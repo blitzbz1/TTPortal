@@ -152,7 +152,7 @@ export async function getCheckinStats(userId: string) {
 
   const checkinVenues = (checkinsRes.data ?? []).map((c) => c.venue_id);
   const eventVenues = (participationsRes.data ?? [])
-    .map((p: any) => p.events?.venue_id)
+    .map((p: { events?: { venue_id?: number | null } | null }) => p.events?.venue_id)
     .filter(Boolean);
 
   const allVenueIds = new Set([...checkinVenues, ...eventVenues]);

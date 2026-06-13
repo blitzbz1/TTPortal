@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getFriends, getPendingRequests } from '../../services/friends';
+import { getActiveFriendCheckins } from '../../services/checkins';
 import {
   loadCachedFriends,
   saveCachedFriends,
@@ -58,6 +59,33 @@ export function usePendingFriendRequestsQuery(userId: string | undefined) {
     },
     initialData: () => (userId ? loadCachedPending<any>(userId)?.data : undefined),
     enabled: !!userId,
+    staleTime: 30 * 1000,
+  });
+}
+
+export const playingFriendsQueryKey = (userId: string | undefined, friendIds: string[]) =>
+  ['friends', 'playing', userId, friendIds.join(',')] as const;
+
+/** Friends currently checked in somewhere (live data — short staleTime). */
+export function usePlayingFriendsQuery(userId: string | undefined, friends: NormalizedFriendship[]) {
+  const friendIds = friends
+    .map((f) => (f.requester_id === userId ? f.addressee_id : f.requester_id))
+    .sort();
+  return useQuery<NormalizedFriendship[]>({
+    queryKey: playingFriendsQueryKey(userId, friendIds),
+    queryFn: async () => {
+      if (!userId || friendIds.length === 0) return [];
+      const { data: checkins } = await getActiveFriendCheckins(friendIds);
+      if (!checkins?.length) return [];
+      const checkinMap = new Map<string, any>();
+      for (const c of checkins) {
+        if (!checkinMap.has(c.user_id)) checkinMap.set(c.user_id, c);
+      }
+      return friends
+        .filter((f) => checkinMap.has(f.requester_id === userId ? f.addressee_id : f.requester_id))
+        .map((f) => ({ ...f, checkin: checkinMap.get(f.requester_id === userId ? f.addressee_id : f.requester_id) }));
+    },
+    enabled: !!userId && friendIds.length > 0,
     staleTime: 30 * 1000,
   });
 }

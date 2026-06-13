@@ -1,19 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Pressable,
-  ActivityIndicator,
-} from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
-import { Lucide } from './Icon';
-import { useTheme } from '../hooks/useTheme';
-import { useI18n } from '../hooks/useI18n';
-import type { ThemeColors } from '../theme';
-import { Fonts, FontSize, FontWeight, Radius, Shadows, Spacing } from '../theme';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   buildNominatimAddress,
   extractNominatimCity,
@@ -32,7 +17,7 @@ function getGeocodingHeaders(): HeadersInit {
   return { 'Accept-Language': 'en' };
 }
 
-interface NominatimSuggestion extends AddressSuggestionLike {
+export interface NominatimSuggestion extends AddressSuggestionLike {
   display_name: string;
   lat: string;
   lon: string;
@@ -51,7 +36,7 @@ export interface AddressPickerChange {
   cityZoom?: number | null;
 }
 
-interface KnownCityRecord extends AddressSearchCityRecord {
+export interface KnownCityRecord extends AddressSearchCityRecord {
   name: string;
   country_code?: string | null;
   country_name?: string | null;
@@ -60,11 +45,46 @@ interface KnownCityRecord extends AddressSearchCityRecord {
   zoom: number | null;
 }
 
-interface AddressPickerFieldProps {
+/**
+ * Imperative surface the address-picker logic needs from the platform map.
+ * Satisfied structurally by react-native-maps' MapView and both shims
+ * (MapLibre on Android, Leaflet on web), so the hook stays map-agnostic.
+ */
+export interface AddressPickerMapHandle {
+  animateToRegion: (
+    region: { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number },
+    duration?: number,
+  ) => void;
+}
+
+/** Press / drag-end event shape shared by react-native-maps and the shims. */
+export interface MapCoordinateEvent {
+  nativeEvent?: { coordinate?: { latitude: number; longitude: number } };
+}
+
+export type ParentScrollRef = React.RefObject<{
+  setNativeProps: (p: { scrollEnabled?: boolean }) => void;
+} | null>;
+
+/**
+ * Props contract for the platform map layer (AddressPickerMap /
+ * AddressPickerMap.ios). Defined here so the two platform files cannot
+ * drift apart on their public shape.
+ */
+export interface AddressPickerMapProps {
+  lat: number;
+  lng: number;
+  mapRef: React.MutableRefObject<AddressPickerMapHandle | null>;
+  onMapPress: (event: MapCoordinateEvent) => void;
+  onMarkerDragEnd: (event: MapCoordinateEvent) => void;
+  // Used by the Android map to freeze the parent ScrollView mid-pan;
+  // accepted-but-ignored on iOS and web. See AddressPickerMap.tsx.
+  parentScrollRef?: ParentScrollRef;
+}
+
+export interface UseAddressPickerOptions {
   address: string;
   city: string;
-  lat: number | null;
-  lng: number | null;
   knownCities: string[];
   knownCityRecords?: KnownCityRecord[];
   countryCode?: string | null;
@@ -73,24 +93,17 @@ interface AddressPickerFieldProps {
   cityCenterLng?: number | null;
   cityZoom?: number | null;
   onChange: (patch: AddressPickerChange) => void;
-  disabled?: boolean;
-  // Accepted for API parity with the Android/web implementation but unused
-  // on iOS — Apple Maps' native gesture handling does not need the parent
-  // ScrollView to be frozen mid-pan, and adding any responder logic here
-  // crashed the screen on tap. Kept optional so callers can stay generic.
-  parentScrollRef?: React.RefObject<{ setNativeProps: (p: { scrollEnabled?: boolean }) => void } | null>;
 }
 
 /**
- * Shared address picker: typeahead + geocode button + conditional mini-map
- * with draggable marker + reverse geocoding on drag.
- * Used by AddVenueScreen and the admin edit-venue modal.
+ * All platform-independent address-picker behavior: debounced typeahead
+ * against Nominatim, explicit geocode, reverse geocode for pin moves
+ * (map tap or marker drag), and known-city matching/center lookup.
+ * The platform components only render the map and forward gestures.
  */
-export function AddressPickerField({
+export function useAddressPicker({
   address,
   city,
-  lat,
-  lng,
   knownCities,
   knownCityRecords = [],
   countryCode,
@@ -99,12 +112,8 @@ export function AddressPickerField({
   cityCenterLng,
   cityZoom,
   onChange,
-  disabled,
-}: AddressPickerFieldProps) {
-  const { colors } = useTheme();
-  const { s } = useI18n();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const mapRef = useRef<MapView>(null);
+}: UseAddressPickerOptions) {
+  const mapRef = useRef<AddressPickerMapHandle | null>(null);
 
   const [suggestions, setSuggestions] = useState<NominatimSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -277,9 +286,7 @@ export function AddressPickerField({
     setGeocoding(false);
   }, [address, fetchFirstSuccessfulSearch, onChange, closeSuggestions, maybeSetCity]);
 
-  const handleMarkerDrag = useCallback(async (e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
-    const nextLat = e.nativeEvent.coordinate.latitude;
-    const nextLng = e.nativeEvent.coordinate.longitude;
+  const reverseGeocodeLatLng = useCallback(async (nextLat: number, nextLng: number) => {
     onChange({ lat: nextLat, lng: nextLng });
     closeSuggestions();
     setReverseGeocoding(true);
@@ -304,225 +311,50 @@ export function AddressPickerField({
     setReverseGeocoding(false);
   }, [onChange, closeSuggestions, maybeSetCity]);
 
-  const hasLocation = lat !== null && lng !== null;
-
-  return (
-    <>
-      <View style={styles.addressRow}>
-        <TextInput
-          style={[styles.input, styles.inputText, { flex: 1 }]}
-          placeholder={s('addressPlaceholder')}
-          placeholderTextColor={colors.textFaint}
-          value={address}
-          onChangeText={handleAddressChange}
-          maxLength={200}
-          editable={!disabled}
-          testID="address-input"
-        />
-        <TouchableOpacity
-          style={[styles.geocodeBtn, hasLocation && { backgroundColor: colors.primaryLight }]}
-          onPress={handleGeocode}
-          disabled={geocoding || disabled}
-          testID="address-geocode-btn"
-        >
-          {geocoding ? (
-            <ActivityIndicator size="small" color={colors.textOnPrimary} />
-          ) : (
-            <>
-              <Lucide name="map-pin" size={14} color={colors.textOnPrimary} />
-              <Text style={styles.geocodeBtnText}>
-                {hasLocation ? '\u2713' : s('pinOnMap')}
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {(showSuggestions || searching) && (
-        <View style={styles.suggestionsWrap}>
-          {searching && suggestions.length === 0 ? (
-            <View style={styles.suggestionLoading}>
-              <ActivityIndicator size="small" color={colors.primaryMid} />
-              <Text style={styles.suggestionLoadingText}>{s('searching') || 'Searching...'}</Text>
-            </View>
-          ) : (
-            suggestions.map((item, idx) => (
-              <Pressable
-                key={`${item.lat}-${item.lon}`}
-                style={({ pressed }) => [
-                  styles.suggestionItem,
-                  pressed && styles.suggestionItemPressed,
-                  idx < suggestions.length - 1 && styles.suggestionBorder,
-                ]}
-                onPress={() => handleSuggestionSelect(item)}
-              >
-                <View style={{ marginTop: 2 }}>
-                  <Lucide name="map-pin" size={14} color={colors.primaryMid} />
-                </View>
-                <Text style={styles.suggestionText} numberOfLines={2}>{item.display_name}</Text>
-              </Pressable>
-            ))
-          )}
-        </View>
-      )}
-
-      {hasLocation && (
-        <View style={{ marginTop: Spacing.sm }}>
-          <View style={styles.mapLabelRow}>
-            <Text style={styles.fieldLabel}>{s('pinOnMap')}</Text>
-            {reverseGeocoding && (
-              <View style={styles.mapLabelSpinner} testID="reverse-geocoding-spinner">
-                <ActivityIndicator size="small" color={colors.primaryMid} />
-                <Text style={styles.mapLabelSpinnerText}>{s('updatingAddress')}</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.mapWrap}>
-            <MapView
-              ref={mapRef}
-              style={styles.map}
-              initialRegion={{
-                latitude: lat!,
-                longitude: lng!,
-                latitudeDelta: 0.005,
-                longitudeDelta: 0.005,
-              }}
-            >
-              <Marker
-                coordinate={{ latitude: lat!, longitude: lng! }}
-                draggable
-                onDragEnd={handleMarkerDrag}
-              />
-            </MapView>
-          </View>
-          <Text style={styles.mapHint}>{s('dragPinHint')}</Text>
-        </View>
-      )}
-    </>
+  // Tap-to-place: tapping the map moves the pin to the tapped coordinate
+  // (secondary affordance; primary is dragging the pin). Camera follows so
+  // the new pin position stays visible without forcing the user to pan.
+  const handleMapPress = useCallback(
+    (event: MapCoordinateEvent) => {
+      const coord = event?.nativeEvent?.coordinate;
+      if (!coord) return;
+      mapRef.current?.animateToRegion(
+        {
+          latitude: coord.latitude,
+          longitude: coord.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        },
+        300,
+      );
+      void reverseGeocodeLatLng(coord.latitude, coord.longitude);
+    },
+    [reverseGeocodeLatLng],
   );
-}
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    input: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.bgAlt,
-      borderRadius: Radius.md,
-      height: 46,
-      paddingHorizontal: 14,
-      borderWidth: 1,
-      borderColor: colors.border,
+  // Drag-to-place: the dragged Marker's onDragEnd delivers the new
+  // coordinate; reverse-geocode and patch the form. Same handler on every
+  // platform since react-native-maps and the two shims emit the same shape.
+  const handleMarkerDragEnd = useCallback(
+    (event: MapCoordinateEvent) => {
+      const coord = event?.nativeEvent?.coordinate;
+      if (!coord) return;
+      void reverseGeocodeLatLng(coord.latitude, coord.longitude);
     },
-    inputText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.md,
-      color: colors.text,
-    },
-    addressRow: {
-      flexDirection: 'row',
-      gap: Spacing.xs,
-      ...Shadows.sm,
-      borderRadius: Radius.md,
-    },
-    geocodeBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.primaryLight,
-      borderRadius: Radius.md,
-      height: 46,
-      paddingHorizontal: 14,
-      gap: 6,
-      ...Shadows.md,
-    },
-    geocodeBtnText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.base,
-      fontWeight: FontWeight.semibold,
-      color: colors.textOnPrimary,
-    },
-    suggestionsWrap: {
-      backgroundColor: colors.bgAlt,
-      borderRadius: Radius.md,
-      borderWidth: 1,
-      borderColor: colors.border,
-      maxHeight: 200,
-      overflow: 'hidden',
-      marginTop: 6,
-      ...Shadows.md,
-    },
-    suggestionItem: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-    },
-    suggestionItemPressed: {
-      backgroundColor: colors.bgMuted,
-    },
-    suggestionBorder: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.border,
-    },
-    suggestionText: {
-      flex: 1,
-      fontFamily: Fonts.body,
-      fontSize: FontSize.sm,
-      color: colors.textMuted,
-    },
-    suggestionLoading: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-    },
-    suggestionLoadingText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.sm,
-      color: colors.textFaint,
-    },
-    mapWrap: {
-      borderRadius: Radius.md,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: colors.border,
-      ...Shadows.sm,
-    },
-    map: {
-      width: '100%',
-      height: 180,
-    },
-    mapHint: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.xs,
-      color: colors.textFaint,
-      marginTop: 4,
-    },
-    mapLabelRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 6,
-    },
-    mapLabelSpinner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    mapLabelSpinnerText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.xs,
-      color: colors.primaryMid,
-    },
-    fieldLabel: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.xs,
-      fontWeight: FontWeight.semibold,
-      color: colors.textFaint,
-      textTransform: 'uppercase',
-      letterSpacing: 0.7,
-    },
-  });
+    [reverseGeocodeLatLng],
+  );
+
+  return {
+    mapRef,
+    suggestions,
+    showSuggestions,
+    searching,
+    geocoding,
+    reverseGeocoding,
+    handleAddressChange,
+    handleSuggestionSelect,
+    handleGeocode,
+    handleMapPress,
+    handleMarkerDragEnd,
+  };
 }

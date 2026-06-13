@@ -6,8 +6,14 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Lucide } from '../../components/Icon';
-import type { VenueCondition } from '../../types/database';
 import type { VenueChangeRequestDecision } from '../../services/admin';
+// T052: the option constants moved to the shared venue form component;
+// re-exported below so existing imports keep working.
+import {
+  CONDITION_OPTIONS,
+  BOOLEAN_OPTIONS,
+  REQUIRED_BOOLEAN_OPTIONS,
+} from '../../components/VenueFormFields';
 
 // Cached at module scope so each per-row format call doesn't construct a fresh
 // Intl.DateTimeFormat. Use lazy access to keep startup cheap. Uses the
@@ -40,25 +46,6 @@ function formatVenueCountry(venue: any): string | null {
   if (countryName && countryCode) return `${countryName} (${countryCode})`;
   return countryName ?? countryCode ?? null;
 }
-
-const CONDITION_OPTIONS: { value: VenueCondition; labelKey: string }[] = [
-  { value: 'buna', labelKey: 'conditionGood' },
-  { value: 'acceptabila', labelKey: 'conditionAcceptable' },
-  { value: 'deteriorata', labelKey: 'conditionDegraded' },
-  { value: 'profesionala', labelKey: 'conditionPro' },
-  { value: 'necunoscuta', labelKey: 'conditionUnknown' },
-];
-
-const BOOLEAN_OPTIONS: { value: boolean | null; labelKey: string }[] = [
-  { value: true, labelKey: 'yes' },
-  { value: false, labelKey: 'no' },
-  { value: null, labelKey: 'conditionUnknown' },
-];
-
-const REQUIRED_BOOLEAN_OPTIONS: { value: boolean; labelKey: string }[] = [
-  { value: true, labelKey: 'yes' },
-  { value: false, labelKey: 'no' },
-];
 
 interface PendingVenueCardProps {
   venue: any;

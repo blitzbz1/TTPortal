@@ -68,7 +68,16 @@ function TrackedMarker({ contentSig, coordinate, testID, children }: TrackedMark
     }
   }, [contentSig, track]);
   return (
-    <Marker coordinate={coordinate} tracksViewChanges={track} testID={testID}>
+    <Marker
+      coordinate={coordinate}
+      tracksViewChanges={track}
+      testID={testID}
+      // Keep the annotation views out of the accessibility tree: MKMapView
+      // exposes every pin as a default "Map pin" element — 1000+ of them
+      // bloat the snapshot to MBs, drown VoiceOver, and stall UI testing.
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
       {children}
     </Marker>
   );
@@ -117,8 +126,14 @@ function VenueMarkersImpl({
           >
             <View
               style={pinStyles.outer}
-              // T066: custom markers announce nothing without an explicit label.
-              accessibilityLabel={`${venue.name}, ${typeLabel(venue.type)}, ${condInfo.label}`}
+              // With 1000+ pins, exposing each to the accessibility tree
+              // saturates iOS's snapshot (VoiceOver becomes a 1054-stop
+              // tour and the subtrees BELOW the map get truncated — the
+              // sheet/list disappeared from AT and UI tests entirely).
+              // The venue LIST is the accessible alternative (T066 row
+              // labels carry name/type/condition/rating).
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
             >
               <View style={[pinStyles.wrap, { backgroundColor: condInfo.color }]}>
                 <Lucide name={isIndoor ? 'building-2' : 'activity'} size={14} color={colors.textOnPrimary} />

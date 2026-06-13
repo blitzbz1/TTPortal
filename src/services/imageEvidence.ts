@@ -53,7 +53,7 @@ export async function uploadVenueEvidenceImage(
   // 3. Upload to Storage — same web-blob / native-FormData split as venue photos.
   try {
     const path = `${pathPrefix}/${venueId}/${Date.now()}.jpg`;
-    let uploadData: any;
+    let uploadData: Blob | ArrayBuffer | FormData;
     let contentType: string;
     if (Platform.OS === 'web') {
       const response = await fetch(uploadUri);

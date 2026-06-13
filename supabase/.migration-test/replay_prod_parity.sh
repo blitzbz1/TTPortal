@@ -44,7 +44,7 @@ apply() {
     || { echo "FAILED: $1"; tail -5 /tmp/replay_prod_parity.log; exit 1; }
 }
 
-range() { ls "$MIG"/0*.sql | sort | awk -F/ '{print $NF}' | awk -F_ -v lo="$1" -v hi="$2" '$1 >= lo && $1 <= hi'; }
+range() { ls "$MIG"/[0-9]*.sql | sort | awk -F/ '{print $NF}' | awk -F_ -v lo="$1" -v hi="$2" '$1 >= lo && $1 <= hi'; }
 
 # pg_net must pre-exist for 009's `WITH SCHEMA net` clause to no-op.
 "${PSQL[@]}" -c "create extension if not exists pg_net;" >/dev/null

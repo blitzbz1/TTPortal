@@ -4,7 +4,8 @@ import { showAlert } from '../lib/dialogs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
-import { AddressPickerField } from '../components/AddressPickerField';
+import { VenueFormFields, type VenueFormFieldStyles } from '../components/VenueFormFields';
+import { useVenueForm, validateVenueSubmission } from '../hooks/useVenueForm';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
@@ -342,22 +343,24 @@ export function AddVenueScreen() {
   const { colors } = useTheme();
   const { selectedCity } = useSelectedLocation();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const fieldStyles = useMemo<VenueFormFieldStyles>(() => ({
+    field: styles.field,
+    label: styles.fieldLabel,
+    input: [styles.input, styles.inputText],
+    textarea: [styles.textarea, styles.textareaInput],
+    typeRow: styles.typeRow,
+    typeBtn: styles.typeBtn,
+    typeBtnActive: styles.typeBtnActive,
+    typeBtnText: styles.typeBtnText,
+    typeBtnTextActive: styles.typeBtnTextActive,
+  }), [styles]);
 
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
-  const [type, setType] = useState<VenueType>('parc_exterior');
-  const [tablesCount, setTablesCount] = useState('');
-  const [city, setCity] = useState('');
-  const [notes, setNotes] = useState('');
+  // T052: shared venue form state/validation (also backs the admin edit
+  // modal). confirmLocationOnCoords keeps the "pin confirmed" semantics of
+  // the old handleAddressPatch.
+  const form = useVenueForm({ confirmLocationOnCoords: true });
+  const { values, set: setForm } = form;
   const [loading, setLoading] = useState(false);
-  const [geoLat, setGeoLat] = useState<number | null>(null);
-  const [geoLng, setGeoLng] = useState<number | null>(null);
-  const [cityCountryCode, setCityCountryCode] = useState<string | null>(null);
-  const [cityCountryName, setCityCountryName] = useState<string | null>(null);
-  const [cityCenterLat, setCityCenterLat] = useState<number | null>(null);
-  const [cityCenterLng, setCityCenterLng] = useState<number | null>(null);
-  const [cityZoom, setCityZoom] = useState<number | null>(null);
-  const [venueLocationConfirmed, setVenueLocationConfirmed] = useState(false);
   const [knownCities, setKnownCities] = useState<string[]>([]);
   const [citySuggestions, setCitySuggestions] = useState<CitySuggestion[]>([]);
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
@@ -376,34 +379,6 @@ export function AddVenueScreen() {
     if (citiesList) setKnownCities(citiesList.map((c) => c.name));
   }, [citiesList]);
 
-  const handleAddressPatch = useCallback((patch: {
-    address?: string;
-    city?: string;
-    lat?: number | null;
-    lng?: number | null;
-    countryCode?: string | null;
-    countryName?: string | null;
-    cityCenterLat?: number | null;
-    cityCenterLng?: number | null;
-    cityZoom?: number | null;
-  }) => {
-    if (patch.address !== undefined) setAddress(patch.address);
-    if (patch.city !== undefined) setCity(patch.city);
-    if (patch.lat !== undefined) {
-      setGeoLat(patch.lat);
-      if (patch.lat != null) setVenueLocationConfirmed(true);
-    }
-    if (patch.lng !== undefined) {
-      setGeoLng(patch.lng);
-      if (patch.lng != null) setVenueLocationConfirmed(true);
-    }
-    if (patch.countryCode !== undefined) setCityCountryCode(patch.countryCode);
-    if (patch.countryName !== undefined) setCityCountryName(patch.countryName);
-    if (patch.cityCenterLat !== undefined) setCityCenterLat(patch.cityCenterLat);
-    if (patch.cityCenterLng !== undefined) setCityCenterLng(patch.cityCenterLng);
-    if (patch.cityZoom !== undefined) setCityZoom(patch.cityZoom);
-  }, []);
-
   const closeCitySuggestions = useCallback(() => {
     if (cityDebounceRef.current) {
       clearTimeout(cityDebounceRef.current);
@@ -415,17 +390,17 @@ export function AddVenueScreen() {
   }, []);
 
   const handleCityChange = useCallback((text: string) => {
-    setCity(text);
-    setCityCountryCode(null);
-    setCityCountryName(null);
-    setCityCenterLat(null);
-    setCityCenterLng(null);
-    setCityZoom(null);
-    if (debouncedCityClearsAddress(text, city)) {
-      setAddress('');
-      setGeoLat(null);
-      setGeoLng(null);
-      setVenueLocationConfirmed(false);
+    const previousCity = values.city;
+    setForm({
+      city: text,
+      countryCode: null,
+      countryName: null,
+      cityCenterLat: null,
+      cityCenterLng: null,
+      cityZoom: null,
+    });
+    if (debouncedCityClearsAddress(text, previousCity)) {
+      setForm({ address: '', lat: null, lng: null, locationConfirmed: false });
     }
     if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
 
@@ -516,7 +491,7 @@ export function AddVenueScreen() {
       } catch { /* timeout / abort - ignore */ }
       setCitySearching(false);
     }, 500);
-  }, [city, knownCityRecords]);
+  }, [values.city, setForm, knownCityRecords]);
 
   const handleCitySuggestionSelect = useCallback((item: CitySuggestion) => {
     const suggestionCity = getCitySuggestionName(item);
@@ -534,74 +509,56 @@ export function AddVenueScreen() {
         )
       : null;
     const selectedName = match ?? suggestionCity;
-    setCity(selectedName);
-    setCityCountryCode(countryCode);
-    setCityCountryName(countryName);
-    setCityCenterLat(nextLat);
-    setCityCenterLng(nextLng);
-    setCityZoom(12);
-    setGeoLat(nextLat);
-    setGeoLng(nextLng);
-    setVenueLocationConfirmed(false);
+    setForm({
+      city: selectedName,
+      countryCode,
+      countryName,
+      cityCenterLat: nextLat,
+      cityCenterLng: nextLng,
+      cityZoom: 12,
+      lat: nextLat,
+      lng: nextLng,
+      locationConfirmed: false,
+    });
     closeCitySuggestions();
     lastCityQueryRef.current = selectedName;
-  }, [closeCitySuggestions, knownCityRecords]);
+  }, [closeCitySuggestions, setForm, knownCityRecords]);
 
   const handleSubmit = useCallback(async () => {
-    if (!name.trim()) { showAlert(s('error'), s('nameRequired')); return; }
-    if (!city.trim()) { showAlert(s('error'), s('cityRequired')); return; }
-    const canonicalCity = canonicalizeCityName(city);
-    let resolvedCountryCode = cityCountryCode;
-    let resolvedCountryName = cityCountryName;
-    let resolvedCityCenterLat = cityCenterLat;
-    let resolvedCityCenterLng = cityCenterLng;
-    let resolvedCityZoom = cityZoom;
-
-    if (resolvedCityCenterLat == null || resolvedCityCenterLng == null || !resolvedCountryCode) {
-      showAlert(s('error'), s('cityRequired'));
-      return;
-    }
-    if (!address.trim()) { showAlert(s('error'), s('addressRequired')); return; }
-    if (!venueLocationConfirmed || geoLat == null || geoLng == null) {
-      showAlert(s('error'), s('dragPinHint'));
-      return;
-    }
-    if (tablesCount) {
-      const count = parseInt(tablesCount, 10);
-      if (isNaN(count) || count < 1 || count > 100) {
-        showAlert(s('error'), s('genericError'));
-        return;
-      }
-    }
+    // T052: shared validation (same checks, same order, same i18n keys as
+    // the inline version this replaces) — see useVenueForm.
+    const validationError = validateVenueSubmission(values);
+    if (validationError) { showAlert(s('error'), s(validationError)); return; }
+    const canonicalCity = canonicalizeCityName(values.city);
     setLoading(true);
 
     // Upsert city to get its id (city name extracted from Nominatim)
     const { id: cityId, error: cityError } = await upsertCity(
       canonicalCity,
       {
-        countryCode: resolvedCountryCode ?? selectedCity?.country_code,
-        countryName: resolvedCountryName ?? selectedCity?.country_name,
-        lat: getCityCenterLat(canonicalCity, selectedCity, resolvedCityCenterLat),
-        lng: getCityCenterLng(canonicalCity, selectedCity, resolvedCityCenterLng),
-        zoom: selectedCity?.name === canonicalCity ? selectedCity.zoom : resolvedCityZoom ?? 12,
+        countryCode: values.countryCode ?? selectedCity?.country_code,
+        countryName: values.countryName ?? selectedCity?.country_name,
+        lat: getCityCenterLat(canonicalCity, selectedCity, values.cityCenterLat),
+        lng: getCityCenterLng(canonicalCity, selectedCity, values.cityCenterLng),
+        zoom: selectedCity?.name === canonicalCity ? selectedCity.zoom : values.cityZoom ?? 12,
       },
     );
     if (cityError || !cityId) { setLoading(false); showAlert(s('error'), safeErrorMessage(cityError ?? 'genericError', 'genericError', s)); return; }
 
     const { error } = await createVenue({
-      name: name.trim(),
-      type,
+      name: values.name.trim(),
+      type: values.type as VenueType,
       city: canonicalCity,
       city_id: cityId,
       county: null,
       sector: null,
-      address: address.trim(),
-      lat: geoLat ?? selectedCity?.lat ?? 44.43,
-      lng: geoLng ?? selectedCity?.lng ?? 26.10,
-      tables_count: tablesCount ? Number(tablesCount) : null,
+      address: values.address.trim(),
+      lat: values.lat ?? selectedCity?.lat ?? 44.43,
+      lng: values.lng ?? selectedCity?.lng ?? 26.10,
+      tables_count: values.tables ? Number(values.tables) : null,
       condition: null,
       hours: null,
-      description: notes.trim() || null,
+      description: values.description.trim() || null,
       tags: null,
       photos: null,
       free_access: null,
@@ -625,7 +582,7 @@ export function AddVenueScreen() {
     }
     showAlert(s('success'), s('venueSubmitted'));
     router.back();
-  }, [name, address, type, city, tablesCount, notes, router, geoLat, geoLng, venueLocationConfirmed, selectedCity, cityCountryCode, cityCountryName, cityCenterLat, cityCenterLng, cityZoom, s]);
+  }, [values, router, selectedCity, s]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -633,140 +590,70 @@ export function AddVenueScreen() {
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView ref={formScrollRef} style={styles.formScroll} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
-          {/* Name Field */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>{s('fieldName')}</Text>
-            <TextInput
-              style={[styles.input, styles.inputText]}
-              placeholder={s('fieldNamePlaceholder')}
-              placeholderTextColor={colors.textFaint}
-              value={name}
-              onChangeText={setName}
-              maxLength={100}
-            />
-          </View>
-
-          {/* Type Field */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>{s('fieldType')}</Text>
-            <View style={styles.typeRow}>
-              <TouchableOpacity
-                style={[styles.typeBtn, type === 'parc_exterior' && styles.typeBtnActive]}
-                onPress={() => setType('parc_exterior')}
-              >
-                <Text style={[styles.typeBtnText, type === 'parc_exterior' && styles.typeBtnTextActive]}>
-                  {s('typeParcExterior')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.typeBtn, type === 'sala_indoor' && styles.typeBtnActive]}
-                onPress={() => setType('sala_indoor')}
-              >
-                <Text style={[styles.typeBtnText, type === 'sala_indoor' && styles.typeBtnTextActive]}>
-                  {s('typeSalaIndoor')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Nr Mese */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>{s('fieldTables')}</Text>
-            <TextInput
-              style={[styles.input, styles.inputText]}
-              placeholder="2"
-              placeholderTextColor={colors.textFaint}
-              value={tablesCount}
-              onChangeText={setTablesCount}
-              keyboardType="numeric"
-            />
-          </View>
-
-          {/* Address field (with typeahead, geocode button, map) */}
-          <View style={[styles.field, { zIndex: 20 }]}>
-            <Text style={styles.fieldLabel}>{s('fieldCity')}</Text>
-            <TextInput
-              style={[styles.input, styles.inputText]}
-              placeholder={s('cityModalSearchPlaceholder')}
-              placeholderTextColor={colors.textFaint}
-              value={city}
-              onChangeText={handleCityChange}
-              maxLength={100}
-            />
-            {formatSelectedCityLocation(cityCountryName, cityCountryCode) && (
-              <Text style={styles.selectedCityMeta}>
-                {formatSelectedCityLocation(cityCountryName, cityCountryCode)}
-              </Text>
-            )}
-            {(showCitySuggestions || citySearching) && (
-              <View style={styles.suggestionsWrap}>
-                {citySearching && citySuggestions.length === 0 ? (
-                  <View style={styles.suggestionLoading}>
-                    <ActivityIndicator size="small" color={colors.primaryMid} />
-                    <Text style={styles.suggestionLoadingText}>{s('searching') || 'Searching...'}</Text>
+          {/* T052: shared field renderer (also used by the admin venue edit
+              modal). The city field stays local — its Nominatim/Photon
+              typeahead is AddVenue-specific. */}
+          <VenueFormFields
+            form={form}
+            fields={['name', 'type', 'tables', 'city', 'address', 'description']}
+            styles={fieldStyles}
+            knownCities={knownCities}
+            knownCityRecords={knownCityRecords}
+            parentScrollRef={formScrollRef}
+            placeholders={{ name: s('fieldNamePlaceholder'), tables: '2', description: s('notesPlaceholder') }}
+            renderCity={() => (
+              <View style={[styles.field, { zIndex: 20 }]}>
+                <Text style={styles.fieldLabel}>{s('fieldCity')}</Text>
+                <TextInput
+                  style={[styles.input, styles.inputText]}
+                  placeholder={s('cityModalSearchPlaceholder')}
+                  placeholderTextColor={colors.textFaint}
+                  value={values.city}
+                  onChangeText={handleCityChange}
+                  maxLength={100}
+                />
+                {formatSelectedCityLocation(values.countryName, values.countryCode) && (
+                  <Text style={styles.selectedCityMeta}>
+                    {formatSelectedCityLocation(values.countryName, values.countryCode)}
+                  </Text>
+                )}
+                {(showCitySuggestions || citySearching) && (
+                  <View style={styles.suggestionsWrap}>
+                    {citySearching && citySuggestions.length === 0 ? (
+                      <View style={styles.suggestionLoading}>
+                        <ActivityIndicator size="small" color={colors.primaryMid} />
+                        <Text style={styles.suggestionLoadingText}>{s('searching') || 'Searching...'}</Text>
+                      </View>
+                    ) : (
+                      citySuggestions.map((item, idx) => (
+                        <Pressable
+                          key={`${item.lat}-${item.lon}-${idx}`}
+                          style={({ pressed }) => [
+                            styles.suggestionItem,
+                            pressed && styles.suggestionItemPressed,
+                            idx < citySuggestions.length - 1 && styles.suggestionBorder,
+                          ]}
+                          onPress={() => handleCitySuggestionSelect(item)}
+                        >
+                          <View style={{ marginTop: 2 }}>
+                            <Lucide name="map-pin" size={14} color={colors.primaryMid} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.suggestionTitle} numberOfLines={1}>
+                              {formatCitySuggestionTitle(item)}
+                            </Text>
+                            <Text style={styles.suggestionText} numberOfLines={1}>
+                              {formatCitySuggestionSubtitle(item)}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      ))
+                    )}
                   </View>
-                ) : (
-                  citySuggestions.map((item, idx) => (
-                    <Pressable
-                      key={`${item.lat}-${item.lon}-${idx}`}
-                      style={({ pressed }) => [
-                        styles.suggestionItem,
-                        pressed && styles.suggestionItemPressed,
-                        idx < citySuggestions.length - 1 && styles.suggestionBorder,
-                      ]}
-                      onPress={() => handleCitySuggestionSelect(item)}
-                    >
-                      <View style={{ marginTop: 2 }}>
-                        <Lucide name="map-pin" size={14} color={colors.primaryMid} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.suggestionTitle} numberOfLines={1}>
-                          {formatCitySuggestionTitle(item)}
-                        </Text>
-                        <Text style={styles.suggestionText} numberOfLines={1}>
-                          {formatCitySuggestionSubtitle(item)}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  ))
                 )}
               </View>
             )}
-          </View>
-
-          <View style={[styles.field, { zIndex: 10 }]}>
-            <Text style={styles.fieldLabel}>{s('fieldAddress')}</Text>
-            <AddressPickerField
-              address={address}
-              city={city}
-              lat={geoLat}
-              lng={geoLng}
-              knownCities={knownCities}
-              knownCityRecords={knownCityRecords}
-              countryCode={cityCountryCode}
-              countryName={cityCountryName}
-              cityCenterLat={cityCenterLat}
-              cityCenterLng={cityCenterLng}
-              cityZoom={cityZoom}
-              onChange={handleAddressPatch}
-              parentScrollRef={formScrollRef}
-            />
-          </View>
-
-          {/* Notes Field */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>{s('fieldNotes')}</Text>
-            <TextInput
-              style={[styles.textarea, styles.textareaInput]}
-              placeholder={s('notesPlaceholder')}
-              placeholderTextColor={colors.textFaint}
-              value={notes}
-              onChangeText={setNotes}
-              maxLength={500}
-              multiline
-              textAlignVertical="top"
-            />
-          </View>
+          />
 
           {/* Actions */}
           <View style={styles.actions}>

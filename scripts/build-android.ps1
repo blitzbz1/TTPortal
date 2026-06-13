@@ -72,6 +72,10 @@ Set-Location "$ProjectRoot\android"
 
 $buildType = if ($Release) { "assembleRelease" } else { "assembleDebug" }
 Write-Host "  Build type: $buildType" -ForegroundColor Yellow
+if ($Release) {
+    Write-Host "  WARNING: local release builds are DEBUG-SIGNED — never distribute them." -ForegroundColor Red
+    Write-Host "  Distributables come from: eas build --profile production --platform android" -ForegroundColor Red
+}
 
 if (Test-Path ".\gradlew.bat") {
     .\gradlew.bat $buildType
