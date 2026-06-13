@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import type { SkillLevel } from '../../lib/playerAttributes';
 import { getFriends, getPendingRequests } from '../../services/friends';
 import { getActiveFriendCheckins } from '../../services/checkins';
 import {
@@ -15,7 +16,7 @@ export const pendingFriendsQueryKey = (userId: string | undefined) =>
 /** Friendship row with the OTHER party surfaced as `friend` (T050: the
  * requester/addressee normalization used to live in FriendsScreen). */
 export interface NormalizedFriendship {
-  friend: { id?: string; full_name?: string | null; avatar_url?: string | null; city?: string | null; username?: string | null } | null;
+  friend: { id?: string; full_name?: string | null; avatar_url?: string | null; city?: string | null; username?: string | null; skill_level?: SkillLevel | null } | null;
   requester_id: string;
   addressee_id: string;
   [key: string]: unknown;

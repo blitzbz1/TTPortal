@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { invalidateFriendsCache, invalidatePendingCache } from '../lib/friendsCache';
+import type { SkillLevel } from '../lib/playerAttributes';
 
 type FriendProfile = {
   id: string;
@@ -7,6 +8,7 @@ type FriendProfile = {
   avatar_url: string | null;
   city: string | null;
   username: string | null;
+  skill_level: SkillLevel | null;
 };
 
 type FriendshipRow = {
@@ -80,8 +82,8 @@ export async function getFriends(userId: string) {
     .from('friendships')
     .select(
       'id, requester_id, addressee_id, status, created_at, ' +
-        'requester:profiles!friendships_requester_profiles_fk(id, full_name, avatar_url, city, username), ' +
-        'addressee:profiles!friendships_addressee_profiles_fk(id, full_name, avatar_url, city, username)',
+        'requester:profiles!friendships_requester_profiles_fk(id, full_name, avatar_url, city, username, skill_level), ' +
+        'addressee:profiles!friendships_addressee_profiles_fk(id, full_name, avatar_url, city, username, skill_level)',
     )
     .eq('status', 'accepted')
     .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)

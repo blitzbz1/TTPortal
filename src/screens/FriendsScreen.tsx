@@ -22,6 +22,7 @@ import {
 } from '../hooks/queries/useFriendsQuery';
 import { sendAppInviteEmail } from '../services/invites';
 import { Card } from '../components/Card';
+import { SkillChip } from '../components/SkillChip';
 import { EmptyState } from '../components/EmptyState';
 import { isValidEmail } from '../lib/auth-utils';
 
@@ -379,6 +380,11 @@ export function FriendsScreen() {
                               <Text style={styles.friendStatus}>
                                 {profile?.city ?? ''}
                               </Text>
+                              {profile?.skill_level ? (
+                                <View style={{ alignSelf: 'flex-start', marginTop: 4 }}>
+                                  <SkillChip skillLevel={profile.skill_level} />
+                                </View>
+                              ) : null}
                             </View>
                             <Lucide name="chevron-right" size={18} color={colors.textFaint} />
                           </Card>

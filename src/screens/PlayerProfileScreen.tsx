@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { EquipmentSummaryCard } from '../components/EquipmentSummaryCard';
 import { Lucide } from '../components/Icon';
+import { SkillChip } from '../components/SkillChip';
+import { LogMatchModal } from '../components/LogMatchModal';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
@@ -42,6 +44,7 @@ export function PlayerProfileScreen({ userId }: Props) {
   const [myEvents, setMyEvents] = useState<any[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [sendingInviteId, setSendingInviteId] = useState<number | null>(null);
+  const [logMatchVisible, setLogMatchVisible] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,6 +133,7 @@ export function PlayerProfileScreen({ userId }: Props) {
             </View>
             <Text style={styles.name}>{fullName}</Text>
             {usernameDisplay ? <Text style={styles.username}>{usernameDisplay}</Text> : null}
+            <SkillChip skillLevel={profile?.skill_level ?? null} />
           </View>
 
           {stats && (
@@ -169,9 +173,28 @@ export function PlayerProfileScreen({ userId }: Props) {
                 <Lucide name="send" size={16} color={colors.textOnPrimary} />
                 <Text style={styles.inviteBtnText}>{s('inviteToEvent')}</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.inviteBtn, { backgroundColor: colors.bgAlt, borderWidth: 1, borderColor: colors.primary, marginTop: Spacing.sm }]}
+                onPress={() => setLogMatchVisible(true)}
+                testID="log-match-btn"
+              >
+                <Lucide name="swords" size={16} color={colors.primary} />
+                <Text style={[styles.inviteBtnText, { color: colors.primary }]}>{s('logMatchTitle')}</Text>
+              </TouchableOpacity>
             </View>
           )}
         </ScrollView>
+      )}
+
+      {user?.id && (
+        <LogMatchModal
+          visible={logMatchVisible}
+          currentUserId={user.id}
+          opponentOptions={[{ id: userId, name: fullName }]}
+          presetOpponentId={userId}
+          onClose={() => setLogMatchVisible(false)}
+          onLogged={() => showAlert(s('success'), s('matchLoggedPending'))}
+        />
       )}
 
       <Modal visible={pickerVisible} transparent animationType="slide" onRequestClose={() => setPickerVisible(false)}>

@@ -67,6 +67,15 @@ import React from 'react';
  
 import { render, waitFor } from '@testing-library/react-native';
  
+jest.mock('../../features/matches', () => ({
+  usePlayerMatchesQuery: () => ({ data: [] }),
+  summarizeMatches: () => ({ wins: 0, losses: 0, total: 0 }),
+}));
+jest.mock('../../services/matches', () => ({
+  getPendingMatches: jest.fn().mockResolvedValue({ data: [] }),
+  confirmMatch: jest.fn().mockResolvedValue({ data: {}, error: null }),
+  disputeMatch: jest.fn().mockResolvedValue({ data: {}, error: null }),
+}));
 import { ProfileScreen } from '../ProfileScreen';
 
 describe('ProfileScreen — back navigation', () => {

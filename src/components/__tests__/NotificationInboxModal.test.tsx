@@ -68,6 +68,11 @@ jest.mock('../../services/friends', () => ({
   getPendingRequests: jest.fn().mockResolvedValue({ data: [] }),
 }));
 
+jest.mock('../../services/matches', () => ({
+  getPendingMatches: jest.fn().mockResolvedValue({ data: [] }),
+  confirmMatch: jest.fn().mockResolvedValue({ data: {}, error: null }),
+  disputeMatch: jest.fn().mockResolvedValue({ data: {}, error: null }),
+}));
 import { NotificationInboxModal, type NotificationInboxModalRef } from '../NotificationInboxModal';
 
 function Harness() {

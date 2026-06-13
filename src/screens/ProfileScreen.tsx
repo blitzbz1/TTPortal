@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Platform, RefreshControl } from 'react-native';
 import { showConfirm } from '../lib/dialogs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +16,10 @@ import { ProfileSkeleton } from '../components/SkeletonLoader';
 import { ErrorState } from '../components/ErrorState';
 import { useBadgeProgress } from '../features/challenges';
 import { useProfileQuery } from '../hooks/queries/useProfileQuery';
+import { SkillChip } from '../components/SkillChip';
+import { PlayProfileEditorModal } from '../components/PlayProfileEditorModal';
+import { playGoalKey } from '../lib/playerAttributes';
+import { usePlayerMatchesQuery, summarizeMatches } from '../features/matches';
 
 interface ProfileScreenProps {
   hideTabBar?: boolean;
@@ -29,6 +33,13 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const { colors, isDark } = useTheme();
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const [editorVisible, setEditorVisible] = useState(false);
+  const { data: matches = [] } = usePlayerMatchesQuery(user?.id);
+  const confirmedMatches = useMemo(
+    () => matches.filter((m) => m.status === 'confirmed' && m.winner_id),
+    [matches],
+  );
+  const matchRecord = useMemo(() => summarizeMatches(matches, user?.id ?? ''), [matches, user?.id]);
 
   const {
     progressRows,
@@ -154,6 +165,57 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
 
         </View>
 
+        {/* Play profile (F001): self-declared skill + goals */}
+        <View style={styles.section}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <Text style={[styles.navLabel, { fontWeight: '700' }]}>{s('playProfileTitle')}</Text>
+            <TouchableOpacity onPress={() => setEditorVisible(true)} testID="edit-play-profile" hitSlop={8}>
+              <Lucide name="pencil" size={16} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+          {profile?.skill_level || (profile?.play_goals?.length ?? 0) > 0 ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+              <SkillChip skillLevel={profile?.skill_level ?? null} />
+              {(profile?.play_goals ?? []).map((g) => (
+                <View key={g} style={{ borderRadius: 999, paddingVertical: 3, paddingHorizontal: 8, backgroundColor: colors.bgMuted }}>
+                  <Text style={{ fontSize: 12, color: colors.textMuted, fontWeight: '600' }}>{s(playGoalKey(g))}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <TouchableOpacity onPress={() => setEditorVisible(true)}>
+              <Text style={{ color: colors.textFaint, fontSize: 14 }}>{s('playProfileEmpty')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Matches (F002): W/L record + last 5 results */}
+        {confirmedMatches.length > 0 && (
+          <View style={styles.section}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <Text style={[styles.navLabel, { fontWeight: '700' }]}>{s('matchesTitle')}</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted }}>
+                {matchRecord.wins}{s('winShort')} · {matchRecord.losses}{s('lossShort')}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {confirmedMatches.slice(0, 5).map((m) => {
+                const win = m.winner_id === user?.id;
+                return (
+                  <View
+                    key={m.id}
+                    style={{ width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: win ? colors.primaryPale : colors.redPale }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: win ? colors.primary : colors.red }}>
+                      {win ? s('winShort') : s('lossShort')}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         {/* Navigation Links */}
         <View style={styles.section}>
           <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/friends')}>
@@ -223,6 +285,17 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      {user?.id && (
+        <PlayProfileEditorModal
+          visible={editorVisible}
+          userId={user.id}
+          initialSkill={profile?.skill_level ?? null}
+          initialGoals={profile?.play_goals ?? []}
+          onClose={() => setEditorVisible(false)}
+          onSaved={refetchProfile}
+        />
+      )}
     </View>
   );
 }

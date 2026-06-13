@@ -24,6 +24,7 @@ import { hapticMedium } from '../lib/haptics';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
 import { FriendPickerModal } from '../components/FriendPickerModal';
 import { LogHoursModal } from '../components/LogHoursModal';
+import { LogMatchModal } from '../components/LogMatchModal';
 import { WriteEventFeedbackScreen } from './WriteEventFeedbackScreen';
 import { createStyles } from './EventSchedulingScreen.styles';
 import { EventDetailContent } from './EventSchedulingScreen/EventDetailContent';
@@ -69,6 +70,7 @@ export function EventDetailScreen() {
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [feedbackEventId, setFeedbackEventId] = useState<number | null>(null);
   const [logHoursEvent, setLogHoursEvent] = useState<{ id: number; title: string; initialHours: number } | null>(null);
+  const [logMatchVisible, setLogMatchVisible] = useState(false);
 
   const currentSelectedChallenge = useCurrentSelectedChallenge();
   const currentEventChallenge = currentSelectedChallenge && requiresOtherPlayer(currentSelectedChallenge)
@@ -398,6 +400,7 @@ export function EventDetailScreen() {
           setFeedbackEventId={setFeedbackEventId}
           setLogHoursEvent={setLogHoursEvent}
           setInviteModalVisible={setInviteModalVisible}
+          onLogMatch={() => setLogMatchVisible(true)}
           fetchEvents={refreshEvent}
         />
       </ScrollView>
@@ -430,6 +433,20 @@ export function EventDetailScreen() {
         initialHours={logHoursEvent?.initialHours}
         onDismiss={() => setLogHoursEvent(null)}
       />
+
+      {user && (
+        <LogMatchModal
+          visible={logMatchVisible}
+          currentUserId={user.id}
+          opponentOptions={detailParticipants
+            .filter((p: any) => p.user_id && p.user_id !== user.id)
+            .map((p: any) => ({ id: p.user_id, name: p.profiles?.full_name ?? s('player') }))}
+          venueId={event?.venue_id ?? null}
+          eventId={event?.id ?? null}
+          onClose={() => setLogMatchVisible(false)}
+          onLogged={() => showAlert(s('success'), s('matchLoggedPending'))}
+        />
+      )}
     </View>
   );
 }

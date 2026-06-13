@@ -73,6 +73,7 @@ export interface EventDetailContentProps {
   setFeedbackEventId: (id: number) => void;
   setLogHoursEvent: (v: { id: number; title: string; initialHours: number } | null) => void;
   setInviteModalVisible: (v: boolean) => void;
+  onLogMatch: () => void;
   fetchEvents: () => void | Promise<void>;
 }
 
@@ -85,7 +86,7 @@ export function EventDetailContent(props: EventDetailContentProps) {
     updateText, setUpdateText, sendingUpdate, setSendingUpdate,
     formatDate, formatTime, isEffectivelyOver,
     onAddChallenge, onAwardChallenge, onJoin, onCloseEvent, onCancelEvent, challengeTitle,
-    closeDetail, setFeedbackEventId, setLogHoursEvent, setInviteModalVisible, fetchEvents,
+    closeDetail, setFeedbackEventId, setLogHoursEvent, setInviteModalVisible, onLogMatch, fetchEvents,
   } = props;
   const { s, lang } = useI18n();
   const { colors, isDark } = useTheme();
@@ -582,6 +583,16 @@ export function EventDetailContent(props: EventDetailContentProps) {
                 >
                   <Lucide name="message-square" size={16} color={colors.textOnPrimary} />
                   <Text style={[ms.actionText, ms.actionJoinText]}>{s('giveFeedback')}</Text>
+                </TouchableOpacity>
+              )}
+              {detailParticipants.some((p: any) => p.user_id && p.user_id !== user?.id) && (
+                <TouchableOpacity
+                  style={[ms.actionBtn, ms.actionSecondary]}
+                  onPress={onLogMatch}
+                  testID="event-log-match-btn"
+                >
+                  <Lucide name="swords" size={16} color={colors.primary} />
+                  <Text style={[ms.actionText, ms.actionSecondaryText]}>{s('logMatchTitle')}</Text>
                 </TouchableOpacity>
               )}
             </>

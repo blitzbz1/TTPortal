@@ -1,3 +1,5 @@
+import type { SkillLevel, PlayGoal } from '../lib/playerAttributes';
+
 // ── Table row types ──
 
 export interface Profile {
@@ -12,6 +14,8 @@ export interface Profile {
   username: string | null;
   is_admin: boolean;
   is_moderator: boolean;
+  skill_level: SkillLevel | null;
+  play_goals: PlayGoal[];
 }
 
 export interface City {

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { Profile } from '../types/database';
+import type { SkillLevel, PlayGoal } from '../lib/playerAttributes';
 import { invalidateProfileCache } from '../lib/profileCache';
 
 // Column-level grants (migration 085) exclude email/pending_deletion_at —
@@ -7,7 +8,8 @@ import { invalidateProfileCache } from '../lib/profileCache';
 // email comes from auth.getUser()/the session, not from profiles.
 const PUBLIC_PROFILE_COLUMNS =
   'id, full_name, avatar_url, city, lang, auth_provider, created_at, ' +
-  'username, is_admin, is_moderator, notify_friend_checkins, checkin_visibility, notification_prefs';
+  'username, is_admin, is_moderator, notify_friend_checkins, checkin_visibility, notification_prefs, ' +
+  'skill_level, play_goals';
 
 export type CheckinVisibility = 'friends' | 'private';
 
@@ -35,6 +37,10 @@ export async function updateProfile(
     checkin_visibility?: CheckinVisibility;
     /** Sparse per-category map (T086): only disabled categories stored. */
     notification_prefs?: Record<string, boolean>;
+    /** F001: self-declared skill level (null clears it). */
+    skill_level?: SkillLevel | null;
+    /** F001: self-declared play goals (multi-select). */
+    play_goals?: PlayGoal[];
   },
 ) {
   const result = await supabase

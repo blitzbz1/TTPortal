@@ -26,13 +26,16 @@ import { Lucide } from '../components/Icon';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { getCityDisplayName } from '../lib/locationHelpers';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
-
-const INTEREST_KEYS = [
-  'onboardingInterest1',
-  'onboardingInterest2',
-  'onboardingInterest3',
-  'onboardingInterest4',
-] as const;
+import { useSession } from '../hooks/useSession';
+import { updateProfile } from '../services/profiles';
+import {
+  SKILL_LEVELS,
+  PLAY_GOALS,
+  skillLevelKey,
+  playGoalKey,
+  type SkillLevel,
+  type PlayGoal,
+} from '../lib/playerAttributes';
 
 const TOTAL_STEPS = 3;
 
@@ -42,20 +45,31 @@ export function OnboardingScreen() {
   const { s } = useI18n();
   const { colors } = useTheme();
   const { selectedCity, setSelectedCity } = useSelectedLocation();
+  const { user } = useSession();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [step, setStep] = useState(0);
   const [cityPickerVisible, setCityPickerVisible] = useState(false);
-  const [selectedInterests, setSelectedInterests] = useState<Set<string>>(
-    new Set(),
-  );
+  const [skillLevel, setSkillLevel] = useState<SkillLevel | null>(null);
+  const [playGoals, setPlayGoals] = useState<Set<PlayGoal>>(new Set());
 
   // Resume the action that brought the user into the signup funnel (T062);
   // sanitizeRoute falls back to the tabs root for missing/foreign routes.
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
 
   const finish = () => {
-    trackProductEvent(ProductEvents.onboardingCompleted, { interests: selectedInterests.size });
+    trackProductEvent(ProductEvents.onboardingCompleted, {
+      skillLevel: skillLevel ?? 'unset',
+      goals: playGoals.size,
+    });
+    // Persist the play profile (fixes the previously-discarded onboarding
+    // selection). Fire-and-forget: it must never block resuming the funnel.
+    if (user?.id) {
+      void updateProfile(user.id, {
+        skill_level: skillLevel,
+        play_goals: Array.from(playGoals),
+      });
+    }
     router.replace(sanitizeRoute(returnTo) as Href);
   };
 
@@ -71,14 +85,19 @@ export function OnboardingScreen() {
     }
   };
 
-  const toggleInterest = (key: string) => {
+  const selectSkill = (level: SkillLevel) => {
     hapticSelection();
-    setSelectedInterests((prev) => {
+    setSkillLevel((current) => (current === level ? null : level));
+  };
+
+  const toggleGoal = (goal: PlayGoal) => {
+    hapticSelection();
+    setPlayGoals((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
+      if (next.has(goal)) {
+        next.delete(goal);
       } else {
-        next.add(key);
+        next.add(goal);
       }
       return next;
     });
@@ -125,29 +144,48 @@ export function OnboardingScreen() {
 
   const renderStep1 = () => (
     <View style={styles.stepContent}>
-      <Text style={styles.heading}>{s('onboardingInterestsTitle')}</Text>
+      <Text style={styles.heading}>{s('onboardingPlayProfileTitle')}</Text>
 
-      <View style={styles.pillsContainer}>
-        {INTEREST_KEYS.map((key) => {
-          const active = selectedInterests.has(key);
-          return (
-            <Pressable
-              key={key}
-              style={[styles.pill, active && styles.pillActive]}
-              onPress={() => toggleInterest(key)}
-              testID={`interest-${key}`}
-            >
-              <Text
-                style={[
-                  styles.pillText,
-                  active && styles.pillTextActive,
-                ]}
+      <View style={styles.pickerGroup}>
+        <Text style={styles.label}>{s('onboardingSkillLabel')}</Text>
+        <View style={styles.pillsContainer}>
+          {SKILL_LEVELS.map((level) => {
+            const active = skillLevel === level;
+            return (
+              <Pressable
+                key={level}
+                style={[styles.pill, active && styles.pillActive]}
+                onPress={() => selectSkill(level)}
+                testID={`skill-${level}`}
               >
-                {s(key)}
-              </Text>
-            </Pressable>
-          );
-        })}
+                <Text style={[styles.pillText, active && styles.pillTextActive]}>
+                  {s(skillLevelKey(level))}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.pickerGroup}>
+        <Text style={styles.label}>{s('onboardingGoalsLabel')}</Text>
+        <View style={styles.pillsContainer}>
+          {PLAY_GOALS.map((goal) => {
+            const active = playGoals.has(goal);
+            return (
+              <Pressable
+                key={goal}
+                style={[styles.pill, active && styles.pillActive]}
+                onPress={() => toggleGoal(goal)}
+                testID={`goal-${goal}`}
+              >
+                <Text style={[styles.pillText, active && styles.pillTextActive]}>
+                  {s(playGoalKey(goal))}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
     </View>
   );
@@ -297,6 +335,11 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.body,
       fontSize: 15,
       color: colors.text,
+    },
+    pickerGroup: {
+      width: '100%',
+      gap: Spacing.sm,
+      alignItems: 'center',
     },
     pillsContainer: {
       flexDirection: 'row',

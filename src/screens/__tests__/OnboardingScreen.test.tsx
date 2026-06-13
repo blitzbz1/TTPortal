@@ -26,6 +26,11 @@ jest.mock('../../hooks/useSession', () => ({
   useSession: () => ({ user: { id: 'u1' } }),
 }));
 
+const mockUpdateProfile = jest.fn((..._args: unknown[]) => Promise.resolve({ error: null }));
+jest.mock('../../services/profiles', () => ({
+  updateProfile: (...a: unknown[]) => mockUpdateProfile(...a),
+}));
+
 jest.mock('../../components/Icon', () => ({
   Lucide: ({ name, ...props }: any) => {
     const { View } = require('react-native');
@@ -55,10 +60,10 @@ describe('OnboardingScreen', () => {
     expect(getByText('onboardingSelectCity')).toBeTruthy();
   });
 
-  it('advances to step 2 (interests) when continue is pressed', () => {
+  it('advances to step 2 (play profile) when continue is pressed', () => {
     const { getByText } = render(<OnboardingScreen />);
     fireEvent.press(getByText('onboardingContinue'));
-    expect(getByText('onboardingInterestsTitle')).toBeTruthy();
+    expect(getByText('onboardingPlayProfileTitle')).toBeTruthy();
   });
 
   it('advances to step 3 (done) from step 2', () => {
@@ -105,5 +110,18 @@ describe('OnboardingScreen', () => {
     const { getByText } = render(<OnboardingScreen />);
     fireEvent.press(getByText('onboardingSkip'));
     expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
+  });
+
+  it('persists the selected skill level + goals on finish (F001)', () => {
+    const { getByText, getByTestId } = render(<OnboardingScreen />);
+    fireEvent.press(getByText('onboardingContinue')); // welcome -> play profile
+    fireEvent.press(getByTestId('skill-club'));
+    fireEvent.press(getByTestId('goal-doubles'));
+    fireEvent.press(getByText('onboardingContinue')); // play profile -> ready
+    fireEvent.press(getByText('onboardingStart'));
+    expect(mockUpdateProfile).toHaveBeenCalledWith('u1', {
+      skill_level: 'club',
+      play_goals: ['doubles'],
+    });
   });
 });

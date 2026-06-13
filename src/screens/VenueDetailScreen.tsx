@@ -30,6 +30,7 @@ import { Card } from '../components/Card';
 import { safeErrorMessage } from '../lib/auth-utils';
 import { rateLimitMessageFor } from '../lib/rateLimit';
 import { VenueActionRow } from '../components/VenueActionRow';
+import { LogMatchModal } from '../components/LogMatchModal';
 import { CheckinSuccessSheet } from '../components/CheckinSuccessSheet';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
@@ -40,6 +41,7 @@ import { FullscreenImageViewer } from '../components/FullscreenImageViewer';
 import { submitVenueChangeRequest, uploadChangeRequestImage } from '../services/venueChangeRequests';
 import type { VenueChangeRequestInput } from '../services/venueChangeRequests';
 import { reportContent, blockUser, type ReportReason } from '../services/moderation';
+import { skillLevelKey, type SkillLevel } from '../lib/playerAttributes';
 import { hapticLight } from '../lib/haptics';
 import { sharePayload, venueUrl } from '../lib/shareLinks';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
@@ -113,6 +115,7 @@ export function VenueDetailScreen({ venueId }: Props) {
         dayCount: Number(bundle.champion.day_count),
       }
     : null;
+  const playerMix = bundle?.player_mix ?? null;
   const friendsHere = useMemo(
     () =>
       (friendsHereRaw ?? []).map((f) => ({
@@ -126,6 +129,7 @@ export function VenueDetailScreen({ venueId }: Props) {
   const loading = bundleLoading && !bundle;
 
   const [checkinLoading, setCheckinLoading] = useState(false);
+  const [logMatchVisible, setLogMatchVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [viewerPhotoUrl, setViewerPhotoUrl] = useState<string | null>(null);
@@ -712,6 +716,34 @@ export function VenueDetailScreen({ venueId }: Props) {
                 {s('venueChampion')}: {champion.fullName} ({champion.dayCount} {s('daysPlayed')})
               </Text>
             </View>
+          )}
+
+          {playerMix?.top && (
+            <View style={[styles.championRow, { backgroundColor: colors.primaryPale, borderColor: colors.primaryDim }]}>
+              <Lucide name="users" size={16} color={colors.primaryMid} />
+              <Text style={[styles.championText, { color: colors.primaryMid }]}>
+                {s('venuePlayerMixMostly', s(skillLevelKey(playerMix.top as SkillLevel)))}
+              </Text>
+            </View>
+          )}
+
+          {/* Log a match — when checked in, against a friend who's here (F002) */}
+          {activeCheckin && user?.id && (
+            <>
+              <TouchableOpacity style={[styles.evalBtn, { marginTop: 8 }]} onPress={() => setLogMatchVisible(true)} testID="venue-log-match-btn">
+                <Lucide name="swords" size={16} color={colors.primaryMid} />
+                <Text style={styles.evalText}>{s('logMatchTitle')}</Text>
+                <Lucide name="chevron-right" size={14} color={colors.primaryMid} />
+              </TouchableOpacity>
+              <LogMatchModal
+                visible={logMatchVisible}
+                currentUserId={user.id}
+                opponentOptions={friendsHere.map((f) => ({ id: f.user_id, name: f.profiles.full_name ?? s('player') }))}
+                venueId={venueId ? Number(venueId) : null}
+                onClose={() => setLogMatchVisible(false)}
+                onLogged={() => showAlert(s('success'), s('matchLoggedPending'))}
+              />
+            </>
           )}
 
           {/* Evaluate Condition */}

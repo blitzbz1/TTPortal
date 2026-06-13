@@ -12,6 +12,7 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { useNotificationHistory, type NotificationRecord } from '../hooks/useNotificationHistory';
 import { acceptRequest, declineRequest, getPendingRequests } from '../services/friends';
+import { confirmMatch, disputeMatch, getPendingMatches } from '../services/matches';
 import { buildRouteFromNotificationData } from '../lib/notificationRoutes';
 import { NotificationSkeleton, SkeletonList } from './SkeletonLoader';
 import { EmptyState } from './EmptyState';
@@ -38,6 +39,9 @@ function getIconMap(colors: ThemeColors): Record<string, { name: string; color: 
     event_feedback_request: { name: 'message-square', color: colors.primaryMid, bg: colors.primaryPale },
     event_feedback_received: { name: 'star', color: colors.accent, bg: colors.amberPale },
     feedback_reply: { name: 'message-circle', color: colors.primaryMid, bg: colors.primaryPale },
+    match_confirm: { name: 'swords', color: colors.accent, bg: colors.amberPale },
+    match_confirmed: { name: 'check', color: colors.primaryMid, bg: colors.primaryPale },
+    match_disputed: { name: 'flag', color: colors.red, bg: colors.redPale },
   };
 }
 
@@ -72,6 +76,8 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
 
   const [pendingMap, setPendingMap] = useState<Map<string, number>>(new Map());
   const [respondedIds, setRespondedIds] = useState<Set<string>>(new Set());
+  const [pendingMatchIds, setPendingMatchIds] = useState<Set<number>>(new Set());
+  const [respondedMatchIds, setRespondedMatchIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!user) return;
@@ -82,6 +88,19 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
       const map = new Map<string, number>();
       for (const p of data) map.set(p.requester_id, p.id);
       setPendingMap(map);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await getPendingMatches();
+      if (cancelled || !data) return;
+      setPendingMatchIds(new Set(data.map((m) => m.id)));
     })();
     return () => {
       cancelled = true;
@@ -139,6 +158,16 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
     [markAsRead, pendingMap, user],
   );
 
+  const handleRespondMatch = useCallback(
+    async (matchId: number, notifId: number, action: 'confirm' | 'dispute') => {
+      const { error } = await (action === 'confirm' ? confirmMatch(matchId) : disputeMatch(matchId));
+      if (error) return;
+      setRespondedMatchIds((prev) => new Set(prev).add(matchId));
+      await markAsRead(notifId);
+    },
+    [markAsRead],
+  );
+
   const formatTime = useCallback(
     (dateStr: string) => {
       const diff = Date.now() - new Date(dateStr).getTime();
@@ -170,6 +199,8 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
   const renderItem = useCallback(
     ({ item: n }: { item: NotificationRecord }) => {
       const icon = ICON_MAP[n.type] || ICON_MAP.friend_request;
+      const matchId =
+        n.type === 'match_confirm' && typeof n.data?.matchId === 'number' ? n.data.matchId : null;
       return (
         <View style={styles.rowWrap}>
           <SwipeableDeleteRow onDelete={() => deleteNotification(n.id)}>
@@ -201,6 +232,21 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
                 {n.type === 'friend_request' && n.sender_id && respondedIds.has(n.sender_id) && (
                   <Text style={styles.respondedText}>{s('accepted')}</Text>
                 )}
+                {matchId != null && pendingMatchIds.has(matchId) && !respondedMatchIds.has(matchId) && (
+                  <View style={styles.inlineActions}>
+                    <TouchableOpacity style={styles.acceptBtn} onPress={() => handleRespondMatch(matchId, n.id, 'confirm')} accessibilityRole="button" accessibilityLabel={s('confirm')}>
+                      <Lucide name="check" size={14} color={colors.textOnPrimary} />
+                      <Text style={styles.acceptBtnText}>{s('confirm')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.declineBtn} onPress={() => handleRespondMatch(matchId, n.id, 'dispute')} accessibilityRole="button" accessibilityLabel={s('dispute')}>
+                      <Lucide name="x" size={14} color={colors.red} />
+                      <Text style={styles.declineBtnText}>{s('dispute')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {matchId != null && respondedMatchIds.has(matchId) && (
+                  <Text style={styles.respondedText}>{s('matchResponded')}</Text>
+                )}
                 <Text style={styles.cardTime}>{formatTime(n.created_at)}</Text>
               </View>
               {!n.read && <View style={styles.unreadDot} />}
@@ -209,7 +255,7 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
         </View>
       );
     },
-    [ICON_MAP, colors.red, colors.textOnPrimary, deleteNotification, formatTime, handleAcceptFriend, handleDeclineFriend, handleTap, pendingMap, respondedIds, s, styles],
+    [ICON_MAP, colors.red, colors.textOnPrimary, deleteNotification, formatTime, handleAcceptFriend, handleDeclineFriend, handleRespondMatch, handleTap, pendingMap, pendingMatchIds, respondedIds, respondedMatchIds, s, styles],
   );
 
   return (
