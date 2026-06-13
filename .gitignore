@@ -66,4 +66,6 @@ supabase/.temp/
 # local data dumps
 tables.jsonsupabase/seeds/osm/.geo_dedup_watermarks*
 
-/old/
+# local scratch notes (kept out of git, never pushed)
+/improvement_suggestions.md
+/improvement_suggestions_tasks.md
