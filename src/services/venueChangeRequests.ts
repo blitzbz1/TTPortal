@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { Json } from '../types/supabase';
 import type { VenueAmenities } from '../lib/amenities';
 import {
   uploadVenueEvidenceImage,
@@ -41,7 +42,9 @@ export async function submitVenueChangeRequest(
     p_mark_unavailable: input.markUnavailable ?? false,
     p_note: input.note ?? undefined,
     p_photo_url: input.photoUrl ?? undefined,
-    p_amenities: input.amenities ?? undefined,
+    // amenities is a plain JSON object at runtime; the typed struct just
+    // lacks the index signature the generated Json type wants.
+    p_amenities: (input.amenities ?? undefined) as Json | undefined,
   });
   return { data: data as number | null, error };
 }
