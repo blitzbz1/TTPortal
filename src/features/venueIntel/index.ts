@@ -8,3 +8,4 @@ export {
   homeVenueQueryKey,
   homeVenueSuggestionQueryKey,
 } from './hooks/useHomeVenue';
+export { useVenueIntelQuery, venueIntelQueryKey, type VenueIntel } from './hooks/useVenueIntel';

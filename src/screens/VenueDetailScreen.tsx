@@ -38,7 +38,7 @@ import { VenueAmenitiesGrid } from '../components/VenueAmenitiesGrid';
 import { WeatherChip } from '../components/WeatherChip';
 import { VenueRegularsRow } from '../components/VenueRegularsRow';
 import { VenueBoardSection } from '../components/VenueBoardSection';
-import { reportFreeTables } from '../features/venueIntel';
+import { reportFreeTables, useVenueIntelQuery, venueIntelQueryKey } from '../features/venueIntel';
 import { useProfileQuery, profileQueryKey } from '../hooks/queries/useProfileQuery';
 import { updateProfile } from '../services/profiles';
 import { EmptyState } from '../components/EmptyState';
@@ -125,10 +125,13 @@ export function VenueDetailScreen({ venueId }: Props) {
       }
     : null;
   const playerMix = bundle?.player_mix ?? null;
-  const busyness = bundle?.venue_busyness ?? null;
-  const freeTables = bundle?.free_tables ?? null;
-  const amenities = bundle?.amenities ?? null;
-  const regulars = bundle?.regulars ?? null;
+  // F010/F011/F012/F014 live-intelligence — a SEPARATE, best-effort query that
+  // cannot affect the core venue load (its failure never errors the screen).
+  const { data: intel } = useVenueIntelQuery(vIdNum);
+  const busyness = intel?.busyness ?? null;
+  const freeTables = intel?.freeTables ?? null;
+  const amenities = intel?.amenities ?? null;
+  const regulars = intel?.regulars ?? null;
   const { data: myProfile } = useProfileQuery(user?.id);
   const isHomeVenue = !!vIdNum && myProfile?.home_venue_id === vIdNum;
   const friendsHere = useMemo(
@@ -419,8 +422,8 @@ export function VenueDetailScreen({ venueId }: Props) {
       showAlert(s('error'), rateMsg ?? s('freeTablesReportError'));
       throw error;
     }
-    invalidateVenueDetail(vIdNum);
-  }, [vIdNum, invalidateVenueDetail, s]);
+    queryClient.invalidateQueries({ queryKey: venueIntelQueryKey(vIdNum) });
+  }, [vIdNum, queryClient, s]);
 
   // F014: toggle this venue as the user's home venue (and Regulars membership).
   const handleToggleHomeVenue = useCallback(async () => {
@@ -428,8 +431,8 @@ export function VenueDetailScreen({ venueId }: Props) {
     const { error } = await updateProfile(user.id, { home_venue_id: isHomeVenue ? null : vIdNum });
     if (error) { showAlert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
     queryClient.invalidateQueries({ queryKey: profileQueryKey(user.id) });
-    invalidateVenueDetail(vIdNum); // the venue's Regulars list changed
-  }, [user, vIdNum, isHomeVenue, queryClient, invalidateVenueDetail, s]);
+    queryClient.invalidateQueries({ queryKey: venueIntelQueryKey(vIdNum) }); // the venue's Regulars list changed
+  }, [user, vIdNum, isHomeVenue, queryClient, s]);
 
   const handleAddPhoto = useCallback(async () => {
     if (!venue || !venueId) return;
