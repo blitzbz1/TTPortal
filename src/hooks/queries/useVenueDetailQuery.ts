@@ -61,23 +61,28 @@ export function useVenueDetailQuery(venueId: number | undefined, userId: string 
       // The player-mix (F001) and busyness (F010) are separate lightweight
       // RPCs kept off the main bundle; they must never fail the detail load.
       // F010/F011/F012/F014 ride alongside the bundle as separate lightweight
-      // RPCs (typed service wrappers); a failure in any must never fail the
-      // detail load. player_mix (F001) stays an inline rpc (no service fn).
-      const [detailRes, mixRes, busynessRes, freeTablesRes, amenitiesRes, regularsRes] = await Promise.all([
+      // RPCs. They are FULLY ISOLATED: `safe()` swallows any rejection OR
+      // synchronous throw so a problem in a secondary RPC can never reject the
+      // Promise.all and fail the core venue load — the detail screen depends
+      // ONLY on get_venue_detail. player_mix (F001) stays an inline rpc.
+      const safe = async <T,>(fn: () => Promise<{ data: T | null; error: unknown }>): Promise<T | null> => {
+        try {
+          const r = await fn();
+          return r && !r.error ? (r.data ?? null) : null;
+        } catch {
+          return null;
+        }
+      };
+      const [detailRes, mixRes, busyness, freeTables, amenities, regulars] = await Promise.all([
         supabase.rpc('get_venue_detail', { p_venue_id: venueId, p_review_limit: 5 }),
-        (supabase.rpc as any)('get_venue_player_mix', { p_venue_id: venueId }),
-        getVenueBusyness(venueId),
-        getVenueFreeTables(venueId),
-        getVenueAmenities(venueId),
-        getVenueRegulars(venueId),
+        safe(() => (supabase.rpc as any)('get_venue_player_mix', { p_venue_id: venueId })),
+        safe(() => getVenueBusyness(venueId)),
+        safe(() => getVenueFreeTables(venueId)),
+        safe(() => getVenueAmenities(venueId)),
+        safe(() => getVenueRegulars(venueId)),
       ]);
       const { data, error } = detailRes;
-      const playerMix: VenuePlayerMix | null =
-        mixRes && !mixRes.error ? ((mixRes.data as VenuePlayerMix | null) ?? null) : null;
-      const busyness: VenueBusyness | null = busynessRes.error ? null : busynessRes.data;
-      const freeTables: VenueFreeTables | null = freeTablesRes.error ? null : freeTablesRes.data;
-      const amenities: VenueAmenities | null = amenitiesRes.error ? null : amenitiesRes.data;
-      const regulars: VenueRegulars | null = regularsRes.error ? null : regularsRes.data;
+      const playerMix = mixRes as VenuePlayerMix | null;
 
       if (!error) {
         const bundle = (data as VenueDetailBundle | null) ?? null;
