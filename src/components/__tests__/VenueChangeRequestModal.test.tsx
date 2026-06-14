@@ -89,6 +89,7 @@ describe('VenueChangeRequestModal', () => {
       tablesCount: null,
       markUnavailable: false,
       note: null,
+      amenities: null,
     }, null);
   });
 
@@ -103,7 +104,19 @@ describe('VenueChangeRequestModal', () => {
       tablesCount: 4,
       markUnavailable: true,
       note: null,
+      amenities: null,
     }, null);
+  });
+
+  it('submits proposed amenities (rental yes, entry fee free) — F012', () => {
+    const { getByTestId, onSubmit } = setup();
+    fireEvent.press(getByTestId('vcr-amenity-rental-true'));
+    fireEvent.press(getByTestId('vcr-entryfee-free'));
+    fireEvent.press(getByTestId('vcr-submit'));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ amenities: { rental: true, entry_fee: 'free' } }),
+      null,
+    );
   });
 
   it('ignores an invalid tables count (stays disabled)', () => {

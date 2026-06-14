@@ -16,6 +16,8 @@ export interface Profile {
   is_moderator: boolean;
   skill_level: SkillLevel | null;
   play_goals: PlayGoal[];
+  home_venue_id: number | null;
+  show_as_regular: boolean;
 }
 
 export interface City {

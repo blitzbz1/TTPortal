@@ -539,6 +539,7 @@ describe('AdminModerationScreen — changes tab', () => {
       applyNets: true,
       applyNightLighting: true,
       applyTablesCount: true,
+      applyAmenities: true,
       availability: 'none',
     });
     await waitFor(() => expect(queryByTestId('vcr-card-1')).toBeNull());

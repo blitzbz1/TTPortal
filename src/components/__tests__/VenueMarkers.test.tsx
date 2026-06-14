@@ -82,4 +82,23 @@ describe('VenueMarkers (no clustering — removed 2026-06)', () => {
     const { Marker } = jest.requireMock('react-native-maps');
     expect(UNSAFE_getAllByType(Marker)).toHaveLength(2);
   });
+
+  it('surfaces an anonymous live count only for venues with active check-ins (F010)', () => {
+    // The whole marker subtree is hidden from accessibility (T066: 1000+ pins
+    // would drown VoiceOver), so every content query must opt into hidden els.
+    const opts = { includeHiddenElements: true } as const;
+    const { getByText, queryByText, getAllByText } = render(
+      <VenueMarkers
+        {...baseProps}
+        venues={VENUES.slice(0, 3)}
+        liveCounts={new Map([[1, 3]])}
+        liveHereLabel={(n) => `${n} here now`}
+      />,
+    );
+    // Venue 1 (count 3) — badge "3" + callout "3 here now".
+    expect(getAllByText('3', opts).length).toBeGreaterThan(0);
+    expect(getByText(/3 here now/, opts)).toBeTruthy();
+    // Venues 2 and 3 have no entry → no live count anywhere.
+    expect(queryByText(/2 here now/, opts)).toBeNull();
+  });
 });

@@ -14,6 +14,12 @@ import {
   BOOLEAN_OPTIONS,
   REQUIRED_BOOLEAN_OPTIONS,
 } from '../../components/VenueFormFields';
+import {
+  AMENITY_KEYS,
+  AMENITY_LABEL_KEYS,
+  ENTRY_FEE_LABEL_KEYS,
+  type VenueAmenities,
+} from '../../lib/amenities';
 
 // Cached at module scope so each per-row format call doesn't construct a fresh
 // Intl.DateTimeFormat. Use lazy access to keep startup cheap. Uses the
@@ -204,12 +210,28 @@ const VenueChangeRequestCard = React.memo(function VenueChangeRequestCard({
   const [acceptNets, setAcceptNets] = useState(true);
   const [acceptLighting, setAcceptLighting] = useState(true);
   const [acceptTables, setAcceptTables] = useState(true);
+  const [acceptAmenities, setAcceptAmenities] = useState(true);
   const [availability, setAvailability] = useState<'none' | 'hide' | 'remove'>('none');
   const [busy, setBusy] = useState(false);
 
   const v = request.venues ?? {};
   const fmtBool = (b: boolean | null | undefined) =>
     b == null ? s('conditionUnknown') : b ? s('yes') : s('no');
+
+  // F012: a single accept/reject for the whole proposed-amenities patch
+  // (resolve_venue_change_request merges it into the venue's amenities jsonb).
+  const proposedAmenities = (request.proposed_amenities ?? null) as VenueAmenities | null;
+  const amenitySummary = proposedAmenities
+    ? [
+        ...AMENITY_KEYS.filter((k) => proposedAmenities[k] != null).map(
+          (k) => `${s(AMENITY_LABEL_KEYS[k])}: ${proposedAmenities[k] ? s('yes') : s('no')}`,
+        ),
+        ...(proposedAmenities.entry_fee
+          ? [`${s('amenityEntryLabel')}: ${s(ENTRY_FEE_LABEL_KEYS[proposedAmenities.entry_fee])}`]
+          : []),
+      ].join(', ')
+    : '';
+  const hasProposedAmenities = amenitySummary.length > 0;
 
   const fields: {
     key: string; label: string; current: string; proposed: string;
@@ -239,6 +261,7 @@ const VenueChangeRequestCard = React.memo(function VenueChangeRequestCard({
       applyNets: acceptNets,
       applyNightLighting: acceptLighting,
       applyTablesCount: acceptTables,
+      applyAmenities: acceptAmenities,
       availability,
     });
     if (!ok) setBusy(false);
@@ -293,6 +316,25 @@ const VenueChangeRequestCard = React.memo(function VenueChangeRequestCard({
           </TouchableOpacity>
         </View>
       ))}
+
+      {hasProposedAmenities ? (
+        <View style={styles.vcrFieldRow}>
+          <View style={styles.vcrFieldInfo}>
+            <Text style={styles.vcrFieldLabel}>{s('vcrFieldAmenities')}</Text>
+            <Text style={styles.vcrFieldChange}>{amenitySummary}</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.vcrDecisionBtn, acceptAmenities ? styles.vcrDecisionAccept : styles.vcrDecisionReject]}
+            onPress={() => setAcceptAmenities((p) => !p)}
+            testID={`vcr-${request.id}-amenities`}
+          >
+            <Lucide name={acceptAmenities ? 'check' : 'x'} size={13} color={acceptAmenities ? colors.greenDeep : colors.red} />
+            <Text style={[styles.vcrDecisionText, { color: acceptAmenities ? colors.greenDeep : colors.red }]}>
+              {acceptAmenities ? s('vcrAccept') : s('vcrReject')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       {request.mark_unavailable ? (
         <View style={styles.vcrAvailBlock}>

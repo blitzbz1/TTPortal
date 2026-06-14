@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { VenueAmenities } from '../lib/amenities';
 import {
   uploadVenueEvidenceImage,
   type EvidenceImageAsset,
@@ -18,6 +19,8 @@ export type VenueChangeRequestInput = {
   note?: string | null;
   /** Optional public URL of an attached evidence photo. */
   photoUrl?: string | null;
+  /** F012: proposed amenity changes (partial map), or null for "no change". */
+  amenities?: VenueAmenities | null;
 };
 
 /**
@@ -38,6 +41,7 @@ export async function submitVenueChangeRequest(
     p_mark_unavailable: input.markUnavailable ?? false,
     p_note: input.note ?? undefined,
     p_photo_url: input.photoUrl ?? undefined,
+    p_amenities: input.amenities ?? undefined,
   });
   return { data: data as number | null, error };
 }

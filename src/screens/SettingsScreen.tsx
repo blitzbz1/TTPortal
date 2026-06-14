@@ -31,6 +31,7 @@ export function SettingsScreen() {
   // T086: sparse map — only categories the user turned OFF are stored.
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
   const [checkinVisibility, setCheckinVisibility] = useState<CheckinVisibility>('friends');
+  const [showAsRegular, setShowAsRegular] = useState(true);
   // GDPR (T082): UI shows "share data" semantics; storage is opt-OUT.
   const [analyticsEnabled, setAnalyticsEnabled] = useState(() => !isAnalyticsOptedOut());
   const [exporting, setExporting] = useState(false);
@@ -44,6 +45,7 @@ export function SettingsScreen() {
         setNotifyCheckins((res.data as any).notify_friend_checkins ?? true);
         setCheckinVisibility((res.data as any).checkin_visibility ?? 'friends');
         setNotifPrefs((res.data as any).notification_prefs ?? {});
+        setShowAsRegular((res.data as any).show_as_regular ?? true);
       }
     });
   }, [user]);
@@ -86,6 +88,15 @@ export function SettingsScreen() {
     setCheckinVisibility(value);
     if (user) {
       await updateProfile(user.id, { checkin_visibility: value });
+      queryClient.invalidateQueries({ queryKey: profileQueryKey(user.id) });
+    }
+  }, [user, queryClient]);
+
+  // F014: opt in/out of the home venue's public Regulars list.
+  const handleToggleShowAsRegular = useCallback(async (value: boolean) => {
+    setShowAsRegular(value);
+    if (user) {
+      await updateProfile(user.id, { show_as_regular: value });
       queryClient.invalidateQueries({ queryKey: profileQueryKey(user.id) });
     }
   }, [user, queryClient]);
@@ -276,6 +287,24 @@ export function SettingsScreen() {
               </TouchableOpacity>
             ))}
           </View>
+        </View>
+
+        {/* Show me as a regular (F014) */}
+        <View style={styles.row} testID="settings-show-as-regular">
+          <View style={[styles.rowIcon, { backgroundColor: colors.purplePale }]}>
+            <Lucide name="users" size={18} color={colors.purple} />
+          </View>
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>{s('showAsRegularLabel')}</Text>
+            <Text style={styles.rowDesc}>{s('showAsRegularDesc')}</Text>
+          </View>
+          <Switch
+            value={showAsRegular}
+            onValueChange={handleToggleShowAsRegular}
+            trackColor={{ false: colors.border, true: colors.primaryLight }}
+            thumbColor={colors.bgAlt}
+            accessibilityLabel={s('showAsRegularLabel')}
+          />
         </View>
 
         <TouchableOpacity

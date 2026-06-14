@@ -330,6 +330,28 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
       fontWeight: FontWeight.medium,
       color: colors.accent,
     },
+    // F010: anonymous live check-in count pill on the list row.
+    liveCountBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.primaryPale,
+      borderRadius: Spacing.xxs,
+      paddingVertical: Spacing.xxs,
+      paddingHorizontal: Spacing.xs,
+    },
+    liveCountDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.primaryLight,
+    },
+    liveCountText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.base,
+      fontWeight: FontWeight.semibold,
+      color: colors.primaryMid,
+    },
   });
 
   /* -- Custom map pin -- */

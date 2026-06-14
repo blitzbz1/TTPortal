@@ -6,6 +6,14 @@ import {
   saveCachedVenueMeta,
   saveCachedVenueReviews,
 } from '../../lib/venueDetailCache';
+import type { VenueBusyness, VenueFreeTables, VenueRegulars } from '../../services/venueIntel';
+import {
+  getVenueBusyness,
+  getVenueFreeTables,
+  getVenueAmenities,
+  getVenueRegulars,
+} from '../../services/venueIntel';
+import type { VenueAmenities } from '../../lib/amenities';
 
 export interface VenuePlayerMix {
   total: number;
@@ -23,6 +31,14 @@ export interface VenueDetailBundle {
   recent_reviews: any[];
   /** F001: anonymized skill-mix label; present only at >= 5 recent levellers. */
   player_mix?: VenuePlayerMix | null;
+  /** F010: live count + typical-hours histogram (separate lightweight RPC). */
+  venue_busyness?: VenueBusyness | null;
+  /** F011: latest fresh free-table report (anonymous; decays ~90 min). */
+  free_tables?: VenueFreeTables | null;
+  /** F012: structured amenities/fees/access (separate lightweight RPC). */
+  amenities?: VenueAmenities | null;
+  /** F014: opt-in regulars (count + capped avatar list). */
+  regulars?: VenueRegulars | null;
   /**
    * True when the bundle was synthesized from the SQLite cache after the
    * RPC failed (offline). Personalized/live fields are absent; the screen
@@ -42,16 +58,26 @@ export function useVenueDetailQuery(venueId: number | undefined, userId: string 
       // Personalized fields (is_favorited / user_active_checkin) are derived
       // from auth.uid() server-side (migration 083); userId stays in the
       // query key only so account switches don't serve a stale bundle.
-      // The player-mix (F001) is a separate lightweight RPC kept off the main
-      // bundle; it must never fail the detail load.
-      const [detailRes, mixRes] = await Promise.all([
+      // The player-mix (F001) and busyness (F010) are separate lightweight
+      // RPCs kept off the main bundle; they must never fail the detail load.
+      // F010/F011/F012/F014 ride alongside the bundle as separate lightweight
+      // RPCs (typed service wrappers); a failure in any must never fail the
+      // detail load. player_mix (F001) stays an inline rpc (no service fn).
+      const [detailRes, mixRes, busynessRes, freeTablesRes, amenitiesRes, regularsRes] = await Promise.all([
         supabase.rpc('get_venue_detail', { p_venue_id: venueId, p_review_limit: 5 }),
-        // get_venue_player_mix (104) isn't in the generated RPC types yet.
         (supabase.rpc as any)('get_venue_player_mix', { p_venue_id: venueId }),
+        getVenueBusyness(venueId),
+        getVenueFreeTables(venueId),
+        getVenueAmenities(venueId),
+        getVenueRegulars(venueId),
       ]);
       const { data, error } = detailRes;
       const playerMix: VenuePlayerMix | null =
         mixRes && !mixRes.error ? ((mixRes.data as VenuePlayerMix | null) ?? null) : null;
+      const busyness: VenueBusyness | null = busynessRes.error ? null : busynessRes.data;
+      const freeTables: VenueFreeTables | null = freeTablesRes.error ? null : freeTablesRes.data;
+      const amenities: VenueAmenities | null = amenitiesRes.error ? null : amenitiesRes.data;
+      const regulars: VenueRegulars | null = regularsRes.error ? null : regularsRes.data;
 
       if (!error) {
         const bundle = (data as VenueDetailBundle | null) ?? null;
@@ -63,6 +89,10 @@ export function useVenueDetailQuery(venueId: number | undefined, userId: string 
             saveCachedVenueReviews(venueId, bundle.recent_reviews ?? []);
           }
           bundle.player_mix = playerMix;
+          bundle.venue_busyness = busyness;
+          bundle.free_tables = freeTables;
+          bundle.amenities = amenities;
+          bundle.regulars = regulars;
         }
         return bundle;
       }

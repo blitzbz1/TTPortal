@@ -281,6 +281,7 @@ export type VenueChangeRequestDecision = {
   applyNets?: boolean;
   applyNightLighting?: boolean;
   applyTablesCount?: boolean;
+  applyAmenities?: boolean;
   availability?: 'none' | 'hide' | 'remove';
 };
 
@@ -297,6 +298,7 @@ export async function resolveVenueChangeRequest(
     p_apply_nets: decision.applyNets ?? false,
     p_apply_night_lighting: decision.applyNightLighting ?? false,
     p_apply_tables_count: decision.applyTablesCount ?? false,
+    p_apply_amenities: decision.applyAmenities ?? false,
     p_availability: availability,
   });
   if (!result.error) {

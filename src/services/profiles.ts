@@ -9,7 +9,7 @@ import { invalidateProfileCache } from '../lib/profileCache';
 const PUBLIC_PROFILE_COLUMNS =
   'id, full_name, avatar_url, city, lang, auth_provider, created_at, ' +
   'username, is_admin, is_moderator, notify_friend_checkins, checkin_visibility, notification_prefs, ' +
-  'skill_level, play_goals';
+  'skill_level, play_goals, home_venue_id, show_as_regular';
 
 export type CheckinVisibility = 'friends' | 'private';
 
@@ -41,6 +41,10 @@ export async function updateProfile(
     skill_level?: SkillLevel | null;
     /** F001: self-declared play goals (multi-select). */
     play_goals?: PlayGoal[];
+    /** F014: home venue (null clears it). */
+    home_venue_id?: number | null;
+    /** F014: opt-in to the home venue's public Regulars list. */
+    show_as_regular?: boolean;
   },
 ) {
   const result = await supabase

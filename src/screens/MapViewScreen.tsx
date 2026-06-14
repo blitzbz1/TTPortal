@@ -18,6 +18,7 @@ import { ErrorState } from '../components/ErrorState';
 import { DraggableSheet } from '../components/DraggableSheet';
 import { VenueMarkers } from '../components/VenueMarkers';
 import { MapSearchBar } from '../components/MapSearchBar';
+import { MapRainBanner } from '../components/MapRainBanner';
 import { hapticSelection } from '../lib/haptics';
 import { matchesQuery } from '../lib/textSearch';
 import { useTheme } from '../hooks/useTheme';
@@ -25,6 +26,7 @@ import { Radius, Spacing } from '../theme';
 import { createStyles } from './MapViewScreen.styles';
 import { useVenuesQuery } from '../hooks/queries/useVenuesQuery';
 import { useFriendPresenceQuery } from '../hooks/queries/useFriendPresenceQuery';
+import { useLiveVenueCountsQuery, useCityVenueAmenitiesQuery } from '../features/venueIntel';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
@@ -47,7 +49,7 @@ type VenueWithDistance = VenueWithStats & {
   distanceKm: number | null;
 };
 
-type FilterKey = 'toate' | 'parcuri' | 'indoor' | 'verificat';
+type FilterKey = 'toate' | 'parcuri' | 'indoor' | 'verificat' | 'free_entry' | 'rental';
 
 interface MapViewScreenProps {
   hideTabBar?: boolean;
@@ -76,6 +78,9 @@ interface VenueListRowProps {
   conditionInfo: { label: string; color: string };
   typeText: string;
   tablesLabel: string;
+  /** F010: anonymous "{0} here now" count for this venue, 0 = hidden. */
+  liveCount: number;
+  liveLabel?: string;
   styles: ReturnType<typeof createStyles>['styles'];
   onPress: (venueId: number) => void;
 }
@@ -87,6 +92,8 @@ const VenueListRow = React.memo(function VenueListRow({
   conditionInfo,
   typeText,
   tablesLabel,
+  liveCount,
+  liveLabel,
   styles,
   onPress,
 }: VenueListRowProps) {
@@ -103,7 +110,7 @@ const VenueListRow = React.memo(function VenueListRow({
           accessibilityRole="button"
           // T066: the sheet list is the non-visual alternative to the map —
           // carry type/condition/rating, not just the name.
-          accessibilityLabel={[venue.name, typeText, conditionInfo.label, starsText || null]
+          accessibilityLabel={[venue.name, typeText, conditionInfo.label, starsText || null, liveLabel || null]
             .filter(Boolean)
             .join(', ')}
         >
@@ -124,6 +131,12 @@ const VenueListRow = React.memo(function VenueListRow({
             </View>
           </View>
           <View style={styles.venueRight}>
+            {liveCount > 0 ? (
+              <View style={styles.liveCountBadge} testID={`venue-live-${venue.id}`}>
+                <View style={styles.liveCountDot} />
+                <Text style={styles.liveCountText}>{liveCount}</Text>
+              </View>
+            ) : null}
             {venue.distanceKm != null ? (
               <View style={styles.distanceBadge}>
                 <Text style={styles.distanceText}>{formatDistance(venue.distanceKm)}</Text>
@@ -190,6 +203,8 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     { key: 'parcuri', label: s('filterParks') },
     { key: 'indoor', label: s('filterIndoor') },
     { key: 'verificat', label: s('filterVerified'), icon: 'check' },
+    { key: 'free_entry', label: s('amenityFilterFreeEntry') },
+    { key: 'rental', label: s('amenityFilterRental') },
   ];
 
   const conditionLabel = useCallback((condition: VenueCondition | null) => {
@@ -239,6 +254,13 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     [friendPresence],
   );
   const activeFriendsCount = friendPresence?.uniqueFriends ?? 0;
+
+  // F010: anonymous live check-in counts per venue (counts only, no identities)
+  // for the selected city — drives the live-count dot on pins and list rows.
+  const { data: liveCounts } = useLiveVenueCountsQuery(selectedCity?.id ?? null);
+  const liveHereLabel = useCallback((n: number) => s('venueBusynessHereNow', String(n)), [s]);
+  // F012: per-venue amenities for the "free entry" / "rental" filter chips.
+  const { data: cityAmenities } = useCityVenueAmenitiesQuery(selectedCity?.id ?? null);
 
   const handleNearMe = useCallback(async () => {
     if (nearMeEnabled) {
@@ -305,8 +327,12 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     if (activeFilter === 'parcuri') return venuesWithDistance.filter((v) => v.type === 'parc_exterior');
     if (activeFilter === 'indoor') return venuesWithDistance.filter((v) => v.type === 'sala_indoor');
     if (activeFilter === 'verificat') return venuesWithDistance.filter((v) => v.verified === true);
+    // F012: "Free entry" reuses the existing free_access flag; "Rental" reads
+    // the per-city amenities overlay.
+    if (activeFilter === 'free_entry') return venuesWithDistance.filter((v) => v.free_access === true);
+    if (activeFilter === 'rental') return venuesWithDistance.filter((v) => cityAmenities?.get(v.id)?.rental === true);
     return venuesWithDistance;
-  }, [venuesWithDistance, activeFilter]);
+  }, [venuesWithDistance, activeFilter, cityAmenities]);
 
   // Chip + search + near-me sort — this feeds the LIST.
   const filteredVenues = useMemo(() => {
@@ -377,10 +403,12 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
           <VenueMarkers
             venues={chipFilteredVenues}
             friendVenueIds={friendCheckinVenueIds}
+            liveCounts={liveCounts}
             onVenuePress={handleVenueMarkerPress}
             conditionLabel={conditionLabel}
             typeLabel={typeLabel}
             friendsActiveLabel={s('friendsActive')}
+            liveHereLabel={liveHereLabel}
             pinStyles={pinStyles}
             colors={colors}
           />
@@ -474,6 +502,16 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
             </View>
           </ScrollView>
 
+          {/* F013: rain → "show indoor venues?" banner (selected city only). */}
+          {selectedCity ? (
+            <MapRainBanner
+              lat={selectedMapRegion.latitude}
+              lng={selectedMapRegion.longitude}
+              indoorActive={activeFilter === 'indoor'}
+              onShowIndoor={() => setActiveFilter('indoor')}
+            />
+          ) : null}
+
           {/* List Header */}
           <View style={styles.listHeader}>
             <Text style={styles.listHeaderText} testID="venues-count">{filteredVenues.length} {s('venuesShown')}</Text>
@@ -527,6 +565,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
               renderItem={({ item: venue, index }) => {
                 const animateIn = !listRevealedRef.current && index < 8;
                 if (index >= 7) listRevealedRef.current = true;
+                const lc = liveCounts?.get(venue.id) ?? 0;
                 return (
                   <VenueListRow
                     venue={venue}
@@ -535,6 +574,8 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
                     conditionInfo={conditionLabel(venue.condition)}
                     typeText={typeLabel(venue.type)}
                     tablesLabel={s('tables')}
+                    liveCount={lc}
+                    liveLabel={lc > 0 ? liveHereLabel(lc) : undefined}
                     styles={styles}
                     onPress={handleVenueListPress}
                   />

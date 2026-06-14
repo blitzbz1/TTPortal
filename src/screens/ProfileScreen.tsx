@@ -15,11 +15,14 @@ import type { Profile } from '../types/database';
 import { ProfileSkeleton } from '../components/SkeletonLoader';
 import { ErrorState } from '../components/ErrorState';
 import { useBadgeProgress } from '../features/challenges';
-import { useProfileQuery } from '../hooks/queries/useProfileQuery';
+import { useProfileQuery, profileQueryKey } from '../hooks/queries/useProfileQuery';
 import { SkillChip } from '../components/SkillChip';
 import { PlayProfileEditorModal } from '../components/PlayProfileEditorModal';
 import { playGoalKey } from '../lib/playerAttributes';
 import { usePlayerMatchesQuery, summarizeMatches } from '../features/matches';
+import { useHomeVenueQuery, useHomeVenueSuggestionQuery, homeVenueQueryKey } from '../features/venueIntel';
+import { updateProfile } from '../services/profiles';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface ProfileScreenProps {
   hideTabBar?: boolean;
@@ -65,6 +68,20 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   );
   const loading = isLoading && !profile;
   const profileError = isError && !profile;
+
+  // F014: home venue ("plays at X") + auto-suggestion when none is set yet.
+  const queryClient = useQueryClient();
+  const { data: homeVenue } = useHomeVenueQuery(user?.id);
+  const { data: homeSuggestion } = useHomeVenueSuggestionQuery(
+    user?.id,
+    !!profileRaw && (profileRaw as any).home_venue_id == null,
+  );
+  const acceptHomeSuggestion = useCallback(async () => {
+    if (!user || !homeSuggestion) return;
+    await updateProfile(user.id, { home_venue_id: homeSuggestion.id });
+    queryClient.invalidateQueries({ queryKey: profileQueryKey(user.id) });
+    queryClient.invalidateQueries({ queryKey: homeVenueQueryKey(user.id) });
+  }, [user, homeSuggestion, queryClient]);
 
   const fullName = user?.user_metadata?.full_name || profile?.full_name || '';
   const nameParts = fullName.trim().split(/\s+/);
@@ -187,6 +204,28 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
               <Text style={{ color: colors.textFaint, fontSize: 14 }}>{s('playProfileEmpty')}</Text>
             </TouchableOpacity>
           )}
+          {/* Home venue: "plays at X", or a suggestion when none is set (F014). */}
+          {homeVenue ? (
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/venue/[id]', params: { id: String(homeVenue.id) } })}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 }}
+              testID="profile-home-venue"
+            >
+              <Lucide name="home" size={14} color={colors.primaryMid} />
+              <Text style={{ fontSize: 13, color: colors.textMuted }}>{s('playsAt', homeVenue.name)}</Text>
+            </TouchableOpacity>
+          ) : homeSuggestion ? (
+            <TouchableOpacity
+              onPress={acceptHomeSuggestion}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 }}
+              testID="profile-home-venue-suggestion"
+            >
+              <Lucide name="home" size={14} color={colors.primary} />
+              <Text style={{ fontSize: 13, color: colors.primaryMid, fontWeight: '600' }}>
+                {s('homeVenueSuggest', homeSuggestion.name)}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         {/* Matches (F002): W/L record + last 5 results */}

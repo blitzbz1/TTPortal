@@ -426,6 +426,7 @@ describe('resolveVenueChangeRequest', () => {
       p_apply_nets: true,
       p_apply_night_lighting: false,
       p_apply_tables_count: true,
+      p_apply_amenities: false,
       p_availability: 'hide',
     });
   });

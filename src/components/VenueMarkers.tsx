@@ -18,10 +18,14 @@ interface VenueMarkersProps {
   /** Chip-filtered venues — deliberately NOT filtered by search text (T041). */
   venues: MarkerVenue[];
   friendVenueIds: Set<number>;
+  /** F010: anonymous active check-in count per venue (counts only, no ids). */
+  liveCounts?: Map<number, number>;
   onVenuePress: (venueId: number) => void;
   conditionLabel: (condition: any) => { label: string; color: string };
   typeLabel: (type: string) => string;
   friendsActiveLabel: string;
+  /** F010: "{0} here now" — interpolated by the caller's i18n. */
+  liveHereLabel?: (count: number) => string;
   pinStyles: any;
   colors: ThemeColors;
 }
@@ -101,10 +105,12 @@ function TrackedMarker({ contentSig, coordinate, testID, children }: TrackedMark
 function VenueMarkersImpl({
   venues,
   friendVenueIds,
+  liveCounts,
   onVenuePress,
   conditionLabel,
   typeLabel,
   friendsActiveLabel,
+  liveHereLabel,
   pinStyles,
   colors,
 }: VenueMarkersProps) {
@@ -118,10 +124,11 @@ function VenueMarkersImpl({
         const conditionGlyph = CONDITION_GLYPHS[venue.condition ?? ''] ?? null;
         const isIndoor = venue.type === 'sala_indoor';
         const hasFriend = friendVenueIds.has(venue.id);
+        const liveCount = liveCounts?.get(venue.id) ?? 0;
         return (
           <TrackedMarker
             key={`v-${venue.id}`}
-            contentSig={`${venue.condition}:${hasFriend}:${isIndoor}`}
+            contentSig={`${venue.condition}:${hasFriend}:${isIndoor}:live${liveCount}`}
             coordinate={{ latitude: venue.lat, longitude: venue.lng }}
           >
             <View
@@ -143,6 +150,13 @@ function VenueMarkersImpl({
                   <Lucide name="users" size={8} color={colors.textOnPrimary} />
                 </View>
               )}
+              {liveCount > 0 && (
+                // F010: anonymous "who's here now" count. Distinct from the
+                // friend badge (which means a *known* friend is present).
+                <View style={extraStyles.liveBadge}>
+                  <Text style={extraStyles.liveBadgeText}>{String(liveCount)}</Text>
+                </View>
+              )}
               {conditionGlyph && (
                 // T066: redundant visual cue — condition was encoded by the
                 // pin color only (green vs red), invisible to ~8% of men in
@@ -159,6 +173,7 @@ function VenueMarkersImpl({
                 <Text style={pinStyles.calloutSub}>
                   {typeLabel(venue.type)} · {condInfo.label}
                   {hasFriend ? ` · 👋 ${friendsActiveLabel}` : ''}
+                  {liveCount > 0 && liveHereLabel ? ` · ${liveHereLabel(liveCount)}` : ''}
                 </Text>
               </View>
             </Callout>
@@ -182,6 +197,26 @@ function createExtraStyles(colors: ThemeColors) {
       borderColor: colors.bgAlt,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    // F010: anonymous live-count pill, top-left of the pin.
+    liveBadge: {
+      position: 'absolute',
+      top: -4,
+      left: -6,
+      minWidth: 15,
+      height: 15,
+      paddingHorizontal: 3,
+      borderRadius: 8,
+      backgroundColor: colors.primary,
+      borderWidth: 1.5,
+      borderColor: colors.bgAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    liveBadgeText: {
+      color: colors.textOnPrimary,
+      fontSize: 9,
+      fontWeight: '700',
     },
   });
 }

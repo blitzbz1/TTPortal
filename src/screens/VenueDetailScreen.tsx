@@ -32,6 +32,15 @@ import { rateLimitMessageFor } from '../lib/rateLimit';
 import { VenueActionRow } from '../components/VenueActionRow';
 import { LogMatchModal } from '../components/LogMatchModal';
 import { CheckinSuccessSheet } from '../components/CheckinSuccessSheet';
+import { VenueBusynessBlock } from '../components/VenueBusynessBlock';
+import { VenueFreeTablesBlock } from '../components/VenueFreeTablesBlock';
+import { VenueAmenitiesGrid } from '../components/VenueAmenitiesGrid';
+import { WeatherChip } from '../components/WeatherChip';
+import { VenueRegularsRow } from '../components/VenueRegularsRow';
+import { VenueBoardSection } from '../components/VenueBoardSection';
+import { reportFreeTables } from '../features/venueIntel';
+import { useProfileQuery, profileQueryKey } from '../hooks/queries/useProfileQuery';
+import { updateProfile } from '../services/profiles';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { ReportReasonModal } from '../components/ReportReasonModal';
@@ -116,6 +125,12 @@ export function VenueDetailScreen({ venueId }: Props) {
       }
     : null;
   const playerMix = bundle?.player_mix ?? null;
+  const busyness = bundle?.venue_busyness ?? null;
+  const freeTables = bundle?.free_tables ?? null;
+  const amenities = bundle?.amenities ?? null;
+  const regulars = bundle?.regulars ?? null;
+  const { data: myProfile } = useProfileQuery(user?.id);
+  const isHomeVenue = !!vIdNum && myProfile?.home_venue_id === vIdNum;
   const friendsHere = useMemo(
     () =>
       (friendsHereRaw ?? []).map((f) => ({
@@ -394,6 +409,28 @@ export function VenueDetailScreen({ venueId }: Props) {
     if (vIdNum) invalidateVenueDetail(vIdNum);
   }, [activeCheckin, vIdNum, invalidateVenueDetail, user, s]);
 
+  // F011: report how many tables are free. Throws on failure so the prompt
+  // (VenueFreeTablesBlock) stays open for a retry; we surface the reason here.
+  const handleReportFreeTables = useCallback(async (freeCount: number, groupSize: number | null) => {
+    if (!vIdNum) return;
+    const { error } = await reportFreeTables(vIdNum, freeCount, groupSize);
+    if (error) {
+      const rateMsg = rateLimitMessageFor(error as any, s);
+      showAlert(s('error'), rateMsg ?? s('freeTablesReportError'));
+      throw error;
+    }
+    invalidateVenueDetail(vIdNum);
+  }, [vIdNum, invalidateVenueDetail, s]);
+
+  // F014: toggle this venue as the user's home venue (and Regulars membership).
+  const handleToggleHomeVenue = useCallback(async () => {
+    if (!user || !vIdNum) return;
+    const { error } = await updateProfile(user.id, { home_venue_id: isHomeVenue ? null : vIdNum });
+    if (error) { showAlert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
+    queryClient.invalidateQueries({ queryKey: profileQueryKey(user.id) });
+    invalidateVenueDetail(vIdNum); // the venue's Regulars list changed
+  }, [user, vIdNum, isHomeVenue, queryClient, invalidateVenueDetail, s]);
+
   const handleAddPhoto = useCallback(async () => {
     if (!venue || !venueId) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -650,6 +687,13 @@ export function VenueDetailScreen({ venueId }: Props) {
           )}
         </Reanimated.View>
 
+        {/* Weather — outdoor venues only (F013) */}
+        {venue.type === 'parc_exterior' && venue.lat != null && venue.lng != null ? (
+          <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+            <WeatherChip lat={venue.lat} lng={venue.lng} enabled />
+          </View>
+        ) : null}
+
         {/* Action Row */}
         <VenueActionRow
           favorited={favorited}
@@ -746,6 +790,15 @@ export function VenueDetailScreen({ venueId }: Props) {
             </>
           )}
 
+          {/* Home venue toggle (F014) */}
+          {user && !fromCache && (
+            <TouchableOpacity style={[styles.evalBtn, { marginTop: 8 }]} onPress={handleToggleHomeVenue} testID="home-venue-toggle">
+              <Lucide name="home" size={16} color={colors.primaryMid} />
+              <Text style={styles.evalText}>{isHomeVenue ? s('homeVenueYours') : s('homeVenueSet')}</Text>
+              {isHomeVenue ? <Lucide name="check" size={14} color={colors.primaryMid} /> : null}
+            </TouchableOpacity>
+          )}
+
           {/* Evaluate Condition */}
           <TouchableOpacity style={styles.evalBtn} onPress={() => router.push({ pathname: '/(protected)/condition-vote/[venueId]', params: { venueId: String(venueId) } })}>
             <Lucide name="vote" size={16} color={colors.primaryMid} />
@@ -759,6 +812,23 @@ export function VenueDetailScreen({ venueId }: Props) {
             <Text style={styles.evalText}>{s('requestChangesCta')}</Text>
           </TouchableOpacity>
         </Card>
+
+        {/* Amenities, fees & access (F012) */}
+        <VenueAmenitiesGrid amenities={amenities} onSuggestEdit={handleSuggestEdit} />
+
+        {/* Busyness — live count + typical-hours histogram (F010) */}
+        <VenueBusynessBlock busyness={busyness} tablesCount={venue.tables_count} />
+
+        {/* Free tables — latest report + on-site report prompt (F011) */}
+        <VenueFreeTablesBlock
+          freeTables={freeTables}
+          tablesCount={venue.tables_count}
+          canReport={!!activeCheckin && !fromCache}
+          onReport={handleReportFreeTables}
+        />
+
+        {/* Regulars — opt-in home-venue members (F014) */}
+        <VenueRegularsRow regulars={regulars} />
 
         {/* Friends Here */}
         <View style={styles.friendsSection}>
@@ -928,6 +998,9 @@ export function VenueDetailScreen({ venueId }: Props) {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Board & Q&A (F016) */}
+        {vIdNum ? <VenueBoardSection venueId={vIdNum} currentUserId={user?.id} /> : null}
       </Reanimated.ScrollView>
 
       {/* Check-in Success Sheet */}
@@ -937,6 +1010,8 @@ export function VenueDetailScreen({ venueId }: Props) {
         venueId={vIdNum ?? null}
         endTime={lastCheckinEndTime}
         queuedOffline={checkinQueuedOffline}
+        tablesCount={venue?.tables_count ?? null}
+        onReportFreeTables={handleReportFreeTables}
         onDismiss={() => setSuccessSheetVisible(false)}
       />
 
@@ -965,7 +1040,7 @@ export function VenueDetailScreen({ venueId }: Props) {
       <VenueChangeRequestModal
         visible={vcrVisible}
         submitting={vcrSubmitting}
-        current={venue ? { nets: venue.nets, night_lighting: venue.night_lighting, tables_count: venue.tables_count } : undefined}
+        current={venue ? { nets: venue.nets, night_lighting: venue.night_lighting, tables_count: venue.tables_count, amenities } : undefined}
         onClose={() => setVcrVisible(false)}
         onSubmit={handleSubmitChangeRequest}
       />

@@ -17,6 +17,7 @@ import { useI18n } from '../hooks/useI18n';
 import { hapticSuccess } from '../lib/haptics';
 import { sharePayload, venueUrl } from '../lib/shareLinks';
 import { Springs, Duration, Easings } from '../lib/motion';
+import { VenueFreeTablesBlock } from './VenueFreeTablesBlock';
 
 /* ── Tiny particle burst (confetti-lite, no deps) ── */
 const PARTICLE_COUNT = 8;
@@ -102,6 +103,10 @@ interface CheckinSuccessSheetProps {
   endTime?: string;
   /** True when the check-in was queued offline and will sync later. */
   queuedOffline?: boolean;
+  /** F011: venue table count, scales the free-table prompt options. */
+  tablesCount?: number | null;
+  /** F011: when provided, shows a one-tap free-table report prompt. */
+  onReportFreeTables?: (freeCount: number, groupSize: number | null) => Promise<void> | void;
   onDismiss: () => void;
 }
 
@@ -111,6 +116,8 @@ export function CheckinSuccessSheet({
   venueId = null,
   endTime,
   queuedOffline = false,
+  tablesCount = null,
+  onReportFreeTables,
   onDismiss,
 }: CheckinSuccessSheetProps) {
   const { colors } = useTheme();
@@ -173,6 +180,17 @@ export function CheckinSuccessSheet({
           >
             <Text style={styles.xpText}>+10 XP</Text>
           </Animated.View>
+
+          {/* F011: one-tap free-table report while we know they're on-site.
+              Offline check-ins can't report (no fresh write). */}
+          {onReportFreeTables && !queuedOffline ? (
+            <VenueFreeTablesBlock
+              compact
+              canReport
+              tablesCount={tablesCount}
+              onReport={onReportFreeTables}
+            />
+          ) : null}
 
           <TouchableOpacity accessibilityRole="button" style={styles.shareBtn} onPress={() => {
             Share.share(
