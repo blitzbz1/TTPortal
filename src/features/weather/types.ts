@@ -1,1 +1,1 @@
-export type { WeatherSummary } from '../../services/weather';
+export type { WeatherSummary, WeatherHour } from '../../services/weather';

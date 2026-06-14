@@ -1525,5 +1525,6 @@
   "venueBoardShowOlder": "Zobrazit starší ({0})",
   "venueBoardDeleteAction": "Smazat příspěvek",
   "venueBoardDeleteConfirm": "Smazat tento příspěvek?",
-  "venueBoardPostError": "Nepodařilo se odeslat — zkus to znovu"
+  "venueBoardPostError": "Nepodařilo se odeslat — zkus to znovu",
+  "weatherWind": "{0} km/h"
 }

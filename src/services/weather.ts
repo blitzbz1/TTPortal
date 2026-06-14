@@ -5,6 +5,15 @@
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
+/** One upcoming hour of the forecast strip. */
+export interface WeatherHour {
+  time: string;
+  temp_c: number | null;
+  weather_code: number | null;
+  precipitation_probability: number | null;
+  wind_kmh: number | null;
+}
+
 /** Mirror of the edge function's WeatherSummary (supabase/functions/_shared/weather.ts). */
 export interface WeatherSummary {
   temp_c: number | null;
@@ -12,6 +21,8 @@ export interface WeatherSummary {
   weather_code: number | null;
   raining_now: boolean;
   rain_at: string | null;
+  /** Next few hours for the forecast strip (absent on cached pre-update payloads). */
+  hourly?: WeatherHour[];
   fetched_at: string;
 }
 

@@ -1525,5 +1525,6 @@
   "venueBoardShowOlder": "Arată mai vechi ({0})",
   "venueBoardDeleteAction": "Șterge postarea",
   "venueBoardDeleteConfirm": "Ștergi această postare?",
-  "venueBoardPostError": "Nu am putut posta — încearcă din nou"
+  "venueBoardPostError": "Nu am putut posta — încearcă din nou",
+  "weatherWind": "{0} km/h"
 }

@@ -57,7 +57,8 @@ Deno.serve(withTiming('weather-proxy', async (req) => {
     const apiUrl =
       `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}` +
       `&current=temperature_2m,precipitation,weather_code,wind_speed_10m` +
-      `&hourly=precipitation,precipitation_probability&forecast_days=1&timezone=auto`;
+      `&hourly=temperature_2m,precipitation,precipitation_probability,weather_code,wind_speed_10m` +
+      `&forecast_days=2&timezone=auto`;
 
     const upstream = await fetch(apiUrl);
     if (!upstream.ok) {

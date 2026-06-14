@@ -1521,5 +1521,6 @@
   "venueBoardShowOlder": "Mostra più vecchi ({0})",
   "venueBoardDeleteAction": "Elimina post",
   "venueBoardDeleteConfirm": "Eliminare questo post?",
-  "venueBoardPostError": "Impossibile pubblicare — riprova"
+  "venueBoardPostError": "Impossibile pubblicare — riprova",
+  "weatherWind": "{0} km/h"
 }

@@ -1521,5 +1521,6 @@
   "venueBoardShowOlder": "Ältere anzeigen ({0})",
   "venueBoardDeleteAction": "Beitrag löschen",
   "venueBoardDeleteConfirm": "Diesen Beitrag löschen?",
-  "venueBoardPostError": "Posten fehlgeschlagen — versuche es erneut"
+  "venueBoardPostError": "Posten fehlgeschlagen — versuche es erneut",
+  "weatherWind": "{0} km/h"
 }

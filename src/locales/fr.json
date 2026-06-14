@@ -1521,5 +1521,6 @@
   "venueBoardShowOlder": "Afficher les plus anciens ({0})",
   "venueBoardDeleteAction": "Supprimer le message",
   "venueBoardDeleteConfirm": "Supprimer ce message ?",
-  "venueBoardPostError": "Échec de la publication — réessayez"
+  "venueBoardPostError": "Échec de la publication — réessayez",
+  "weatherWind": "{0} km/h"
 }

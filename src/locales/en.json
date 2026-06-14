@@ -1521,5 +1521,6 @@
   "venueBoardShowOlder": "Show older ({0})",
   "venueBoardDeleteAction": "Delete post",
   "venueBoardDeleteConfirm": "Delete this post?",
-  "venueBoardPostError": "Couldn't post — try again"
+  "venueBoardPostError": "Couldn't post — try again",
+  "weatherWind": "{0} km/h"
 }
