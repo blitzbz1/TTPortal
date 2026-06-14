@@ -4,7 +4,7 @@
 import { supabase } from '../lib/supabase';
 
 type RpcResponse<T> = Promise<{ data: T | null; error: unknown }>;
-const callRpc = supabase.rpc as unknown as (
+const callRpc = supabase.rpc.bind(supabase) as unknown as (
   name: string,
   params?: Record<string, unknown>,
 ) => RpcResponse<unknown>;
