@@ -35,6 +35,7 @@ import { CheckinSuccessSheet } from '../components/CheckinSuccessSheet';
 import { VenueBusynessBlock } from '../components/VenueBusynessBlock';
 import { VenueFreeTablesBlock } from '../components/VenueFreeTablesBlock';
 import { VenueAmenitiesGrid } from '../components/VenueAmenitiesGrid';
+import { venueSupportsAmenities } from '../lib/amenities';
 import { WeatherChip } from '../components/WeatherChip';
 import { VenueRegularsRow } from '../components/VenueRegularsRow';
 import { VenueBoardSection } from '../components/VenueBoardSection';
@@ -49,6 +50,7 @@ import type { SelectedImage } from '../components/VenueChangeRequestModal';
 import { FullscreenImageViewer } from '../components/FullscreenImageViewer';
 import { submitVenueChangeRequest, uploadChangeRequestImage } from '../services/venueChangeRequests';
 import type { VenueChangeRequestInput } from '../services/venueChangeRequests';
+import { submitVote, uploadConditionVotePhoto, CONDITION_MAP, type ConditionChoice } from '../services/conditions';
 import { reportContent, blockUser, type ReportReason } from '../services/moderation';
 import { skillLevelKey, type SkillLevel } from '../lib/playerAttributes';
 import { hapticLight } from '../lib/haptics';
@@ -167,6 +169,10 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [vcrVisible, setVcrVisible] = useState(false);
   const [vcrSubmitting, setVcrSubmitting] = useState(false);
+  // Caches a successfully uploaded change-request/vote photo so retries after a
+  // mid-submit failure don't re-upload (which would burn the daily image cap and
+  // orphan storage objects). Keyed by the picked image uri; cleared on each open.
+  const uploadedPhotoRef = useRef<{ uri: string; url: string } | null>(null);
   const visibleReviews = useMemo(
     () => (showAllReviews ? reviews : reviews.slice(0, REVIEW_INITIAL_LIMIT)),
     [reviews, showAllReviews],
@@ -213,36 +219,91 @@ export function VenueDetailScreen({ venueId }: Props) {
       router.push('/sign-in');
       return;
     }
+    uploadedPhotoRef.current = null;
     setVcrVisible(true);
   }, [user, router]);
 
-  const handleSubmitChangeRequest = useCallback(async (payload: VenueChangeRequestInput, image: SelectedImage | null) => {
+  const handleSubmitChangeRequest = useCallback(async (
+    payload: VenueChangeRequestInput,
+    image: SelectedImage | null,
+    condition: ConditionChoice | null,
+  ) => {
+    if (!user) { router.push('/sign-in'); return; }
     setVcrSubmitting(true);
+
+    // The modal can carry an edit proposal, a condition vote, or both. The
+    // edit-vs-vote split decides which bucket the single photo lands in.
+    const hasEdit =
+      payload.nets !== null || payload.nightLighting !== null ||
+      payload.tablesCount != null || payload.markUnavailable === true ||
+      payload.amenities != null;
+
     let photoUrl: string | null = null;
     if (image) {
-      const res = await uploadChangeRequestImage(Number(venueId), image);
-      if (!res.ok) {
-        setVcrSubmitting(false);
-        if (res.reason === 'rate_limited') {
-          showAlert(s('error'), rateLimitMessageFor(res.error, s) ?? s('vcrSubmitError'));
-        } else if (res.reason === 'processing_unavailable') {
-          showAlert(s('error'), s('photoProcessingUnavailable'));
-        } else {
-          showAlert(s('error'), s('photoUploadError'));
+      // Reuse an already-uploaded photo across retries (same picked image).
+      if (uploadedPhotoRef.current?.uri === image.uri) {
+        photoUrl = uploadedPhotoRef.current.url;
+      } else {
+        const res = hasEdit
+          ? await uploadChangeRequestImage(Number(venueId), image)
+          : await uploadConditionVotePhoto(Number(venueId), image);
+        if (!res.ok) {
+          setVcrSubmitting(false);
+          if (res.reason === 'rate_limited') {
+            showAlert(s('error'), rateLimitMessageFor(res.error, s) ?? s('vcrSubmitError'));
+          } else if (res.reason === 'processing_unavailable') {
+            showAlert(s('error'), s('photoProcessingUnavailable'));
+          } else {
+            showAlert(s('error'), s('photoUploadError'));
+          }
+          return;
         }
+        photoUrl = res.url;
+        uploadedPhotoRef.current = { uri: image.uri, url: res.url };
+      }
+    }
+
+    // Record the condition vote first (its own table), then the change request.
+    if (condition) {
+      const { error } = await submitVote({
+        user_id: user.id,
+        venue_id: Number(venueId),
+        condition: CONDITION_MAP[condition],
+        photo_url: photoUrl,
+        // When there's also an edit the note rides with the change request; on a
+        // condition-only submit the note has no other home, so keep it on the vote.
+        note: hasEdit ? null : (payload.note ?? null),
+      });
+      if (error) {
+        setVcrSubmitting(false);
+        showAlert(s('error'), s('vcrSubmitError'));
         return;
       }
-      photoUrl = res.url;
+      // The vote feeds the venue-detail condition summary; refresh now so it's
+      // reflected even if the change-request leg below later fails.
+      invalidateVenueDetail(Number(venueId));
     }
-    const { error } = await submitVenueChangeRequest(Number(venueId), { ...payload, photoUrl });
+
+    if (hasEdit) {
+      const { error } = await submitVenueChangeRequest(Number(venueId), { ...payload, photoUrl });
+      if (error) {
+        setVcrSubmitting(false);
+        showAlert(s('error'), s('vcrSubmitError'));
+        return;
+      }
+    }
+
     setVcrSubmitting(false);
-    if (error) {
-      showAlert(s('error'), s('vcrSubmitError'));
-      return;
-    }
+    uploadedPhotoRef.current = null;
     setVcrVisible(false);
-    showAlert(s('vcrSubmittedTitle'), s('vcrSubmittedMessage'));
-  }, [venueId, s]);
+    // A condition-only submit (no edit proposal) records a vote, not a moderated
+    // change request — word the confirmation accordingly.
+    if (hasEdit) {
+      showAlert(s('vcrSubmittedTitle'), s('vcrSubmittedMessage'));
+    } else {
+      showAlert(s('success'), s('voteRecorded'));
+    }
+  }, [venueId, s, user, router, invalidateVenueDetail]);
 
   const performBlockUser = useCallback(async (targetUserId: string) => {
     const { error } = await blockUser(targetUserId);
@@ -802,22 +863,17 @@ export function VenueDetailScreen({ venueId }: Props) {
             </TouchableOpacity>
           )}
 
-          {/* Evaluate Condition */}
-          <TouchableOpacity style={styles.evalBtn} onPress={() => router.push({ pathname: '/(protected)/condition-vote/[venueId]', params: { venueId: String(venueId) } })}>
-            <Lucide name="vote" size={16} color={colors.primaryMid} />
-            <Text style={styles.evalText}>{s('evaluateCondition')}</Text>
-            <Lucide name="chevron-right" size={14} color={colors.primaryMid} />
-          </TouchableOpacity>
-
-          {/* Suggest an edit / report an issue */}
-          <TouchableOpacity style={[styles.evalBtn, { marginTop: 8 }]} onPress={handleSuggestEdit} testID="suggest-edit-btn">
+          {/* Suggest an edit / report an issue — also hosts table-condition voting */}
+          <TouchableOpacity style={styles.evalBtn} onPress={handleSuggestEdit} testID="suggest-edit-btn">
             <Lucide name="pencil" size={16} color={colors.primaryMid} />
             <Text style={styles.evalText}>{s('requestChangesCta')}</Text>
           </TouchableOpacity>
         </Card>
 
-        {/* Amenities, fees & access (F012) */}
-        <VenueAmenitiesGrid amenities={amenities} onSuggestEdit={handleSuggestEdit} />
+        {/* Amenities, fees & access (F012) — indoor halls only; parks don't have them. */}
+        {venueSupportsAmenities(venue.type) && (
+          <VenueAmenitiesGrid amenities={amenities} onSuggestEdit={handleSuggestEdit} />
+        )}
 
         {/* Busyness — live count + typical-hours histogram (F010) */}
         <VenueBusynessBlock busyness={busyness} tablesCount={venue.tables_count} />
@@ -1043,6 +1099,7 @@ export function VenueDetailScreen({ venueId }: Props) {
       <VenueChangeRequestModal
         visible={vcrVisible}
         submitting={vcrSubmitting}
+        showAmenities={venueSupportsAmenities(venue?.type)}
         current={venue ? { nets: venue.nets, night_lighting: venue.night_lighting, tables_count: venue.tables_count, amenities } : undefined}
         onClose={() => setVcrVisible(false)}
         onSubmit={handleSubmitChangeRequest}

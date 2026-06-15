@@ -9,7 +9,6 @@ export default function ProtectedLayout() {
     <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="add-venue" />
       <Stack.Screen name="review/[venueId]" options={{ animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="condition-vote/[venueId]" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="friends" />
       <Stack.Screen name="play-history" />
       <Stack.Screen name="equipment" />

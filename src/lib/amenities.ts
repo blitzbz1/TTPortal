@@ -2,6 +2,18 @@
 // stores a partial map of these keys; an absent key means "unknown". Labels are
 // i18n keys (added to all 8 locales).
 
+import type { VenueType } from '../types/database';
+
+/**
+ * Amenities, fees & access are an indoor-hall concept (rental desks, lockers,
+ * entry fees, …). Outdoor parks don't have them, so the amenities grid on venue
+ * detail and the amenity fields in the suggest-an-edit modal are hidden for
+ * `parc_exterior` venues.
+ */
+export function venueSupportsAmenities(type: VenueType | null | undefined): boolean {
+  return type === 'sala_indoor';
+}
+
 export const AMENITY_KEYS = [
   'rental',
   'ball_vending',

@@ -104,6 +104,8 @@ export interface ConditionVote {
   venue_id: number;
   condition: ConditionVoteValue;
   photo_url: string | null;
+  /** Optional free-text note attached to the rating (migration 113). */
+  note: string | null;
   created_at: string;
 }
 

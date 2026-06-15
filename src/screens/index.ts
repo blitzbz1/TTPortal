@@ -7,7 +7,6 @@ export { EquipmentScreen } from './EquipmentScreen';
 export { PlayerProfileScreen } from './PlayerProfileScreen';
 export { FriendsScreen } from './FriendsScreen';
 export { PlayHistoryScreen } from './PlayHistoryScreen';
-export { ConditionVotingScreen } from './ConditionVotingScreen';
 export { EventSchedulingScreen } from './EventSchedulingScreen';
 export { VenueEventsScreen } from './VenueEventsScreen';
 export { LeaderboardsScreen } from './LeaderboardsScreen';

@@ -13,8 +13,10 @@ const mockColors: any = {
   textOnPrimary: '#fff',
   primary: '#0a0',
   primaryMid: '#0a0',
+  primaryLight: '#3c3',
   primaryPale: '#efe',
   primaryDim: '#dfd',
+  amber: '#fb0',
   red: '#f00',
   redPale: '#fee',
 };
@@ -90,7 +92,7 @@ describe('VenueChangeRequestModal', () => {
       markUnavailable: false,
       note: null,
       amenities: null,
-    }, null);
+    }, null, null);
   });
 
   it('submits a tables count and the unavailable flag', () => {
@@ -105,7 +107,7 @@ describe('VenueChangeRequestModal', () => {
       markUnavailable: true,
       note: null,
       amenities: null,
-    }, null);
+    }, null, null);
   });
 
   it('submits proposed amenities (rental yes, entry fee free) — F012', () => {
@@ -116,7 +118,53 @@ describe('VenueChangeRequestModal', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ amenities: { rental: true, entry_fee: 'free' } }),
       null,
+      null,
     );
+  });
+
+  it('hides amenities and entry fee when showAmenities is false (outdoor parks)', () => {
+    const { queryByTestId } = setup({ showAmenities: false });
+    expect(queryByTestId('vcr-amenity-rental-true')).toBeNull();
+    expect(queryByTestId('vcr-entryfee-free')).toBeNull();
+    // Core edit fields and the condition picker remain.
+    expect(queryByTestId('vcr-nets-true')).toBeTruthy();
+    expect(queryByTestId('vcr-condition-good')).toBeTruthy();
+  });
+
+  it('rates the table condition with no edit and passes it as the third arg', () => {
+    const { getByTestId, onSubmit } = setup();
+    // Condition-only submissions are allowed: no edit fields, just a vote.
+    fireEvent.press(getByTestId('vcr-condition-good'));
+    fireEvent.press(getByTestId('vcr-submit'));
+    expect(onSubmit).toHaveBeenCalledWith({
+      nets: null,
+      nightLighting: null,
+      tablesCount: null,
+      markUnavailable: false,
+      note: null,
+      amenities: null,
+    }, null, 'good');
+  });
+
+  it('carries both an edit and a condition rating in one submit', () => {
+    const { getByTestId, onSubmit } = setup();
+    fireEvent.press(getByTestId('vcr-nets-true'));
+    fireEvent.press(getByTestId('vcr-condition-damaged'));
+    fireEvent.press(getByTestId('vcr-submit'));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ nets: true }),
+      null,
+      'damaged',
+    );
+  });
+
+  it('clears a condition rating back to "no change"', () => {
+    const { getByTestId, onSubmit } = setup();
+    fireEvent.press(getByTestId('vcr-condition-good'));
+    fireEvent.press(getByTestId('vcr-condition-null'));
+    // Back to no change and no edits → nothing to submit.
+    fireEvent.press(getByTestId('vcr-submit'));
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it('ignores an invalid tables count (stays disabled)', () => {
@@ -134,6 +182,7 @@ describe('VenueChangeRequestModal', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ nightLighting: false, note: 'gone now' }),
       null,
+      null,
     );
   });
 
@@ -148,6 +197,7 @@ describe('VenueChangeRequestModal', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ nets: true }),
       { uri: 'file:///p.jpg', width: 800, height: 600 },
+      null,
     );
   });
 

@@ -1,10 +1,20 @@
 import { supabase } from '../lib/supabase';
-import type { ConditionVoteInsert } from '../types/database';
+import type { ConditionVoteInsert, ConditionVoteValue } from '../types/database';
 import {
   uploadVenueEvidenceImage,
   type EvidenceImageAsset,
   type EvidenceImageResult,
 } from './imageEvidence';
+
+/** UI-level table-condition choice surfaced in the suggest-an-edit modal. */
+export type ConditionChoice = 'good' | 'acceptable' | 'damaged';
+
+/** UI choice → stored vote value (migration 086). */
+export const CONDITION_MAP: Record<ConditionChoice, ConditionVoteValue> = {
+  good: 'buna',
+  acceptable: 'acceptabila',
+  damaged: 'deteriorata',
+};
 
 /**
  * Upload a condition-vote photo and return its public URL. Mirrors the
@@ -26,11 +36,4 @@ export async function submitVote(data: ConditionVoteInsert) {
     .upsert(data, { onConflict: 'user_id,venue_id' })
     .select()
     .single();
-}
-
-export async function getVoteSummary(venueId: number) {
-  return supabase
-    .from('condition_votes')
-    .select('condition')
-    .eq('venue_id', venueId);
 }

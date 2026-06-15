@@ -18,6 +18,7 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { useVenueForm, parseTablesCount } from '../hooks/useVenueForm';
+import type { ConditionChoice } from '../services/conditions';
 import type { VenueChangeRequestInput } from '../services/venueChangeRequests';
 import {
   AMENITY_KEYS,
@@ -39,6 +40,8 @@ export type SelectedImage = {
 export type VenueChangeRequestModalProps = {
   visible: boolean;
   submitting?: boolean;
+  /** Amenities, fees & access apply to indoor halls only — hidden for parks. */
+  showAmenities?: boolean;
   /** Current venue values, shown as context next to each field. */
   current?: {
     nets?: boolean | null;
@@ -47,7 +50,11 @@ export type VenueChangeRequestModalProps = {
     amenities?: VenueAmenities | null;
   };
   onClose: () => void;
-  onSubmit: (payload: VenueChangeRequestInput, image: SelectedImage | null) => void;
+  onSubmit: (
+    payload: VenueChangeRequestInput,
+    image: SelectedImage | null,
+    condition: ConditionChoice | null,
+  ) => void;
 };
 
 const MAX_TABLES = 200;
@@ -55,6 +62,7 @@ const MAX_TABLES = 200;
 export function VenueChangeRequestModal({
   visible,
   submitting,
+  showAmenities = true,
   current,
   onClose,
   onSubmit,
@@ -72,6 +80,9 @@ export function VenueChangeRequestModal({
   // F012: amenity proposals — null = "no change" per key; entryFee likewise.
   const [amenitySel, setAmenitySel] = useState<Record<string, TriValue>>({});
   const [entryFeeSel, setEntryFeeSel] = useState<EntryFee | null>(null);
+  // Table-condition vote (merged in from the old standalone screen). null =
+  // "no change" — the user can submit edits without casting a condition vote.
+  const [condition, setCondition] = useState<ConditionChoice | null>(null);
 
   const reset = useCallback(() => {
     resetForm();
@@ -79,6 +90,7 @@ export function VenueChangeRequestModal({
     setImage(null);
     setAmenitySel({});
     setEntryFeeSel(null);
+    setCondition(null);
   }, [resetForm]);
 
   // Start each open with a fresh form. The parent closes the sheet by flipping
@@ -86,6 +98,13 @@ export function VenueChangeRequestModal({
   useEffect(() => {
     if (visible) reset();
   }, [visible, reset]);
+
+  const conditionOptions: { v: ConditionChoice | null; label: string; color?: string }[] = [
+    { v: null, label: s('vcrNoChange') },
+    { v: 'good', label: s('conditionGood'), color: colors.primaryLight },
+    { v: 'acceptable', label: s('conditionAcceptable'), color: colors.amber },
+    { v: 'damaged', label: s('conditionDegraded'), color: colors.red },
+  ];
 
   const handleClose = useCallback(() => {
     reset();
@@ -133,6 +152,7 @@ export function VenueChangeRequestModal({
   const amenityChanged = buildAmenities() !== null;
 
   const hasChange =
+    condition !== null ||
     values.nets !== null || values.nightLighting !== null || tablesProvided ||
     markUnavailable || amenityChanged;
 
@@ -145,8 +165,8 @@ export function VenueChangeRequestModal({
       markUnavailable,
       note: values.description.trim() ? values.description.trim() : null,
       amenities: buildAmenities(),
-    }, image);
-  }, [hasChange, values, tablesProvided, tablesCheck.value, markUnavailable, buildAmenities, image, onSubmit]);
+    }, image, condition);
+  }, [hasChange, values, tablesProvided, tablesCheck.value, markUnavailable, buildAmenities, image, condition, onSubmit]);
 
   const renderTriState = (
     field: string,
@@ -161,7 +181,7 @@ export function VenueChangeRequestModal({
       { v: false, label: s('no') },
     ];
     return (
-      <View style={styles.field}>
+      <View key={field} style={styles.field}>
         <Text style={styles.label}>
           {label}
           {currentValue != null ? (
@@ -223,6 +243,29 @@ export function VenueChangeRequestModal({
           bottomOffset={20}
           showsVerticalScrollIndicator={false}
         >
+          {/* Table condition — merged in from the old standalone voting screen. */}
+          <View style={styles.field}>
+            <Text style={[styles.label, styles.amenityHeader]}>{s('conditionTitle')}</Text>
+            <View style={[styles.choiceRow, styles.choiceRowWrap]}>
+              {conditionOptions.map((o) => {
+                const active = condition === o.v;
+                return (
+                  <Pressable
+                    key={String(o.v)}
+                    onPress={() => setCondition(o.v)}
+                    style={[styles.choiceBtn, styles.choiceBtnWrap, active && styles.choiceBtnActive]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    testID={`vcr-condition-${String(o.v)}`}
+                  >
+                    {o.color ? <View style={[styles.conditionDot, { backgroundColor: o.color }]} /> : null}
+                    <Text style={[styles.choiceText, active && styles.choiceTextActive]}>{o.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
           {renderTriState('nets', s('vcrFieldNets'), current?.nets, values.nets, (v) => setForm({ nets: v }))}
           {renderTriState('lighting', s('vcrFieldLighting'), current?.night_lighting, values.nightLighting, (v) => setForm({ nightLighting: v }))}
 
@@ -248,47 +291,52 @@ export function VenueChangeRequestModal({
             />
           </View>
 
-          {/* F012: amenity proposals (all optional). */}
-          <Text style={[styles.label, styles.amenityHeader]}>{s('vcrFieldAmenities')}</Text>
-          {AMENITY_KEYS.map((key) =>
-            renderTriState(
-              `amenity-${key}`,
-              s(AMENITY_LABEL_KEYS[key]),
-              current?.amenities?.[key],
-              amenitySel[key] ?? null,
-              (v) => setAmenitySel((prev) => ({ ...prev, [key]: v })),
-            ),
-          )}
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              {s('vcrFieldEntryFee')}
-              {current?.amenities?.entry_fee ? (
-                <Text style={styles.labelHint}>
-                  {'  ·  '}
-                  {s('vcrCurrent')}: {s(ENTRY_FEE_LABEL_KEYS[current.amenities.entry_fee])}
+          {/* F012: amenity proposals (all optional). Indoor halls only — parks
+              don't have amenities/fees, so the whole block is hidden for them. */}
+          {showAmenities ? (
+            <>
+              <Text style={[styles.label, styles.amenityHeader]}>{s('vcrFieldAmenities')}</Text>
+              {AMENITY_KEYS.map((key) =>
+                renderTriState(
+                  `amenity-${key}`,
+                  s(AMENITY_LABEL_KEYS[key]),
+                  current?.amenities?.[key],
+                  amenitySel[key] ?? null,
+                  (v) => setAmenitySel((prev) => ({ ...prev, [key]: v })),
+                ),
+              )}
+              <View style={styles.field}>
+                <Text style={styles.label}>
+                  {s('vcrFieldEntryFee')}
+                  {current?.amenities?.entry_fee ? (
+                    <Text style={styles.labelHint}>
+                      {'  ·  '}
+                      {s('vcrCurrent')}: {s(ENTRY_FEE_LABEL_KEYS[current.amenities.entry_fee])}
+                    </Text>
+                  ) : null}
                 </Text>
-              ) : null}
-            </Text>
-            <View style={[styles.choiceRow, styles.choiceRowWrap]}>
-              {([{ v: null as EntryFee | null, label: s('vcrNoChange') }] as { v: EntryFee | null; label: string }[])
-                .concat(ENTRY_FEE_VALUES.map((f) => ({ v: f, label: s(ENTRY_FEE_LABEL_KEYS[f]) })))
-                .map((o) => {
-                  const active = entryFeeSel === o.v;
-                  return (
-                    <Pressable
-                      key={String(o.v)}
-                      onPress={() => setEntryFeeSel(o.v)}
-                      style={[styles.choiceBtn, styles.choiceBtnWrap, active && styles.choiceBtnActive]}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: active }}
-                      testID={`vcr-entryfee-${String(o.v)}`}
-                    >
-                      <Text style={[styles.choiceText, active && styles.choiceTextActive]}>{o.label}</Text>
-                    </Pressable>
-                  );
-                })}
-            </View>
-          </View>
+                <View style={[styles.choiceRow, styles.choiceRowWrap]}>
+                  {([{ v: null as EntryFee | null, label: s('vcrNoChange') }] as { v: EntryFee | null; label: string }[])
+                    .concat(ENTRY_FEE_VALUES.map((f) => ({ v: f, label: s(ENTRY_FEE_LABEL_KEYS[f]) })))
+                    .map((o) => {
+                      const active = entryFeeSel === o.v;
+                      return (
+                        <Pressable
+                          key={String(o.v)}
+                          onPress={() => setEntryFeeSel(o.v)}
+                          style={[styles.choiceBtn, styles.choiceBtnWrap, active && styles.choiceBtnActive]}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: active }}
+                          testID={`vcr-entryfee-${String(o.v)}`}
+                        >
+                          <Text style={[styles.choiceText, active && styles.choiceTextActive]}>{o.label}</Text>
+                        </Pressable>
+                      );
+                    })}
+                </View>
+              </View>
+            </>
+          ) : null}
 
           <Pressable
             onPress={() => setMarkUnavailable((v) => !v)}
@@ -417,13 +465,20 @@ function createStyles(colors: ThemeColors) {
     choiceBtn: {
       flex: 1,
       minHeight: 40,
+      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
+      gap: 6,
       backgroundColor: colors.bgAlt,
       borderRadius: Radius.md,
       paddingHorizontal: 10,
       borderWidth: 1,
       borderColor: colors.border,
+    },
+    conditionDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
     },
     choiceBtnActive: {
       backgroundColor: colors.primaryPale,

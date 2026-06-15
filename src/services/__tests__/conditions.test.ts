@@ -1,6 +1,6 @@
 // T070: condition-vote upsert semantics (one vote per user per venue, 086).
 import { createQueryChain } from '../../test-utils/supabaseMock';
-import { submitVote, getVoteSummary } from '../conditions';
+import { submitVote } from '../conditions';
 
 const mockFrom = jest.fn();
 jest.mock('../../lib/supabase', () => ({
@@ -21,15 +21,5 @@ describe('submitVote', () => {
     await submitVote(vote);
     expect(mockFrom).toHaveBeenCalledWith('condition_votes');
     expect(chain.upsert).toHaveBeenCalledWith(vote, { onConflict: 'user_id,venue_id' });
-  });
-});
-
-describe('getVoteSummary', () => {
-  it('selects only the condition column for the venue', async () => {
-    const chain = createQueryChain([{ condition: 'buna' }]);
-    mockFrom.mockReturnValue(chain);
-    await getVoteSummary(42);
-    expect(chain.select).toHaveBeenCalledWith('condition');
-    expect(chain.eq).toHaveBeenCalledWith('venue_id', 42);
   });
 });

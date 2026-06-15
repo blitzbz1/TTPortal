@@ -525,6 +525,7 @@ export type Database = {
           condition: string
           created_at: string
           id: number
+          note: string | null
           photo_url: string | null
           user_id: string
           venue_id: number
@@ -533,6 +534,7 @@ export type Database = {
           condition: string
           created_at?: string
           id?: number
+          note?: string | null
           photo_url?: string | null
           user_id: string
           venue_id: number
@@ -541,6 +543,7 @@ export type Database = {
           condition?: string
           created_at?: string
           id?: number
+          note?: string | null
           photo_url?: string | null
           user_id?: string
           venue_id?: number
