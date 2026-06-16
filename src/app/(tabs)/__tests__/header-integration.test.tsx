@@ -136,10 +136,10 @@ describe('Header Integration — tab layout without header', () => {
     expect(queryByTestId('header-right-container')).toBeNull();
   });
 
-  it('renders all 5 tab screens correctly without headers', () => {
+  it('renders all 4 tab screens correctly without headers', () => {
     const { getAllByTestId } = render(<TabLayout />);
 
     const tabScreens = getAllByTestId(/^tab-screen-/);
-    expect(tabScreens).toHaveLength(5);
+    expect(tabScreens).toHaveLength(4);
   });
 });

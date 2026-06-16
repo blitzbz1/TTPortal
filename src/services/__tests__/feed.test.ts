@@ -1,4 +1,4 @@
-import { getFriendFeed, getCrossedPaths, dismissCrossedPath } from '../feed';
+import { getCrossedPaths, dismissCrossedPath } from '../feed';
 
 const mockRpc = jest.fn();
 jest.mock('../../lib/supabase', () => ({
@@ -6,99 +6,6 @@ jest.mock('../../lib/supabase', () => ({
 }));
 
 beforeEach(() => jest.clearAllMocks());
-
-describe('getFriendFeed', () => {
-  // Implementation calls the get_friend_feed RPC (migrations 052/083),
-  // which derives the caller's accepted friendships from auth.uid() and
-  // does the UNION ALL + ORDER BY + LIMIT server-side. The client just
-  // rehydrates the FeedItem shape.
-
-  it('passes only the limit to the RPC (identity comes from auth.uid())', async () => {
-    mockRpc.mockResolvedValue({ data: [], error: null });
-    await getFriendFeed(25);
-    expect(mockRpc).toHaveBeenCalledWith('get_friend_feed', {
-      p_limit: 25,
-    });
-  });
-
-  it('defaults the limit to 30', async () => {
-    mockRpc.mockResolvedValue({ data: [], error: null });
-    await getFriendFeed();
-    expect(mockRpc).toHaveBeenCalledWith('get_friend_feed', {
-      p_limit: 30,
-    });
-  });
-
-  it('maps RPC rows to FeedItem shape', async () => {
-    mockRpc.mockResolvedValue({
-      data: [
-        {
-          kind: 'review', id: 2, user_id: 'f2', user_name: 'Maria',
-          venue_id: 20, venue_name: 'Parc Tineretului', venue_city: '',
-          rating: 5, ts: '2026-04-01T11:00:00Z', photo_url: null,
-        },
-        {
-          kind: 'checkin', id: 1, user_id: 'f1', user_name: 'Andrei',
-          venue_id: 10, venue_name: 'ClubPing', venue_city: 'Bucuresti',
-          rating: null, ts: '2026-04-01T10:00:00Z', photo_url: null,
-        },
-      ],
-      error: null,
-    });
-
-    const { data } = await getFriendFeed();
-
-    expect(data).toEqual([
-      {
-        id: 'review-2', type: 'review', userId: 'f2', userName: 'Maria',
-        venueId: 20, venueName: 'Parc Tineretului', venueCity: undefined,
-        rating: 5, timestamp: '2026-04-01T11:00:00Z', photoUrl: null,
-      },
-      {
-        id: 'checkin-1', type: 'checkin', userId: 'f1', userName: 'Andrei',
-        venueId: 10, venueName: 'ClubPing', venueCity: 'Bucuresti',
-        rating: undefined, timestamp: '2026-04-01T10:00:00Z', photoUrl: null,
-      },
-    ]);
-  });
-
-  it('maps a moment row, carrying its photo_url (F042)', async () => {
-    mockRpc.mockResolvedValue({
-      data: [
-        {
-          kind: 'moment', id: 9, user_id: 'f3', user_name: 'Ioana',
-          venue_id: 30, venue_name: 'ClubPing', venue_city: 'Cluj',
-          rating: null, ts: '2026-04-02T09:00:00Z', photo_url: 'https://cdn/m9.jpg',
-        },
-      ],
-      error: null,
-    });
-
-    const { data } = await getFriendFeed();
-
-    expect(data).toEqual([
-      {
-        id: 'moment-9', type: 'moment', userId: 'f3', userName: 'Ioana',
-        venueId: 30, venueName: 'ClubPing', venueCity: 'Cluj',
-        rating: undefined, timestamp: '2026-04-02T09:00:00Z', photoUrl: 'https://cdn/m9.jpg',
-      },
-    ]);
-  });
-
-  it('forwards an empty list when the RPC returns no rows', async () => {
-    mockRpc.mockResolvedValue({ data: [], error: null });
-    const { data, error } = await getFriendFeed();
-    expect(data).toEqual([]);
-    expect(error).toBeNull();
-  });
-
-  it('returns empty data and the error on RPC failure', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } });
-    const { data, error } = await getFriendFeed();
-    expect(data).toEqual([]);
-    expect(error).toEqual({ message: 'boom' });
-  });
-});
 
 describe('getCrossedPaths (F022)', () => {
   // Implementation calls get_crossed_paths (migration 117), which derives the

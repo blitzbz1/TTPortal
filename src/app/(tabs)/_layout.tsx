@@ -12,7 +12,6 @@ const TAB_CONFIG = [
   { name: 'index', labelKey: 'tabMap', icon: 'map', authOnly: false },
   { name: 'events', labelKey: 'tabEvents', icon: 'calendar', authOnly: false },
   { name: 'challenges', labelKey: 'tabChallenge', icon: 'target', authOnly: true },
-  { name: 'activity', labelKey: 'tabActivity', icon: 'activity', authOnly: true },
   { name: 'profile', labelKey: 'tabProfile', icon: 'user', authOnly: true },
 ] as const;
 
