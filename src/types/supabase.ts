@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       action_log: {
@@ -370,6 +395,64 @@ export type Database = {
         }
         Relationships: []
       }
+      checkin_moments: {
+        Row: {
+          caption: string | null
+          checkin_id: number
+          created_at: string
+          deleted_at: string | null
+          flagged: boolean
+          id: number
+          photo_url: string
+          user_id: string
+          venue_id: number
+        }
+        Insert: {
+          caption?: string | null
+          checkin_id: number
+          created_at?: string
+          deleted_at?: string | null
+          flagged?: boolean
+          id?: number
+          photo_url: string
+          user_id?: string
+          venue_id: number
+        }
+        Update: {
+          caption?: string | null
+          checkin_id?: number
+          created_at?: string
+          deleted_at?: string | null
+          flagged?: boolean
+          id?: number
+          photo_url?: string
+          user_id?: string
+          venue_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkin_moments_checkin_id_fkey"
+            columns: ["checkin_id"]
+            isOneToOne: true
+            referencedRelation: "checkins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkin_moments_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venue_stats"
+            referencedColumns: ["venue_id"]
+          },
+          {
+            foreignKeyName: "checkin_moments_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checkins: {
         Row: {
           ended_at: string
@@ -525,6 +608,96 @@ export type Database = {
           deleted_at?: string
         }
         Relationships: []
+      }
+      club_members: {
+        Row: {
+          club_id: number
+          id: number
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          club_id: number
+          id?: number
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Update: {
+          club_id?: number
+          id?: number
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_members_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clubs: {
+        Row: {
+          avatar_url: string | null
+          city_id: number | null
+          created_at: string
+          description: string | null
+          home_venue_id: number | null
+          id: number
+          join_code: string
+          name: string
+          owner_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          city_id?: number | null
+          created_at?: string
+          description?: string | null
+          home_venue_id?: number | null
+          id?: number
+          join_code: string
+          name: string
+          owner_id?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          city_id?: number | null
+          created_at?: string
+          description?: string | null
+          home_venue_id?: number | null
+          id?: number
+          join_code?: string
+          name?: string
+          owner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clubs_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clubs_home_venue_id_fkey"
+            columns: ["home_venue_id"]
+            isOneToOne: false
+            referencedRelation: "venue_stats"
+            referencedColumns: ["venue_id"]
+          },
+          {
+            foreignKeyName: "clubs_home_venue_id_fkey"
+            columns: ["home_venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       condition_votes: {
         Row: {
@@ -1015,6 +1188,7 @@ export type Database = {
       }
       events: {
         Row: {
+          club_id: number | null
           created_at: string
           description: string | null
           ends_at: string | null
@@ -1033,6 +1207,7 @@ export type Database = {
           visibility: Database["public"]["Enums"]["event_visibility"]
         }
         Insert: {
+          club_id?: number | null
           created_at?: string
           description?: string | null
           ends_at?: string | null
@@ -1051,6 +1226,7 @@ export type Database = {
           visibility?: Database["public"]["Enums"]["event_visibility"]
         }
         Update: {
+          club_id?: number | null
           created_at?: string
           description?: string | null
           ends_at?: string | null
@@ -1069,6 +1245,13 @@ export type Database = {
           visibility?: Database["public"]["Enums"]["event_visibility"]
         }
         Relationships: [
+          {
+            foreignKeyName: "events_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "events_parent_event_id_fkey"
             columns: ["parent_event_id"]
@@ -1886,6 +2069,7 @@ export type Database = {
           notify_friend_checkins: boolean
           pending_deletion_at: string | null
           play_goals: string[]
+          referral_code: string | null
           show_as_regular: boolean
           skill_level: string | null
           updated_at: string | null
@@ -1910,6 +2094,7 @@ export type Database = {
           notify_friend_checkins?: boolean
           pending_deletion_at?: string | null
           play_goals?: string[]
+          referral_code?: string | null
           show_as_regular?: boolean
           skill_level?: string | null
           updated_at?: string | null
@@ -1934,6 +2119,7 @@ export type Database = {
           notify_friend_checkins?: boolean
           pending_deletion_at?: string | null
           play_goals?: string[]
+          referral_code?: string | null
           show_as_regular?: boolean
           skill_level?: string | null
           updated_at?: string | null
@@ -2047,6 +2233,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          id: number
+          referee_id: string
+          referrer_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          referee_id: string
+          referrer_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          referee_id?: string
+          referrer_id?: string
+        }
+        Relationships: []
       }
       reviews: {
         Row: {
@@ -3286,6 +3493,7 @@ export type Database = {
       cancel_account_deletion: { Args: never; Returns: undefined }
       cancel_play_intent: { Args: { p_intent_id: number }; Returns: undefined }
       challenge_xp_value: { Args: { v_code: string }; Returns: number }
+      claim_referral: { Args: { p_code: string }; Returns: string }
       cleanup_old_notifications: { Args: never; Returns: undefined }
       close_event: {
         Args: { p_event_id: number; p_organizer_id?: string }
@@ -3356,6 +3564,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      create_club: {
+        Args: {
+          p_avatar_url?: string
+          p_city_id?: number
+          p_description?: string
+          p_home_venue_id?: number
+          p_name: string
+        }
+        Returns: number
+      }
       create_play_intent: {
         Args: {
           p_note?: string
@@ -3418,6 +3636,7 @@ export type Database = {
         Args: { p_invite_id: number }
         Returns: undefined
       }
+      delete_checkin_moment: { Args: { p_id: number }; Returns: undefined }
       delete_venue_post: { Args: { p_post_id: number }; Returns: undefined }
       dismiss_crossed_path: { Args: { p_user_id: string }; Returns: undefined }
       dispute_match: {
@@ -3484,7 +3703,9 @@ export type Database = {
           username: string
         }[]
       }
+      generate_club_join_code: { Args: never; Returns: string }
       generate_recurring_events: { Args: never; Returns: undefined }
+      generate_referral_code: { Args: never; Returns: string }
       generate_username: { Args: { p_full_name: string }; Returns: string }
       get_blocked_users: {
         Args: never
@@ -3534,6 +3755,34 @@ export type Database = {
         Returns: {
           amenities: Json
           venue_id: number
+        }[]
+      }
+      get_club_by_code: {
+        Args: { p_code: string }
+        Returns: {
+          already_member: boolean
+          avatar_url: string
+          id: number
+          member_count: number
+          name: string
+        }[]
+      }
+      get_club_detail: {
+        Args: { p_club_id: number }
+        Returns: {
+          avatar_url: string
+          city_id: number
+          description: string
+          home_venue_id: number
+          home_venue_name: string
+          id: number
+          join_code: string
+          member_count: number
+          members: Json
+          my_role: string
+          name: string
+          owner_id: string
+          upcoming_events: Json
         }[]
       }
       get_countries_delta: { Args: { p_since?: string }; Returns: Json }
@@ -3617,6 +3866,7 @@ export type Database = {
             Returns: {
               id: number
               kind: string
+              photo_url: string
               rating: number
               ts: string
               user_id: string
@@ -3654,6 +3904,19 @@ export type Database = {
         Returns: {
           active_count: number
           venue_id: number
+        }[]
+      }
+      get_my_clubs: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          city_id: number
+          home_venue_id: number
+          home_venue_name: string
+          id: number
+          member_count: number
+          name: string
+          role: string
         }[]
       }
       get_my_ladder_standing: { Args: { p_city?: string }; Returns: Json }
@@ -3777,6 +4040,13 @@ export type Database = {
           unique_venues: number
         }[]
       }
+      get_referral_stats: {
+        Args: never
+        Returns: {
+          invited_count: number
+          referral_code: string
+        }[]
+      }
       get_rivals: {
         Args: { p_limit?: number }
         Returns: {
@@ -3840,6 +4110,10 @@ export type Database = {
             Returns: Json
           }
       get_venue_free_tables: { Args: { p_venue_id: number }; Returns: Json }
+      get_venue_moments: {
+        Args: { p_limit?: number; p_venue_id: number }
+        Returns: Json
+      }
       get_venue_open_play: {
         Args: { p_venue_id: number }
         Returns: {
@@ -3890,8 +4164,12 @@ export type Database = {
         Args: { lat1: number; lat2: number; lng1: number; lng2: number }
         Returns: number
       }
+      is_club_admin: { Args: { p_club_id: number }; Returns: boolean }
+      is_club_member: { Args: { p_club_id: number }; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
+      join_club_by_code: { Args: { p_code: string }; Returns: number }
       join_play_intent: { Args: { p_intent_id: number }; Returns: number }
+      leave_club: { Args: { p_club_id: number }; Returns: undefined }
       leave_play_intent: { Args: { p_intent_id: number }; Returns: number }
       log_match: {
         Args: {
@@ -3938,6 +4216,15 @@ export type Database = {
         Args: { p_type: string; p_user: string }
         Returns: boolean
       }
+      post_checkin_moment: {
+        Args: {
+          p_caption?: string
+          p_checkin_id: number
+          p_photo_url: string
+          p_venue_id: number
+        }
+        Returns: number
+      }
       post_venue_message: {
         Args: { p_body: string; p_parent_id?: number; p_venue_id: number }
         Returns: number
@@ -3955,6 +4242,10 @@ export type Database = {
       }
       refresh_stats: { Args: never; Returns: undefined }
       refresh_venue_busyness: { Args: never; Returns: undefined }
+      remove_club_member: {
+        Args: { p_club_id: number; p_user_id: string }
+        Returns: undefined
+      }
       report_content: {
         Args: {
           p_content_id: string
@@ -4029,6 +4320,7 @@ export type Database = {
         }
       }
       rollover_ladder_seasons: { Args: never; Returns: number }
+      rotate_club_join_code: { Args: { p_club_id: number }; Returns: string }
       search_venues_admin: {
         Args: { p_limit?: number; p_query: string }
         Returns: {
@@ -4181,7 +4473,8 @@ export type Database = {
         | "serve_lab"
         | "competitor"
         | "explorer"
-      event_visibility: "public" | "friends" | "private"
+        | "recruiter"
+      event_visibility: "public" | "friends" | "private" | "club"
       submission_status:
         | "pending"
         | "approved"
@@ -4315,6 +4608,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       assignment_status: ["active", "completed", "expired", "cancelled"],
@@ -4328,8 +4624,9 @@ export const Constants = {
         "serve_lab",
         "competitor",
         "explorer",
+        "recruiter",
       ],
-      event_visibility: ["public", "friends", "private"],
+      event_visibility: ["public", "friends", "private", "club"],
       submission_status: [
         "pending",
         "approved",
