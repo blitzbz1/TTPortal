@@ -2,12 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   confirmMatch,
   disputeMatch,
+  getHeadToHead,
   getPendingMatches,
   getPlayerMatches,
+  getRivals,
   logMatch,
+  type HeadToHead,
   type LogMatchInput,
   type PendingMatch,
   type PlayerMatch,
+  type Rival,
 } from '../../../services/matches';
 import { loadCachedMatches, saveCachedMatches } from '../../../lib/matchesCache';
 
@@ -47,6 +51,40 @@ export function usePendingMatchesQuery(userId: string | undefined) {
   });
 }
 
+// F031: head-to-head record vs one opponent (viewer-relative, block-filtered).
+export const headToHeadQueryKey = (userId: string | undefined, opponentId: string | undefined) =>
+  ['head-to-head', userId ?? null, opponentId ?? null] as const;
+
+export function useHeadToHeadQuery(userId: string | undefined, opponentId: string | undefined) {
+  return useQuery<HeadToHead | null>({
+    queryKey: headToHeadQueryKey(userId, opponentId),
+    queryFn: async () => {
+      if (!opponentId) return null;
+      const { data, error } = await getHeadToHead(opponentId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!userId && !!opponentId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// F031: the viewer's most-played opponents.
+export const rivalsQueryKey = (userId: string | undefined) => ['rivals', userId ?? null] as const;
+
+export function useRivalsQuery(userId: string | undefined) {
+  return useQuery<Rival[]>({
+    queryKey: rivalsQueryKey(userId),
+    queryFn: async () => {
+      const { data, error } = await getRivals();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useLogMatchMutation(userId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
@@ -71,7 +109,11 @@ export function useRespondToMatchMutation(userId: string | undefined) {
       if (error) throw error;
       return data;
     },
-    // Both the responder's pending list and either player's history change.
-    onSettled: () => qc.invalidateQueries({ queryKey: ['matches'], exact: false }),
+    // Both the responder's pending list and either player's history change;
+    // a confirm also moves both players' ratings (F030 trigger).
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['matches'], exact: false });
+      qc.invalidateQueries({ queryKey: ['rating'], exact: false });
+    },
   });
 }

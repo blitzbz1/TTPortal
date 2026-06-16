@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
 import { useRouter , type Href } from 'expo-router';
 import { useSession } from '../hooks/useSession';
@@ -59,7 +60,16 @@ export function NotificationProvider({ children }: Props) {
   const { user } = useSession();
   const router = useRouter();
   const userId = user?.id;
+  const queryClient = useQueryClient();
   const { isOnline, enqueue } = useOfflineQueue();
+
+  // F023: keep the DM unread badge + thread list fresh on the same push +
+  // fetch-on-focus channel as notifications (no realtime).
+  const refreshDmSurfaces = useCallback(() => {
+    if (!userId) return;
+    queryClient.invalidateQueries({ queryKey: ['dm-unread'], exact: false });
+    queryClient.invalidateQueries({ queryKey: ['dm-threads'], exact: false });
+  }, [queryClient, userId]);
   const [pushToken, setPushToken] = useState<string | null>(null);
   const prevUserIdRef = useRef<string | null>(null);
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
@@ -188,10 +198,10 @@ export function NotificationProvider({ children }: Props) {
   useEffect(() => {
     if (!userId) return;
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
-      if (next === 'active') void refresh();
+      if (next === 'active') { void refresh(); refreshDmSurfaces(); }
     });
     return () => sub.remove();
-  }, [userId, refresh]);
+  }, [userId, refresh, refreshDmSurfaces]);
 
   useEffect(() => {
     if (!userId) {
@@ -253,6 +263,7 @@ export function NotificationProvider({ children }: Props) {
     try {
       notificationListener.current = Notifications.addNotificationReceivedListener(() => {
         void refresh();
+        refreshDmSurfaces();
       });
 
       responseListener.current =
@@ -280,7 +291,7 @@ export function NotificationProvider({ children }: Props) {
       if (notificationListener.current) notificationListener.current.remove();
       if (responseListener.current) responseListener.current.remove();
     };
-  }, [router, refresh]);
+  }, [router, refresh, refreshDmSurfaces]);
 
   const refreshUnreadCount = useCallback(async () => {
     await refresh();

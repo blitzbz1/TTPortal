@@ -352,6 +352,26 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
       fontWeight: FontWeight.semibold,
       color: colors.primaryMid,
     },
+    // F020: "playing now — join them" cue on a venue list row.
+    openPlayRowBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 4,
+      alignSelf: 'flex-start',
+    },
+    openPlayRowDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: colors.primary,
+    },
+    openPlayRowText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.semibold,
+      color: colors.primary,
+    },
   });
 
   /* -- Custom map pin -- */

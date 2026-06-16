@@ -10,6 +10,7 @@ import { useTheme } from '../hooks/useTheme';
 import { Fonts, Radius } from '../theme';
 import { createStyles } from './VenueDetailScreen.styles';
 import { CheckinDurationModal } from './VenueDetailScreen/CheckinDurationModal';
+import { VenueOpenPlaySection } from './VenueDetailScreen/VenueOpenPlaySection';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getDateLocale } from '../contexts/I18nProvider';
@@ -18,6 +19,7 @@ import { venueImageUrl } from '../lib/imageTransforms';
 import { prepareImageForUpload, ImageProcessingUnavailableError } from '../lib/imageUpload';
 import * as ImagePicker from 'expo-image-picker';
 import { checkin, checkout, getUserAnyActiveCheckin } from '../services/checkins';
+import { createPlayIntent } from '../services/openplay';
 import { useToggleFavoriteMutation } from '../hooks/queries/useFavoritesQuery';
 import { useOfflineQueue } from '../contexts/OfflineQueueProvider';
 import { useQueryClient } from '@tanstack/react-query';
@@ -40,6 +42,7 @@ import { WeatherChip } from '../components/WeatherChip';
 import { VenueRegularsRow } from '../components/VenueRegularsRow';
 import { VenueBoardSection } from '../components/VenueBoardSection';
 import { reportFreeTables, useVenueIntelQuery, venueIntelQueryKey } from '../features/venueIntel';
+import { useVenueOpenPlayQuery, useMyPlayIntentQuery, useInvalidateOpenPlay, useRespondToOpenPlayMutation, useConvertPlayIntentMutation, useCancelPlayIntentMutation, type WhenSlot } from '../features/openplay';
 import { useProfileQuery, profileQueryKey } from '../hooks/queries/useProfileQuery';
 import { updateProfile } from '../services/profiles';
 import { EmptyState } from '../components/EmptyState';
@@ -105,6 +108,15 @@ export function VenueDetailScreen({ venueId }: Props) {
   const queryClient = useQueryClient();
   const toggleFavoriteMutation = useToggleFavoriteMutation(user?.id);
 
+  // ── F020: Open Play broadcasts at this venue.
+  const { data: venueOpenPlay = [] } = useVenueOpenPlayQuery(vIdNum);
+  const { data: myPlayIntent } = useMyPlayIntentQuery(user?.id);
+  const invalidateOpenPlay = useInvalidateOpenPlay();
+  const respondOpenPlay = useRespondToOpenPlayMutation();
+  const convertOpenPlay = useConvertPlayIntentMutation();
+  const cancelOpenPlay = useCancelPlayIntentMutation();
+  const [planningSession, setPlanningSession] = useState(false);
+
   const venue = useMemo(
     () =>
       (bundle?.venue
@@ -161,6 +173,9 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [customMinutes, setCustomMinutes] = useState('');
   const [untilHour, setUntilHour] = useState('');
   const [untilMinute, setUntilMinute] = useState('');
+  const [lookingForPlayers, setLookingForPlayers] = useState(false);
+  const [sessionNote, setSessionNote] = useState('');
+  const [openPlayBusyId, setOpenPlayBusyId] = useState<number | null>(null);
   const [successSheetVisible, setSuccessSheetVisible] = useState(false);
   const [lastCheckinEndTime, setLastCheckinEndTime] = useState<string | undefined>();
   const [checkinQueuedOffline, setCheckinQueuedOffline] = useState(false);
@@ -372,6 +387,8 @@ export function VenueDetailScreen({ venueId }: Props) {
     setCustomMinutes('');
     setUntilHour('');
     setUntilMinute('');
+    setLookingForPlayers(false);
+    setSessionNote('');
     setCheckinModalVisible(true);
   }, []);
 
@@ -399,6 +416,7 @@ export function VenueDetailScreen({ venueId }: Props) {
     const now = new Date();
     const endedAt = new Date(now.getTime() + durationMinutes * 60_000);
     const endTimeStr = endedAt.toLocaleTimeString(getDateLocale(lang), { hour: '2-digit', minute: '2-digit' });
+    const note = lookingForPlayers ? (sessionNote.trim() || null) : null;
     const payload = {
       user_id: user.id,
       venue_id: Number(venueId),
@@ -406,6 +424,8 @@ export function VenueDetailScreen({ venueId }: Props) {
       started_at: now.toISOString(),
       ended_at: endedAt.toISOString(),
       friends: [],
+      open_to_play: lookingForPlayers,
+      session_note: note,
     };
 
     // Offline: queue the check-in with its original timestamps (the
@@ -437,11 +457,22 @@ export function VenueDetailScreen({ venueId }: Props) {
       return;
     }
     if (vIdNum) invalidateVenueDetail(vIdNum);
+    // F020: a "looking for players" check-in starts a joinable "now" broadcast
+    // that fans out to in-city friends. Failure (e.g. one-active guard) is
+    // non-fatal — the check-in itself already succeeded.
+    if (lookingForPlayers && vIdNum) {
+      try {
+        await createPlayIntent({ venueId: vIdNum, whenSlot: 'now', note, isPublic: true });
+        invalidateOpenPlay();
+      } catch {
+        /* ignore — check-in still counts */
+      }
+    }
     setLastCheckinEndTime(endTimeStr);
     setCheckinQueuedOffline(false);
     setSuccessSheetVisible(true);
     trackProductEvent(ProductEvents.checkinCompleted, { venueId: vIdNum });
-  }, [user, venueId, vIdNum, invalidateVenueDetail, s, lang, isOnline, enqueue]);
+  }, [user, venueId, vIdNum, invalidateVenueDetail, s, lang, isOnline, enqueue, lookingForPlayers, sessionNote, invalidateOpenPlay]);
 
   const handleCustomConfirm = useCallback(() => {
     if (customMode === 'minutes') {
@@ -463,6 +494,47 @@ export function VenueDetailScreen({ venueId }: Props) {
       doCheckin(diffMin);
     }
   }, [customMode, customMinutes, untilHour, untilMinute, doCheckin, s]);
+
+  // ── F020: Open Play join / leave / convert / cancel handlers.
+  const handleJoinOpenPlay = useCallback((intentId: number) => {
+    setOpenPlayBusyId(intentId);
+    respondOpenPlay.mutate({ intentId, action: 'join' }, {
+      onError: () => showAlert(s('error'), s('genericError')),
+      onSettled: () => setOpenPlayBusyId(null),
+    });
+  }, [respondOpenPlay, s]);
+
+  const handleLeaveOpenPlay = useCallback((intentId: number) => {
+    setOpenPlayBusyId(intentId);
+    respondOpenPlay.mutate({ intentId, action: 'leave' }, {
+      onSettled: () => setOpenPlayBusyId(null),
+    });
+  }, [respondOpenPlay]);
+
+  const handleConvertOpenPlay = useCallback((intentId: number) => {
+    setOpenPlayBusyId(intentId);
+    convertOpenPlay.mutate({ intentId }, {
+      onSuccess: (eventId) => {
+        if (eventId) router.push({ pathname: '/(protected)/event/[eventId]', params: { eventId: String(eventId) } });
+      },
+      onError: () => showAlert(s('error'), s('genericError')),
+      onSettled: () => setOpenPlayBusyId(null),
+    });
+  }, [convertOpenPlay, router, s]);
+
+  const handleCancelOpenPlay = useCallback((intentId: number) => {
+    setOpenPlayBusyId(intentId);
+    cancelOpenPlay.mutate(intentId, { onSettled: () => setOpenPlayBusyId(null) });
+  }, [cancelOpenPlay]);
+
+  const handlePlanSession = useCallback(async (whenSlot: WhenSlot) => {
+    if (!vIdNum || planningSession) return;
+    setPlanningSession(true);
+    const { error } = await createPlayIntent({ venueId: vIdNum, whenSlot, isPublic: true });
+    setPlanningSession(false);
+    if (error) { showAlert(s('error'), s('genericError')); return; }
+    invalidateOpenPlay();
+  }, [vIdNum, planningSession, invalidateOpenPlay, s]);
 
   const handleCheckout = useCallback(async () => {
     if (!activeCheckin || !user) return;
@@ -961,6 +1033,19 @@ export function VenueDetailScreen({ venueId }: Props) {
           )}
         </View>
 
+        {/* Open Play — looking-for-players broadcasts here (F020) */}
+        <VenueOpenPlaySection
+          items={venueOpenPlay}
+          busyId={openPlayBusyId}
+          canPlan={!!user && !myPlayIntent}
+          planning={planningSession}
+          onJoin={handleJoinOpenPlay}
+          onLeave={handleLeaveOpenPlay}
+          onConvert={handleConvertOpenPlay}
+          onCancel={handleCancelOpenPlay}
+          onPlan={handlePlanSession}
+        />
+
         {/* Venue Links */}
         <View style={styles.navSection}>
           <TouchableOpacity
@@ -1084,6 +1169,10 @@ export function VenueDetailScreen({ venueId }: Props) {
         setUntilHour={setUntilHour}
         untilMinute={untilMinute}
         setUntilMinute={setUntilMinute}
+        lookingForPlayers={lookingForPlayers}
+        setLookingForPlayers={setLookingForPlayers}
+        sessionNote={sessionNote}
+        setSessionNote={setSessionNote}
         onDismiss={() => setCheckinModalVisible(false)}
         onPickDuration={doCheckin}
         onConfirmCustom={handleCustomConfirm}

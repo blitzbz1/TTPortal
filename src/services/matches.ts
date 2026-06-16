@@ -88,6 +88,49 @@ export async function getPendingMatches(): Promise<{ data: PendingMatch[]; error
   return { data: (data ?? []) as PendingMatch[], error };
 }
 
+// --- F031: head-to-head + rivals ------------------------------------------
+export interface HeadToHead {
+  my_wins: number;
+  their_wins: number;
+  total: number;
+  my_sets: number;
+  their_sets: number;
+  streak: number; // signed: +N current win streak, -N loss streak
+  last5: boolean[]; // most recent first; true = a win for the viewer
+}
+
+export interface Rival {
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  my_wins: number;
+  their_wins: number;
+  total: number;
+}
+
+export async function getHeadToHead(opponentId: string): Promise<{ data: HeadToHead | null; error: unknown }> {
+  const { data, error } = await callRpc('get_head_to_head', { p_opponent_id: opponentId });
+  if (error || !data) return { data: null, error };
+  const d = data as Partial<HeadToHead> & { total: number };
+  return {
+    data: {
+      my_wins: d.my_wins ?? 0,
+      their_wins: d.their_wins ?? 0,
+      total: d.total ?? 0,
+      my_sets: d.my_sets ?? 0,
+      their_sets: d.their_sets ?? 0,
+      streak: d.streak ?? 0,
+      last5: d.last5 ?? [],
+    },
+    error: null,
+  };
+}
+
+export async function getRivals(): Promise<{ data: Rival[]; error: unknown }> {
+  const { data, error } = await callRpc('get_rivals');
+  return { data: (data ?? []) as Rival[], error };
+}
+
 /** W/L/pending tally for a user over their confirmed matches. */
 export function summarizeMatches(matches: PlayerMatch[], userId: string) {
   let wins = 0;

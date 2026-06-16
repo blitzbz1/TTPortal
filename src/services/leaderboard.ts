@@ -1,5 +1,47 @@
 import { supabase } from '../lib/supabase';
 
+// F033 ladder RPCs (migration 122) aren't in the generated types yet; bound
+// shim avoids the rpc this-binding bug (commit 2032f23).
+type RpcResponse<T> = Promise<{ data: T | null; error: unknown }>;
+const callRpc = supabase.rpc.bind(supabase) as unknown as (
+  name: string,
+  params?: Record<string, unknown>,
+) => RpcResponse<unknown>;
+
+export interface LadderEntry {
+  user_id: string;
+  full_name: string;
+  avatar_url: string | null;
+  city: string | null;
+  played: number;
+  wins: number;
+  rating: number;
+  rank: number;
+  score: number;
+}
+
+export interface LadderStanding {
+  played: number;
+  placed: boolean;
+  rank: number | null;
+  needed: number;
+  season?: string;
+}
+
+export async function getCityLadder(city?: string, seasonId?: number | null): Promise<{ data: LadderEntry[]; error: unknown }> {
+  const { data, error } = await callRpc('get_city_ladder', {
+    p_city: city ?? null,
+    p_season_id: seasonId ?? null,
+    p_limit: 50,
+  });
+  return { data: (data as LadderEntry[]) ?? [], error };
+}
+
+export async function getMyLadderStanding(city?: string): Promise<{ data: LadderStanding | null; error: unknown }> {
+  const { data, error } = await callRpc('get_my_ladder_standing', { p_city: city ?? null });
+  return { data: (data as LadderStanding) ?? null, error };
+}
+
 const VIEW_MAP = {
   checkins: 'leaderboard_checkins',
   reviews: 'leaderboard_reviews',
@@ -18,10 +60,13 @@ const COLUMN_MAP: Record<keyof typeof VIEW_MAP, string> = {
 };
 
 export async function getLeaderboard(
-  type: 'checkins' | 'reviews' | 'venues',
+  type: 'checkins' | 'reviews' | 'venues' | 'ladder',
   city?: string,
   period?: 'week' | 'all',
 ) {
+  if (type === 'ladder') {
+    return getCityLadder(city);
+  }
   if (period === 'week') {
     return getWeeklyLeaderboard(type, city);
   }

@@ -94,6 +94,8 @@ export interface Checkin {
   started_at: string;
   ended_at: string | null;
   friends: string[] | null;
+  open_to_play?: boolean;
+  session_note?: string | null;
 }
 
 export type ConditionVoteValue = 'buna' | 'acceptabila' | 'deteriorata';

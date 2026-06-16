@@ -375,6 +375,8 @@ export type Database = {
           ended_at: string
           friends: string[] | null
           id: number
+          open_to_play: boolean
+          session_note: string | null
           started_at: string
           table_number: number | null
           user_id: string
@@ -384,6 +386,8 @@ export type Database = {
           ended_at?: string
           friends?: string[] | null
           id?: number
+          open_to_play?: boolean
+          session_note?: string | null
           started_at?: string
           table_number?: number | null
           user_id: string
@@ -393,6 +397,8 @@ export type Database = {
           ended_at?: string
           friends?: string[] | null
           id?: number
+          open_to_play?: boolean
+          session_note?: string | null
           started_at?: string
           table_number?: number | null
           user_id?: string

@@ -12,6 +12,7 @@ import { sendRequest } from '../../services/friends';
 import { invalidateEventsCache } from '../../lib/eventsCache';
 import { BADGE_TRACKS } from '../../features/challenges/badgeDefinitions';
 import type { DbChallenge, EventChallengeSubmission } from '../../features/challenges';
+import { TournamentSection } from '../../features/tournaments';
 import { createStyles } from '../EventSchedulingScreen.styles';
 
 type BadgeInfo = { text: string; bg: string; color: string };
@@ -303,6 +304,15 @@ export function EventDetailContent(props: EventDetailContentProps) {
           </View>
         )}
       </View>
+
+      {ev.event_type === 'tournament' && (
+        <TournamentSection
+          eventId={ev.id}
+          isOrganizer={isOwner}
+          participantCount={participantCount}
+          currentUserId={user?.id ?? null}
+        />
+      )}
 
       {user && isJoined && ev.status !== 'cancelled' && (
         <View style={ms.section}>

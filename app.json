@@ -134,6 +134,12 @@
           "sounds": []
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "TTPortal uses the camera to scan a Quick Match QR code so you can pair with an opponent."
+        }
+      ],
       "@react-native-community/datetimepicker",
       "./plugins/withMapLibreAndroidOnly.js",
       [

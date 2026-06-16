@@ -12,6 +12,7 @@ import { useI18n } from '../hooks/useI18n';
 import { getDateLocale } from '../contexts/I18nProvider';
 import { useFocusRefresh } from '../hooks/useFocusRefresh';
 import { acceptRequest, declineRequest, findUserByUsername, getFriendshipBetweenUsers, sendRequest } from '../services/friends';
+import { dismissCrossedPath, type CrossedPath } from '../services/feed';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useFriendsQuery,
@@ -20,13 +21,15 @@ import {
   friendsQueryKey,
   pendingFriendsQueryKey,
 } from '../hooks/queries/useFriendsQuery';
+import { useCrossedPathsQuery, crossedPathsQueryKey } from '../hooks/queries/useCrossedPathsQuery';
+import { FindPlayersTab } from './FriendsScreen/FindPlayersTab';
 import { sendAppInviteEmail } from '../services/invites';
 import { Card } from '../components/Card';
 import { SkillChip } from '../components/SkillChip';
 import { EmptyState } from '../components/EmptyState';
 import { isValidEmail } from '../lib/auth-utils';
 
-type FriendsTab = 'all' | 'playing' | 'pending';
+type FriendsTab = 'all' | 'playing' | 'pending' | 'discover';
 type AddFriendResult = 'idle' | 'sent' | 'not_found' | 'already_friends' | 'already_pending' | 'incoming_pending' | 'self' | 'error';
 type InviteEmailResult = 'idle' | 'sent' | 'invalid' | 'already_registered' | 'error';
 
@@ -42,6 +45,7 @@ export function FriendsScreen() {
   const [addFriendLoading, setAddFriendLoading] = useState(false);
   const [addFriendResult, setAddFriendResult] = useState<AddFriendResult>('idle');
   const [refreshing, setRefreshing] = useState(false);
+  const [removedSuggestions, setRemovedSuggestions] = useState<Set<string>>(new Set());
   const { user } = useSession();
   // T050: react-query owns all three lists (friends/pending hydrate from
   // the persistent friendsCache inside the hooks; playing is live data).
@@ -52,6 +56,11 @@ export function FriendsScreen() {
   const pending = (pendingData ?? []) as any[];
   const { data: playingData, refetch: refetchPlaying } = usePlayingFriendsQuery(user?.id, friendsData ?? []);
   const playingFriends = (playingData ?? []) as any[];
+  const { data: crossedData, refetch: refetchCrossed } = useCrossedPathsQuery(user?.id);
+  const visibleCrossed = useMemo(
+    () => ((crossedData ?? []) as CrossedPath[]).filter((c) => !removedSuggestions.has(c.userId)),
+    [crossedData, removedSuggestions],
+  );
   const loading = friendsLoading && friends.length === 0;
   const router = useRouter();
   const { s, lang } = useI18n();
@@ -73,8 +82,8 @@ export function FriendsScreen() {
   );
 
   const fetchData = useCallback(async () => {
-    await Promise.all([refetchFriends(), refetchPending(), refetchPlaying()]);
-  }, [refetchFriends, refetchPending, refetchPlaying]);
+    await Promise.all([refetchFriends(), refetchPending(), refetchPlaying(), refetchCrossed()]);
+  }, [refetchFriends, refetchPending, refetchPlaying, refetchCrossed]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -106,6 +115,29 @@ export function FriendsScreen() {
       (prev ?? []).filter((p) => p.id !== id),
     );
   }, [queryClient, s, user]);
+
+  const handleConnectSuggestion = useCallback(async (targetId: string) => {
+    if (!user) return;
+    setRemovedSuggestions((prev) => new Set(prev).add(targetId));
+    const { error } = await sendRequest(user.id, targetId);
+    if (error) {
+      setRemovedSuggestions((prev) => {
+        const next = new Set(prev);
+        next.delete(targetId);
+        return next;
+      });
+      showAlert(s('error'), s('error'));
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: pendingFriendsQueryKey(user.id) });
+  }, [queryClient, s, user]);
+
+  const handleDismissSuggestion = useCallback(async (targetId: string) => {
+    if (!user) return;
+    setRemovedSuggestions((prev) => new Set(prev).add(targetId));
+    await dismissCrossedPath(targetId);
+    queryClient.invalidateQueries({ queryKey: crossedPathsQueryKey(user.id) });
+  }, [queryClient, user]);
 
   const handleOpenAddFriend = useCallback(() => {
     setEnteredUsername('');
@@ -284,11 +316,60 @@ export function FriendsScreen() {
           </View>
         </View>
 
+        {!searchQuery && visibleCrossed.length > 0 && (
+          <View style={styles.crossedSection}>
+            <Text style={styles.sectionLabel}>{s('crossedPathsTitle')}</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.crossedStrip}
+            >
+              {visibleCrossed.map((c, index) => (
+                <Animated.View key={c.userId} entering={FadeInDown.delay(Math.min(index, 6) * 50).duration(260)}>
+                  <View style={styles.crossedCard}>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      style={styles.crossedTop}
+                      onPress={() => openPlayerProfile({ id: c.userId })}
+                    >
+                      <View style={[styles.crossedAvatar, { backgroundColor: getColor(index) }]}>
+                        <Text style={styles.friendInitials}>{getInitials(c.fullName)}</Text>
+                      </View>
+                      <Text style={styles.crossedName} numberOfLines={1}>{c.fullName || s('user')}</Text>
+                      <Text style={styles.crossedMeta} numberOfLines={1}>
+                        {c.venueName
+                          ? s('crossedPathsAt', String(c.sharedCount), c.venueName)
+                          : s('crossedPathsMet', String(c.sharedCount))}
+                      </Text>
+                    </TouchableOpacity>
+                    <View style={styles.crossedActions}>
+                      <TouchableOpacity style={styles.crossedAddBtn} onPress={() => handleConnectSuggestion(c.userId)}>
+                        <Lucide name="user-plus" size={14} color={colors.textOnPrimary} />
+                        <Text style={styles.crossedAddText}>{s('crossedPathsConnect')}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.crossedDismiss}
+                        onPress={() => handleDismissSuggestion(c.userId)}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={s('crossedPathsDismissA11y')}
+                      >
+                        <Lucide name="x" size={16} color={colors.textFaint} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </Animated.View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         <View style={styles.tabs}>
           {[
             { key: 'all' as FriendsTab, label: `${s('allFriends')} (${friends.length})` },
             { key: 'playing' as FriendsTab, label: `${s('online')} (${playingFriends.length})` },
             { key: 'pending' as FriendsTab, label: `${s('pending')} (${pending.length})` },
+            { key: 'discover' as FriendsTab, label: s('findPlayersTab') },
           ].map((tab) => (
             <TouchableOpacity
               key={tab.key}
@@ -446,6 +527,8 @@ export function FriendsScreen() {
                 )}
               </View>
             )}
+
+            {activeTab === 'discover' && <FindPlayersTab />}
           </>
         )}
       </ScrollView>

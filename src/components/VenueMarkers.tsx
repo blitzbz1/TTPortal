@@ -20,12 +20,16 @@ interface VenueMarkersProps {
   friendVenueIds: Set<number>;
   /** F010: anonymous active check-in count per venue (counts only, no ids). */
   liveCounts?: Map<number, number>;
+  /** F020: venues with an active open-play broadcast the viewer can see. */
+  openPlayVenueIds?: Set<number>;
   onVenuePress: (venueId: number) => void;
   conditionLabel: (condition: any) => { label: string; color: string };
   typeLabel: (type: string) => string;
   friendsActiveLabel: string;
   /** F010: "{0} here now" — interpolated by the caller's i18n. */
   liveHereLabel?: (count: number) => string;
+  /** F020: "Playing now — join them" for the callout. */
+  openPlayLabel?: string;
   pinStyles: any;
   colors: ThemeColors;
 }
@@ -106,11 +110,13 @@ function VenueMarkersImpl({
   venues,
   friendVenueIds,
   liveCounts,
+  openPlayVenueIds,
   onVenuePress,
   conditionLabel,
   typeLabel,
   friendsActiveLabel,
   liveHereLabel,
+  openPlayLabel,
   pinStyles,
   colors,
 }: VenueMarkersProps) {
@@ -125,10 +131,11 @@ function VenueMarkersImpl({
         const isIndoor = venue.type === 'sala_indoor';
         const hasFriend = friendVenueIds.has(venue.id);
         const liveCount = liveCounts?.get(venue.id) ?? 0;
+        const isOpenPlay = openPlayVenueIds?.has(venue.id) ?? false;
         return (
           <TrackedMarker
             key={`v-${venue.id}`}
-            contentSig={`${venue.condition}:${hasFriend}:${isIndoor}:live${liveCount}`}
+            contentSig={`${venue.condition}:${hasFriend}:${isIndoor}:live${liveCount}:play${isOpenPlay}`}
             coordinate={{ latitude: venue.lat, longitude: venue.lng }}
           >
             <View
@@ -142,6 +149,12 @@ function VenueMarkersImpl({
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
             >
+              {isOpenPlay && (
+                // F020: a halo marks a venue with an active "looking for
+                // players" broadcast (markers snapshot, so a static ring, not
+                // a continuous pulse — consistent with the F010 live badge).
+                <View style={extraStyles.openPlayRing} />
+              )}
               <View style={[pinStyles.wrap, { backgroundColor: condInfo.color }]}>
                 <Lucide name={isIndoor ? 'building-2' : 'activity'} size={14} color={colors.textOnPrimary} />
               </View>
@@ -174,6 +187,7 @@ function VenueMarkersImpl({
                   {typeLabel(venue.type)} · {condInfo.label}
                   {hasFriend ? ` · 👋 ${friendsActiveLabel}` : ''}
                   {liveCount > 0 && liveHereLabel ? ` · ${liveHereLabel(liveCount)}` : ''}
+                  {isOpenPlay && openPlayLabel ? ` · ${openPlayLabel}` : ''}
                 </Text>
               </View>
             </Callout>
@@ -217,6 +231,18 @@ function createExtraStyles(colors: ThemeColors) {
       color: colors.textOnPrimary,
       fontSize: 9,
       fontWeight: '700',
+    },
+    // F020: halo behind the pin marking an active open-play broadcast.
+    openPlayRing: {
+      position: 'absolute',
+      top: -5,
+      left: 0,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      borderWidth: 2.5,
+      borderColor: colors.primary,
+      backgroundColor: 'transparent',
     },
   });
 }

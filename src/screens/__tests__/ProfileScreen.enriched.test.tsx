@@ -3,8 +3,11 @@ import { render } from '@testing-library/react-native';
 
 jest.mock('../../features/matches', () => ({
   usePlayerMatchesQuery: () => ({ data: [] }),
+  useRivalsQuery: () => ({ data: [] }),
   summarizeMatches: () => ({ wins: 0, losses: 0, total: 0 }),
 }));
+jest.mock('../../features/ratings', () => ({ usePlayerRatingQuery: () => ({ data: null }) }));
+jest.mock('../../features/findPlayers', () => ({ sendMatchInvite: jest.fn().mockResolvedValue({ error: null }) }));
 jest.mock('../../services/matches', () => ({
   getPendingMatches: jest.fn().mockResolvedValue({ data: [] }),
   confirmMatch: jest.fn().mockResolvedValue({ data: {}, error: null }),

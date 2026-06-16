@@ -1,0 +1,40 @@
+# Smoke: F020 open play — check in at a venue with "looking for players" on,
+# then confirm the broadcast surfaces. Destructive (writes a check-in +
+# broadcast). Run against the local stack, NOT prod. testID-first per the
+# .maestro conventions (text taps break under the English-default first launch).
+appId: com.ttportal.app
+---
+- launchApp:
+    clearState: false
+- runFlow: helpers/ensure_logged_in.yaml
+
+# Open the first venue from the map sheet.
+- extendedWaitUntil:
+    visible:
+      id: "venue-list"
+    timeout: 25000
+- tapOn:
+    id: "venue-list"
+    index: 0
+    optional: true
+
+# Check in and toggle "looking for players".
+- tapOn:
+    text: ".*Check.?in.*"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "checkin-looking-for-players"
+    timeout: 8000
+- tapOn:
+    id: "checkin-looking-for-players"
+- inputText: "Bring your bat"
+- hideKeyboard
+- tapOn:
+    text: "1h"
+    optional: true
+
+# Back on venue detail, the open-play section should show the broadcast.
+- extendedWaitUntil:
+    visible: "Looking to play here"
+    timeout: 10000

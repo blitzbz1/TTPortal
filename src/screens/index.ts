@@ -14,3 +14,5 @@ export { AdminModerationScreen } from './AdminModerationScreen';
 export { FavoritesScreen } from './FavoritesScreen';
 export { ChallengeScreen } from './ChallengeScreen';
 export { OnboardingScreen } from './OnboardingScreen';
+export { MessagesScreen } from './MessagesScreen';
+export { MessageThreadScreen } from './MessageThreadScreen';

@@ -18,6 +18,10 @@ interface Props {
   setUntilHour: (value: string) => void;
   untilMinute: string;
   setUntilMinute: (value: string) => void;
+  lookingForPlayers: boolean;
+  setLookingForPlayers: (value: boolean) => void;
+  sessionNote: string;
+  setSessionNote: (value: string) => void;
   onDismiss: () => void;
   onPickDuration: (minutes: number) => void;
   onConfirmCustom: () => void;
@@ -33,6 +37,10 @@ export function CheckinDurationModal({
   setUntilHour,
   untilMinute,
   setUntilMinute,
+  lookingForPlayers,
+  setLookingForPlayers,
+  sessionNote,
+  setSessionNote,
   onDismiss,
   onPickDuration,
   onConfirmCustom,
@@ -56,6 +64,7 @@ export function CheckinDurationModal({
             showsVerticalScrollIndicator={false}
           >
           {customMode === 'none' && (
+            <>
             <View style={cm.options}>
               <TouchableOpacity style={cm.optionBtn} onPress={() => onPickDuration(60)}>
                 <Lucide name="clock" size={18} color={colors.primary} />
@@ -79,7 +88,39 @@ export function CheckinDurationModal({
                 <Text style={cm.optionText}>{s('untilTime')}</Text>
                 <View style={{ marginLeft: 'auto' }}><Lucide name="chevron-right" size={14} color={colors.textFaint} /></View>
               </TouchableOpacity>
+
+              {/* F020: "looking for players" — subtle tint when on, thin stroke (no solid fill). */}
+              <TouchableOpacity
+                style={[
+                  cm.optionBtn,
+                  lookingForPlayers && { borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.primaryPale },
+                ]}
+                onPress={() => setLookingForPlayers(!lookingForPlayers)}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: lookingForPlayers }}
+                testID="checkin-looking-for-players"
+              >
+                <Lucide name="users" size={18} color={lookingForPlayers ? colors.primary : colors.textMuted} />
+                <Text style={cm.optionText}>{s('checkinLookingForPlayers')}</Text>
+                <View style={{ marginLeft: 'auto' }}>
+                  <Lucide name={lookingForPlayers ? 'check' : 'circle'} size={16}
+                    color={lookingForPlayers ? colors.primary : colors.textFaint} />
+                </View>
+              </TouchableOpacity>
             </View>
+
+            {lookingForPlayers && (
+              <TextInput
+                style={cm.input}
+                placeholder={s('checkinSessionNotePlaceholder')}
+                placeholderTextColor={colors.textFaint}
+                value={sessionNote}
+                onChangeText={setSessionNote}
+                maxLength={120}
+                accessibilityLabel={s('checkinSessionNotePlaceholder')}
+              />
+            )}
+            </>
           )}
 
           {customMode === 'minutes' && (

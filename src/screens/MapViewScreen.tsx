@@ -27,6 +27,8 @@ import { createStyles } from './MapViewScreen.styles';
 import { useVenuesQuery } from '../hooks/queries/useVenuesQuery';
 import { useFriendPresenceQuery } from '../hooks/queries/useFriendPresenceQuery';
 import { useLiveVenueCountsQuery, useCityVenueAmenitiesQuery } from '../features/venueIntel';
+import { useOpenPlayCountsQuery } from '../features/openplay';
+import { MessagesButton } from '../components/MessagesButton';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
@@ -70,6 +72,9 @@ function CurrentLocationMarker({ pinStyles, color }: CurrentLocationMarkerProps)
   );
 }
 
+// Stable empty-set identity for the open-play marker overlay (F020).
+const EMPTY_OPEN_PLAY_SET: Set<number> = new Set();
+
 interface VenueListRowProps {
   venue: VenueWithDistance;
   index: number;
@@ -81,6 +86,9 @@ interface VenueListRowProps {
   /** F010: anonymous "{0} here now" count for this venue, 0 = hidden. */
   liveCount: number;
   liveLabel?: string;
+  /** F020: venue has an active open-play broadcast the viewer can see. */
+  openPlay?: boolean;
+  openPlayLabel?: string;
   styles: ReturnType<typeof createStyles>['styles'];
   onPress: (venueId: number) => void;
 }
@@ -94,6 +102,8 @@ const VenueListRow = React.memo(function VenueListRow({
   tablesLabel,
   liveCount,
   liveLabel,
+  openPlay,
+  openPlayLabel,
   styles,
   onPress,
 }: VenueListRowProps) {
@@ -110,7 +120,7 @@ const VenueListRow = React.memo(function VenueListRow({
           accessibilityRole="button"
           // T066: the sheet list is the non-visual alternative to the map —
           // carry type/condition/rating, not just the name.
-          accessibilityLabel={[venue.name, typeText, conditionInfo.label, starsText || null, liveLabel || null]
+          accessibilityLabel={[venue.name, typeText, conditionInfo.label, starsText || null, liveLabel || null, openPlay ? openPlayLabel || null : null]
             .filter(Boolean)
             .join(', ')}
         >
@@ -129,6 +139,12 @@ const VenueListRow = React.memo(function VenueListRow({
                 {conditionInfo.label}
               </Text>
             </View>
+            {openPlay && openPlayLabel ? (
+              <View style={styles.openPlayRowBadge} testID={`venue-openplay-${venue.id}`}>
+                <View style={styles.openPlayRowDot} />
+                <Text style={styles.openPlayRowText} numberOfLines={1}>{openPlayLabel}</Text>
+              </View>
+            ) : null}
           </View>
           <View style={styles.venueRight}>
             {liveCount > 0 ? (
@@ -259,6 +275,18 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   // for the selected city — drives the live-count dot on pins and list rows.
   const { data: liveCounts } = useLiveVenueCountsQuery(selectedCity?.id ?? null);
   const liveHereLabel = useCallback((n: number) => s('venueBusynessHereNow', String(n)), [s]);
+
+  // F020: venues with an active open-play broadcast → pulsing pin + "join them".
+  const { data: openPlayCounts } = useOpenPlayCountsQuery(selectedCity?.id ?? null);
+  const openPlaySet = useMemo(
+    // Keep a stable empty-set reference when there are no broadcasts, so the
+    // (async) counts query settling never reconciles the memoized marker layer.
+    () => (openPlayCounts && openPlayCounts.size > 0
+      ? new Set<number>(openPlayCounts.keys())
+      : EMPTY_OPEN_PLAY_SET),
+    [openPlayCounts],
+  );
+  const openPlayJoinLabel = s('openPlayJoinThem');
   // F012: per-venue amenities for the "free entry" / "rental" filter chips.
   const { data: cityAmenities } = useCityVenueAmenitiesQuery(selectedCity?.id ?? null);
 
@@ -382,6 +410,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
         {user ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <FeedbackHeaderButton color={headerFg} />
+            <MessagesButton color={headerFg} />
             <NotificationBellButton color={headerFg} />
           </View>
         ) : (
@@ -404,11 +433,13 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
             venues={chipFilteredVenues}
             friendVenueIds={friendCheckinVenueIds}
             liveCounts={liveCounts}
+            openPlayVenueIds={openPlaySet}
             onVenuePress={handleVenueMarkerPress}
             conditionLabel={conditionLabel}
             typeLabel={typeLabel}
             friendsActiveLabel={s('friendsActive')}
             liveHereLabel={liveHereLabel}
+            openPlayLabel={openPlayJoinLabel}
             pinStyles={pinStyles}
             colors={colors}
           />
@@ -566,6 +597,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
                 const animateIn = !listRevealedRef.current && index < 8;
                 if (index >= 7) listRevealedRef.current = true;
                 const lc = liveCounts?.get(venue.id) ?? 0;
+                const op = openPlaySet.has(venue.id);
                 return (
                   <VenueListRow
                     venue={venue}
@@ -576,6 +608,8 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
                     tablesLabel={s('tables')}
                     liveCount={lc}
                     liveLabel={lc > 0 ? liveHereLabel(lc) : undefined}
+                    openPlay={op}
+                    openPlayLabel={openPlayJoinLabel}
                     styles={styles}
                     onPress={handleVenueListPress}
                   />

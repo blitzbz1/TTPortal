@@ -2,11 +2,15 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Modal, Pressable, Platform } from 'react-native';
 import { showAlert } from '../lib/dialogs';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { EquipmentSummaryCard } from '../components/EquipmentSummaryCard';
 import { Lucide } from '../components/Icon';
 import { SkillChip } from '../components/SkillChip';
+import { RatingChip } from '../components/RatingChip';
+import { usePlayerRatingQuery } from '../features/ratings';
+import { useHeadToHeadQuery } from '../features/matches';
 import { LogMatchModal } from '../components/LogMatchModal';
+import { getOrCreateDmThread } from '../features/messaging';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
@@ -20,9 +24,11 @@ import type { Profile, EquipmentSelection } from '../types/database';
 
 interface Props {
   userId: string;
+  /** F034: open the Log Match sheet on mount (Quick Match QR deep link). */
+  autoLogMatch?: boolean;
 }
 
-export function PlayerProfileScreen({ userId }: Props) {
+export function PlayerProfileScreen({ userId, autoLogMatch }: Props) {
   const router = useRouter();
   const { user } = useSession();
   const { s, lang } = useI18n();
@@ -33,6 +39,8 @@ export function PlayerProfileScreen({ userId }: Props) {
   // T050: profile + stats via react-query (hooks hydrate from / mirror to
   // the persistent profileCache); equipment keeps its lightweight effect.
   const { data: profileRaw, isLoading: profileLoading } = useProfileQuery(userId);
+  const { data: rating } = usePlayerRatingQuery(userId);
+  const { data: h2h } = useHeadToHeadQuery(user?.id, userId);
   const profile = (profileRaw ?? null) as Profile | null;
   const { data: stats } = useProfileStatsQuery(userId) as {
     data: { total_checkins: number; unique_venues: number; events_joined: number; total_hours_played: number } | null | undefined;
@@ -45,6 +53,12 @@ export function PlayerProfileScreen({ userId }: Props) {
   const [eventsLoading, setEventsLoading] = useState(false);
   const [sendingInviteId, setSendingInviteId] = useState<number | null>(null);
   const [logMatchVisible, setLogMatchVisible] = useState(false);
+
+  // F034: a Quick-Match QR deep link (?logMatch=1) opens the Log Match sheet,
+  // already pre-targeted at this player via presetOpponentId.
+  useEffect(() => {
+    if (autoLogMatch) setLogMatchVisible(true);
+  }, [autoLogMatch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +125,17 @@ export function PlayerProfileScreen({ userId }: Props) {
     }
   }, [user, userId, s]);
 
+  const handleMessage = useCallback(async () => {
+    if (!user) return;
+    const { data: threadId, error } = await getOrCreateDmThread(userId);
+    if (error || !threadId) {
+      showAlert(s('error'), s('messagesCannotSend'));
+      return;
+    }
+    const path: string = `/messages/${threadId}?otherName=${encodeURIComponent(fullName)}`;
+    router.push(path as Href);
+  }, [user, userId, fullName, router, s]);
+
   const isSelf = user?.id === userId;
 
   return (
@@ -134,6 +159,7 @@ export function PlayerProfileScreen({ userId }: Props) {
             <Text style={styles.name}>{fullName}</Text>
             {usernameDisplay ? <Text style={styles.username}>{usernameDisplay}</Text> : null}
             <SkillChip skillLevel={profile?.skill_level ?? null} />
+            <RatingChip rating={rating?.rating} provisional={rating?.provisional} />
           </View>
 
           {stats && (
@@ -146,6 +172,46 @@ export function PlayerProfileScreen({ userId }: Props) {
                   </View>
                 ))}
               </View>
+            </View>
+          )}
+
+          {/* F031: head-to-head vs the viewer */}
+          {!isSelf && h2h && h2h.total > 0 && (
+            <View style={styles.h2hCard}>
+              <Text style={styles.h2hTitle}>{s('headToHeadTitle')}</Text>
+              <View style={styles.h2hRow}>
+                <View style={styles.h2hSide}>
+                  <Text style={[styles.h2hScore, { color: colors.primary }]}>{h2h.my_wins}</Text>
+                  <Text style={styles.h2hSideLabel}>{s('h2hYou')}</Text>
+                </View>
+                <Text style={styles.h2hDash}>—</Text>
+                <View style={styles.h2hSide}>
+                  <Text style={[styles.h2hScore, { color: colors.red }]}>{h2h.their_wins}</Text>
+                  <Text style={styles.h2hSideLabel} numberOfLines={1}>{fullName}</Text>
+                </View>
+              </View>
+              <View style={styles.h2hMetaRow}>
+                <Text style={styles.h2hMeta}>{s('h2hSets', `${h2h.my_sets}`, `${h2h.their_sets}`)}</Text>
+                {h2h.streak !== 0 ? (
+                  <Text style={[styles.h2hMeta, { color: h2h.streak > 0 ? colors.primary : colors.red, fontWeight: '700' }]}>
+                    {h2h.streak > 0 ? s('h2hStreakWin', `${h2h.streak}`) : s('h2hStreakLoss', `${-h2h.streak}`)}
+                  </Text>
+                ) : null}
+              </View>
+              {h2h.last5.length > 0 && (
+                <View style={styles.h2hDots}>
+                  {h2h.last5.map((win, i) => (
+                    <View
+                      key={i}
+                      style={[styles.h2hDot, { backgroundColor: win ? colors.primaryPale : colors.redPale }]}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: win ? colors.primary : colors.red }}>
+                        {win ? s('winShort') : s('lossShort')}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           )}
 
@@ -180,6 +246,14 @@ export function PlayerProfileScreen({ userId }: Props) {
               >
                 <Lucide name="swords" size={16} color={colors.primary} />
                 <Text style={[styles.inviteBtnText, { color: colors.primary }]}>{s('logMatchTitle')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.inviteBtn, { backgroundColor: colors.bgAlt, borderWidth: 1, borderColor: colors.border, marginTop: Spacing.sm }]}
+                onPress={handleMessage}
+                testID="message-player-btn"
+              >
+                <Lucide name="message-circle" size={16} color={colors.text} />
+                <Text style={[styles.inviteBtnText, { color: colors.text }]}>{s('messageButton')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -340,6 +414,21 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
       color: colors.textMuted,
       textAlign: 'center',
     },
+    h2hCard: {
+      marginHorizontal: Spacing.md, marginTop: Spacing.lg,
+      backgroundColor: colors.bgAlt, borderRadius: 12, padding: Spacing.md,
+      borderWidth: 1, borderColor: colors.borderLight, gap: Spacing.sm, ...Shadows.sm,
+    },
+    h2hTitle: { fontFamily: Fonts.heading, fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: colors.text },
+    h2hRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.lg },
+    h2hSide: { alignItems: 'center', flex: 1, gap: 2 },
+    h2hScore: { fontFamily: Fonts.heading, fontSize: 34, fontWeight: FontWeight.extrabold },
+    h2hSideLabel: { fontFamily: Fonts.body, fontSize: FontSize.sm, color: colors.textMuted },
+    h2hDash: { fontFamily: Fonts.heading, fontSize: FontSize.xxl, color: colors.textFaint },
+    h2hMetaRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.md },
+    h2hMeta: { fontFamily: Fonts.body, fontSize: FontSize.base, color: colors.textMuted },
+    h2hDots: { flexDirection: 'row', justifyContent: 'center', gap: 6 },
+    h2hDot: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
     equipmentSection: {
       marginHorizontal: Spacing.md,
       marginTop: Spacing.lg,

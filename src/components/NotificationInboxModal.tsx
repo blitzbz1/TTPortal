@@ -3,6 +3,7 @@ import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View }
 import { showConfirm } from '../lib/dialogs';
 import { BottomSheetBackdrop, BottomSheetFlatList, BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter , type Href } from 'expo-router';
 import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
@@ -13,6 +14,7 @@ import { useI18n } from '../hooks/useI18n';
 import { useNotificationHistory, type NotificationRecord } from '../hooks/useNotificationHistory';
 import { acceptRequest, declineRequest, getPendingRequests } from '../services/friends';
 import { confirmMatch, disputeMatch, getPendingMatches } from '../services/matches';
+import { acceptMatchInvite, declineMatchInvite, getPendingMatchInvites } from '../services/findPlayers';
 import { buildRouteFromNotificationData } from '../lib/notificationRoutes';
 import { NotificationSkeleton, SkeletonList } from './SkeletonLoader';
 import { EmptyState } from './EmptyState';
@@ -42,11 +44,17 @@ function getIconMap(colors: ThemeColors): Record<string, { name: string; color: 
     match_confirm: { name: 'swords', color: colors.accent, bg: colors.amberPale },
     match_confirmed: { name: 'check', color: colors.primaryMid, bg: colors.primaryPale },
     match_disputed: { name: 'flag', color: colors.red, bg: colors.redPale },
+    match_invite: { name: 'swords', color: colors.purple, bg: colors.purplePale },
+    match_invite_accepted: { name: 'calendar-check', color: colors.primaryMid, bg: colors.primaryPale },
+    play_broadcast: { name: 'users', color: colors.primaryMid, bg: colors.primaryPale },
+    play_join: { name: 'hand', color: colors.primaryMid, bg: colors.primaryPale },
+    play_converted: { name: 'calendar-check', color: colors.primaryMid, bg: colors.primaryPale },
   };
 }
 
 export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(function NotificationInboxModal(_props, ref) {
   const sheetRef = useRef<BottomSheetModal>(null);
+  const queryClient = useQueryClient();
   const { user } = useSession();
   const { s } = useI18n();
   const router = useRouter();
@@ -78,6 +86,8 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
   const [respondedIds, setRespondedIds] = useState<Set<string>>(new Set());
   const [pendingMatchIds, setPendingMatchIds] = useState<Set<number>>(new Set());
   const [respondedMatchIds, setRespondedMatchIds] = useState<Set<number>>(new Set());
+  const [pendingInviteIds, setPendingInviteIds] = useState<Set<number>>(new Set());
+  const [respondedInviteIds, setRespondedInviteIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!user) return;
@@ -101,6 +111,19 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
       const { data } = await getPendingMatches();
       if (cancelled || !data) return;
       setPendingMatchIds(new Set(data.map((m) => m.id)));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await getPendingMatchInvites();
+      if (cancelled || !data) return;
+      setPendingInviteIds(new Set(data.map((m) => m.id)));
     })();
     return () => {
       cancelled = true;
@@ -163,6 +186,20 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
       const { error } = await (action === 'confirm' ? confirmMatch(matchId) : disputeMatch(matchId));
       if (error) return;
       setRespondedMatchIds((prev) => new Set(prev).add(matchId));
+      // F030: a confirm moves both players' ratings — refresh rating/match queries
+      // so the celebration sheet can fire next time Profile is viewed.
+      queryClient.invalidateQueries({ queryKey: ['rating'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['matches'], exact: false });
+      await markAsRead(notifId);
+    },
+    [markAsRead, queryClient],
+  );
+
+  const handleRespondInvite = useCallback(
+    async (inviteId: number, notifId: number, action: 'accept' | 'decline') => {
+      const { error } = await (action === 'accept' ? acceptMatchInvite(inviteId) : declineMatchInvite(inviteId));
+      if (error) return;
+      setRespondedInviteIds((prev) => new Set(prev).add(inviteId));
       await markAsRead(notifId);
     },
     [markAsRead],
@@ -201,6 +238,8 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
       const icon = ICON_MAP[n.type] || ICON_MAP.friend_request;
       const matchId =
         n.type === 'match_confirm' && typeof n.data?.matchId === 'number' ? n.data.matchId : null;
+      const inviteId =
+        n.type === 'match_invite' && typeof n.data?.inviteId === 'number' ? n.data.inviteId : null;
       return (
         <View style={styles.rowWrap}>
           <SwipeableDeleteRow onDelete={() => deleteNotification(n.id)}>
@@ -247,6 +286,21 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
                 {matchId != null && respondedMatchIds.has(matchId) && (
                   <Text style={styles.respondedText}>{s('matchResponded')}</Text>
                 )}
+                {inviteId != null && pendingInviteIds.has(inviteId) && !respondedInviteIds.has(inviteId) && (
+                  <View style={styles.inlineActions}>
+                    <TouchableOpacity style={styles.acceptBtn} onPress={() => handleRespondInvite(inviteId, n.id, 'accept')} accessibilityRole="button" accessibilityLabel={s('accept')}>
+                      <Lucide name="check" size={14} color={colors.textOnPrimary} />
+                      <Text style={styles.acceptBtnText}>{s('accept')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.declineBtn} onPress={() => handleRespondInvite(inviteId, n.id, 'decline')} accessibilityRole="button" accessibilityLabel={s('decline')}>
+                      <Lucide name="x" size={14} color={colors.red} />
+                      <Text style={styles.declineBtnText}>{s('decline')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {inviteId != null && respondedInviteIds.has(inviteId) && (
+                  <Text style={styles.respondedText}>{s('findPlayersChallengeAccepted')}</Text>
+                )}
                 <Text style={styles.cardTime}>{formatTime(n.created_at)}</Text>
               </View>
               {!n.read && <View style={styles.unreadDot} />}
@@ -255,7 +309,7 @@ export const NotificationInboxModal = forwardRef<NotificationInboxModalRef>(func
         </View>
       );
     },
-    [ICON_MAP, colors.red, colors.textOnPrimary, deleteNotification, formatTime, handleAcceptFriend, handleDeclineFriend, handleRespondMatch, handleTap, pendingMap, pendingMatchIds, respondedIds, respondedMatchIds, s, styles],
+    [ICON_MAP, colors.red, colors.textOnPrimary, deleteNotification, formatTime, handleAcceptFriend, handleDeclineFriend, handleRespondMatch, handleRespondInvite, handleTap, pendingMap, pendingMatchIds, pendingInviteIds, respondedIds, respondedMatchIds, respondedInviteIds, s, styles],
   );
 
   return (

@@ -1,10 +1,14 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { Lucide } from '../components/Icon';
 import { CityPickerModal } from '../components/CityPickerModal';
+import { ShareCard } from '../components/ShareCard';
+import { shareCardImage } from '../lib/shareImage';
+import { getMyLadderStanding } from '../services/leaderboard';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
@@ -15,12 +19,13 @@ import { LeaderboardSkeleton } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
 import { hapticSelection } from '../lib/haptics';
 
-type LBTab = 'checkins' | 'reviews' | 'locations';
+type LBTab = 'checkins' | 'reviews' | 'locations' | 'ladder';
 
-const TAB_TO_TYPE: Record<LBTab, 'checkins' | 'reviews' | 'venues'> = {
+const TAB_TO_TYPE: Record<LBTab, 'checkins' | 'reviews' | 'venues' | 'ladder'> = {
   checkins: 'checkins',
   reviews: 'reviews',
   locations: 'venues',
+  ladder: 'ladder',
 };
 
 // Medal by rank value (1=gold, 2=silver, 3=bronze)
@@ -53,6 +58,15 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
   );
   const loading = isLoading && entries.length === 0;
 
+  // F033: the viewer's placement progress (X/5) for the ladder tab.
+  const { data: standing } = useQuery({
+    queryKey: ['ladder-standing', user?.id ?? null, selectedCity ?? null],
+    queryFn: async () => (await getMyLadderStanding(selectedCity ?? undefined)).data,
+    enabled: activeTab === 'ladder' && !!user,
+    staleTime: 2 * 60 * 1000,
+  });
+  const recapCardRef = useRef<View>(null);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await refetch();
@@ -72,6 +86,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
   const getScoreLabel = useCallback((entry: any) => {
     if (activeTab === 'checkins') return `${entry.total_checkins ?? entry.score ?? 0} ${s('checkins').toLowerCase()}`;
     if (activeTab === 'reviews') return `${entry.total_reviews ?? entry.score ?? 0} ${s('reviews').toLowerCase()}`;
+    if (activeTab === 'ladder') return `${entry.rating ?? entry.score ?? 0} ${s('ladderPoints')}`;
     return `${entry.unique_venues ?? entry.score ?? 0} ${s('locations').toLowerCase()}`;
   }, [activeTab, s]);
 
@@ -130,6 +145,7 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
                 { key: 'checkins' as LBTab, label: s('checkins') },
                 { key: 'reviews' as LBTab, label: s('reviews') },
                 { key: 'locations' as LBTab, label: s('locations') },
+                { key: 'ladder' as LBTab, label: s('ladder') },
               ].map((tab) => (
                 <TouchableOpacity
                   key={tab.key}
@@ -142,6 +158,26 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
                 </TouchableOpacity>
               ))}
             </View>
+
+            {activeTab === 'ladder' && standing && !standing.placed && (
+              <View style={styles.placementBanner}>
+                <Lucide name="target" size={16} color={colors.accent} />
+                <Text style={styles.placementText}>
+                  {s('ladderInPlacement', String(standing.played), String(standing.needed))}
+                </Text>
+              </View>
+            )}
+            {activeTab === 'ladder' && myEntry && (
+              <TouchableOpacity
+                style={styles.recapBtn}
+                onPress={() => shareCardImage(recapCardRef, s('seasonRecapShareMessage'))}
+                accessibilityRole="button"
+                testID="ladder-share-recap"
+              >
+                <Lucide name="share-2" size={15} color={colors.primary} />
+                <Text style={styles.recapText}>{s('seasonRecapShare')}</Text>
+              </TouchableOpacity>
+            )}
 
             {!loading && entries.length > 0 && (
               <View style={styles.podium}>
@@ -251,6 +287,24 @@ export function LeaderboardsScreen({ hideTabBar = false }: LeaderboardsScreenPro
       })()}
 
 
+      {/* F033: off-screen recap card captured for sharing (must lay out → not display:none) */}
+      {activeTab === 'ladder' && myEntry ? (
+        <View style={{ position: 'absolute', top: -10000, left: 0 }} pointerEvents="none">
+          <ShareCard
+            ref={recapCardRef}
+            icon="trophy"
+            headline={`#${myEntry.rank ?? '—'}`}
+            title={s('seasonRecap')}
+            subtitle={`${selectedCity ?? s('allRomania')}${standing?.season ? ` · ${standing.season}` : ''}`}
+            stats={[
+              { label: s('ladderPoints'), value: (myEntry as { rating?: number; score?: number }).rating ?? myEntry.score ?? 0 },
+              { label: s('ladderWins'), value: (myEntry as { wins?: number }).wins ?? 0 },
+              { label: s('ladderPlayed'), value: (myEntry as { played?: number }).played ?? 0 },
+            ]}
+          />
+        </View>
+      ) : null}
+
       <CityPickerModal
         visible={cityModalVisible}
         selectedCity={selectedCity}
@@ -338,6 +392,18 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       paddingHorizontal: Spacing.md,
     },
+    placementBanner: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      marginHorizontal: Spacing.md, marginTop: Spacing.sm,
+      backgroundColor: colors.amberPale, borderRadius: Radius.md, padding: Spacing.sm,
+    },
+    placementText: { fontFamily: Fonts.body, fontSize: FontSize.base, fontWeight: FontWeight.semibold, color: colors.accent },
+    recapBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+      alignSelf: 'center', marginTop: Spacing.sm, paddingVertical: 7, paddingHorizontal: 16,
+      borderRadius: 999, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.primaryPale,
+    },
+    recapText: { fontFamily: Fonts.body, fontSize: FontSize.base, fontWeight: FontWeight.semibold, color: colors.primary },
     tab: {
       flex: 1,
       height: 40,

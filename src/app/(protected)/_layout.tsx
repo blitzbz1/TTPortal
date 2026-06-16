@@ -22,6 +22,8 @@ export default function ProtectedLayout() {
       <Stack.Screen name="leaderboard" />
       <Stack.Screen name="player/[userId]" />
       <Stack.Screen name="event-feedback/[eventId]" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="messages" />
+      <Stack.Screen name="messages/[threadId]" />
     </Stack>
   );
 }

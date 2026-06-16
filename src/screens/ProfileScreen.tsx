@@ -1,11 +1,12 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Platform, RefreshControl } from 'react-native';
-import { showConfirm } from '../lib/dialogs';
+import { showAlert, showConfirm } from '../lib/dialogs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NotificationBellButton } from '../components/NotificationBellButton';
+import { MessagesButton } from '../components/MessagesButton';
 import { FeedbackHeaderButton } from '../components/FeedbackHeaderButton';
 import { useTheme } from '../hooks/useTheme';
 import { createStyles } from './ProfileScreen.styles';
@@ -19,7 +20,14 @@ import { useProfileQuery, profileQueryKey } from '../hooks/queries/useProfileQue
 import { SkillChip } from '../components/SkillChip';
 import { PlayProfileEditorModal } from '../components/PlayProfileEditorModal';
 import { playGoalKey } from '../lib/playerAttributes';
-import { usePlayerMatchesQuery, summarizeMatches } from '../features/matches';
+import { usePlayerMatchesQuery, summarizeMatches, useRivalsQuery } from '../features/matches';
+import { sendMatchInvite } from '../features/findPlayers';
+import { usePlayerRatingQuery } from '../features/ratings';
+import { RatingChip } from '../components/RatingChip';
+import { RatingSparkline } from '../components/RatingSparkline';
+import { RatingCelebrationSheet } from '../components/RatingCelebrationSheet';
+import { QuickMatchModal } from '../components/QuickMatchModal';
+import { getLastSeenRating, setLastSeenRating, shouldCelebrateRating } from '../lib/ratingsCache';
 import { useHomeVenueQuery, useHomeVenueSuggestionQuery, homeVenueQueryKey } from '../features/venueIntel';
 import { updateProfile } from '../services/profiles';
 import { useQueryClient } from '@tanstack/react-query';
@@ -37,12 +45,35 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [editorVisible, setEditorVisible] = useState(false);
+  const [quickMatchVisible, setQuickMatchVisible] = useState(false);
   const { data: matches = [] } = usePlayerMatchesQuery(user?.id);
   const confirmedMatches = useMemo(
     () => matches.filter((m) => m.status === 'confirmed' && m.winner_id),
     [matches],
   );
   const matchRecord = useMemo(() => summarizeMatches(matches, user?.id ?? ''), [matches, user?.id]);
+
+  // ── F031: rivals (most-played opponents) + Challenge.
+  const { data: rivals = [] } = useRivalsQuery(user?.id);
+  const [challengedRivals, setChallengedRivals] = useState<Set<string>>(new Set());
+  const challengeRival = useCallback(async (rivalId: string) => {
+    setChallengedRivals((prev) => new Set(prev).add(rivalId));
+    const { error } = await sendMatchInvite(rivalId);
+    if (error) {
+      setChallengedRivals((prev) => { const n = new Set(prev); n.delete(rivalId); return n; });
+      showAlert(s('error'), s('genericError'));
+    }
+  }, [s]);
+
+  // ── F030: rating + celebration on rating-up.
+  const { data: rating } = usePlayerRatingQuery(user?.id);
+  const [celebrate, setCelebrate] = useState(false);
+  useEffect(() => {
+    if (!user?.id || rating?.rating == null) return;
+    const lastSeen = getLastSeenRating(user.id);
+    if (shouldCelebrateRating(rating.rating, lastSeen)) setCelebrate(true);
+    setLastSeenRating(user.id, rating.rating);
+  }, [user?.id, rating?.rating]);
 
   const {
     progressRows,
@@ -148,6 +179,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
         <Text style={styles.headerTitle}>{s('myProfile')}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <FeedbackHeaderButton color={headerFg} />
+          <MessagesButton color={headerFg} />
           <NotificationBellButton color={headerFg} />
         </View>
       </View>
@@ -176,6 +208,8 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
                     {completedChallengeCount} {s('profileChallengesCompleted')}
                   </Text>
                 </TouchableOpacity>
+                {/* F030: rating chip */}
+                <RatingChip rating={rating?.rating} provisional={rating?.provisional} />
               </View>
             </View>
           </View>
@@ -228,6 +262,41 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
           ) : null}
         </View>
 
+        {/* Rating (F030): current/peak + 90-day sparkline + last-5 deltas */}
+        {rating != null && (
+          <View style={styles.section}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Text style={[styles.navLabel, { fontWeight: '700' }]}>{s('ratingTitle')}</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted }}>
+                {s('ratingPeak')} {Math.round(rating.peak)}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10 }}>
+              <Text style={{ fontSize: 32, fontWeight: '800', color: colors.accent }}>{Math.round(rating.rating)}</Text>
+              {rating.provisional ? (
+                <Text style={{ fontSize: 12, color: colors.textFaint, marginBottom: 6 }}>{s('ratingProvisional')}</Text>
+              ) : null}
+              <View style={{ marginLeft: 'auto' }}>
+                <RatingSparkline points={rating.spark} width={150} height={40} />
+              </View>
+            </View>
+            {rating.last5.length > 0 && (
+              <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                {rating.last5.map((d, i) => (
+                  <View
+                    key={i}
+                    style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: d >= 0 ? colors.primaryPale : colors.redPale }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: d >= 0 ? colors.primary : colors.red }}>
+                      {d >= 0 ? `+${d}` : `${d}`}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Matches (F002): W/L record + last 5 results */}
         {confirmedMatches.length > 0 && (
           <View style={styles.section}>
@@ -255,6 +324,46 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
           </View>
         )}
 
+        {/* Rivals (F031): most-played opponents + Challenge */}
+        {rivals.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.navLabel, { fontWeight: '700', marginBottom: 4 }]}>{s('rivalsTitle')}</Text>
+            {rivals.map((r) => {
+              const challenged = challengedRivals.has(r.user_id);
+              return (
+                <View key={r.user_id} style={styles.navRow}>
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}
+                    onPress={() => router.push({ pathname: '/(protected)/player/[userId]', params: { userId: r.user_id } })}
+                  >
+                    <View style={[styles.navIcon, { backgroundColor: colors.purplePale }]}>
+                      <Lucide name="swords" size={18} color={colors.purple} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.navLabel} numberOfLines={1}>{r.full_name ?? s('user')}</Text>
+                      <Text style={{ fontSize: 12, color: colors.textMuted }}>
+                        {r.my_wins}{s('winShort')} · {r.their_wins}{s('lossShort')}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: challenged ? colors.border : colors.primary, backgroundColor: challenged ? colors.bgAlt : colors.primaryPale }}
+                    disabled={challenged}
+                    onPress={() => challengeRival(r.user_id)}
+                    accessibilityRole="button"
+                    testID={`rival-challenge-${r.user_id}`}
+                  >
+                    <Lucide name={challenged ? 'check' : 'swords'} size={13} color={challenged ? colors.textMuted : colors.primary} />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: challenged ? colors.textMuted : colors.primary }}>
+                      {challenged ? s('findPlayersChallengeSent') : s('findPlayersChallenge')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         {/* Navigation Links */}
         <View style={styles.section}>
           <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/friends')}>
@@ -264,6 +373,15 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
             <Text style={styles.navLabel}>{s('friends')}</Text>
             <Lucide name="chevron-right" size={16} color={colors.textFaint} />
           </TouchableOpacity>
+          {user?.id && (
+            <TouchableOpacity style={styles.navRow} onPress={() => setQuickMatchVisible(true)} testID="profile-quick-match">
+              <View style={[styles.navIcon, { backgroundColor: colors.amberPale }]}>
+                <Lucide name="qr-code" size={18} color={colors.accent} />
+              </View>
+              <Text style={styles.navLabel}>{s('quickMatchTitle')}</Text>
+              <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/play-history')}>
             <View style={[styles.navIcon, { backgroundColor: colors.purplePale }]}>
               <Lucide name="trophy" size={18} color={colors.purple} />
@@ -334,6 +452,21 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
           onClose={() => setEditorVisible(false)}
           onSaved={refetchProfile}
         />
+      )}
+
+      {rating != null && (
+        <RatingCelebrationSheet
+          visible={celebrate}
+          rating={rating.rating}
+          delta={rating.last5[0] ?? 0}
+          peak={rating.peak}
+          matches={rating.matches}
+          onClose={() => setCelebrate(false)}
+        />
+      )}
+
+      {user?.id && (
+        <QuickMatchModal visible={quickMatchVisible} userId={user.id} onClose={() => setQuickMatchVisible(false)} />
       )}
     </View>
   );

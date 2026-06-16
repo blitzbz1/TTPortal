@@ -25,7 +25,14 @@ jest.mock('../../lib/supabase', () => {
 import { getVenueBusyness, getLiveVenueCounts } from '../venueIntel';
 import { getCityGuide } from '../cityGuide';
 import { getVenueBoard } from '../venueBoard';
-import { getPlayerMatches } from '../matches';
+import { getPlayerMatches, getRivals } from '../matches';
+import { dismissCrossedPath } from '../feed';
+import { joinPlayIntent } from '../openplay';
+import { sendMatchInvite } from '../findPlayers';
+import { sendDm } from '../messaging';
+import { getPlayerRating } from '../ratings';
+import { createBracket } from '../tournaments';
+import { getCityLadder } from '../leaderboard';
 
 describe('callRpc preserves `this` across services (binding regression)', () => {
   it('venueIntel.getVenueBusyness reaches the rpc without losing this', async () => {
@@ -46,6 +53,38 @@ describe('callRpc preserves `this` across services (binding regression)', () => 
   });
   it('matches.getPlayerMatches', async () => {
     const r = await getPlayerMatches('user-1');
+    expect(r.error).toBeNull();
+  });
+  it('matches.getRivals', async () => {
+    const r = await getRivals();
+    expect(r.error).toBeNull();
+  });
+  it('feed.dismissCrossedPath', async () => {
+    const r = await dismissCrossedPath('user-2');
+    expect(r.error).toBeNull();
+  });
+  it('openplay.joinPlayIntent', async () => {
+    const r = await joinPlayIntent(1);
+    expect(r.error).toBeNull();
+  });
+  it('findPlayers.sendMatchInvite', async () => {
+    const r = await sendMatchInvite('user-3');
+    expect(r.error).toBeNull();
+  });
+  it('messaging.sendDm', async () => {
+    const r = await sendDm(1, 'hi');
+    expect(r.error).toBeNull();
+  });
+  it('ratings.getPlayerRating', async () => {
+    const r = await getPlayerRating('user-1');
+    expect(r.error).toBeNull();
+  });
+  it('tournaments.createBracket', async () => {
+    const r = await createBracket(1);
+    expect(r.error).toBeNull();
+  });
+  it('leaderboard.getCityLadder', async () => {
+    const r = await getCityLadder('Cluj');
     expect(r.error).toBeNull();
   });
 });

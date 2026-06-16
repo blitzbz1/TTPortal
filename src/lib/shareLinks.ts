@@ -26,6 +26,29 @@ export function eventUrl(eventId: number | string): string {
   return `${getWebAppUrl()}/event/${eventId}`;
 }
 
+export function playerUrl(userId: string): string {
+  return `${getWebAppUrl()}/player/${userId}`;
+}
+
+/**
+ * F034: a Quick-Match QR encodes a player link with ?logMatch=1, so scanning it
+ * opens that player's profile with the Log Match sheet pre-targeted at them.
+ */
+export function playerLogMatchUrl(userId: string): string {
+  return `${playerUrl(userId)}?logMatch=1`;
+}
+
+/**
+ * Parse a scanned Quick-Match URL → the opponent's user id (or null). Tolerant
+ * of any host/base; only the `/player/<id>` path segment matters for same-device
+ * pairing (we route directly rather than relying on OS link verification).
+ */
+export function parseQuickMatchUserId(scanned: string): string | null {
+  if (!scanned) return null;
+  const m = scanned.match(/\/player\/([^/?#]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
 /**
  * Builds the payload for Share.share(): the URL rides in the message on
  * Android (which ignores `url`) and additionally in the `url` field on iOS

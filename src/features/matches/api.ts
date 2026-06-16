@@ -4,5 +4,7 @@ export {
   disputeMatch,
   getPlayerMatches,
   getPendingMatches,
+  getHeadToHead,
+  getRivals,
   summarizeMatches,
 } from '../../services/matches';

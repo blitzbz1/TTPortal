@@ -437,3 +437,18 @@ jest.mock('react-native-safe-area-context', () => {
     initialWindowMetrics: { insets, frame },
   };
 });
+
+// F034: QR generation (pure-JS over react-native-svg) + camera scanner.
+jest.mock('react-native-qrcode-svg', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { __esModule: true, default: (props) => React.createElement(View, { testID: 'qr-code', ...props }) };
+});
+jest.mock('expo-camera', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    CameraView: (props) => React.createElement(View, { testID: 'camera-view', ...props }),
+    useCameraPermissions: () => [{ granted: true, status: 'granted' }, jest.fn(async () => ({ granted: true }))],
+  };
+});
