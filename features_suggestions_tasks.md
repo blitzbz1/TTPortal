@@ -263,43 +263,45 @@ Derived from [features_suggestions.md](features_suggestions.md) (2026-06-10, gro
 
 > Independent; any order. Pure aggregation over existing data + pg_cron pushes.
 
+> **✅ SHIPPED.** Migrations: **126** F050 streaks, **127** F051 explorer quests, **128** F052 weekly recap, **129** F053 milestones, **130** F054 TT Wrapped — **applied to prod + types regenerated**. (The source's `122/123/124/125` placeholders were taken by Phase 5; next free numbers were 126–130.) New domains `src/features/{explorer,recap,milestones,wrapped}`; `get_profile_stats` cumulatively extended 4→**9 cols** (126 +current/best streak; 129 +reviews_written/member_since/`total_play_hours`); new notification categories `streak`/`recap`/`wrapped` (CHECK now **29 types**). F050 streaks use trigger-maintained `user_streaks` + a Monday cron with a once-a-month freeze→reset→nudge; F051 quests use **dedicated** `explorer_quests`/`explorer_quest_awards` (NOT the `explorer` *challenge* category — avoids the badge collision) + a map "find one" pre-filter + "new to you" pins; F052/F053/F054 reuse the `ShareCard` view-shot capture; F054 is a window-gated (Dec 15–Jan 15) swipeable story deck with a rule-based archetype. pgTAP `f050` (9) / `f051` (12) / `f052` (11) / `f053` (12) / `f054` (13) executed green on the full chain via the `.migration-test` harness; `npm test` (1238) + `lint` (0 err) + `typecheck` green; locale keys ×8. An adversarial multi-agent review + my migration audits caught & fixed **8 issues** before apply — incl. a HIGH **spurious milestone celebration** on cold-cache load, a hours-ghost/award **source mismatch** (added `total_play_hours`), an explorer **cross-user cache leak** (re-keyed by userId), a recap-push **lost `week` param**, an f051 **plan(11)-vs-12** failure, the recurring **`DROP FUNCTION`** return-type blocker, and an **ambiguous-column** RPC bug. **Deferred (documented):** none material.
+
 ### F050 [P] · Weekly play streaks — §5.1 `high` `medium`
 **Files:** `supabase/migrations/122_streaks.sql` (new), `src/screens/ProfileScreen.tsx`, `src/components/CheckinSuccessSheet.tsx`
-- [ ] Migration: `user_streaks` maintained by triggers on check-ins/event attendance (025 badge-sync pattern); one weekly pg_cron job to expire/freeze and enqueue reminder pushes (new `streak` category); fold into `get_profile_stats` (051). One auto-applied freeze/month.
-- [ ] Flame counter chip on the identity card + in the success sheet ("Week 6 — keep it alive!"); tap for current/best + which day still counts; one lapse-warning push.
-- [ ] Tests: pgTAP (increment, freeze consumes once/month, expiry); jest for the chip + tap detail.
+- [x] Migration: `user_streaks` maintained by triggers on check-ins/event attendance (025 badge-sync pattern); one weekly pg_cron job to expire/freeze and enqueue reminder pushes (new `streak` category); fold into `get_profile_stats` (051). One auto-applied freeze/month.
+- [x] Flame counter chip on the identity card + in the success sheet ("Week 6 — keep it alive!"); tap for current/best + which day still counts; one lapse-warning push.
+- [x] Tests: pgTAP (increment, freeze consumes once/month, expiry); jest for the chip + tap detail.
 
 **Done when:** consecutive play-weeks increment the flame, a missed week burns the monthly freeze instead of resetting, and a lapse nudge fires once.
 
 ### F051 [P] · Venue explorer quests — §5.2 `high` `medium`
 **Files:** `supabase/migrations/123_explorer_quests.sql` (new), `src/features/challenges/` (extend), `src/screens/` Challenges tab, `src/screens/MapViewScreen.tsx`
-- [ ] Migration: a quest-definitions table (venue predicate: park/indoor/verified; tier targets) + `get_explorer_progress` RPC (`COUNT(DISTINCT venue_id)` joined to venues); awards reuse the badge infrastructure (025).
-- [ ] "Explore" section on Challenges: city-scoped quests ("Visit 5 venues" bronze/silver/gold at 5/10/20, "Park Hopper", "Indoor Initiate") with progress rings; "Find one" jumps to the Map pre-filtered via the existing chips; tier completion fires the earned-badge modal; "New to you" callout tag on never-visited pins.
-- [ ] Tests: pgTAP (distinct-venue counting, tier thresholds); jest for the quest cards + map jump.
+- [x] Migration: a quest-definitions table (venue predicate: park/indoor/verified; tier targets) + `get_explorer_progress` RPC (`COUNT(DISTINCT venue_id)` joined to venues); awards reuse the badge infrastructure (025). *(Note: shipped as dedicated `explorer_quests`/`explorer_quest_awards` tables + the EarnedBadge UI components rather than `badge_awards`/the `explorer` challenge_category — those award off challenge submissions, a different metric, so sharing the `(user,'explorer',tier)` space would collide.)*
+- [x] "Explore" section on Challenges: city-scoped quests ("Visit 5 venues" bronze/silver/gold at 5/10/20, "Park Hopper", "Indoor Initiate") with progress rings; "Find one" jumps to the Map pre-filtered via the existing chips; tier completion fires the earned-badge modal; "New to you" callout tag on never-visited pins.
+- [x] Tests: pgTAP (distinct-venue counting, tier thresholds); jest for the quest cards + map jump.
 
 **Done when:** visiting distinct venues advances a quest ring, hitting a tier fires the badge modal, and "Find one" opens the filtered map.
 
 ### F052 [P] · Weekly recap — "Your week in TT" — §5.3 `high` `medium`
 **Files:** `supabase/migrations/` (RPC + cron — no new tables), `src/screens/` recap, `src/components/ShareCard.tsx`
-- [ ] `get_weekly_recap(user_id, week_start)` RPC over existing tables (checkins, event hours 029, weekly leaderboard 040); one Monday pg_cron job inserting notifications + pushes **only for users who played** (no guilt spam, new `recap` category).
-- [ ] Monday push → one-screen recap (sessions, hours, venues w/ new-venue callout, friends played with, rank delta, streak) ending in "Share my week" via `react-native-view-shot` + the orphaned `ShareCard`.
-- [ ] Tests: pgTAP (recap aggregation; inactive users get nothing); jest for the recap screen + share.
+- [x] `get_weekly_recap(user_id, week_start)` RPC over existing tables (checkins, event hours 029, weekly leaderboard 040); one Monday pg_cron job inserting notifications + pushes **only for users who played** (no guilt spam, new `recap` category).
+- [x] Monday push → one-screen recap (sessions, hours, venues w/ new-venue callout, friends played with, rank delta, streak) ending in "Share my week" via `react-native-view-shot` + the orphaned `ShareCard`.
+- [x] Tests: pgTAP (recap aggregation; inactive users get nothing); jest for the recap screen + share.
 
 **Done when:** active users get a Monday recap with correct numbers and a shareable card; users who didn't play get no push.
 
 ### F053 [P] · Milestone moments with shareable cards — §5.4 `medium` `medium`
 **Files:** `supabase/migrations/124_milestones.sql` (new), `src/lib/badgeChallenges.ts` (definitions), `src/components/CheckinSuccessSheet.tsx`, `src/screens/ProfileScreen.tsx`
-- [ ] Migration: `user_milestones` populated by AFTER INSERT triggers (025 style); `get_profile_stats` (051) extended with lifetime counters. Definitions in client code like `badgeChallenges.ts`.
-- [ ] Lifetime thresholds (10th/50th/100th check-in, 10th/25th distinct venue, 50/100/250 hours, first review, 1-year anniversary) trigger a full-screen celebration (stacked after the success sheet when both fire) + share card; a milestones strip on Profile with locked next-milestone ghosts ("38/50 venues").
-- [ ] Tests: pgTAP (threshold firing, no double-award); jest for the celebration stacking + ghosts.
+- [x] Migration: `user_milestones` populated by AFTER INSERT triggers (025 style); `get_profile_stats` (051) extended with lifetime counters. Definitions in client code (`src/features/milestones/definitions.ts` — `badgeChallenges.ts` doesn't exist).
+- [x] Lifetime thresholds (10th/50th/100th check-in, 10th/25th distinct venue, 50/100/250 hours, first review, 1-year anniversary) trigger a full-screen celebration (stacked after the success sheet when both fire) + share card; a milestones strip on Profile with locked next-milestone ghosts ("38/50 venues").
+- [x] Tests: pgTAP (threshold firing, no double-award); jest for the celebration stacking + ghosts.
 
 **Done when:** crossing a lifetime threshold fires a one-time celebration + share card and the profile strip shows earned + next-ghost milestones.
 
 ### F054 [P] · TT Wrapped — year in review — §5.5 `medium` `large`
 **Files:** `supabase/migrations/` (RPC + optional jsonb precompute — no core new tables), `src/features/wrapped/` (new), `src/screens/ProfileScreen.tsx`, `src/components/ShareCard.tsx`
-- [ ] `year_in_review(user_id, year)` RPC over existing tables; one pg_cron teaser notification at unlock (new category); optional jsonb precompute for heavy users.
-- [ ] Dec 15–Jan 15: a Profile banner → a swipeable 5–6-card story (hours/sessions, top venue w/ photo, most-played month, partner of the year, badges/milestones, a rule-based archetype card); each card shares as a story-format image.
-- [ ] Tests: pgTAP (aggregation, window gating); jest for the card story + share; verify it lands when outdoor players churn.
+- [x] `year_in_review(user_id, year)` RPC over existing tables; one pg_cron teaser notification at unlock (new category); optional jsonb precompute for heavy users *(pure RPC + client 1h cache was sufficient; no precompute table)*.
+- [x] Dec 15–Jan 15: a Profile banner → a swipeable 5–6-card story (hours/sessions, top venue w/ photo, most-played month, partner of the year, badges/milestones, a rule-based archetype card); each card shares as a story-format image.
+- [x] Tests: pgTAP (aggregation, window gating); jest for the card story + share; verify it lands when outdoor players churn.
 
 **Done when:** within the window, eligible users see a swipeable Wrapped story whose cards share as images, gated outside Dec 15–Jan 15.
 

@@ -45,7 +45,9 @@ import { VenueMomentsStrip } from '../components/VenueMomentsStrip';
 import { venueMomentsQueryKey } from '../features/checkinMoments';
 import { reportFreeTables, useVenueIntelQuery, venueIntelQueryKey } from '../features/venueIntel';
 import { useVenueOpenPlayQuery, useMyPlayIntentQuery, useInvalidateOpenPlay, useRespondToOpenPlayMutation, useConvertPlayIntentMutation, useCancelPlayIntentMutation, type WhenSlot } from '../features/openplay';
-import { useProfileQuery, profileQueryKey } from '../hooks/queries/useProfileQuery';
+import { useProfileQuery, profileQueryKey, profileStatsQueryKey } from '../hooks/queries/useProfileQuery';
+import { getUserMilestones } from '../features/milestones';
+import { MilestoneCelebrationSheet } from '../components/MilestoneCelebrationSheet';
 import { updateProfile } from '../services/profiles';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
@@ -184,6 +186,10 @@ export function VenueDetailScreen({ venueId }: Props) {
   // F042: the just-created check-in id, threaded to CheckinSuccessSheet so the
   // "Add a moment" action can attach a photo to it. Null for offline check-ins.
   const [lastCheckinId, setLastCheckinId] = useState<number | null>(null);
+  // F053: a milestone the check-in just crossed (server-awarded by the AFTER
+  // INSERT trigger). Held until the success sheet dismisses, then shown STACKED.
+  const [pendingMilestoneKey, setPendingMilestoneKey] = useState<string | null>(null);
+  const [milestoneCelebrationVisible, setMilestoneCelebrationVisible] = useState(false);
   const { isOnline, enqueue } = useOfflineQueue();
   const [reportingReview, setReportingReview] = useState<Review | null>(null);
   const [reportSubmitting, setReportSubmitting] = useState(false);
@@ -454,6 +460,12 @@ export function VenueDetailScreen({ venueId }: Props) {
       return;
     }
 
+    // F053: snapshot the earned milestones BEFORE the check-in so we can detect
+    // a freshly-crossed threshold (awarded by the AFTER INSERT trigger) and
+    // stack its celebration after the success sheet.
+    const beforeMilestones = await getUserMilestones();
+    const beforeKeys = new Set((beforeMilestones.data ?? []).map((m) => m.milestone_key));
+
     setCheckinLoading(true);
     const { data: createdCheckin, error } = await checkin(payload);
     setCheckinLoading(false);
@@ -479,7 +491,16 @@ export function VenueDetailScreen({ venueId }: Props) {
     setLastCheckinId((createdCheckin as { id?: number } | null)?.id ?? null);
     setSuccessSheetVisible(true);
     trackProductEvent(ProductEvents.checkinCompleted, { venueId: vIdNum });
-  }, [user, venueId, vIdNum, invalidateVenueDetail, s, lang, isOnline, enqueue, lookingForPlayers, sessionNote, invalidateOpenPlay]);
+
+    // F053: re-read milestones now the trigger has run; the lifetime counters
+    // changed, so refresh the profile-stats cache (drives the strip ghosts).
+    queryClient.invalidateQueries({ queryKey: profileStatsQueryKey(user.id) });
+    const afterMilestones = await getUserMilestones();
+    const newKey = (afterMilestones.data ?? [])
+      .map((m) => m.milestone_key)
+      .find((k) => !beforeKeys.has(k));
+    if (newKey) setPendingMilestoneKey(newKey);
+  }, [user, venueId, vIdNum, invalidateVenueDetail, s, lang, isOnline, enqueue, lookingForPlayers, sessionNote, invalidateOpenPlay, queryClient]);
 
   const handleCustomConfirm = useCallback(() => {
     if (customMode === 'minutes') {
@@ -1170,7 +1191,22 @@ export function VenueDetailScreen({ venueId }: Props) {
         onMomentPosted={() => {
           if (vIdNum) queryClient.invalidateQueries({ queryKey: venueMomentsQueryKey(vIdNum) });
         }}
-        onDismiss={() => setSuccessSheetVisible(false)}
+        onDismiss={() => {
+          setSuccessSheetVisible(false);
+          // F053: stack the milestone celebration AFTER the success sheet when
+          // both fire from the same check-in.
+          if (pendingMilestoneKey) setMilestoneCelebrationVisible(true);
+        }}
+      />
+
+      {/* F053: stacked milestone celebration (shown after the success sheet). */}
+      <MilestoneCelebrationSheet
+        visible={milestoneCelebrationVisible}
+        milestoneKey={pendingMilestoneKey}
+        onClose={() => {
+          setMilestoneCelebrationVisible(false);
+          setPendingMilestoneKey(null);
+        }}
       />
 
       <CheckinDurationModal

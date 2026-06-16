@@ -45,6 +45,11 @@ describe('getProfileStats', () => {
       unique_venues: 8,
       events_joined: 5,
       total_hours_played: 0,
+      current_streak: 0,
+      best_streak: 0,
+      reviews_written: 0,
+      member_since: null,
+      total_play_hours: 0,
     });
     expect(error).toBeNull();
   });
@@ -62,6 +67,8 @@ describe('getProfileStats', () => {
     const { data } = await getProfileStats('user-1');
     expect(data).toEqual({
       total_checkins: 3, unique_venues: 2, events_joined: 4, total_hours_played: 4,
+      current_streak: 0, best_streak: 0, reviews_written: 0, member_since: null,
+      total_play_hours: 4,
     });
   });
 
@@ -79,6 +86,11 @@ describe('getProfileStats', () => {
       unique_venues: 0,
       events_joined: 0,
       total_hours_played: 0,
+      current_streak: 0,
+      best_streak: 0,
+      reviews_written: 0,
+      member_since: null,
+      total_play_hours: 0,
     });
   });
 
@@ -95,6 +107,6 @@ describe('getProfileStats', () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'db error' } });
     const { data, error } = await getProfileStats('user-1');
     expect(error).toEqual({ message: 'db error' });
-    expect(data).toEqual({ total_checkins: 0, unique_venues: 0, events_joined: 0, total_hours_played: 0 });
+    expect(data).toEqual({ total_checkins: 0, unique_venues: 0, events_joined: 0, total_hours_played: 0, current_streak: 0, best_streak: 0, reviews_written: 0, member_since: null, total_play_hours: 0 });
   });
 });

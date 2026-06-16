@@ -14,6 +14,22 @@ jest.mock('../../hooks/useSession', () => ({
   useSession: () => ({ user: { id: 'u1' } }),
 }));
 
+jest.mock('../../hooks/useSelectedLocation', () => ({
+  useSelectedLocation: () => ({ selectedCity: null }),
+}));
+
+jest.mock('../../features/explorer', () => ({
+  EXPLORER_QUEST_META: {},
+  EXPLORER_TIERS: ['bronze', 'silver', 'gold'],
+  explorerTierEarned: () => false,
+  useExplorerProgressQuery: () => ({
+    data: [],
+    isLoading: false,
+    isError: false,
+    refetch: jest.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 const mockStrings = require('../../locales/en.json');
 jest.mock('../../hooks/useI18n', () => ({
   useI18n: () => ({

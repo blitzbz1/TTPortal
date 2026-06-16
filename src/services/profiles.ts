@@ -63,13 +63,34 @@ export async function getProfileStats(userId: string) {
   // event_participants row for the user just to sum hours_played
   // client-side — a payload that grew unboundedly with activity.
   const { data, error } = await supabase.rpc('get_profile_stats', { p_user_id: userId });
-  const row = Array.isArray(data) ? data[0] : data;
+  const baseRow = Array.isArray(data) ? data[0] : data;
+  // F053 widened get_profile_stats (migration 129) with reviews_written +
+  // member_since; the generated RPC type lags until types are regenerated, so
+  // the row is widened here to read the new columns.
+  const row = baseRow as
+    | (typeof baseRow & {
+        reviews_written?: number;
+        member_since?: string | null;
+        total_play_hours?: number;
+      })
+    | null
+    | undefined;
   return {
     data: {
       total_checkins: row?.total_checkins ?? 0,
       unique_venues: row?.unique_venues ?? 0,
       events_joined: row?.events_joined ?? 0,
+      // Event hours only (the existing "hours in events" surfaces depend on this).
       total_hours_played: Number(row?.total_hours_played ?? 0),
+      // F050: weekly play streak, folded into the same RPC (migration 126).
+      current_streak: row?.current_streak ?? 0,
+      best_streak: row?.best_streak ?? 0,
+      // F053: lifetime counters for the milestones strip ghosts (migration 129).
+      reviews_written: row?.reviews_written ?? 0,
+      member_since: (row?.member_since ?? null) as string | null,
+      // F053: combined check-in + event hours — the source the hours milestones
+      // are awarded against, so the ghost matches the durable award.
+      total_play_hours: Number(row?.total_play_hours ?? row?.total_hours_played ?? 0),
     },
     error,
   };

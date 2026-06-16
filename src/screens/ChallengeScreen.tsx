@@ -15,6 +15,7 @@ import { useSession } from '../hooks/useSession';
 import { createStyles } from './ChallengeScreen.styles';
 import { EarnedBadgeModal } from './ChallengeScreen/EarnedBadgeModal';
 import { BadgesTab } from './ChallengeScreen/BadgesTab';
+import { ExploreTab } from './ChallengeScreen/ExploreTab';
 import {
   BADGE_TIERS,
   BADGE_TRACKS,
@@ -24,6 +25,15 @@ import {
   getCurrentAwardTier,
   getBadgeTierPalette,
 } from '../features/challenges/badgeDefinitions';
+import {
+  EXPLORER_QUEST_META,
+  EXPLORER_TIERS,
+  explorerTierEarned,
+  useExplorerProgressQuery,
+  type ExplorerProgress,
+} from '../features/explorer';
+import { useSelectedLocation } from '../hooks/useSelectedLocation';
+import { getCityDisplayName } from '../lib/locationHelpers';
 import {
   completeSelfChallenge,
   getVisibleChallengeChoices,
@@ -39,7 +49,7 @@ import { getMonthlyMasterySummary, getTrackProgressSummaries } from '../features
 import type { BadgeTrack } from '../features/challenges/badgeDefinitions';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
 
-type TopTab = 'challenges' | 'badges';
+type TopTab = 'challenges' | 'badges' | 'explore';
 type ChallengeCooldownReason = 'forfeit' | 'soloComplete';
 
 interface ChallengeScreenProps {
@@ -116,6 +126,8 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const { user } = useSession();
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
+  const { selectedCity } = useSelectedLocation();
+  const selectedCityName = getCityDisplayName(selectedCity) || null;
   const headerFg = isDark ? colors.text : colors.textOnPrimary;
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
@@ -132,6 +144,8 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   useEffect(() => {
     if (params.tab === 'badges') {
       setTopTab('badges');
+    } else if (params.tab === 'explore') {
+      setTopTab('explore');
     } else if (params.tab === 'challenges') {
       setTopTab('challenges');
     }
@@ -191,15 +205,22 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     isLoading,
     refresh: refreshChoices,
   } = useChallengeChoices(activeCategory, { visibleCount: 20 });
+  // F051: explorer-quest progress (city-scoped display; awards are lifetime).
+  const {
+    data: explorerQuests = [],
+    isLoading: explorerLoading,
+    isError: explorerError,
+    refetch: refetchExplorer,
+  } = useExplorerProgressQuery(user?.id, selectedCityName);
   // Pull-to-refresh + refetch-on-focus (T068): the postmortem removed
   // realtime in favor of fetch-on-focus, but this screen had neither.
   const [refreshing, setRefreshing] = useState(false);
   const focusedOnceRef = useRef(false);
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([refreshProgress(), refreshChoices()]);
+    await Promise.all([refreshProgress(), refreshChoices(), refetchExplorer()]);
     setRefreshing(false);
-  }, [refreshProgress, refreshChoices]);
+  }, [refreshProgress, refreshChoices, refetchExplorer]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -209,7 +230,8 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
       }
       void refreshProgress();
       void refreshChoices();
-    }, [refreshProgress, refreshChoices]),
+      void refetchExplorer();
+    }, [refreshProgress, refreshChoices, refetchExplorer]),
   );
 
   const trackSummaries = useMemo(
@@ -286,6 +308,72 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     });
     return latestKey;
   }, [earnedAtByBadgeTier]);
+  // F051: detect a newly-earned explorer tier when the progress query result
+  // crosses a target on focus/refetch (NOT in a button handler — the count
+  // changes server-side from a check-in elsewhere in the app). We snapshot the
+  // earned set after the first settle so we never celebrate pre-existing
+  // awards, then fire EarnedBadgeModal the first time a new tier flips on.
+  const seenExplorerTiersRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (explorerLoading || explorerQuests.length === 0) return;
+    const current = new Set<string>();
+    explorerQuests.forEach((quest) => {
+      EXPLORER_TIERS.forEach((tier) => {
+        if (explorerTierEarned(quest, tier)) current.add(`${quest.key}:${tier}`);
+      });
+    });
+    // First settle: record the baseline, celebrate nothing.
+    if (seenExplorerTiersRef.current === null) {
+      seenExplorerTiersRef.current = current;
+      return;
+    }
+    const prev = seenExplorerTiersRef.current;
+    // Find the first newly-flipped tier and celebrate it.
+    for (const quest of explorerQuests) {
+      for (const tier of EXPLORER_TIERS) {
+        const sig = `${quest.key}:${tier}`;
+        if (current.has(sig) && !prev.has(sig)) {
+          const meta = EXPLORER_QUEST_META[quest.key];
+          const pseudoBadge = {
+            id: `explorer:${quest.key}`,
+            category: `explorer_quest_${quest.key}`,
+            name: s(`explorerQuest_${quest.key}_title`),
+            shortName: s(`explorerQuest_${quest.key}_title`),
+            icon: meta?.icon ?? 'compass',
+            description: s(`explorerQuest_${quest.key}_desc`),
+            color: meta?.color ?? colors.primary,
+            paleColor: meta?.paleColor ?? colors.primaryPale,
+            challenges: { bronze: [], silver: [], gold: [] },
+          } as BadgeTrack;
+          setEarnedBadgeModal({ badge: pseudoBadge, tier });
+          seenExplorerTiersRef.current = current;
+          return;
+        }
+      }
+    }
+    seenExplorerTiersRef.current = current;
+  }, [explorerQuests, explorerLoading, s, colors.primary, colors.primaryPale]);
+
+  // F051: "Find one" → jump to the map tab pre-filtered to the quest's predicate.
+  const handleFindOne = React.useCallback((quest: ExplorerProgress) => {
+    const filter = EXPLORER_QUEST_META[quest.key]?.mapFilter;
+    router.push({
+      pathname: '/(tabs)',
+      params: {
+        ...(filter ? { filter } : {}),
+        ...(selectedCityName ? { city: selectedCityName } : {}),
+      },
+    });
+  }, [router, selectedCityName]);
+
+  // The pseudo-track name is carried on the badge itself, so the modal's
+  // trackName resolver just returns it (explorer titles aren't badgeTrack_* keys).
+  const resolveModalTrackName = React.useCallback(
+    (badge: BadgeTrack) => (badge.id.startsWith('explorer:') ? badge.name : trackName(badge)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lang],
+  );
+
   const selectedChallengeCoolingDown = !!selectedChallenge && challengeCooldown?.challengeId === selectedChallenge.id;
   // cooldownTimerLabel / cooldownProgressWidth now live inside <CooldownTimer/>.
   const ballTranslateX = ballBounce.interpolate({
@@ -380,7 +468,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
       message: s(
         'challengeBadgeShareMessage',
         tierLabel(earnedBadgeModal.tier),
-        trackName(earnedBadgeModal.badge),
+        resolveModalTrackName(earnedBadgeModal.badge),
       ),
     });
   };
@@ -784,6 +872,23 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     </ScrollView>
   );
 
+  const renderExploreTab = () => (
+    <ExploreTab
+      quests={explorerQuests}
+      cityName={selectedCityName}
+      loading={explorerLoading}
+      error={explorerError}
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      onFindOne={handleFindOne}
+      styles={styles}
+      colors={colors}
+      s={s}
+      sn={sn}
+      tierLabel={tierLabel}
+    />
+  );
+
   const renderBadgesTab = () => (
     <BadgesTab
       activeBadge={activeBadge}
@@ -822,6 +927,13 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
           <Text style={[styles.topTabText, topTab === 'challenges' && styles.topTabTextActive]}>{s('tabChallenge')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
+          style={[styles.topTab, topTab === 'explore' && styles.topTabActive]}
+          onPress={() => setTopTab('explore')}
+          testID="explore-top-tab"
+        >
+          <Text style={[styles.topTabText, topTab === 'explore' && styles.topTabTextActive]}>{s('explorerTabTitle')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.topTab, topTab === 'badges' && styles.topTabActive]}
           onPress={() => setTopTab('badges')}
         >
@@ -829,13 +941,17 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
         </TouchableOpacity>
       </View>
 
-      {topTab === 'challenges' ? renderChallengesTab() : renderBadgesTab()}
+      {topTab === 'challenges'
+        ? renderChallengesTab()
+        : topTab === 'explore'
+          ? renderExploreTab()
+          : renderBadgesTab()}
       <EarnedBadgeModal
         data={earnedBadgeModal}
         styles={styles}
         colors={colors}
         tierLabel={tierLabel}
-        trackName={trackName}
+        trackName={resolveModalTrackName}
         s={s}
         onDismiss={() => setEarnedBadgeModal(null)}
         onShare={handleShareEarnedBadge}

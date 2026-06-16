@@ -1131,5 +1131,97 @@ export function createStyles(colors: ThemeColors, isDark: boolean) {
       color: colors.textOnPrimary,
       textAlign: 'center',
     },
+
+    // ── F051: Explore section ───────────────────────────────────────────────
+    explorerCard: {
+      alignSelf: 'stretch',
+      gap: Spacing.sm,
+      borderRadius: Radius.md,
+      backgroundColor: colors.bgAlt,
+      padding: Spacing.md,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    explorerCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+    },
+    explorerCardIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: Radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    explorerCardCopy: {
+      flex: 1,
+    },
+    explorerCardTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.bold,
+      color: colors.text,
+    },
+    explorerCardSub: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+    explorerCardCount: {
+      fontFamily: Fonts.heading,
+      fontSize: FontSize.xl,
+      fontWeight: FontWeight.bold,
+    },
+    explorerProgressBar: {
+      height: 10,
+      borderRadius: 5,
+      overflow: 'hidden',
+      backgroundColor: colors.bgMuted,
+    },
+    explorerProgressFill: {
+      height: 10,
+      borderRadius: 5,
+    },
+    explorerTierRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.xs,
+    },
+    explorerTierPip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: Spacing.xs,
+      paddingVertical: 3,
+      borderRadius: 999,
+      borderWidth: 1,
+    },
+    explorerTierPipText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.xs,
+      fontWeight: FontWeight.bold,
+    },
+    explorerCardActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: Spacing.sm,
+    },
+    explorerFindBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 8,
+      borderRadius: Radius.sm,
+      borderWidth: 1,
+    },
+    explorerFindBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.bold,
+    },
   });
 }

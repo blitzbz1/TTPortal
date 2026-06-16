@@ -80,6 +80,8 @@ export function sanitizeAppRoute(route?: string): string {
 
   // F041: '/join/' lets a referral returnTo survive the auth round-trip; without
   // it sanitizeAppRoute silently downgrades /join/CODE to /(tabs).
-  const allowed = ['/(tabs)', '/(protected)', '/venue/', '/join/', '/onboarding', '/sign-in', '/reset-password'];
+  // F052: '/recap' is the Monday weekly-recap push deep-link target.
+  // F054: '/wrapped' is the swipeable year-in-review story (Dec 15 – Jan 15).
+  const allowed = ['/(tabs)', '/(protected)', '/venue/', '/join/', '/recap', '/wrapped', '/onboarding', '/sign-in', '/reset-password'];
   return allowed.some((prefix) => route.startsWith(prefix)) ? route : '/(tabs)';
 }

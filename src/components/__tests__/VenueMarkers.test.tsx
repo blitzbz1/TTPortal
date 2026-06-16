@@ -83,6 +83,35 @@ describe('VenueMarkers (no clustering — removed 2026-06)', () => {
     expect(UNSAFE_getAllByType(Marker)).toHaveLength(2);
   });
 
+  it('tags only never-visited venues with the "new to you" badge + callout (F051)', () => {
+    const opts = { includeHiddenElements: true } as const;
+    const { queryByTestId, getByText } = render(
+      <VenueMarkers
+        {...baseProps}
+        venues={VENUES.slice(0, 3)}
+        unvisitedVenueIds={new Set([2])}
+        newToYouLabel="New to you"
+      />,
+    );
+    // Venue 2 is unvisited → sparkle badge + callout suffix.
+    expect(queryByTestId('venue-new-2', opts)).toBeTruthy();
+    expect(getByText(/New to you/, opts)).toBeTruthy();
+    // Venues 1 and 3 were visited → no badge.
+    expect(queryByTestId('venue-new-1', opts)).toBeNull();
+    expect(queryByTestId('venue-new-3', opts)).toBeNull();
+  });
+
+  it('repaints a marker when its visited-state flips (contentSig includes :new) (F051)', () => {
+    const opts = { includeHiddenElements: true } as const;
+    const props = { ...baseProps, venues: VENUES.slice(0, 1) };
+    const { queryByTestId, rerender } = render(
+      <VenueMarkers {...props} unvisitedVenueIds={new Set<number>()} />,
+    );
+    expect(queryByTestId('venue-new-1', opts)).toBeNull();
+    rerender(<VenueMarkers {...props} unvisitedVenueIds={new Set([1])} />);
+    expect(queryByTestId('venue-new-1', opts)).toBeTruthy();
+  });
+
   it('surfaces an anonymous live count only for venues with active check-ins (F010)', () => {
     // The whole marker subtree is hidden from accessibility (T066: 1000+ pins
     // would drown VoiceOver), so every content query must opt into hidden els.

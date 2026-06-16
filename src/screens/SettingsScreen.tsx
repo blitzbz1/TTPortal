@@ -171,6 +171,9 @@ export function SettingsScreen() {
           { key: 'reviews_on_my_venue', icon: 'star', labelKey: 'notifReviews' },
           { key: 'feedback_replies', icon: 'message-circle', labelKey: 'notifFeedbackReplies' },
           { key: 'referrals', icon: 'user-plus', labelKey: 'notifReferrals' },
+          { key: 'streak', icon: 'flame', labelKey: 'notifStreak' },
+          { key: 'recap', icon: 'calendar', labelKey: 'notifRecap' },
+          { key: 'wrapped', icon: 'gift', labelKey: 'notifWrapped' },
         ] as const).map(({ key, icon, labelKey }) => (
           <View style={styles.row} key={key} testID={`settings-notif-${key}`}>
             <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>

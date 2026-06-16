@@ -41,6 +41,16 @@ jest.mock('../../features/checkinMoments', () => ({
   postCheckinMoment: (...a: any[]) => mockPostMoment(...a),
 }));
 
+jest.mock('../../hooks/useSession', () => ({
+  useSession: () => ({ user: { id: 'u1' } }),
+}));
+
+const mockProfileStats = jest.fn();
+const mockRefetchStats = jest.fn();
+jest.mock('../../hooks/queries/useProfileQuery', () => ({
+  useProfileStatsQuery: () => ({ data: mockProfileStats(), refetch: mockRefetchStats }),
+}));
+
 const mockColors = {
   bg: '#fafaf8',
   bgAlt: '#ffffff',
@@ -58,6 +68,7 @@ const mockColors = {
   primaryDim: '#dcfce7',
   primaryPale: '#f0fdf4',
   accent: '#c2410c',
+  amberPale: '#fff7ed',
   red: '#ef4444',
   overlayHeavy: 'rgba(0,0,0,0.53)',
 };
@@ -73,6 +84,7 @@ beforeEach(() => {
   });
   mockUploadMoment.mockResolvedValue({ ok: true, url: 'https://cdn/moments/me/1.jpg' });
   mockPostMoment.mockResolvedValue({ data: 5, error: null });
+  mockProfileStats.mockReturnValue({ current_streak: 0, best_streak: 0 });
 });
 
 describe('CheckinSuccessSheet', () => {
@@ -144,6 +156,30 @@ describe('CheckinSuccessSheet', () => {
       />,
     );
     expect(hapticSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  describe('Weekly streak line (F050)', () => {
+    it('hides the streak line when there is no active streak', () => {
+      mockProfileStats.mockReturnValue({ current_streak: 0, best_streak: 0 });
+      const { queryByTestId } = render(
+        <CheckinSuccessSheet visible venueName="Test" onDismiss={jest.fn()} />,
+      );
+      expect(queryByTestId('checkin-streak-row')).toBeNull();
+    });
+
+    it('shows the "keep it alive" streak line when the streak is active', () => {
+      mockProfileStats.mockReturnValue({ current_streak: 6, best_streak: 6 });
+      const { getByTestId } = render(
+        <CheckinSuccessSheet visible venueName="Test" onDismiss={jest.fn()} />,
+      );
+      expect(getByTestId('checkin-streak-row')).toBeTruthy();
+    });
+
+    it('refetches the profile stats when the sheet opens', () => {
+      mockProfileStats.mockReturnValue({ current_streak: 2, best_streak: 4 });
+      render(<CheckinSuccessSheet visible venueName="Test" onDismiss={jest.fn()} />);
+      expect(mockRefetchStats).toHaveBeenCalled();
+    });
   });
 
   describe('Add a moment (F042)', () => {

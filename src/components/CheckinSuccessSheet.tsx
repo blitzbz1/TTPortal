@@ -32,6 +32,8 @@ import { showAlert } from '../lib/dialogs';
 import { Springs, Duration, Easings } from '../lib/motion';
 import { VenueFreeTablesBlock } from './VenueFreeTablesBlock';
 import { uploadMomentImage, postCheckinMoment } from '../features/checkinMoments';
+import { useSession } from '../hooks/useSession';
+import { useProfileStatsQuery } from '../hooks/queries/useProfileQuery';
 
 /* ── Tiny particle burst (confetti-lite, no deps) ── */
 const PARTICLE_COUNT = 8;
@@ -143,7 +145,13 @@ export function CheckinSuccessSheet({
 }: CheckinSuccessSheetProps) {
   const { colors } = useTheme();
   const { s } = useI18n();
+  const { user } = useSession();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // F050: the streak counter updates after the check-in's AFTER INSERT trigger
+  // fires (migration 126), so refetch the stats when the sheet opens.
+  const { data: profileStats, refetch: refetchStats } = useProfileStatsQuery(user?.id);
+  const currentStreak = profileStats?.current_streak ?? 0;
 
   const checkScale = useSharedValue(0);
 
@@ -167,8 +175,10 @@ export function CheckinSuccessSheet({
       setCaption('');
       setMomentPosting(false);
       setMomentPosted(false);
+      // F050: the streak just advanced server-side — pull the fresh count.
+      if (user?.id) refetchStats();
     }
-  }, [visible, checkScale]);
+  }, [visible, checkScale, user?.id, refetchStats]);
 
   const pickMomentPhoto = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -262,6 +272,18 @@ export function CheckinSuccessSheet({
           >
             <Text style={styles.xpText}>+10 XP</Text>
           </Animated.View>
+
+          {/* F050: weekly play streak nudge ("Week 6 — keep it alive!"). */}
+          {currentStreak > 0 ? (
+            <Animated.View
+              entering={FadeInUp.delay(700).duration(400).easing(Easings.decelerate)}
+              style={styles.streakRow}
+              testID="checkin-streak-row"
+            >
+              <Lucide name="flame" size={16} color={colors.accent} />
+              <Text style={styles.streakText}>{s('streakKeepAlive', currentStreak)}</Text>
+            </Animated.View>
+          ) : null}
 
           {/* F011: one-tap free-table report while we know they're on-site.
               Offline check-ins can't report (no fresh write). */}
@@ -423,6 +445,22 @@ function createStyles(colors: ThemeColors) {
       fontSize: FontSize.xxl,
       fontWeight: FontWeight.bold,
       color: colors.primaryLight,
+    },
+    streakRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: Spacing.sm,
+      backgroundColor: colors.amberPale,
+      borderRadius: Radius.md,
+      paddingVertical: Spacing.xs,
+      paddingHorizontal: Spacing.md,
+    },
+    streakText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
+      color: colors.accent,
     },
     momentBlock: {
       width: '100%',

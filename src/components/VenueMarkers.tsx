@@ -22,6 +22,8 @@ interface VenueMarkersProps {
   liveCounts?: Map<number, number>;
   /** F020: venues with an active open-play broadcast the viewer can see. */
   openPlayVenueIds?: Set<number>;
+  /** F051: venues in this city the viewer has NEVER checked into ("new to you"). */
+  unvisitedVenueIds?: Set<number>;
   onVenuePress: (venueId: number) => void;
   conditionLabel: (condition: any) => { label: string; color: string };
   typeLabel: (type: string) => string;
@@ -30,6 +32,8 @@ interface VenueMarkersProps {
   liveHereLabel?: (count: number) => string;
   /** F020: "Playing now — join them" for the callout. */
   openPlayLabel?: string;
+  /** F051: "New to you" callout suffix for never-visited venues. */
+  newToYouLabel?: string;
   pinStyles: any;
   colors: ThemeColors;
 }
@@ -111,12 +115,14 @@ function VenueMarkersImpl({
   friendVenueIds,
   liveCounts,
   openPlayVenueIds,
+  unvisitedVenueIds,
   onVenuePress,
   conditionLabel,
   typeLabel,
   friendsActiveLabel,
   liveHereLabel,
   openPlayLabel,
+  newToYouLabel,
   pinStyles,
   colors,
 }: VenueMarkersProps) {
@@ -132,10 +138,11 @@ function VenueMarkersImpl({
         const hasFriend = friendVenueIds.has(venue.id);
         const liveCount = liveCounts?.get(venue.id) ?? 0;
         const isOpenPlay = openPlayVenueIds?.has(venue.id) ?? false;
+        const isNewToYou = unvisitedVenueIds?.has(venue.id) ?? false;
         return (
           <TrackedMarker
             key={`v-${venue.id}`}
-            contentSig={`${venue.condition}:${hasFriend}:${isIndoor}:live${liveCount}:play${isOpenPlay}`}
+            contentSig={`${venue.condition}:${hasFriend}:${isIndoor}:live${liveCount}:play${isOpenPlay}:new${isNewToYou}`}
             coordinate={{ latitude: venue.lat, longitude: venue.lng }}
           >
             <View
@@ -178,6 +185,13 @@ function VenueMarkersImpl({
                   <Lucide name={conditionGlyph} size={7} color={colors.textOnPrimary} />
                 </View>
               )}
+              {isNewToYou && (
+                // F051: "new to you" — a small sparkle on a venue the viewer
+                // has never checked into, nudging exploration.
+                <View style={extraStyles.newBadge} testID={`venue-new-${venue.id}`}>
+                  <Lucide name="sparkles" size={8} color={colors.textOnPrimary} />
+                </View>
+              )}
               <View style={pinStyles.arrow} />
             </View>
             <Callout tooltip onPress={() => onVenuePress(venue.id)}>
@@ -188,6 +202,7 @@ function VenueMarkersImpl({
                   {hasFriend ? ` · 👋 ${friendsActiveLabel}` : ''}
                   {liveCount > 0 && liveHereLabel ? ` · ${liveHereLabel(liveCount)}` : ''}
                   {isOpenPlay && openPlayLabel ? ` · ${openPlayLabel}` : ''}
+                  {isNewToYou && newToYouLabel ? ` · ✨ ${newToYouLabel}` : ''}
                 </Text>
               </View>
             </Callout>
@@ -243,6 +258,20 @@ function createExtraStyles(colors: ThemeColors) {
       borderWidth: 2.5,
       borderColor: colors.primary,
       backgroundColor: 'transparent',
+    },
+    // F051: "new to you" sparkle, top-right of a never-visited pin.
+    newBadge: {
+      position: 'absolute',
+      top: -4,
+      right: -6,
+      width: 15,
+      height: 15,
+      borderRadius: 8,
+      backgroundColor: colors.purpleMid,
+      borderWidth: 1.5,
+      borderColor: colors.bgAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
   });
 }

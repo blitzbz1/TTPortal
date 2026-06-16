@@ -12,7 +12,13 @@ import { sanitizeRoute } from './auth-utils';
  */
 export function buildRouteFromNotificationData(data: unknown): string | null {
   const d = data as
-    | { screen?: unknown; eventId?: unknown; event_id?: unknown; threadId?: unknown }
+    | {
+        screen?: unknown;
+        eventId?: unknown;
+        event_id?: unknown;
+        threadId?: unknown;
+        week?: unknown;
+      }
     | null
     | undefined;
   if (!d || typeof d.screen !== 'string' || !d.screen) return null;
@@ -36,6 +42,18 @@ export function buildRouteFromNotificationData(data: unknown): string | null {
     !safeRoute.includes('?')
   ) {
     return `${safeRoute}?eventId=${eventId}`;
+  }
+
+  // F052: the weekly-recap push carries the exact `week` it summarizes; forward
+  // it so a delayed tap opens that week rather than the screen's now-relative
+  // default (which would show the wrong/empty week days later).
+  const week = d.week;
+  if (
+    (typeof week === 'string' || typeof week === 'number') &&
+    `${week}` !== '' &&
+    !safeRoute.includes('?')
+  ) {
+    return `${safeRoute}?week=${week}`;
   }
   return safeRoute;
 }

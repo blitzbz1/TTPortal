@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Platform, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Platform, RefreshControl, Modal, Pressable } from 'react-native';
 import { showAlert, showConfirm } from '../lib/dialogs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,7 +16,7 @@ import type { Profile } from '../types/database';
 import { ProfileSkeleton } from '../components/SkeletonLoader';
 import { ErrorState } from '../components/ErrorState';
 import { useBadgeProgress } from '../features/challenges';
-import { useProfileQuery, profileQueryKey } from '../hooks/queries/useProfileQuery';
+import { useProfileQuery, profileQueryKey, useProfileStatsQuery } from '../hooks/queries/useProfileQuery';
 import { SkillChip } from '../components/SkillChip';
 import { PlayProfileEditorModal } from '../components/PlayProfileEditorModal';
 import { playGoalKey } from '../lib/playerAttributes';
@@ -26,9 +26,18 @@ import { usePlayerRatingQuery } from '../features/ratings';
 import { RatingChip } from '../components/RatingChip';
 import { RatingSparkline } from '../components/RatingSparkline';
 import { RatingCelebrationSheet } from '../components/RatingCelebrationSheet';
+import { MilestoneCelebrationSheet } from '../components/MilestoneCelebrationSheet';
+import {
+  useMilestonesQuery,
+  MILESTONE_DEFS,
+  MILESTONE_DEF_BY_KEY,
+  nextMilestoneGhost,
+  yearsSince,
+} from '../features/milestones';
 import { QuickMatchModal } from '../components/QuickMatchModal';
 import { getLastSeenRating, setLastSeenRating, shouldCelebrateRating } from '../lib/ratingsCache';
 import { useHomeVenueQuery, useHomeVenueSuggestionQuery, homeVenueQueryKey } from '../features/venueIntel';
+import { isWrappedWindowOpen, wrappedYearFor } from '../features/wrapped';
 import { updateProfile } from '../services/profiles';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -78,6 +87,70 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const {
     progressRows,
   } = useBadgeProgress(user?.id);
+
+  // F050: weekly play streak (rides get_profile_stats; migration 126).
+  const { data: profileStats } = useProfileStatsQuery(user?.id);
+  const currentStreak = profileStats?.current_streak ?? 0;
+  const bestStreak = profileStats?.best_streak ?? 0;
+  const [streakDetailVisible, setStreakDetailVisible] = useState(false);
+
+  // F054: TT Wrapped — the year-in-review banner only shows inside the
+  // Dec 15 – Jan 15 window; tapping it opens the swipeable story.
+  const wrappedOpen = isWrappedWindowOpen();
+  const wrappedYear = wrappedYearFor();
+
+  // F053: lifetime milestones — earned set + the next locked "ghost" + a
+  // full-screen celebration when a NEW milestone appears (e.g. crossed via a
+  // review, an event, or the anniversary cron and surfaced on focus/refetch).
+  const { data: milestones = [], isLoading: milestonesLoading } = useMilestonesQuery(user?.id);
+  const earnedKeys = useMemo(
+    () => new Set(milestones.map((m) => m.milestone_key)),
+    [milestones],
+  );
+  const milestoneCounters = useMemo(
+    () => ({
+      checkins: profileStats?.total_checkins ?? 0,
+      venues: profileStats?.unique_venues ?? 0,
+      // Combined check-in + event hours — matches what the hours milestones are
+      // awarded against (NOT the event-only total_hours_played), so the ghost
+      // progress agrees with the durable earned chip.
+      hours: profileStats?.total_play_hours ?? 0,
+      reviews: profileStats?.reviews_written ?? 0,
+      years: yearsSince(profileStats?.member_since ?? null),
+    }),
+    [profileStats],
+  );
+  const milestoneGhost = useMemo(
+    () => nextMilestoneGhost(earnedKeys, milestoneCounters),
+    [earnedKeys, milestoneCounters],
+  );
+  // Diff the earned set on focus/refetch (like the explorer-quest tier
+  // detection in ChallengeScreen): record a baseline, then celebrate the first
+  // newly-flipped key. The check-in flow has its OWN stacked celebration, so
+  // this catches review/anniversary/event-driven crossings.
+  const seenMilestonesRef = React.useRef<Set<string> | null>(null);
+  const [celebrateMilestoneKey, setCelebrateMilestoneKey] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user?.id) return;
+    // Wait for the first SETTLED fetch before snapshotting the baseline. On a
+    // cold cache initialData is undefined, so earnedKeys is momentarily empty;
+    // capturing the baseline then would make every pre-existing milestone look
+    // "newly flipped" and fire a bogus celebration once the real data arrives.
+    // (Mirrors ChallengeScreen's explorer-tier loading guard.)
+    if (milestonesLoading) return;
+    if (seenMilestonesRef.current === null) {
+      seenMilestonesRef.current = new Set(earnedKeys);
+      return;
+    }
+    const prev = seenMilestonesRef.current;
+    for (const def of MILESTONE_DEFS) {
+      if (earnedKeys.has(def.key) && !prev.has(def.key)) {
+        setCelebrateMilestoneKey(def.key);
+        break;
+      }
+    }
+    seenMilestonesRef.current = new Set(earnedKeys);
+  }, [earnedKeys, user?.id, milestonesLoading]);
 
   // T050: react-query owns fetch + persistent-cache hydration (the hook
   // mirrors to profileCache and seeds initialData from it). The old
@@ -210,11 +283,81 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
                 </TouchableOpacity>
                 {/* F030: rating chip */}
                 <RatingChip rating={rating?.rating} provisional={rating?.provisional} />
+                {/* F050: weekly play streak flame chip (tap for current/best). */}
+                {currentStreak > 0 ? (
+                  <TouchableOpacity
+                    testID="profile-streak-chip"
+                    style={styles.streakChip}
+                    onPress={() => setStreakDetailVisible(true)}
+                    activeOpacity={0.78}
+                    accessibilityRole="button"
+                  >
+                    <Lucide name="flame" size={12} color={colors.accent} />
+                    <Text style={styles.streakChipText}>{s('streakWeeks', currentStreak)}</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             </View>
           </View>
 
         </View>
+
+        {/* TT Wrapped (F054): year-in-review banner, only inside Dec 15 – Jan 15. */}
+        {wrappedOpen ? (
+          <TouchableOpacity
+            style={styles.wrappedBanner}
+            onPress={() => router.push({ pathname: '/wrapped', params: { year: String(wrappedYear) } })}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            testID="profile-wrapped-banner"
+          >
+            <View style={styles.wrappedBannerIcon}>
+              <Lucide name="gift" size={20} color={colors.accent} />
+            </View>
+            <View style={styles.wrappedBannerCopy}>
+              <Text style={styles.wrappedBannerTitle}>{s('wrappedBannerTitle', String(wrappedYear))}</Text>
+              <Text style={styles.wrappedBannerSubtitle}>{s('wrappedBannerCta')}</Text>
+            </View>
+          </TouchableOpacity>
+        ) : null}
+
+        {/* Milestones (F053): earned lifetime milestones + the next locked ghost. */}
+        {(earnedKeys.size > 0 || milestoneGhost) && (
+          <View style={styles.section} testID="profile-milestones-strip">
+            <Text style={[styles.navLabel, { fontWeight: '700', marginBottom: 8 }]}>
+              {s('milestonesTitle')}
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {MILESTONE_DEFS.filter((d) => earnedKeys.has(d.key)).map((d) => (
+                <View
+                  key={d.key}
+                  style={styles.milestoneChip}
+                  testID={`milestone-earned-${d.key}`}
+                >
+                  <Lucide name={d.icon} size={13} color={colors.accent} />
+                  <Text style={styles.milestoneChipText}>{s(d.titleKey)}</Text>
+                </View>
+              ))}
+              {milestoneGhost ? (
+                <View
+                  style={styles.milestoneGhostChip}
+                  testID="milestone-ghost"
+                >
+                  <Lucide
+                    name={MILESTONE_DEF_BY_KEY[milestoneGhost.def.key]?.icon ?? 'lock'}
+                    size={13}
+                    color={colors.textFaint}
+                  />
+                  <Text style={styles.milestoneGhostText}>
+                    {s('milestoneGhostProgress', String(milestoneGhost.current), String(milestoneGhost.threshold))}
+                    {' · '}
+                    {s(milestoneGhost.def.titleKey)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+        )}
 
         {/* Play profile (F001): self-declared skill + goals */}
         <View style={styles.section}>
@@ -465,9 +608,45 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
         />
       )}
 
+      {/* F053: celebration for a milestone crossed off the check-in path
+          (review / event / anniversary), surfaced on focus/refetch. */}
+      <MilestoneCelebrationSheet
+        visible={celebrateMilestoneKey != null}
+        milestoneKey={celebrateMilestoneKey}
+        onClose={() => setCelebrateMilestoneKey(null)}
+      />
+
       {user?.id && (
         <QuickMatchModal visible={quickMatchVisible} userId={user.id} onClose={() => setQuickMatchVisible(false)} />
       )}
+
+      {/* F050: streak detail (current/best + which day still counts this week). */}
+      <Modal
+        visible={streakDetailVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setStreakDetailVisible(false)}
+      >
+        <Pressable style={styles.streakOverlay} onPress={() => setStreakDetailVisible(false)}>
+          <Pressable style={styles.streakCard} onPress={() => {}} testID="profile-streak-detail">
+            <View style={styles.streakCardHeader}>
+              <Lucide name="flame" size={22} color={colors.accent} />
+              <Text style={styles.streakCardTitle}>{s('streakTitle')}</Text>
+            </View>
+            <View style={styles.streakStatRow}>
+              <View style={styles.streakStat}>
+                <Text style={styles.streakStatValue}>{currentStreak}</Text>
+                <Text style={styles.streakStatLabel}>{s('streakCurrent')}</Text>
+              </View>
+              <View style={styles.streakStat}>
+                <Text style={styles.streakStatValue}>{bestStreak}</Text>
+                <Text style={styles.streakStatLabel}>{s('streakBest')}</Text>
+              </View>
+            </View>
+            <Text style={styles.streakHint}>{s('streakDetailHint')}</Text>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

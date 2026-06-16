@@ -10,6 +10,8 @@ export { PlayHistoryScreen } from './PlayHistoryScreen';
 export { EventSchedulingScreen } from './EventSchedulingScreen';
 export { VenueEventsScreen } from './VenueEventsScreen';
 export { LeaderboardsScreen } from './LeaderboardsScreen';
+export { WeeklyRecapScreen } from './WeeklyRecapScreen';
+export { WrappedStoryScreen } from './WrappedStoryScreen';
 export { AdminModerationScreen } from './AdminModerationScreen';
 export { FavoritesScreen } from './FavoritesScreen';
 export { ChallengeScreen } from './ChallengeScreen';

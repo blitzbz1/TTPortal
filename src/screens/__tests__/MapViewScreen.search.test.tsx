@@ -4,6 +4,7 @@ const mockGetVenues = jest.fn().mockResolvedValue({ data: [
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
+  useLocalSearchParams: () => ({}),
 }));
 jest.mock('../../hooks/useSession', () => ({
   useSession: () => ({ session: null, user: null, isLoading: false }),

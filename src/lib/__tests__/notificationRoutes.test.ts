@@ -61,4 +61,16 @@ describe('buildRouteFromNotificationData', () => {
     expect(buildRouteFromNotificationData({ screen: 'https://evil.example' })).toBe('/(tabs)');
     expect(buildRouteFromNotificationData({ screen: '//evil' })).toBe('/(tabs)');
   });
+
+  it('forwards the F052 weekly-recap week param so a delayed tap opens the right week', () => {
+    expect(
+      buildRouteFromNotificationData({ screen: '/recap', week: '2026-06-01', period: '2026-06-01' }),
+    ).toBe('/recap?week=2026-06-01');
+  });
+
+  it('does not append week when the screen already has a query string', () => {
+    expect(
+      buildRouteFromNotificationData({ screen: '/recap?week=2026-05-25', week: '2026-06-01' }),
+    ).toBe('/recap?week=2026-05-25');
+  });
 });

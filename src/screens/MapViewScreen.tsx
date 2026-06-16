@@ -4,7 +4,7 @@ import { showAlert } from '../lib/dialogs';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker } from 'react-native-maps';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import { Lucide } from '../components/Icon';
 import { NotificationBellButton } from '../components/NotificationBellButton';
@@ -28,6 +28,7 @@ import { useVenuesQuery } from '../hooks/queries/useVenuesQuery';
 import { useFriendPresenceQuery } from '../hooks/queries/useFriendPresenceQuery';
 import { useLiveVenueCountsQuery, useCityVenueAmenitiesQuery } from '../features/venueIntel';
 import { useOpenPlayCountsQuery } from '../features/openplay';
+import { useUnvisitedVenuesQuery } from '../features/explorer';
 import { MessagesButton } from '../components/MessagesButton';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
@@ -175,7 +176,10 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const insets = useSafeAreaInsets();
   const { s } = useI18n();
   const { user } = useSession();
-  const { selectedCity } = useSelectedLocation();
+  const { selectedCity, activeCities, setSelectedCity } = useSelectedLocation();
+  // F051: a "Find one" deep-link from the Explore section pre-filters the map
+  // (?filter=parcuri|indoor|verificat) and may switch the city (?city=...).
+  const linkParams = useLocalSearchParams<{ filter?: string; city?: string }>();
   const { colors, isDark } = useTheme();
   const headerFg = colors.textOnPrimary;
   const { styles, pinStyles } = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
@@ -261,6 +265,27 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     }
   }, [selectedCity]);
 
+  // F051: seed the chip filter + city from a "Find one" deep link. Runs only
+  // when the params change (a fresh push from Explore) so manual chip/city
+  // changes are never clobbered; a ref guards against re-applying on remount.
+  const appliedLinkSigRef = useRef<string | null>(null);
+  useEffect(() => {
+    const sig = `${linkParams.filter ?? ''}|${linkParams.city ?? ''}`;
+    if (sig === '|' || appliedLinkSigRef.current === sig) return;
+    appliedLinkSigRef.current = sig;
+    const VALID_FILTERS: FilterKey[] = ['toate', 'parcuri', 'indoor', 'verificat', 'free_entry', 'rental'];
+    if (linkParams.filter && (VALID_FILTERS as string[]).includes(linkParams.filter)) {
+      setActiveFilter(linkParams.filter as FilterKey);
+    }
+    if (linkParams.city) {
+      const wanted = linkParams.city;
+      const match = activeCities.find(
+        (c) => getCityDisplayName(c) === wanted || c.name === wanted,
+      );
+      if (match && match.id !== selectedCity?.id) setSelectedCity(match);
+    }
+  }, [linkParams.filter, linkParams.city, activeCities, selectedCity?.id, setSelectedCity]);
+
   // Friend presence overlay (which venues currently host a friend) is
   // cached via React Query — see useFriendPresenceQuery. Derived with
   // useMemo (T041): no extra render pass through useEffect→useState copies.
@@ -289,6 +314,10 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const openPlayJoinLabel = s('openPlayJoinThem');
   // F012: per-venue amenities for the "free entry" / "rental" filter chips.
   const { data: cityAmenities } = useCityVenueAmenitiesQuery(selectedCity?.id ?? null);
+  // F051: venues in this city the viewer has never checked into → "new to you"
+  // pin tag. Keyed by display name (matches venues.city), one round-trip.
+  const { unvisitedVenueIds } = useUnvisitedVenuesQuery(user?.id, selectedCityName);
+  const newToYouLabel = s('explorerNewToYou');
 
   const handleNearMe = useCallback(async () => {
     if (nearMeEnabled) {
@@ -434,12 +463,14 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
             friendVenueIds={friendCheckinVenueIds}
             liveCounts={liveCounts}
             openPlayVenueIds={openPlaySet}
+            unvisitedVenueIds={unvisitedVenueIds}
             onVenuePress={handleVenueMarkerPress}
             conditionLabel={conditionLabel}
             typeLabel={typeLabel}
             friendsActiveLabel={s('friendsActive')}
             liveHereLabel={liveHereLabel}
             openPlayLabel={openPlayJoinLabel}
+            newToYouLabel={newToYouLabel}
             pinStyles={pinStyles}
             colors={colors}
           />
