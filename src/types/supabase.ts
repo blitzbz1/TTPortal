@@ -1275,6 +1275,68 @@ export type Database = {
           },
         ]
       }
+      explorer_quest_awards: {
+        Row: {
+          awarded_at: string
+          id: number
+          quest_key: string
+          tier: string
+          user_id: string
+        }
+        Insert: {
+          awarded_at?: string
+          id?: number
+          quest_key: string
+          tier: string
+          user_id?: string
+        }
+        Update: {
+          awarded_at?: string
+          id?: number
+          quest_key?: string
+          tier?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "explorer_quest_awards_quest_key_fkey"
+            columns: ["quest_key"]
+            isOneToOne: false
+            referencedRelation: "explorer_quests"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
+      explorer_quests: {
+        Row: {
+          bronze: number
+          city_scoped: boolean
+          gold: number
+          key: string
+          predicate: string
+          silver: number
+          sort: number
+        }
+        Insert: {
+          bronze: number
+          city_scoped?: boolean
+          gold: number
+          key: string
+          predicate: string
+          silver: number
+          sort?: number
+        }
+        Update: {
+          bronze?: number
+          city_scoped?: boolean
+          gold?: number
+          key?: string
+          predicate?: string
+          silver?: number
+          sort?: number
+        }
+        Relationships: []
+      }
       favorites: {
         Row: {
           created_at: string
@@ -2629,6 +2691,54 @@ export type Database = {
           },
         ]
       }
+      user_milestones: {
+        Row: {
+          achieved_at: string
+          id: number
+          milestone_key: string
+          user_id: string
+        }
+        Insert: {
+          achieved_at?: string
+          id?: number
+          milestone_key: string
+          user_id?: string
+        }
+        Update: {
+          achieved_at?: string
+          id?: number
+          milestone_key?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_streaks: {
+        Row: {
+          best_streak: number
+          current_streak: number
+          freeze_used_month: string | null
+          last_played_week: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          best_streak?: number
+          current_streak?: number
+          freeze_used_month?: string | null
+          last_played_week?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          best_streak?: number
+          current_streak?: number
+          freeze_used_month?: string | null
+          last_played_week?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       venue_admin_audit: {
         Row: {
           action: string
@@ -3459,6 +3569,7 @@ export type Database = {
         }
       }
       auto_confirm_stale_matches: { Args: never; Returns: number }
+      award_anniversary_milestones: { Args: never; Returns: undefined }
       award_event_challenge_submission: {
         Args: { v_submission_id: string }
         Returns: {
@@ -3846,6 +3957,22 @@ export type Database = {
           submitter_user_id: string
         }[]
       }
+      get_explorer_progress: {
+        Args: { p_city?: string }
+        Returns: {
+          bronze: number
+          city_scoped: boolean
+          earned_bronze: boolean
+          earned_gold: boolean
+          earned_silver: boolean
+          gold: number
+          key: string
+          predicate: string
+          progress: number
+          silver: number
+          sort: number
+        }[]
+      }
       get_friend_feed:
         | {
             Args: { p_friend_ids: string[]; p_limit?: number }
@@ -4034,9 +4161,14 @@ export type Database = {
       get_profile_stats: {
         Args: { p_user_id: string }
         Returns: {
+          best_streak: number
+          current_streak: number
           events_joined: number
+          member_since: string
+          reviews_written: number
           total_checkins: number
           total_hours_played: number
+          total_play_hours: number
           unique_venues: number
         }[]
       }
@@ -4078,6 +4210,12 @@ export type Database = {
         }[]
       }
       get_unread_dm_count: { Args: never; Returns: number }
+      get_unvisited_venue_ids: {
+        Args: { p_city: string }
+        Returns: {
+          venue_id: number
+        }[]
+      }
       get_venue_active_checkin_count: {
         Args: { p_venue_id: number }
         Returns: number
@@ -4159,6 +4297,19 @@ export type Database = {
           type: string
         }[]
       }
+      get_weekly_recap: {
+        Args: { p_user_id: string; p_week_start?: string }
+        Returns: {
+          current_streak: number
+          friends_played_with: number
+          hours: number
+          new_venues: number
+          rank: number
+          rank_delta: number
+          sessions: number
+          venues: number
+        }[]
+      }
       hard_delete_expired_accounts: { Args: never; Returns: number }
       haversine_m: {
         Args: { lat1: number; lat2: number; lng1: number; lng2: number }
@@ -4229,6 +4380,7 @@ export type Database = {
         Args: { p_body: string; p_parent_id?: number; p_venue_id: number }
         Returns: number
       }
+      process_weekly_streaks: { Args: never; Returns: undefined }
       prune_table_reports: { Args: never; Returns: number }
       recompute_badge_level: {
         Args: { v_completed_count: number }
@@ -4395,6 +4547,8 @@ export type Database = {
         }
         Returns: undefined
       }
+      send_weekly_recaps: { Args: never; Returns: undefined }
+      send_wrapped_teasers: { Args: never; Returns: undefined }
       set_discoverable: { Args: { p_value: boolean }; Returns: undefined }
       set_partner_preferences: {
         Args: {
@@ -4420,6 +4574,12 @@ export type Database = {
       suggest_home_venue: { Args: never; Returns: Json }
       sync_badge_progress_from_submission: {
         Args: { v_submission_id: string }
+        Returns: undefined
+      }
+      sync_checkin_milestones: { Args: { p_user: string }; Returns: undefined }
+      sync_explorer_quests: { Args: { p_user: string }; Returns: undefined }
+      sync_user_streak: {
+        Args: { p_played_at: string; p_user: string }
         Returns: undefined
       }
       toggle_post_helpful: { Args: { p_post_id: number }; Returns: number }
@@ -4459,6 +4619,10 @@ export type Database = {
           unique_venues: number
           user_id: string
         }[]
+      }
+      year_in_review: {
+        Args: { p_user_id: string; p_year?: number }
+        Returns: Json
       }
     }
     Enums: {
