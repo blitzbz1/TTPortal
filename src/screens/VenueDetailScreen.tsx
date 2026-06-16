@@ -45,7 +45,7 @@ import { useVenueCoachesQuery } from '../features/coaches';
 import { VenueBoardSection } from '../components/VenueBoardSection';
 import { VenueMomentsStrip } from '../components/VenueMomentsStrip';
 import { venueMomentsQueryKey } from '../features/checkinMoments';
-import { reportFreeTables, useVenueIntelQuery, venueIntelQueryKey } from '../features/venueIntel';
+import { reportFreeTables, useVenueIntelQuery, venueIntelQueryKey, invalidateVenueIntelCache } from '../features/venueIntel';
 import { useVenueOpenPlayQuery, useMyPlayIntentQuery, useInvalidateOpenPlay, useRespondToOpenPlayMutation, useConvertPlayIntentMutation, useCancelPlayIntentMutation, type WhenSlot } from '../features/openplay';
 import { useProfileQuery, profileQueryKey, profileStatsQueryKey } from '../hooks/queries/useProfileQuery';
 import { getUserMilestones } from '../features/milestones';
@@ -588,6 +588,7 @@ export function VenueDetailScreen({ venueId }: Props) {
       showAlert(s('error'), rateMsg ?? s('freeTablesReportError'));
       throw error;
     }
+    invalidateVenueIntelCache(vIdNum);
     queryClient.invalidateQueries({ queryKey: venueIntelQueryKey(vIdNum) });
   }, [vIdNum, queryClient, s]);
 
@@ -597,7 +598,8 @@ export function VenueDetailScreen({ venueId }: Props) {
     const { error } = await updateProfile(user.id, { home_venue_id: isHomeVenue ? null : vIdNum });
     if (error) { showAlert(s('error'), safeErrorMessage(error, 'genericError', s)); return; }
     queryClient.invalidateQueries({ queryKey: profileQueryKey(user.id) });
-    queryClient.invalidateQueries({ queryKey: venueIntelQueryKey(vIdNum) }); // the venue's Regulars list changed
+    invalidateVenueIntelCache(vIdNum); // the venue's Regulars list changed
+    queryClient.invalidateQueries({ queryKey: venueIntelQueryKey(vIdNum) });
   }, [user, vIdNum, isHomeVenue, queryClient, s]);
 
   const handleAddPhoto = useCallback(async () => {

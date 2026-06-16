@@ -9,6 +9,7 @@ import {
   saveCachedFeedbackGiven,
   type EventTabKey,
 } from '../../lib/eventsCache';
+import { cachedUpdatedAt } from '../../lib/cacheUtils';
 
 /** Row shape the events list renders: trimmed select columns plus the
  * participants_count / my_participation embed aliases (T043). */
@@ -78,13 +79,6 @@ export function isEventsCacheFresh(
 ): boolean {
   if (!userId) return false;
   return loadCachedEvents<EventListItem>(userId, tab, city)?.fresh ?? false;
-}
-
-// Fresh disk data counts as just-fetched (no refetch within staleTime);
-// stale disk data still renders instantly but refetches in the background.
-function cachedUpdatedAt(cached: { fresh: boolean } | null | undefined): number | undefined {
-  if (!cached) return undefined;
-  return cached.fresh ? Date.now() - 1000 : 0;
 }
 
 /** Upcoming/mine events list (single page, 50-cap) in the blessed shape:

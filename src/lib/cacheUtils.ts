@@ -32,6 +32,18 @@ export function cachedInvalidate(key: string): void {
 }
 
 /**
+ * Maps a `loadCached*` read into a react-query `initialDataUpdatedAt`: fresh
+ * disk data counts as just-fetched (no network refetch within staleTime),
+ * while stale disk data still hydrates instantly but is treated as ancient so
+ * the query refetches in the background. Pair with `initialData` sourced from
+ * the same read for the stale-while-revalidate pattern (see useEventsQuery).
+ */
+export function cachedUpdatedAt(cached: { fresh: boolean } | null | undefined): number | undefined {
+  if (!cached) return undefined;
+  return cached.fresh ? Date.now() - 1000 : 0;
+}
+
+/**
  * Invalidates BOTH caching systems for a domain in one call (T050): the
  * react-query key and the persistent domain cache. The two systems used to
  * be invalidated independently from different layers (query keys in hooks,

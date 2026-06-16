@@ -9,6 +9,8 @@ import {
   type VenueRegulars,
 } from '../../../services/venueIntel';
 import type { VenueAmenities } from '../../../lib/amenities';
+import { cachedUpdatedAt } from '../../../lib/cacheUtils';
+import { loadCachedVenueIntel, saveCachedVenueIntel } from '../../../lib/venueIntelCache';
 
 export interface VenueIntel {
   busyness: VenueBusyness | null;
@@ -28,13 +30,19 @@ export const venueIntelQueryKey = (venueId: number | undefined) =>
  * null; the query itself can never error. This guarantees the venue-detail
  * screen renders off get_venue_detail alone, no matter what happens to the
  * intelligence layer.
+ *
+ * Mirrors to the persistent venueIntelCache (per venue, 10-min TTL): re-opening
+ * a venue hydrates the last-known bundle instantly and skips the network within
+ * the window; older data refetches in the background. The live "now" count is
+ * last-known between refreshes. A free-tables/regulars mutation invalidates
+ * both the query and this cache (see VenueDetailScreen).
  */
 export function useVenueIntelQuery(venueId: number | undefined) {
   return useQuery<VenueIntel>({
     queryKey: venueIntelQueryKey(venueId),
     enabled: venueId != null && venueId > 0,
-    staleTime: 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     queryFn: async () => {
       const safe = async <T,>(fn: () => Promise<{ data: T | null; error: unknown }>): Promise<T | null> => {
         try {
@@ -50,7 +58,13 @@ export function useVenueIntelQuery(venueId: number | undefined) {
         safe(() => getVenueAmenities(venueId!)),
         safe(() => getVenueRegulars(venueId!)),
       ]);
-      return { busyness, freeTables, amenities, regulars };
+      const intel: VenueIntel = { busyness, freeTables, amenities, regulars };
+      if (venueId != null) saveCachedVenueIntel<VenueIntel>(venueId, intel);
+      return intel;
     },
+    initialData: () =>
+      venueId != null && venueId > 0 ? loadCachedVenueIntel<VenueIntel>(venueId)?.data : undefined,
+    initialDataUpdatedAt: () =>
+      venueId != null && venueId > 0 ? cachedUpdatedAt(loadCachedVenueIntel<VenueIntel>(venueId)) : undefined,
   });
 }
