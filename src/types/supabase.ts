@@ -631,6 +631,71 @@ export type Database = {
         }
         Relationships: []
       }
+      dm_messages: {
+        Row: {
+          body: string
+          created_at: string
+          flagged: boolean
+          id: number
+          sender_id: string
+          thread_id: number
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          flagged?: boolean
+          id?: number
+          sender_id?: string
+          thread_id: number
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          flagged?: boolean
+          id?: number
+          sender_id?: string
+          thread_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dm_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "dm_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dm_threads: {
+        Row: {
+          a_last_read_at: string | null
+          b_last_read_at: string | null
+          created_at: string
+          id: number
+          last_message_at: string | null
+          user_a: string
+          user_b: string
+        }
+        Insert: {
+          a_last_read_at?: string | null
+          b_last_read_at?: string | null
+          created_at?: string
+          id?: number
+          last_message_at?: string | null
+          user_a: string
+          user_b: string
+        }
+        Update: {
+          a_last_read_at?: string | null
+          b_last_read_at?: string | null
+          created_at?: string
+          id?: number
+          last_message_at?: string | null
+          user_a?: string
+          user_b?: string
+        }
+        Relationships: []
+      }
       ec_manufacturer_tombstones: {
         Row: {
           category: string
@@ -1398,6 +1463,88 @@ export type Database = {
         }
         Relationships: []
       }
+      ladder_seasons: {
+        Row: {
+          created_at: string
+          ends_at: string
+          id: number
+          name: string
+          starts_at: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          id?: number
+          name: string
+          starts_at: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          id?: number
+          name?: string
+          starts_at?: string
+        }
+        Relationships: []
+      }
+      match_invites: {
+        Row: {
+          created_at: string
+          event_id: number | null
+          id: number
+          invitee_id: string
+          inviter_id: string
+          note: string | null
+          responded_at: string | null
+          status: string
+          venue_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          event_id?: number | null
+          id?: number
+          invitee_id: string
+          inviter_id?: string
+          note?: string | null
+          responded_at?: string | null
+          status?: string
+          venue_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          event_id?: number | null
+          id?: number
+          invitee_id?: string
+          inviter_id?: string
+          note?: string | null
+          responded_at?: string | null
+          status?: string
+          venue_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_invites_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_invites_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venue_stats"
+            referencedColumns: ["venue_id"]
+          },
+          {
+            foreignKeyName: "match_invites_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matches: {
         Row: {
           confirmed_at: string | null
@@ -1578,6 +1725,147 @@ export type Database = {
           },
         ]
       }
+      partner_preferences: {
+        Row: {
+          availability: string[]
+          note: string | null
+          sought_styles: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          availability?: string[]
+          note?: string | null
+          sought_styles?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          availability?: string[]
+          note?: string | null
+          sought_styles?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      play_intent_joins: {
+        Row: {
+          created_at: string
+          id: number
+          intent_id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          intent_id: number
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          intent_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "play_intent_joins_intent_id_fkey"
+            columns: ["intent_id"]
+            isOneToOne: false
+            referencedRelation: "play_intents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      play_intents: {
+        Row: {
+          created_at: string
+          event_id: number | null
+          expires_at: string
+          host_id: string
+          id: number
+          note: string | null
+          starts_at: string
+          status: string
+          venue_id: number
+          visibility: string
+          when_slot: string
+        }
+        Insert: {
+          created_at?: string
+          event_id?: number | null
+          expires_at: string
+          host_id?: string
+          id?: number
+          note?: string | null
+          starts_at: string
+          status?: string
+          venue_id: number
+          visibility?: string
+          when_slot: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: number | null
+          expires_at?: string
+          host_id?: string
+          id?: number
+          note?: string | null
+          starts_at?: string
+          status?: string
+          venue_id?: number
+          visibility?: string
+          when_slot?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "play_intents_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "play_intents_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venue_stats"
+            referencedColumns: ["venue_id"]
+          },
+          {
+            foreignKeyName: "play_intents_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_ratings: {
+        Row: {
+          matches: number
+          peak_rating: number
+          rating: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          matches?: number
+          peak_rating?: number
+          rating?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          matches?: number
+          peak_rating?: number
+          rating?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           auth_provider: string
@@ -1585,6 +1873,7 @@ export type Database = {
           checkin_visibility: string
           city: string | null
           created_at: string
+          discoverable: boolean
           email: string | null
           equipment: string | null
           full_name: string
@@ -1608,6 +1897,7 @@ export type Database = {
           checkin_visibility?: string
           city?: string | null
           created_at?: string
+          discoverable?: boolean
           email?: string | null
           equipment?: string | null
           full_name: string
@@ -1631,6 +1921,7 @@ export type Database = {
           checkin_visibility?: string
           city?: string | null
           created_at?: string
+          discoverable?: boolean
           email?: string | null
           equipment?: string | null
           full_name?: string
@@ -1722,6 +2013,41 @@ export type Database = {
         }
         Relationships: []
       }
+      rating_history: {
+        Row: {
+          created_at: string
+          delta: number
+          id: number
+          match_id: number
+          rating: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          delta: number
+          id?: number
+          match_id: number
+          rating: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          delta?: number
+          id?: number
+          match_id?: number
+          rating?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rating_history_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews: {
         Row: {
           body: string
@@ -1787,6 +2113,71 @@ export type Database = {
           },
         ]
       }
+      season_results: {
+        Row: {
+          city: string | null
+          created_at: string
+          id: number
+          played: number
+          rank: number
+          rating: number
+          season_id: number
+          user_id: string
+          wins: number
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          id?: number
+          played: number
+          rank: number
+          rating: number
+          season_id: number
+          user_id: string
+          wins: number
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          id?: number
+          played?: number
+          rank?: number
+          rating?: number
+          season_id?: number
+          user_id?: string
+          wins?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "season_results_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "ladder_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suggestion_dismissals: {
+        Row: {
+          created_at: string
+          dismissed_user_id: string
+          id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dismissed_user_id: string
+          id?: number
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          dismissed_user_id?: string
+          id?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       table_reports: {
         Row: {
           created_at: string
@@ -1825,6 +2216,92 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournament_brackets: {
+        Row: {
+          champion_id: string | null
+          created_at: string
+          event_id: number
+          id: number
+          size: number
+          status: string
+        }
+        Insert: {
+          champion_id?: string | null
+          created_at?: string
+          event_id: number
+          id?: number
+          size: number
+          status?: string
+        }
+        Update: {
+          champion_id?: string | null
+          created_at?: string
+          event_id?: number
+          id?: number
+          size?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_brackets_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournament_slots: {
+        Row: {
+          bracket_id: number
+          id: number
+          match_id: number | null
+          player_a: string | null
+          player_b: string | null
+          round: number
+          sets: Json
+          slot_pos: number
+          winner_id: string | null
+        }
+        Insert: {
+          bracket_id: number
+          id?: number
+          match_id?: number | null
+          player_a?: string | null
+          player_b?: string | null
+          round: number
+          sets?: Json
+          slot_pos: number
+          winner_id?: string | null
+        }
+        Update: {
+          bracket_id?: number
+          id?: number
+          match_id?: number | null
+          player_a?: string | null
+          player_b?: string | null
+          round?: number
+          sets?: Json
+          slot_pos?: number
+          winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_slots_bracket_id_fkey"
+            columns: ["bracket_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_brackets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_slots_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
             referencedColumns: ["id"]
           },
         ]
@@ -2473,6 +2950,7 @@ export type Database = {
       }
     }
     Functions: {
+      accept_match_invite: { Args: { p_invite_id: number }; Returns: number }
       add_challenge_to_event: {
         Args: { v_challenge_id: string; v_event_id: number }
         Returns: {
@@ -2745,6 +3223,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      apply_match_rating: { Args: { p_match_id: number }; Returns: undefined }
       approve_self_submission: {
         Args: { v_submission_id: string }
         Returns: {
@@ -2801,9 +3280,11 @@ export type Database = {
         }
       }
       block_user: { Args: { p_target_id: string }; Returns: undefined }
+      can_message: { Args: { p_other: string }; Returns: boolean }
       can_moderate: { Args: never; Returns: boolean }
       can_read_event: { Args: { p_event_id: number }; Returns: boolean }
       cancel_account_deletion: { Args: never; Returns: undefined }
+      cancel_play_intent: { Args: { p_intent_id: number }; Returns: undefined }
       challenge_xp_value: { Args: { v_code: string }; Returns: number }
       cleanup_old_notifications: { Args: never; Returns: undefined }
       close_event: {
@@ -2860,6 +3341,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      convert_play_intent_to_event: {
+        Args: { p_intent_id: number; p_title?: string }
+        Returns: number
+      }
       create_and_send_notification: {
         Args: {
           p_body: string
@@ -2870,6 +3355,19 @@ export type Database = {
           p_type: string
         }
         Returns: undefined
+      }
+      create_play_intent: {
+        Args: {
+          p_note?: string
+          p_public?: boolean
+          p_venue_id: number
+          p_when_slot: string
+        }
+        Returns: number
+      }
+      create_tournament_bracket: {
+        Args: { p_event_id: number }
+        Returns: number
       }
       current_client_ip: { Args: never; Returns: unknown }
       current_equipment_for_user: {
@@ -2900,7 +3398,28 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      current_ladder_season: {
+        Args: never
+        Returns: {
+          created_at: string
+          ends_at: string
+          id: number
+          name: string
+          starts_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "ladder_seasons"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      decline_match_invite: {
+        Args: { p_invite_id: number }
+        Returns: undefined
+      }
       delete_venue_post: { Args: { p_post_id: number }; Returns: undefined }
+      dismiss_crossed_path: { Args: { p_user_id: string }; Returns: undefined }
       dispute_match: {
         Args: { p_match_id: number }
         Returns: {
@@ -2925,6 +3444,8 @@ export type Database = {
         }
       }
       enforce_rate_limit: { Args: { p_action: string }; Returns: undefined }
+      expire_match_invites: { Args: never; Returns: number }
+      expire_play_intents: { Args: never; Returns: number }
       find_or_create_city: {
         Args: {
           p_country_code: string
@@ -2939,6 +3460,29 @@ export type Database = {
       find_or_create_country: {
         Args: { p_code: string; p_name?: string }
         Returns: string
+      }
+      find_players: {
+        Args: {
+          p_city?: string
+          p_limit?: number
+          p_skill?: string
+          p_style?: string
+        }
+        Returns: {
+          availability: string[]
+          avatar_url: string
+          city: string
+          dominant_hand: string
+          full_name: string
+          grip: string
+          play_goals: string[]
+          played_this_week: boolean
+          playing_style: string
+          pref_note: string
+          skill_level: string
+          user_id: string
+          username: string
+        }[]
       }
       generate_recurring_events: { Args: never; Returns: undefined }
       generate_username: { Args: { p_full_name: string }; Returns: string }
@@ -2971,6 +3515,20 @@ export type Database = {
       }
       get_cities_delta: { Args: { p_since?: string }; Returns: Json }
       get_city_guide: { Args: { p_city_id: number }; Returns: Json }
+      get_city_ladder: {
+        Args: { p_city?: string; p_limit?: number; p_season_id?: number }
+        Returns: {
+          avatar_url: string
+          city: string
+          full_name: string
+          played: number
+          rank: number
+          rating: number
+          score: number
+          user_id: string
+          wins: number
+        }[]
+      }
       get_city_venue_amenities: {
         Args: { p_city_id: number }
         Returns: {
@@ -2979,6 +3537,43 @@ export type Database = {
         }[]
       }
       get_countries_delta: { Args: { p_since?: string }; Returns: Json }
+      get_crossed_paths: {
+        Args: { p_days?: number; p_limit?: number }
+        Returns: {
+          avatar_url: string
+          city: string
+          full_name: string
+          last_crossed_at: string
+          shared_count: number
+          skill_level: string
+          user_id: string
+          username: string
+          venue_id: number
+          venue_name: string
+        }[]
+      }
+      get_dm_messages: {
+        Args: { p_limit?: number; p_thread_id: number }
+        Returns: {
+          body: string
+          created_at: string
+          id: number
+          is_mine: boolean
+          sender_id: string
+        }[]
+      }
+      get_dm_threads: {
+        Args: never
+        Returns: {
+          last_message: string
+          last_message_at: string
+          other_avatar: string
+          other_id: string
+          other_name: string
+          thread_id: number
+          unread_count: number
+        }[]
+      }
       get_equipment_catalog_delta: {
         Args: { p_category: string; p_since?: string }
         Returns: Json
@@ -3052,12 +3647,65 @@ export type Database = {
               user_id: string
             }[]
           }
+      get_head_to_head: { Args: { p_opponent_id: string }; Returns: Json }
       get_home_venue: { Args: { p_user_id: string }; Returns: Json }
       get_live_venue_counts: {
         Args: { p_city_id: number }
         Returns: {
           active_count: number
           venue_id: number
+        }[]
+      }
+      get_my_ladder_standing: { Args: { p_city?: string }; Returns: Json }
+      get_my_play_intent: {
+        Args: never
+        Returns: {
+          expires_at: string
+          id: number
+          join_count: number
+          note: string
+          starts_at: string
+          venue_id: number
+          venue_name: string
+          visibility: string
+          when_slot: string
+        }[]
+      }
+      get_open_play: {
+        Args: { p_city_id?: number; p_limit?: number }
+        Returns: {
+          expires_at: string
+          host_avatar: string
+          host_id: string
+          host_name: string
+          host_skill: string
+          id: number
+          is_host: boolean
+          join_count: number
+          note: string
+          starts_at: string
+          venue_city: string
+          venue_id: number
+          venue_name: string
+          viewer_joined: boolean
+          when_slot: string
+        }[]
+      }
+      get_open_play_counts: {
+        Args: { p_city_id?: number }
+        Returns: {
+          broadcast_count: number
+          venue_id: number
+        }[]
+      }
+      get_or_create_dm_thread: { Args: { p_other: string }; Returns: number }
+      get_partner_preferences: {
+        Args: never
+        Returns: {
+          availability: string[]
+          discoverable: boolean
+          note: string
+          sought_styles: string[]
         }[]
       }
       get_pending_challenge_validations: {
@@ -3076,6 +3724,18 @@ export type Database = {
           submitter_name: string
           submitter_user_id: string
           validation_id: string
+        }[]
+      }
+      get_pending_match_invites: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: number
+          inviter_id: string
+          inviter_name: string
+          note: string
+          venue_id: number
+          venue_name: string
         }[]
       }
       get_pending_matches: {
@@ -3107,6 +3767,7 @@ export type Database = {
           winner_id: string
         }[]
       }
+      get_player_rating: { Args: { p_user_id: string }; Returns: Json }
       get_profile_stats: {
         Args: { p_user_id: string }
         Returns: {
@@ -3116,6 +3777,37 @@ export type Database = {
           unique_venues: number
         }[]
       }
+      get_rivals: {
+        Args: { p_limit?: number }
+        Returns: {
+          avatar_url: string
+          full_name: string
+          my_wins: number
+          their_wins: number
+          total: number
+          user_id: string
+        }[]
+      }
+      get_tournament_bracket: {
+        Args: { p_event_id: number }
+        Returns: {
+          bracket_id: number
+          bracket_status: string
+          champion_id: string
+          champion_name: string
+          player_a: string
+          player_a_name: string
+          player_b: string
+          player_b_name: string
+          round: number
+          sets: Json
+          size: number
+          slot_id: number
+          slot_pos: number
+          winner_id: string
+        }[]
+      }
+      get_unread_dm_count: { Args: never; Returns: number }
       get_venue_active_checkin_count: {
         Args: { p_venue_id: number }
         Returns: number
@@ -3148,6 +3840,22 @@ export type Database = {
             Returns: Json
           }
       get_venue_free_tables: { Args: { p_venue_id: number }; Returns: Json }
+      get_venue_open_play: {
+        Args: { p_venue_id: number }
+        Returns: {
+          host_avatar: string
+          host_id: string
+          host_name: string
+          host_skill: string
+          id: number
+          is_host: boolean
+          join_count: number
+          note: string
+          starts_at: string
+          viewer_joined: boolean
+          when_slot: string
+        }[]
+      }
       get_venue_player_mix: { Args: { p_venue_id: number }; Returns: Json }
       get_venue_regulars: { Args: { p_venue_id: number }; Returns: Json }
       get_venues_delta: {
@@ -3183,6 +3891,8 @@ export type Database = {
         Returns: number
       }
       is_current_user_admin: { Args: never; Returns: boolean }
+      join_play_intent: { Args: { p_intent_id: number }; Returns: number }
+      leave_play_intent: { Args: { p_intent_id: number }; Returns: number }
       log_match: {
         Args: {
           p_event_id?: number
@@ -3222,6 +3932,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      mark_dm_thread_read: { Args: { p_thread_id: number }; Returns: undefined }
       notification_category: { Args: { p_type: string }; Returns: string }
       notification_pref_enabled: {
         Args: { p_type: string; p_user: string }
@@ -3236,6 +3947,7 @@ export type Database = {
         Args: { v_completed_count: number }
         Returns: Database["public"]["Enums"]["badge_level"]
       }
+      recompute_player_ratings: { Args: never; Returns: undefined }
       record_image_upload: { Args: never; Returns: undefined }
       refresh_city_venue_count: {
         Args: { p_city_id: number }
@@ -3259,6 +3971,10 @@ export type Database = {
           p_venue_id: number
         }
         Returns: number
+      }
+      report_tournament_slot: {
+        Args: { p_sets?: Json; p_slot_id: number; p_winner_id: string }
+        Returns: undefined
       }
       request_account_deletion: { Args: never; Returns: string }
       request_other_player_validation: {
@@ -3312,6 +4028,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      rollover_ladder_seasons: { Args: never; Returns: number }
       search_venues_admin: {
         Args: { p_limit?: number; p_query: string }
         Returns: {
@@ -3359,6 +4076,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      send_dm: {
+        Args: { p_body: string; p_thread_id: number }
+        Returns: number
+      }
       send_event_feedback_requests: { Args: never; Returns: undefined }
       send_event_invites: {
         Args: { p_event_id: number; p_friend_ids: string[] }
@@ -3369,12 +4090,25 @@ export type Database = {
         Args: { p_event_id: number; p_message: string }
         Returns: undefined
       }
+      send_match_invite: {
+        Args: { p_invitee_id: string; p_note?: string; p_venue_id?: number }
+        Returns: number
+      }
       send_push_notification: {
         Args: {
           p_body: string
           p_data?: Json
           p_recipient_id: string
           p_title: string
+        }
+        Returns: undefined
+      }
+      set_discoverable: { Args: { p_value: boolean }; Returns: undefined }
+      set_partner_preferences: {
+        Args: {
+          p_availability?: string[]
+          p_note?: string
+          p_sought_styles?: string[]
         }
         Returns: undefined
       }
