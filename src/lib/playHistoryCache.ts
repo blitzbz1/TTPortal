@@ -14,6 +14,7 @@ export type PlayHistoryBundle = {
   allCheckins: any[];
   eventHours: any[];
   eventVenues: any[];
+  trainingSessions: any[];
 };
 
 export function loadCachedPlayHistory(userId: string, sinceIso: string | null): CacheRead<PlayHistoryBundle> | null {

@@ -57,6 +57,11 @@ jest.mock('../../services/equipment', () => ({
   getCurrentEquipmentForUser: (...args: any[]) => mockGetCurrentEquipmentForUser(...args),
 }));
 
+const mockGetCoachProfile = jest.fn();
+jest.mock('../../services/coaches', () => ({
+  getCoachProfile: (...args: any[]) => mockGetCoachProfile(...args),
+}));
+
 import { PlayerProfileScreen } from '../PlayerProfileScreen';
 
 const targetProfile = {
@@ -86,6 +91,7 @@ describe('PlayerProfileScreen', () => {
     mockGetEvents.mockResolvedValue({ data: [], error: null });
     mockSendEventInvites.mockResolvedValue({ error: null });
     mockGetCurrentEquipmentForUser.mockResolvedValue({ data: [], error: null });
+    mockGetCoachProfile.mockResolvedValue({ data: null, error: null });
   });
 
   it('renders profile name, username, and city', async () => {
@@ -214,6 +220,29 @@ describe('PlayerProfileScreen', () => {
     mockGetCurrentEquipmentForUser.mockResolvedValue({ data: [], error: null });
     const { findByText } = render(<PlayerProfileScreen userId="target-1" />);
     expect(await findByText('equipmentFriendEmptyTitle')).toBeTruthy();
+  });
+
+  it('pins a coach card + chip when the player is an approved coach (F063)', async () => {
+    mockGetCoachProfile.mockResolvedValue({
+      data: {
+        id: 9, user_id: 'target-1', status: 'approved',
+        bio: 'I coach all levels', experience: '15 years',
+        levels: ['advanced'], languages: ['en'], price_range: '40/h',
+        contact: 'coach@x.com', created_at: '2026-06-01T00:00:00Z',
+      },
+      error: null,
+    });
+    const { findByTestId, findByText } = render(<PlayerProfileScreen userId="target-1" />);
+    expect(await findByTestId('coach-card')).toBeTruthy();
+    expect(await findByTestId('coach-chip')).toBeTruthy();
+    expect(await findByText('I coach all levels')).toBeTruthy();
+  });
+
+  it('does not show a coach card for a non-coach (F063)', async () => {
+    mockGetCoachProfile.mockResolvedValue({ data: null, error: null });
+    const { findByText, queryByTestId } = render(<PlayerProfileScreen userId="target-1" />);
+    await findByText('Andrei Popescu');
+    expect(queryByTestId('coach-card')).toBeNull();
   });
 
   it('sends an invite for the picked event with the target user id', async () => {

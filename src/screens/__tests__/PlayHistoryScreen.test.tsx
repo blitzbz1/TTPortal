@@ -75,6 +75,8 @@ function createQueryChain(resolvedData: any = [], resolvedError: any = null) {
     select: jest.fn(() => chain),
     eq: jest.fn(() => chain),
     gte: jest.fn(() => chain),
+    order: jest.fn(() => chain),
+    returns: jest.fn(() => chain),
     then: (resolve: any) => Promise.resolve(result).then(resolve),
   };
   return chain;
@@ -110,6 +112,13 @@ const mockEventParticipations = [
   { event_id: 11, hours_played: 0, events: { venue_id: 6, starts_at: lastMonthStr, title: 'Casual', venues: { name: 'Park Y' } } },
 ];
 
+// F060: training sessions for the window. Today's two sessions exercise the
+// pill total, the day-detail rows, and the focus-distribution tally.
+const mockTrainingSessions = [
+  { id: 1, user_id: 'u-1', session_type: 'solo', hours: 1.5, focus: ['serves', 'footwork'], venue_id: 1, partner_id: null, note: null, created_at: todayStr },
+  { id: 2, user_id: 'u-1', session_type: 'robot', hours: 1, focus: ['footwork'], venue_id: null, partner_id: null, note: null, created_at: todayStr },
+];
+
 function setupMocks() {
   mockUseSession.mockReturnValue({
     user: { id: 'u-1', user_metadata: { full_name: 'Test User' } },
@@ -120,6 +129,7 @@ function setupMocks() {
   mockSupabaseFrom.mockImplementation((table: string) => {
     if (table === 'checkins') return createQueryChain(mockCheckins);
     if (table === 'event_participants') return createQueryChain(mockEventParticipations);
+    if (table === 'training_sessions') return createQueryChain(mockTrainingSessions);
     return createQueryChain();
   });
 }
@@ -341,6 +351,62 @@ describe('PlayHistoryScreen', () => {
     const expectedTitle = prevMonth.toLocaleDateString('ro-RO', { month: 'long', year: 'numeric' });
     await waitFor(() => {
       expect(getByText(expectedTitle)).toBeTruthy();
+    });
+  });
+
+  // ── Training (F060) ──
+
+  describe('Training sessions (F060)', () => {
+    it('fetches training sessions for the window', async () => {
+      setupMocks();
+      render(<PlayHistoryScreen />);
+      await waitFor(() => {
+        expect(mockSupabaseFrom).toHaveBeenCalledWith('training_sessions');
+      });
+    });
+
+    it('renders the Training summary pill summing the period hours', async () => {
+      setupMocks();
+      const { getByText, getAllByText } = render(<PlayHistoryScreen />);
+      await waitFor(() => {
+        expect(getByText('trainingStat')).toBeTruthy();
+        // 1.5 + 1 = 2.5h training hours in the current week.
+        expect(getAllByText('2.5h').length).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    it('renders training rows in the selected-day detail', async () => {
+      setupMocks();
+      const { getByText, getAllByTestId } = render(<PlayHistoryScreen />);
+      await waitFor(() => {
+        // Today is selected by default; the two training sessions show their
+        // session-type titles and the dumbbell icon.
+        expect(getByText('trainingType_solo')).toBeTruthy();
+        expect(getByText('trainingType_robot')).toBeTruthy();
+        expect(getAllByTestId('icon-dumbbell').length).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    it('renders the focus-distribution bar tallying focus areas', async () => {
+      setupMocks();
+      const { getByTestId, getByText } = render(<PlayHistoryScreen />);
+      await waitFor(() => {
+        expect(getByTestId('training-focus-distribution')).toBeTruthy();
+        expect(getByText('trainingFocusDistribution')).toBeTruthy();
+        // footwork appears in both sessions, serves in one.
+        expect(getByText('trainingFocus_footwork')).toBeTruthy();
+        expect(getByText('trainingFocus_serves')).toBeTruthy();
+      });
+    });
+
+    it('hides the focus-distribution bar when there are no training sessions', async () => {
+      mockUseSession.mockReturnValue({ user: { id: 'u-1', user_metadata: { full_name: 'Test User' } } });
+      mockGetPlayHistory.mockResolvedValue({ data: [] });
+      mockSupabaseFrom.mockImplementation(() => createQueryChain([]));
+      const { queryByTestId } = render(<PlayHistoryScreen />);
+      await waitFor(() => {
+        expect(queryByTestId('training-focus-distribution')).toBeNull();
+      });
     });
   });
 });

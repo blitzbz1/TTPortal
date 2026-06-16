@@ -309,36 +309,38 @@ Derived from [features_suggestions.md](features_suggestions.md) (2026-06-10, gro
 
 ## Phase 7 — Training & gear utility (Theme 6)
 
+> **✅ SHIPPED.** Migrations: **131** F060 training sessions, **132** F061 equipment wear, **133** F062 equipment reviews, **134** F063 coach profiles — **applied to prod + types regenerated**. (The source's `125/126/127/128` placeholders were taken by earlier phases; next free numbers were 131–134, mirroring Phase 6's 122→126 shift.) New domain `src/features/coaches`; F060 lives in `src/services/training.ts` (consistent with how the other play-history sources are organized) rather than a `features/training/` dir. F061 adds a `rubber_wear` notification type → category `wear` (CHECK now **30 types**) and a nightly `process_rubber_wear` pg_cron with a per-rubber `notified_pct` once-only/re-armable sent-flag firing 80%/100% through the 097 `create_and_send_notification` choke point; `get_rubber_wear` sums **three** hour sources (check-in durations + event hours + training sessions). F062 extends `content_reports` with `equipment_review` (full DROP+ADD CHECK) and gates reviews to owners via a DEFINER RPC; F063 uses a separate `get_venue_coaches` lazy RPC (migration **044 is frozen**, so it is correctly NOT folded into the venue bundle) + a map "Coaching" filter chip + a new AdminModeration Coaches tab + admin-gated approve/reject UPDATEs mirroring `approveVenue`. Tables 132–134 use a documented `UntypedFrom`/`callRpc` shim so the `feat(app)` commit typechecks before this prod apply. pgTAP `f060` (10) / `f061` (14) / `f062` (12) / `f063` (13) = **49 green** on the full chain via the `.migration-test` harness; `npm test` (**1276**) + `lint` (0 err) + `typecheck` + web build (`expo export`) green; locale keys ×8. A 6-agent adversarial audit graded every spec bullet + "Done when" criterion: **all met, zero blockers, zero majors** — the minor/polish findings were all deliberate documented design choices, required by the frozen-migration rule, or consistent with the sibling `features/*` barrels. **Deferred (documented):** none material.
+
 ### F060 [P] · Training session log — §6.1 `medium` `medium`
 **Files:** `supabase/migrations/125_training_sessions.sql` (new), `src/features/training/` (new), `src/screens/PlayHistoryScreen.tsx`, `src/hooks/queries/usePlayHistoryQuery.ts`, `src/components/LogHoursModal.tsx`
-- [ ] Migration: `training_sessions` (owner-write/friend-read RLS mirroring `equipment_history`); extend the play-history query path; rate-limit row (047); MMKV cache per the `playHistoryCache` pattern.
-- [ ] "Log training" on Profile + the success sheet: type (solo/partner/multiball/robot), duration (reuse the `LogHoursModal` preset pattern), 1–3 focus chips (serves, receive, footwork, FH/BH loop, blocking, match play), optional venue (pre-filled from active check-in) + partner; new row type in the `PlayHistoryScreen` day breakdown + a focus-distribution bar on the period summary.
-- [ ] Tests: pgTAP (RLS, rate limit); jest for the log modal + history row + distribution bar.
+- [x] Migration: `training_sessions` (owner-write/friend-read RLS mirroring `equipment_history`); extend the play-history query path; rate-limit row (047); MMKV cache per the `playHistoryCache` pattern.
+- [x] "Log training" on Profile + the success sheet: type (solo/partner/multiball/robot), duration (reuse the `LogHoursModal` preset pattern), 1–3 focus chips (serves, receive, footwork, FH/BH loop, blocking, match play), optional venue (pre-filled from active check-in) + partner; new row type in the `PlayHistoryScreen` day breakdown + a focus-distribution bar on the period summary.
+- [x] Tests: pgTAP (RLS, rate limit); jest for the log modal + history row + distribution bar.
 
 **Done when:** a logged training session appears in Play History with its focus areas and contributes to the period summary.
 
 ### F061 [P] · Rubber wear tracker with replacement reminders — §6.2 `medium` `medium`
 **Depends on:** F060 (training hours feed the estimate).
 **Files:** `supabase/migrations/126_equipment_wear.sql` (new), `src/screens/EquipmentScreen.tsx`, `src/services/equipment.ts`, `src/hooks/queries/useEquipmentHistoryQuery.ts`
-- [ ] Migration: `equipment_wear_settings` (side, installed_at, expected_hours default 60); `get_rubber_wear` RPC summing the three hour sources (check-in durations + event hours + training sessions); nightly pg_cron threshold notifications with a sent-flag (new category) at 80% and 100%.
-- [ ] EquipmentScreen gains an "installed on" date per rubber (default from `equipment_history`) + a wear card (estimated hours vs adjustable lifespan); pushes deep-link to Equipment; saving a new rubber resets the clock.
-- [ ] Tests: pgTAP (hour summation across sources, threshold once-only); jest for the wear card + reset.
+- [x] Migration: `equipment_wear_settings` (side, installed_at, expected_hours default 60); `get_rubber_wear` RPC summing the three hour sources (check-in durations + event hours + training sessions); nightly pg_cron threshold notifications with a sent-flag (new category) at 80% and 100%.
+- [x] EquipmentScreen gains an "installed on" date per rubber (default from `equipment_history`) + a wear card (estimated hours vs adjustable lifespan); pushes deep-link to Equipment; saving a new rubber resets the clock.
+- [x] Tests: pgTAP (hour summation across sources, threshold once-only); jest for the wear card + reset.
 
 **Done when:** a rubber accrues estimated hours from real play, the wear card reflects it, and 80%/100% pushes fire once each and reset on re-rubber.
 
 ### F062 [P] · Equipment database with community reviews — §6.3 `medium` `medium`
 **Files:** `supabase/migrations/127_equipment_reviews.sql` (new), `src/features/equipment/` (extend), `src/screens/EquipmentScreen.tsx`, `src/screens/AdminModeration/ReportsTab.tsx`
-- [ ] Migration: `equipment_reviews` (UNIQUE per user+model, **owned-it check against `equipment_history`**); `get_equipment_model_summary` RPC (aggregate stars, speed/spin/control bars, "N players use this"); `content_reports` type + `ugc_suspicious()` (098) into the admin tab; rate-limit row (047).
-- [ ] Every blade/rubber in the **existing delta-synced catalog** becomes tappable into a model page; reviews show each author's grip/style from their real equipment profile; only owners can review (stars + three 0–10 sliders + time used + text); a "Gear" browse entry by manufacturer; report/block reuse the venue-review patterns.
-- [ ] Tests: pgTAP (owned-it gate, uniqueness, report); jest for the model page + review form.
+- [x] Migration: `equipment_reviews` (UNIQUE per user+model, **owned-it check against `equipment_history`**); `get_equipment_model_summary` RPC (aggregate stars, speed/spin/control bars, "N players use this"); `content_reports` type + `ugc_suspicious()` (098) into the admin tab; rate-limit row (047).
+- [x] Every blade/rubber in the **existing delta-synced catalog** becomes tappable into a model page; reviews show each author's grip/style from their real equipment profile; only owners can review (stars + three 0–10 sliders + time used + text); a "Gear" browse entry by manufacturer; report/block reuse the venue-review patterns.
+- [x] Tests: pgTAP (owned-it gate, uniqueness, report); jest for the model page + review form.
 
 **Done when:** a model page shows aggregate ratings + usage count, only owners can post a review, and reports reach the admin queue.
 
 ### F063 [P] · Coach directory — §6.4 `medium` `medium`
 **Files:** `supabase/migrations/128_coach_profiles.sql` (new), `src/features/coaches/` (new), `src/screens/AdminModeration/` (new Coaches tab), `src/hooks/queries/useAdminListsQuery.ts`, `src/screens/VenueDetailScreen.tsx`, `src/screens/MapViewScreen.tsx`
-- [ ] Migration: `coach_profiles` (status lifecycle, public-read-when-approved RLS) + `coach_venues`; admin approve/reject RPCs as a **new AdminModeration tab** following the just-shipped tab pattern (`src/screens/AdminModeration/*Tab.tsx` + `useAdminListsQuery`); coach chips in the venue bundle (044) and `get_profile_stats` (051).
-- [ ] "I coach" application (bio, experience, levels, languages, price range, contact, up to 3 venues) → existing admin approval queue; approved coaches get a Coach badge + a pinned card on their player profile showing real TTPortal activity; venue detail "Coaches here"; a "Coaching" map filter chip. No booking/payments in v1.
-- [ ] Tests: pgTAP (approval gating, public-read only when approved); jest for the application + admin approve + venue chip.
+- [x] Migration: `coach_profiles` (status lifecycle, public-read-when-approved RLS) + `coach_venues`; admin approve/reject RPCs as a **new AdminModeration tab** following the just-shipped tab pattern (`src/screens/AdminModeration/*Tab.tsx` + `useAdminListsQuery`); coach chips in the venue bundle (044) and `get_profile_stats` (051).
+- [x] "I coach" application (bio, experience, levels, languages, price range, contact, up to 3 venues) → existing admin approval queue; approved coaches get a Coach badge + a pinned card on their player profile showing real TTPortal activity; venue detail "Coaches here"; a "Coaching" map filter chip. No booking/payments in v1.
+- [x] Tests: pgTAP (approval gating, public-read only when approved); jest for the application + admin approve + venue chip.
 
 **Done when:** a coach application lands in a new admin tab, approval pins a credible coach card + Coach badge, and the venue/map surfaces the coach.
 

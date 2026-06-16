@@ -12,6 +12,9 @@ export default function ProtectedLayout() {
       <Stack.Screen name="friends" />
       <Stack.Screen name="play-history" />
       <Stack.Screen name="equipment" />
+      <Stack.Screen name="coach-apply" />
+      <Stack.Screen name="gear/index" />
+      <Stack.Screen name="gear/model" />
       <Stack.Screen name="favorites" />
       <Stack.Screen name="admin" />
       <Stack.Screen name="create-event" options={{ animation: 'slide_from_bottom' }} />

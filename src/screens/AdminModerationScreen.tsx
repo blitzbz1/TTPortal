@@ -18,16 +18,18 @@ import {
   useAdminFeedbackQuery,
   useAdminReportsQuery,
   useAdminChangeRequestsQuery,
+  useAdminPendingCoachesQuery,
 } from '../hooks/queries/useAdminListsQuery';
 import { ReviewsTab } from './AdminModeration/ReviewsTab';
 import { VenuesTab } from './AdminModeration/VenuesTab';
 import { FeedbackTab } from './AdminModeration/FeedbackTab';
 import { ReportsTab } from './AdminModeration/ReportsTab';
 import { ChangesTab } from './AdminModeration/ChangesTab';
+import { CoachesTab } from './AdminModeration/CoachesTab';
 import { ModeratorsModal } from './AdminModeration/ModeratorsModal';
 import { VenueEditModal } from './AdminModeration/VenueEditModal';
 
-type AdminTab = 'reviews' | 'venues' | 'feedback' | 'reports' | 'changes';
+type AdminTab = 'reviews' | 'venues' | 'feedback' | 'reports' | 'changes' | 'coaches';
 
 export function AdminModerationScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -54,6 +56,7 @@ export function AdminModerationScreen() {
   const { data: userFeedback = [] } = useAdminFeedbackQuery(false);
   const { data: reports = [] } = useAdminReportsQuery(false);
   const { data: changeRequests = [] } = useAdminChangeRequestsQuery(false);
+  const { data: pendingCoaches = [] } = useAdminPendingCoachesQuery(false);
 
   useLayoutEffect(() => {
     if (!user) return;
@@ -172,6 +175,20 @@ export function AdminModerationScreen() {
             </View>
           )}
         </TouchableOpacity>
+        {isAdmin && (
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'coaches' && styles.tabActive]}
+          onPress={() => setActiveTab('coaches')}
+          testID="admin-tab-coaches"
+        >
+          <Text style={[styles.tabText, activeTab === 'coaches' && styles.tabTextActive]}>{s('tabCoaches')}</Text>
+          {pendingCoaches.length > 0 && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>{pendingCoaches.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        )}
       </View>
 
       {activeTab === 'reviews' ? (
@@ -187,6 +204,8 @@ export function AdminModerationScreen() {
         <FeedbackTab styles={styles} />
       ) : activeTab === 'reports' ? (
         <ReportsTab styles={styles} />
+      ) : activeTab === 'coaches' ? (
+        <CoachesTab styles={styles} />
       ) : (
         <ChangesTab isAdmin={isAdmin} styles={styles} />
       )}

@@ -14,6 +14,7 @@ const KEYS = {
   flaggedReviews: 'admin:flagged-reviews',
   userFeedback: (limit: number) => `admin:user-feedback:${limit}`,
   venueChangeRequests: 'admin:venue-change-requests',
+  pendingCoaches: 'admin:pending-coaches',
 };
 
 export function loadCachedPendingVenues<T>(): CacheRead<T[]> | null {
@@ -57,4 +58,14 @@ export function saveCachedVenueChangeRequests<T>(data: T[]): void {
 }
 export function invalidateVenueChangeRequestsCache(): void {
   cachedInvalidate(KEYS.venueChangeRequests);
+}
+
+export function loadCachedPendingCoaches<T>(): CacheRead<T[]> | null {
+  return cachedLoad<T[]>(KEYS.pendingCoaches, TTL_MS);
+}
+export function saveCachedPendingCoaches<T>(data: T[]): void {
+  cachedSave(KEYS.pendingCoaches, data);
+}
+export function invalidatePendingCoachesCache(): void {
+  cachedInvalidate(KEYS.pendingCoaches);
 }

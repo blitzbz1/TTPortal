@@ -1,6 +1,6 @@
 // T070: equipment history/current selection + cache invalidation coupling.
 import { createQueryChain } from '../../test-utils/supabaseMock';
-import { getEquipmentHistory, getCurrentEquipmentForUser, saveEquipmentSelection } from '../equipment';
+import { getEquipmentHistory, getCurrentEquipmentForUser, saveEquipmentSelection, getRubberWear } from '../equipment';
 
 const mockFrom = jest.fn();
 const mockRpc = jest.fn();
@@ -34,6 +34,23 @@ describe('getCurrentEquipmentForUser', () => {
     mockRpc.mockResolvedValue({ data: [], error: null });
     await getCurrentEquipmentForUser('u-1');
     expect(mockRpc).toHaveBeenCalledWith('current_equipment_for_user', { v_user_id: 'u-1' });
+  });
+});
+
+describe('getRubberWear', () => {
+  // F061 regression: Postgres `numeric` (expected_hours/estimated_hours) is
+  // serialized as a STRING by PostgREST; without coercion the wear-card stepper
+  // string-concatenates ("60" + 10 = "6010") and the pct bars break.
+  it('coerces numeric columns returned as strings to numbers', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{ side: 'forehand', installed_at: '2025-01-01', expected_hours: '60', estimated_hours: '12.5', pct: 21 }],
+      error: null,
+    });
+    const { data } = await getRubberWear('u-1');
+    expect(mockRpc).toHaveBeenCalledWith('get_rubber_wear', { p_user_id: 'u-1' });
+    expect(data?.[0].expected_hours).toBe(60);
+    expect(data?.[0].estimated_hours).toBe(12.5);
+    expect(typeof data?.[0].expected_hours).toBe('number');
   });
 });
 

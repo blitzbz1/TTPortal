@@ -2,6 +2,7 @@ import { cachedLoad, cachedSave, cachedInvalidate, type CacheRead } from './cach
 
 const TTL_MS = 24 * 60 * 60 * 1000; // 24h — invalidated on save
 const historyKey = (userId: string, limit: number) => `equipment:${userId}:history:${limit}`;
+const wearKey = (userId: string) => `equipment:${userId}:wear`;
 
 export function loadCachedEquipmentHistory<T>(userId: string, limit: number): CacheRead<T[]> | null {
   return cachedLoad<T[]>(historyKey(userId, limit), TTL_MS);
@@ -13,4 +14,15 @@ export function invalidateEquipmentCache(userId: string): void {
   // We may have multiple limit-keys; remove via prefix would be nicer, but the
   // common case is the same single limit being reused — keep it simple.
   for (const limit of [4, 10, 20]) cachedInvalidate(historyKey(userId, limit));
+}
+
+// F061: per-user rubber-wear estimate cache (one entry, both sides).
+export function loadCachedRubberWear<T>(userId: string): CacheRead<T[]> | null {
+  return cachedLoad<T[]>(wearKey(userId), TTL_MS);
+}
+export function saveCachedRubberWear<T>(userId: string, data: T[]): void {
+  cachedSave(wearKey(userId), data);
+}
+export function invalidateRubberWearCache(userId: string): void {
+  cachedInvalidate(wearKey(userId));
 }

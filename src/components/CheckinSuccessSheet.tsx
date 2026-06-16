@@ -31,6 +31,7 @@ import { sharePayload, venueUrl } from '../lib/shareLinks';
 import { showAlert } from '../lib/dialogs';
 import { Springs, Duration, Easings } from '../lib/motion';
 import { VenueFreeTablesBlock } from './VenueFreeTablesBlock';
+import { LogTrainingModal } from './LogTrainingModal';
 import { uploadMomentImage, postCheckinMoment } from '../features/checkinMoments';
 import { useSession } from '../hooks/useSession';
 import { useProfileStatsQuery } from '../hooks/queries/useProfileQuery';
@@ -161,6 +162,8 @@ export function CheckinSuccessSheet({
   const [caption, setCaption] = useState('');
   const [momentPosting, setMomentPosting] = useState(false);
   const [momentPosted, setMomentPosted] = useState(false);
+  // F060: log a training session seeded with this venue.
+  const [trainingVisible, setTrainingVisible] = useState(false);
   // Moments can attach only to a fresh online check-in.
   const canAddMoment = checkinId != null && venueId != null && !queuedOffline;
 
@@ -175,6 +178,7 @@ export function CheckinSuccessSheet({
       setCaption('');
       setMomentPosting(false);
       setMomentPosted(false);
+      setTrainingVisible(false);
       // F050: the streak just advanced server-side — pull the fresh count.
       if (user?.id) refetchStats();
     }
@@ -348,6 +352,17 @@ export function CheckinSuccessSheet({
             </View>
           ) : null}
 
+          {/* F060: log a training session for this check-in. */}
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={styles.trainingBtn}
+            onPress={() => setTrainingVisible(true)}
+            testID="checkin-log-training"
+          >
+            <Lucide name="dumbbell" size={16} color={colors.primaryMid} />
+            <Text style={styles.trainingBtnText}>{s('trainingLogAction')}</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity accessibilityRole="button" style={styles.shareBtn} onPress={() => {
             Share.share(
               venueId != null
@@ -364,6 +379,15 @@ export function CheckinSuccessSheet({
           </TouchableOpacity>
         </Pressable>
       </Pressable>
+
+      {/* F060: training log seeded with this venue. Sibling Modal so it stacks
+          above the success sheet. */}
+      <LogTrainingModal
+        visible={trainingVisible}
+        venueId={venueId}
+        venueName={venueName}
+        onDismiss={() => setTrainingVisible(false)}
+      />
     </Modal>
   );
 }
@@ -530,6 +554,26 @@ function createStyles(colors: ThemeColors) {
       fontSize: FontSize.md,
       fontWeight: FontWeight.semibold,
       color: colors.primaryLight,
+    },
+    trainingBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.xs,
+      borderRadius: Radius.lg,
+      paddingVertical: 12,
+      paddingHorizontal: Spacing.xl,
+      borderWidth: 1,
+      borderColor: colors.primaryDim,
+      backgroundColor: colors.primaryPale,
+      marginTop: Spacing.md,
+      width: '100%',
+    },
+    trainingBtnText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
+      color: colors.primaryMid,
     },
     shareBtn: {
       flexDirection: 'row',

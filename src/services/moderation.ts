@@ -8,7 +8,8 @@ export type ReportContentType =
   | 'profile'
   | 'venue_post'
   | 'dm_message'
-  | 'checkin_moment';
+  | 'checkin_moment'
+  | 'equipment_review';
 
 export type ReportReason =
   | 'spam'

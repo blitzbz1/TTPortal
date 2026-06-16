@@ -35,8 +35,10 @@ import {
   yearsSince,
 } from '../features/milestones';
 import { QuickMatchModal } from '../components/QuickMatchModal';
+import { LogTrainingModal } from '../components/LogTrainingModal';
 import { getLastSeenRating, setLastSeenRating, shouldCelebrateRating } from '../lib/ratingsCache';
 import { useHomeVenueQuery, useHomeVenueSuggestionQuery, homeVenueQueryKey } from '../features/venueIntel';
+import { useCoachProfileQuery } from '../features/coaches';
 import { isWrappedWindowOpen, wrappedYearFor } from '../features/wrapped';
 import { updateProfile } from '../services/profiles';
 import { useQueryClient } from '@tanstack/react-query';
@@ -55,6 +57,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [editorVisible, setEditorVisible] = useState(false);
   const [quickMatchVisible, setQuickMatchVisible] = useState(false);
+  const [trainingVisible, setTrainingVisible] = useState(false);
   const { data: matches = [] } = usePlayerMatchesQuery(user?.id);
   const confirmedMatches = useMemo(
     () => matches.filter((m) => m.status === 'confirmed' && m.winner_id),
@@ -176,6 +179,8 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   // F014: home venue ("plays at X") + auto-suggestion when none is set yet.
   const queryClient = useQueryClient();
   const { data: homeVenue } = useHomeVenueQuery(user?.id);
+  // F063: the user's own coach application (drives the "I coach" entry label).
+  const { data: coachProfile } = useCoachProfileQuery(user?.id);
   const { data: homeSuggestion } = useHomeVenueSuggestionQuery(
     user?.id,
     !!profileRaw && (profileRaw as any).home_venue_id == null,
@@ -525,6 +530,13 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
               <Lucide name="chevron-right" size={16} color={colors.textFaint} />
             </TouchableOpacity>
           )}
+          <TouchableOpacity style={styles.navRow} onPress={() => setTrainingVisible(true)} testID="profile-log-training">
+            <View style={[styles.navIcon, { backgroundColor: colors.primaryPale }]}>
+              <Lucide name="dumbbell" size={18} color={colors.primaryMid} />
+            </View>
+            <Text style={styles.navLabel}>{s('trainingLogTitle')}</Text>
+            <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/play-history')}>
             <View style={[styles.navIcon, { backgroundColor: colors.purplePale }]}>
               <Lucide name="trophy" size={18} color={colors.purple} />
@@ -537,6 +549,22 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
               <MaterialCommunityIcons name="table-tennis" size={18} color={colors.primaryMid} />
             </View>
             <Text style={styles.navLabel}>{s('equipment')}</Text>
+            <Lucide name="chevron-right" size={16} color={colors.textFaint} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.navRow}
+            onPress={() => router.push({ pathname: '/(protected)/coach-apply' })}
+            testID="profile-i-coach"
+          >
+            <View style={[styles.navIcon, { backgroundColor: colors.bluePale }]}>
+              <Lucide name="graduation-cap" size={18} color={colors.blue} />
+            </View>
+            <Text style={styles.navLabel}>{s('coachIcoach')}</Text>
+            {coachProfile?.status === 'approved' && (
+              <View style={styles.adminPill}>
+                <Text style={styles.adminPillText}>{s('coachChip')}</Text>
+              </View>
+            )}
             <Lucide name="chevron-right" size={16} color={colors.textFaint} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.navRow} onPress={() => router.push('/(protected)/favorites')}>
@@ -619,6 +647,9 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
       {user?.id && (
         <QuickMatchModal visible={quickMatchVisible} userId={user.id} onClose={() => setQuickMatchVisible(false)} />
       )}
+
+      {/* F060: log a training session from the profile. */}
+      <LogTrainingModal visible={trainingVisible} onDismiss={() => setTrainingVisible(false)} />
 
       {/* F050: streak detail (current/best + which day still counts this week). */}
       <Modal

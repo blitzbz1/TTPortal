@@ -27,6 +27,7 @@ import { createStyles } from './MapViewScreen.styles';
 import { useVenuesQuery } from '../hooks/queries/useVenuesQuery';
 import { useFriendPresenceQuery } from '../hooks/queries/useFriendPresenceQuery';
 import { useLiveVenueCountsQuery, useCityVenueAmenitiesQuery } from '../features/venueIntel';
+import { useCoachingVenueIdsQuery } from '../features/coaches';
 import { useOpenPlayCountsQuery } from '../features/openplay';
 import { useUnvisitedVenuesQuery } from '../features/explorer';
 import { MessagesButton } from '../components/MessagesButton';
@@ -52,7 +53,7 @@ type VenueWithDistance = VenueWithStats & {
   distanceKm: number | null;
 };
 
-type FilterKey = 'toate' | 'parcuri' | 'indoor' | 'verificat' | 'free_entry' | 'rental';
+type FilterKey = 'toate' | 'parcuri' | 'indoor' | 'verificat' | 'free_entry' | 'rental' | 'coaching';
 
 interface MapViewScreenProps {
   hideTabBar?: boolean;
@@ -225,6 +226,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     { key: 'verificat', label: s('filterVerified'), icon: 'check' },
     { key: 'free_entry', label: s('amenityFilterFreeEntry') },
     { key: 'rental', label: s('amenityFilterRental') },
+    { key: 'coaching', label: s('filterCoaching'), icon: 'graduation-cap' },
   ];
 
   const conditionLabel = useCallback((condition: VenueCondition | null) => {
@@ -273,7 +275,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     const sig = `${linkParams.filter ?? ''}|${linkParams.city ?? ''}`;
     if (sig === '|' || appliedLinkSigRef.current === sig) return;
     appliedLinkSigRef.current = sig;
-    const VALID_FILTERS: FilterKey[] = ['toate', 'parcuri', 'indoor', 'verificat', 'free_entry', 'rental'];
+    const VALID_FILTERS: FilterKey[] = ['toate', 'parcuri', 'indoor', 'verificat', 'free_entry', 'rental', 'coaching'];
     if (linkParams.filter && (VALID_FILTERS as string[]).includes(linkParams.filter)) {
       setActiveFilter(linkParams.filter as FilterKey);
     }
@@ -314,6 +316,8 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const openPlayJoinLabel = s('openPlayJoinThem');
   // F012: per-venue amenities for the "free entry" / "rental" filter chips.
   const { data: cityAmenities } = useCityVenueAmenitiesQuery(selectedCity?.id ?? null);
+  // F063: venue ids in this city with ≥1 approved coach → "Coaching" filter chip.
+  const { data: coachingVenueIds } = useCoachingVenueIdsQuery(selectedCityName);
   // F051: venues in this city the viewer has never checked into → "new to you"
   // pin tag. Keyed by display name (matches venues.city), one round-trip.
   const { unvisitedVenueIds } = useUnvisitedVenuesQuery(user?.id, selectedCityName);
@@ -388,8 +392,10 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     // the per-city amenities overlay.
     if (activeFilter === 'free_entry') return venuesWithDistance.filter((v) => v.free_access === true);
     if (activeFilter === 'rental') return venuesWithDistance.filter((v) => cityAmenities?.get(v.id)?.rental === true);
+    // F063: "Coaching" keeps venues with at least one approved coach.
+    if (activeFilter === 'coaching') return venuesWithDistance.filter((v) => coachingVenueIds?.has(v.id) === true);
     return venuesWithDistance;
-  }, [venuesWithDistance, activeFilter, cityAmenities]);
+  }, [venuesWithDistance, activeFilter, cityAmenities, coachingVenueIds]);
 
   // Chip + search + near-me sort — this feeds the LIST.
   const filteredVenues = useMemo(() => {

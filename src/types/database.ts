@@ -226,6 +226,136 @@ export interface EquipmentSelection {
 
 export type EquipmentSelectionInsert = Omit<EquipmentSelection, 'id' | 'created_at'>;
 
+// ── Training sessions (F060) ──
+
+export type TrainingSessionType = 'solo' | 'partner' | 'multiball' | 'robot';
+
+/** Focus areas validated app-side; the DB only bounds the count (<= 3). */
+export type TrainingFocus =
+  | 'serves'
+  | 'receive'
+  | 'footwork'
+  | 'fh_bh_loop'
+  | 'blocking'
+  | 'match_play';
+
+export interface TrainingSession {
+  id: number;
+  user_id: string;
+  session_type: TrainingSessionType;
+  hours: number;
+  focus: TrainingFocus[];
+  venue_id: number | null;
+  partner_id: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export type TrainingSessionInsert = Omit<TrainingSession, 'id' | 'created_at'>;
+
+// ── Rubber wear tracker (F061) ──
+
+export type RubberSide = 'forehand' | 'backhand';
+
+/** One row per side returned by get_rubber_wear. estimated_hours is the user's
+ *  total play hours (check-ins + events + training) since installed_at; pct is
+ *  round(estimated / expected * 100). */
+export interface RubberWear {
+  side: RubberSide;
+  installed_at: string;
+  expected_hours: number;
+  estimated_hours: number;
+  pct: number;
+}
+
+// ── Equipment reviews (F062) ──
+
+/** How long the reviewer has used the gear. */
+export type EquipmentTimeUsed = 'lt_1m' | '1_6m' | '6_12m' | '1_2y' | 'gt_2y';
+
+/** One community review of a catalog model (category, manufacturer_id, model).
+ *  author_hand/style/grip are snapshotted from the author's latest setup. */
+export interface EquipmentReview {
+  id: number;
+  user_id: string;
+  category: EquipmentCategory;
+  manufacturer_id: string;
+  model: string;
+  rating: number;
+  speed: number | null;
+  spin: number | null;
+  control: number | null;
+  time_used: EquipmentTimeUsed | null;
+  body: string | null;
+  author_hand: DominantHand | null;
+  author_style: PlayingStyle | null;
+  author_grip: Grip | null;
+  flagged: boolean;
+  flag_count: number;
+  created_at: string;
+}
+
+/** Aggregate stats returned by get_equipment_model_summary. */
+export interface EquipmentModelSummary {
+  review_count: number;
+  avg_rating: number | null;
+  avg_speed: number | null;
+  avg_spin: number | null;
+  avg_control: number | null;
+  users_count: number;
+}
+
+/** Input to post_equipment_review. */
+export interface EquipmentReviewInput {
+  category: EquipmentCategory;
+  manufacturerId: string;
+  model: string;
+  rating: number;
+  speed?: number | null;
+  spin?: number | null;
+  control?: number | null;
+  timeUsed?: EquipmentTimeUsed | null;
+  body?: string | null;
+}
+
+// ── Coach directory (F063) ──
+
+export type CoachStatus = 'pending' | 'approved' | 'rejected';
+
+/** A coach application / profile. Public-read when status='approved'; the owner
+ *  also reads their own pending/rejected row. */
+export interface CoachProfile {
+  id: number;
+  user_id: string;
+  status: CoachStatus;
+  bio: string | null;
+  experience: string | null;
+  levels: string[];
+  languages: string[];
+  price_range: string | null;
+  contact: string | null;
+  created_at: string;
+}
+
+/** Input to apply_to_coach (the "I coach" application form). */
+export interface CoachApplicationInput {
+  bio: string | null;
+  experience: string | null;
+  levels: string[];
+  languages: string[];
+  priceRange: string | null;
+  contact: string | null;
+  venueIds: number[];
+}
+
+/** One approved coach at a venue, returned by get_venue_coaches. */
+export interface VenueCoach {
+  coach_id: number;
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
 // ── View types ──
 
 export interface VenueStats {

@@ -141,6 +141,63 @@ const FlaggedReviewCard = React.memo(function FlaggedReviewCard({
   );
 });
 
+interface PendingCoachCardProps {
+  coach: any;
+  styles: any;
+  colors: any;
+  s: (key: string, ...args: string[]) => string;
+  onApprove: (id: number) => void;
+  onReject: (coach: any) => void;
+}
+const PendingCoachCard = React.memo(function PendingCoachCard({
+  coach, styles, colors, s, onApprove, onReject,
+}: PendingCoachCardProps) {
+  const levels = Array.isArray(coach.levels) ? coach.levels : [];
+  const languages = Array.isArray(coach.languages) ? coach.languages : [];
+  const meta = [
+    levels.length ? `${s('coachLevelsLabel')}: ${levels.join(', ')}` : null,
+    languages.length ? `${s('coachLanguagesLabel')}: ${languages.join(', ')}` : null,
+    coach.price_range ? `${s('coachPriceLabel')}: ${coach.price_range}` : null,
+  ].filter(Boolean).join(' · ');
+  return (
+    <View style={styles.modCard} testID={`coach-card-${coach.id}`}>
+      <View style={styles.modTop}>
+        <Text style={styles.modTitle}>{coach.profiles?.full_name ?? s('user')}</Text>
+        <View style={styles.modBadge}>
+          <Text style={styles.modBadgeText}>{s('coachNewBadge')}</Text>
+        </View>
+      </View>
+      <Text style={styles.modMeta}>
+        {formatShortDate(coach.created_at)}
+        {coach.experience ? ` · ${coach.experience}` : ''}
+      </Text>
+      {coach.bio ? <Text style={styles.flagText}>{`"${coach.bio}"`}</Text> : null}
+      {meta ? <Text style={styles.modMeta}>{meta}</Text> : null}
+      {coach.contact ? (
+        <Text style={styles.modMeta}>{`${s('coachContactLabel')}: ${coach.contact}`}</Text>
+      ) : null}
+      <View style={styles.modActions}>
+        <TouchableOpacity
+          style={styles.approveBtn}
+          onPress={() => onApprove(coach.id)}
+          testID={`coach-approve-${coach.id}`}
+        >
+          <Lucide name="check" size={14} color={colors.textOnPrimary} />
+          <Text style={styles.approveBtnText}>{s('approveCoach')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.rejectBtn}
+          onPress={() => onReject(coach)}
+          testID={`coach-reject-${coach.id}`}
+        >
+          <Lucide name="x" size={14} color={colors.red} />
+          <Text style={styles.rejectBtnText}>{s('rejectCoach')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
 interface FeedbackCardProps {
   item: any;
   styles: any;
@@ -389,6 +446,6 @@ const VenueChangeRequestCard = React.memo(function VenueChangeRequestCard({
   );
 });
 
-export { PendingVenueCard, FlaggedReviewCard, FeedbackCard, VenueChangeRequestCard };
+export { PendingVenueCard, FlaggedReviewCard, PendingCoachCard, FeedbackCard, VenueChangeRequestCard };
 export { CONDITION_OPTIONS, BOOLEAN_OPTIONS, REQUIRED_BOOLEAN_OPTIONS };
 export { formatShortDate, formatLocalizedDateTime, formatVenueCoordinates, formatVenueCountry };

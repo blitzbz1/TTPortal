@@ -7,6 +7,7 @@ import {
   invalidatePendingVenuesCache,
   invalidateUserFeedbackCache,
   invalidateVenueChangeRequestsCache,
+  invalidatePendingCoachesCache,
 } from '../lib/adminListsCache';
 
 // Slim column lists for the admin moderation lists. The admin UI renders
@@ -19,6 +20,12 @@ const PENDING_VENUE_COLS =
 // review body itself is not shown in the list.
 const FLAGGED_REVIEW_COLS =
   'id, user_id, venue_id, flag_count, flagged, created_at, comment, rating';
+
+// coach_profiles lands in migration 134 — not in the generated Database types
+// yet, so `.from('coach_profiles')` won't typecheck. Use an untyped view of the
+// client for that table only (same shim as services/coaches + equipmentReviews).
+type UntypedFrom = { from: (table: string) => any };
+const db = supabase as unknown as UntypedFrom;
 
 function invalidateMapVenuesCache() {
   clearVenuesCache();
@@ -323,6 +330,52 @@ export async function dismissVenueChangeRequest(requestId: number, userId: strin
     p_availability: 'none',
   });
   if (!result.error) invalidateVenueChangeRequestsCache();
+  return result;
+}
+
+// ── Coach applications (F063, admin-only) ──
+// The Coaches tab lists pending coach_profiles. coach_profiles.user_id FKs to
+// public.profiles, but PostgREST still 400s embedding it (the same auth.users
+// embed quirk all admin getters hit), so attachProfiles stitches the applicant
+// name. The admin-read RLS policy returns all pending rows to an admin.
+const PENDING_COACH_COLS =
+  'id, user_id, status, bio, experience, levels, languages, price_range, contact, created_at';
+
+export async function getPendingCoaches() {
+  const result = await db
+    .from('coach_profiles')
+    .select(PENDING_COACH_COLS)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+  if (result.error || !result.data) return result;
+  const data = await attachProfiles(result.data, 'user_id', 'profiles', 'full_name');
+  return { ...result, data };
+}
+
+// Approve / reject map to a plain admin-gated UPDATE (the admin-UPDATE RLS policy
+// is the real enforcement) — exactly like approveVenue/rejectVenue. Re-checked
+// client-side via verifyAdmin and stamped with reviewed_by/reviewed_at.
+export async function approveCoach(id: number, userId: string) {
+  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  const result = await db
+    .from('coach_profiles')
+    .update({ status: 'approved', reviewed_by: userId, reviewed_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (!result.error) invalidatePendingCoachesCache();
+  return result;
+}
+
+export async function rejectCoach(id: number, userId: string) {
+  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  const result = await db
+    .from('coach_profiles')
+    .update({ status: 'rejected', reviewed_by: userId, reviewed_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (!result.error) invalidatePendingCoachesCache();
   return result;
 }
 

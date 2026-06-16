@@ -174,6 +174,7 @@ export function SettingsScreen() {
           { key: 'streak', icon: 'flame', labelKey: 'notifStreak' },
           { key: 'recap', icon: 'calendar', labelKey: 'notifRecap' },
           { key: 'wrapped', icon: 'gift', labelKey: 'notifWrapped' },
+          { key: 'wear', icon: 'timer', labelKey: 'notifWear' },
         ] as const).map(({ key, icon, labelKey }) => (
           <View style={styles.row} key={key} testID={`settings-notif-${key}`}>
             <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>

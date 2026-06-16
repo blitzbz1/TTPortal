@@ -1,7 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getEquipmentHistory, saveEquipmentSelection } from '../../services/equipment';
-import { loadCachedEquipmentHistory, saveCachedEquipmentHistory } from '../../lib/equipmentCache';
-import type { EquipmentSelection, EquipmentSelectionInsert } from '../../types/database';
+import { getEquipmentHistory, getRubberWear, saveEquipmentSelection, setRubberInstall } from '../../services/equipment';
+import {
+  loadCachedEquipmentHistory,
+  loadCachedRubberWear,
+  saveCachedEquipmentHistory,
+  saveCachedRubberWear,
+} from '../../lib/equipmentCache';
+import type { EquipmentSelection, EquipmentSelectionInsert, RubberSide, RubberWear } from '../../types/database';
 
 const HISTORY_LIMIT = 4;
 
@@ -25,6 +30,46 @@ export function useEquipmentHistoryQuery(userId: string | undefined) {
       userId ? loadCachedEquipmentHistory<EquipmentSelection>(userId, HISTORY_LIMIT)?.data : undefined,
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+const rubberWearQueryKey = (userId: string | undefined) =>
+  ['rubber-wear', userId] as const;
+
+/** F061: per-side wear estimate. Same blessed shape — queryFn mirrors to the
+ *  equipment domain cache; initialData hydrates from it so the card paints
+ *  offline. */
+export function useRubberWearQuery(userId: string | undefined) {
+  return useQuery<RubberWear[]>({
+    queryKey: rubberWearQueryKey(userId),
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data, error } = await getRubberWear(userId);
+      if (error) throw error;
+      const wear = (data ?? []) as RubberWear[];
+      saveCachedRubberWear(userId, wear);
+      return wear;
+    },
+    initialData: () =>
+      userId ? loadCachedRubberWear<RubberWear>(userId)?.data : undefined,
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** F061: install / re-rubber a side, then refetch the wear estimate so the card
+ *  reflects the reset clock immediately. */
+export function useSetRubberInstallMutation(userId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { side: RubberSide; installedAt: string; expectedHours: number }) => {
+      if (!userId) throw new Error('not authenticated');
+      const { error } = await setRubberInstall(userId, input.side, input.installedAt, input.expectedHours);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: rubberWearQueryKey(userId) });
+    },
   });
 }
 

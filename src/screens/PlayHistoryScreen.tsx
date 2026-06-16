@@ -17,7 +17,6 @@ import { useI18n } from '../hooks/useI18n';
 import { getDateLocale } from '../contexts/I18nProvider';
 import { getPlayHistory } from '../services/checkins';
 import { usePlayHistoryQuery } from '../hooks/queries/usePlayHistoryQuery';
-import { supabase } from '../lib/supabase';
 
 const PAGE_SIZE = 20;
 
@@ -100,6 +99,7 @@ export function PlayHistoryScreen() {
   const allCheckins = bundle?.allCheckins ?? [];
   const eventHours = bundle?.eventHours ?? [];
   const eventVenues = bundle?.eventVenues ?? [];
+  const trainingSessions = bundle?.trainingSessions ?? [];
   const history = useMemo(
     () => [...(bundle?.history ?? []), ...extraPages],
     [bundle, extraPages],
@@ -222,6 +222,28 @@ export function PlayHistoryScreen() {
       .reduce((sum, f) => sum + f.hours_played, 0);
   };
 
+  // F060: training sessions falling inside the active period.
+  const filteredTraining = useMemo(() => {
+    const start = getPeriodStart();
+    return trainingSessions.filter((t) => new Date(t.created_at) >= start);
+  }, [trainingSessions, getPeriodStart]);
+
+  const computeTrainingHours = () =>
+    filteredTraining.reduce((sum, t) => sum + Number(t.hours ?? 0), 0);
+
+  // F060: tally each focus area across the period's training sessions.
+  const focusDistribution = useMemo(() => {
+    const tally = new Map<string, number>();
+    for (const t of filteredTraining) {
+      for (const f of t.focus ?? []) {
+        tally.set(f, (tally.get(f) ?? 0) + 1);
+      }
+    }
+    const entries = Array.from(tally.entries()).sort((a, b) => b[1] - a[1]);
+    const max = entries.reduce((m, [, n]) => Math.max(m, n), 0);
+    return { entries, max };
+  }, [filteredTraining]);
+
   const computeTotalTime = () => {
     let totalMs = 0;
     for (const entry of filteredCheckins) {
@@ -230,7 +252,7 @@ export function PlayHistoryScreen() {
       }
     }
     const checkinHours = totalMs / 3600000;
-    const total = checkinHours + computeEventHours();
+    const total = checkinHours + computeEventHours() + computeTrainingHours();
     return formatHours(total);
   };
 
@@ -255,8 +277,11 @@ export function PlayHistoryScreen() {
     for (const ev of eventVenues) {
       days.add(new Date(ev.starts_at).toDateString());
     }
+    for (const t of trainingSessions) {
+      days.add(new Date(t.created_at).toDateString());
+    }
     return days;
-  }, [allCheckins, eventVenues]);
+  }, [allCheckins, eventVenues, trainingSessions]);
 
   // Calendar: full month grid, offset by calMonthOffset
   const calMonth = useMemo(() => {
@@ -297,7 +322,7 @@ export function PlayHistoryScreen() {
   // Activities for the selected day
   const selectedDayActivities = useMemo(() => {
     if (!selectedDay) return null;
-    const activities: { type: 'checkin' | 'event'; title: string; hours: number | null; time: string }[] = [];
+    const activities: { type: 'checkin' | 'event' | 'training'; title: string; hours: number | null; time: string }[] = [];
 
     for (const c of allCheckins) {
       if (new Date(c.started_at).toDateString() === selectedDay) {
@@ -317,17 +342,27 @@ export function PlayHistoryScreen() {
       }
     }
 
+    // F060: training sessions logged on the selected day.
+    for (const t of trainingSessions) {
+      if (new Date(t.created_at).toDateString() === selectedDay) {
+        const time = new Date(t.created_at).toLocaleTimeString(getDateLocale(lang), { hour: '2-digit', minute: '2-digit' });
+        activities.push({ type: 'training', title: s(`trainingType_${t.session_type}`), hours: Number(t.hours ?? 0), time });
+      }
+    }
+
     activities.sort((a, b) => a.time.localeCompare(b.time));
 
     const totalHours = activities.reduce((sum, a) => sum + (a.hours ?? 0), 0);
     return { activities, totalHours };
-  }, [selectedDay, allCheckins, eventVenues, s, lang]);
+  }, [selectedDay, allCheckins, eventVenues, trainingSessions, s, lang]);
 
   const summaryStats = [
     { value: String(filteredCheckins.length), label: s('checkins'), bg: colors.primaryPale, color: colors.primary },
     { value: String(filteredVenueCount), label: s('locations'), bg: colors.purplePale, color: colors.purple },
     { value: computeTotalTime(), label: s('timePlayed'), bg: colors.amberPale, color: colors.accent },
     { value: formatHours(computeEventHours()), label: s('hoursInEvents'), bg: colors.bluePale, color: colors.blue },
+    // F060: training hours logged in the period.
+    { value: formatHours(computeTrainingHours()), label: s('trainingStat'), bg: colors.primaryPale, color: colors.primaryMid },
   ];
 
   return (
@@ -373,6 +408,27 @@ export function PlayHistoryScreen() {
               ))}
             </View>
           </View>
+
+          {/* F060: focus-distribution bar — tally of training focus areas. */}
+          {focusDistribution.entries.length > 0 && (
+            <View style={styles.focusCard} testID="training-focus-distribution">
+              <Text style={styles.focusHeader}>{s('trainingFocusDistribution')}</Text>
+              {focusDistribution.entries.map(([area, count]) => (
+                <View key={area} style={styles.focusRow}>
+                  <Text style={styles.focusLabel} numberOfLines={1}>{s(`trainingFocus_${area}`)}</Text>
+                  <View style={styles.focusTrack}>
+                    <View
+                      style={[
+                        styles.focusFill,
+                        { width: `${focusDistribution.max > 0 ? (count / focusDistribution.max) * 100 : 0}%` },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.focusCount}>{count}</Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* Streak Bar */}
           <View style={styles.streakBar}>
@@ -470,11 +526,11 @@ export function PlayHistoryScreen() {
               ) : (
                 selectedDayActivities.activities.map((act, i) => (
                   <View key={i} style={styles.dayDetailRow}>
-                    <View style={[styles.dayDetailIcon, { backgroundColor: act.type === 'event' ? colors.amberPale : colors.primaryPale }]}>
+                    <View style={[styles.dayDetailIcon, { backgroundColor: act.type === 'event' ? colors.amberPale : act.type === 'training' ? colors.purplePale : colors.primaryPale }]}>
                       <Lucide
-                        name={act.type === 'event' ? 'calendar' : 'map-pin'}
+                        name={act.type === 'event' ? 'calendar' : act.type === 'training' ? 'dumbbell' : 'map-pin'}
                         size={14}
-                        color={act.type === 'event' ? colors.accent : colors.primaryLight}
+                        color={act.type === 'event' ? colors.accent : act.type === 'training' ? colors.purple : colors.primaryLight}
                       />
                     </View>
                     <View style={styles.dayDetailInfo}>

@@ -13,6 +13,7 @@ import {
   getFlaggedReviews,
   getUserFeedback,
   getVenueChangeRequests,
+  getPendingCoaches,
   searchVenuesAdmin,
 } from '../../services/admin';
 import { getUnresolvedReports, type ContentReport } from '../../services/moderation';
@@ -25,6 +26,8 @@ import {
   saveCachedUserFeedback,
   loadCachedVenueChangeRequests,
   saveCachedVenueChangeRequests,
+  loadCachedPendingCoaches,
+  saveCachedPendingCoaches,
 } from '../../lib/adminListsCache';
 import type { CacheRead } from '../../lib/cacheUtils';
 
@@ -33,6 +36,7 @@ export const adminFlaggedReviewsKey = ['admin', 'flagged-reviews'] as const;
 export const adminFeedbackKey = ['admin', 'user-feedback'] as const;
 export const adminReportsKey = ['admin', 'reports'] as const;
 export const adminChangeRequestsKey = ['admin', 'change-requests'] as const;
+export const adminPendingCoachesKey = ['admin', 'pending-coaches'] as const;
 export const adminVenueSearchKeyPrefix = ['admin', 'venue-search'] as const;
 export const adminVenueSearchKey = (term: string) =>
   [...adminVenueSearchKeyPrefix, term] as const;
@@ -127,6 +131,22 @@ export function useAdminChangeRequestsQuery(enabled = true) {
     },
     enabled,
     ...cacheSeed(enabled, () => loadCachedVenueChangeRequests<any>()),
+    staleTime: ADMIN_LISTS_STALE_MS,
+  });
+}
+
+export function useAdminPendingCoachesQuery(enabled = true) {
+  return useQuery<any[]>({
+    queryKey: adminPendingCoachesKey,
+    queryFn: async () => {
+      const { data, error } = await getPendingCoaches();
+      if (error) throw error;
+      const next = (data ?? []) as any[];
+      saveCachedPendingCoaches(next);
+      return next;
+    },
+    enabled,
+    ...cacheSeed(enabled, () => loadCachedPendingCoaches<any>()),
     staleTime: ADMIN_LISTS_STALE_MS,
   });
 }

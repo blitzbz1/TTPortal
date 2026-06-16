@@ -18,6 +18,7 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getDateLocale } from '../contexts/I18nProvider';
 import { useProfileQuery, useProfileStatsQuery } from '../hooks/queries/useProfileQuery';
+import { useCoachProfileQuery } from '../features/coaches';
 import { getEvents, sendEventInvites } from '../services/events';
 import { getCurrentEquipmentForUser } from '../services/equipment';
 import type { Profile, EquipmentSelection } from '../types/database';
@@ -41,6 +42,10 @@ export function PlayerProfileScreen({ userId, autoLogMatch }: Props) {
   const { data: profileRaw, isLoading: profileLoading } = useProfileQuery(userId);
   const { data: rating } = usePlayerRatingQuery(userId);
   const { data: h2h } = useHeadToHeadQuery(user?.id, userId);
+  // F063: the viewed user's coach profile. Public-read-when-approved, so this
+  // is only non-null here for an APPROVED coach (drives the pinned card + chip).
+  const { data: coachProfile } = useCoachProfileQuery(userId);
+  const isCoach = coachProfile?.status === 'approved';
   const profile = (profileRaw ?? null) as Profile | null;
   const { data: stats } = useProfileStatsQuery(userId) as {
     data: { total_checkins: number; unique_venues: number; events_joined: number; total_hours_played: number } | null | undefined;
@@ -160,6 +165,12 @@ export function PlayerProfileScreen({ userId, autoLogMatch }: Props) {
             {usernameDisplay ? <Text style={styles.username}>{usernameDisplay}</Text> : null}
             <SkillChip skillLevel={profile?.skill_level ?? null} />
             <RatingChip rating={rating?.rating} provisional={rating?.provisional} />
+            {isCoach && (
+              <View style={styles.coachChip} testID="coach-chip">
+                <Lucide name="graduation-cap" size={13} color={colors.blue} />
+                <Text style={styles.coachChipText}>{s('coachChip')}</Text>
+              </View>
+            )}
           </View>
 
           {stats && (
@@ -172,6 +183,48 @@ export function PlayerProfileScreen({ userId, autoLogMatch }: Props) {
                   </View>
                 ))}
               </View>
+            </View>
+          )}
+
+          {/* F063: pinned coach card — bio/levels/languages/price/contact for an
+              approved coach. Their real TTPortal activity is the stats card above. */}
+          {isCoach && coachProfile && (
+            <View style={styles.coachCard} testID="coach-card">
+              <View style={styles.coachCardHeader}>
+                <Lucide name="graduation-cap" size={16} color={colors.blue} />
+                <Text style={styles.coachCardTitle}>{s('coachCardTitle')}</Text>
+              </View>
+              {coachProfile.bio ? <Text style={styles.coachBio}>{coachProfile.bio}</Text> : null}
+              {coachProfile.experience ? (
+                <Text style={styles.coachDetail}>
+                  <Text style={styles.coachDetailLabel}>{s('coachExperienceLabel')}: </Text>
+                  {coachProfile.experience}
+                </Text>
+              ) : null}
+              {coachProfile.levels.length > 0 ? (
+                <Text style={styles.coachDetail}>
+                  <Text style={styles.coachDetailLabel}>{s('coachLevelsLabel')}: </Text>
+                  {coachProfile.levels.join(', ')}
+                </Text>
+              ) : null}
+              {coachProfile.languages.length > 0 ? (
+                <Text style={styles.coachDetail}>
+                  <Text style={styles.coachDetailLabel}>{s('coachLanguagesLabel')}: </Text>
+                  {coachProfile.languages.join(', ')}
+                </Text>
+              ) : null}
+              {coachProfile.price_range ? (
+                <Text style={styles.coachDetail}>
+                  <Text style={styles.coachDetailLabel}>{s('coachPriceLabel')}: </Text>
+                  {coachProfile.price_range}
+                </Text>
+              ) : null}
+              {coachProfile.contact ? (
+                <Text style={styles.coachDetail}>
+                  <Text style={styles.coachDetailLabel}>{s('coachContactLabel')}: </Text>
+                  {coachProfile.contact}
+                </Text>
+              ) : null}
             </View>
           )}
 
@@ -429,6 +482,57 @@ function createStyles(colors: ThemeColors, isDark: boolean) {
     h2hMeta: { fontFamily: Fonts.body, fontSize: FontSize.base, color: colors.textMuted },
     h2hDots: { flexDirection: 'row', justifyContent: 'center', gap: 6 },
     h2hDot: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    coachChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.bluePale,
+      borderWidth: 1,
+      borderColor: colors.blue,
+      borderRadius: Radius.full,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      marginTop: 2,
+    },
+    coachChipText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.semibold,
+      color: colors.blue,
+    },
+    coachCard: {
+      marginHorizontal: Spacing.md,
+      marginTop: Spacing.lg,
+      backgroundColor: colors.bluePale,
+      borderRadius: 12,
+      padding: Spacing.md,
+      borderWidth: 1,
+      borderColor: colors.blue,
+      gap: Spacing.xs,
+      ...Shadows.sm,
+    },
+    coachCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+    coachCardTitle: {
+      fontFamily: Fonts.heading,
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.bold,
+      color: colors.blue,
+    },
+    coachBio: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      color: colors.text,
+      marginBottom: 2,
+    },
+    coachDetail: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.sm,
+      color: colors.textMuted,
+    },
+    coachDetailLabel: {
+      fontWeight: FontWeight.bold,
+      color: colors.text,
+    },
     equipmentSection: {
       marginHorizontal: Spacing.md,
       marginTop: Spacing.lg,

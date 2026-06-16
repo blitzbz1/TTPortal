@@ -40,6 +40,8 @@ import { VenueAmenitiesGrid } from '../components/VenueAmenitiesGrid';
 import { venueSupportsAmenities } from '../lib/amenities';
 import { WeatherChip } from '../components/WeatherChip';
 import { VenueRegularsRow } from '../components/VenueRegularsRow';
+import { VenueCoachesRow } from '../components/VenueCoachesRow';
+import { useVenueCoachesQuery } from '../features/coaches';
 import { VenueBoardSection } from '../components/VenueBoardSection';
 import { VenueMomentsStrip } from '../components/VenueMomentsStrip';
 import { venueMomentsQueryKey } from '../features/checkinMoments';
@@ -103,6 +105,9 @@ export function VenueDetailScreen({ venueId }: Props) {
 
   // ── Phase 3 (deferred): friends-at-venue (own RPC).
   const { data: friendsHereRaw } = useFriendsAtVenueQuery(vIdNum, user?.id);
+
+  // ── F063: approved coaches at this venue (lazy, off the critical path).
+  const { data: venueCoaches } = useVenueCoachesQuery(vIdNum);
 
   // ── Phase 4 (one-time, infinite cache): admin gate.
   const { data: isAdminFlag } = useIsAdminQuery(user?.id);
@@ -991,6 +996,9 @@ export function VenueDetailScreen({ venueId }: Props) {
 
         {/* Regulars — opt-in home-venue members (F014) */}
         <VenueRegularsRow regulars={regulars} />
+
+        {/* Coaches here — approved coaches teaching at this venue (F063) */}
+        <VenueCoachesRow coaches={venueCoaches} />
 
         {/* Friends Here */}
         <View style={styles.friendsSection}>

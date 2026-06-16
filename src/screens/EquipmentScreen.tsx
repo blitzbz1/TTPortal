@@ -21,13 +21,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { EquipmentSummaryCard } from '../components/EquipmentSummaryCard';
+import { RubberWearCard } from '../components/RubberWearCard';
 import { Lucide } from '../components/Icon';
 import { useSession } from '../hooks/useSession';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
 import { getDateLocale } from '../contexts/I18nProvider';
 import { useEquipmentCatalogQuery } from '../hooks/queries/useEquipmentCatalogQuery';
-import { useEquipmentHistoryQuery, useSaveEquipmentMutation } from '../hooks/queries/useEquipmentHistoryQuery';
+import {
+  useEquipmentHistoryQuery,
+  useRubberWearQuery,
+  useSaveEquipmentMutation,
+  useSetRubberInstallMutation,
+} from '../hooks/queries/useEquipmentHistoryQuery';
 import type {
   DominantHand,
   EquipmentManufacturer,
@@ -35,6 +41,8 @@ import type {
   Grip,
   PlayingStyle,
   RubberColor,
+  RubberSide,
+  RubberWear,
 } from '../types/database';
 import type { ThemeColors } from '../theme';
 import { createSelectStyles, createStyles } from './EquipmentScreen.styles';
@@ -443,6 +451,14 @@ export function EquipmentScreen() {
   const { data: historyData, isLoading: historyLoading } = useEquipmentHistoryQuery(user?.id);
   const history = historyData ?? [];
   const saveMutation = useSaveEquipmentMutation(user?.id);
+  // F061: rubber-wear estimate + install/reset.
+  const { data: wearData } = useRubberWearQuery(user?.id);
+  const setRubberInstall = useSetRubberInstallMutation(user?.id);
+  const wearBySide = useMemo(() => {
+    const map = new Map<RubberSide, RubberWear>();
+    for (const row of wearData ?? []) map.set(row.side, row);
+    return map;
+  }, [wearData]);
   const { data: bladeCatalogData, isError: bladeErr } = useEquipmentCatalogQuery('blade');
   const { data: rubberCatalogData, isError: rubberErr } = useEquipmentCatalogQuery('rubber');
   const bladeCatalog = useMemo(() => bladeCatalogData ?? [], [bladeCatalogData]);
@@ -590,6 +606,16 @@ export function EquipmentScreen() {
     applySelectionToForm(latest);
   };
 
+  // F061: install / re-rubber a side (resets the wear clock + reminders).
+  const suggestedInstalledAt = latest ? latest.created_at.slice(0, 10) : undefined;
+  const handleRubberInstall = useCallback(
+    (input: { side: RubberSide; installedAt: string; expectedHours: number }) => {
+      if (!user) return;
+      setRubberInstall.mutate(input);
+    },
+    [user, setRubberInstall],
+  );
+
   const renderPickGroup = (
     title: string,
     type: 'blade' | EquipmentSide,
@@ -723,7 +749,15 @@ export function EquipmentScreen() {
         <View style={styles.headerCopy}>
           <Text style={styles.headerTitle}>{s('equipment')}</Text>
         </View>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.push('/(protected)/gear')}
+          accessibilityRole="button"
+          accessibilityLabel={s('gearBrowseTitle')}
+          testID="open-gear-browse"
+        >
+          <Lucide name="search" size={22} color={colors.text} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.tabs}>
@@ -789,6 +823,26 @@ export function EquipmentScreen() {
               {latest ? (
                 <>
                   <EquipmentSummaryCard equipment={latest} title={s('equipmentYourSetup')} variant="owner" />
+
+                  {/* F061: rubber wear tracker — one card per side. */}
+                  <View style={styles.historyHeader}>
+                    <Text style={styles.sectionTitle}>{s('wearSectionTitle')}</Text>
+                  </View>
+                  <RubberWearCard
+                    side="forehand"
+                    wear={wearBySide.get('forehand')}
+                    suggestedInstalledAt={suggestedInstalledAt}
+                    saving={setRubberInstall.isPending}
+                    onInstall={handleRubberInstall}
+                  />
+                  <RubberWearCard
+                    side="backhand"
+                    wear={wearBySide.get('backhand')}
+                    suggestedInstalledAt={suggestedInstalledAt}
+                    saving={setRubberInstall.isPending}
+                    onInstall={handleRubberInstall}
+                  />
+
                   <View style={styles.historyHeader}>
                     <Text style={styles.sectionTitle}>{s('equipmentPrevious')}</Text>
                   </View>

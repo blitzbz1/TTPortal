@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { getPlayHistory } from '../../services/checkins';
+import { getTrainingSessions } from '../../services/training';
+import type { TrainingSession } from '../../types/database';
 import { loadCachedPlayHistory, saveCachedPlayHistory } from '../../lib/playHistoryCache';
 
 export const PLAY_HISTORY_PAGE_SIZE = 20;
@@ -10,6 +12,9 @@ export interface PlayHistoryBundle {
   allCheckins: { venue_id: number; venue_name: string; started_at: string; ended_at: string | null }[];
   eventHours: { hours_played: number; starts_at: string; venue_id: number | null }[];
   eventVenues: { venue_id: number; venue_name: string; event_title: string; starts_at: string; hours_played: number | null }[];
+  // F060: the user's training sessions for the window (NOT paginated — fetched
+  // in full like allCheckins/eventHours so the calendar + summary line up).
+  trainingSessions: TrainingSession[];
 }
 
 export const playHistoryQueryKey = (userId: string | undefined, sinceIso: string | null) =>
@@ -26,7 +31,7 @@ export function usePlayHistoryQuery(userId: string | undefined, sinceIso: string
   return useQuery<PlayHistoryBundle>({
     queryKey: playHistoryQueryKey(userId, sinceIso),
     queryFn: async () => {
-      if (!userId) return { history: [], allCheckins: [], eventHours: [], eventVenues: [] };
+      if (!userId) return { history: [], allCheckins: [], eventHours: [], eventVenues: [], trainingSessions: [] };
 
       let allCheckinsQuery = supabase
         .from('checkins')
@@ -40,10 +45,11 @@ export function usePlayHistoryQuery(userId: string | undefined, sinceIso: string
         allCheckinsQuery = allCheckinsQuery.gte('started_at', sinceIso);
         eventsQuery = eventsQuery.gte('events.starts_at', sinceIso);
       }
-      const [historyRes, allCheckinsRes, eventParticipationsRes] = await Promise.all([
+      const [historyRes, allCheckinsRes, eventParticipationsRes, trainingRes] = await Promise.all([
         getPlayHistory(userId, PLAY_HISTORY_PAGE_SIZE, 0, sinceIso ?? undefined),
         allCheckinsQuery,
         eventsQuery,
+        getTrainingSessions(userId, sinceIso ?? undefined),
       ]);
 
       const allCheckins = (allCheckinsRes.data ?? []).map((c: any) => ({
@@ -72,6 +78,7 @@ export function usePlayHistoryQuery(userId: string | undefined, sinceIso: string
         allCheckins,
         eventHours,
         eventVenues,
+        trainingSessions: trainingRes.data ?? [],
       };
       saveCachedPlayHistory(userId, sinceIso, bundle);
       return bundle;
