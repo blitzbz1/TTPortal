@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       action_log: {
@@ -699,6 +674,148 @@ export type Database = {
           },
         ]
       }
+      coach_profiles: {
+        Row: {
+          bio: string | null
+          contact: string | null
+          created_at: string
+          experience: string | null
+          id: number
+          languages: string[]
+          levels: string[]
+          price_range: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bio?: string | null
+          contact?: string | null
+          created_at?: string
+          experience?: string | null
+          id?: number
+          languages?: string[]
+          levels?: string[]
+          price_range?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          bio?: string | null
+          contact?: string | null
+          created_at?: string
+          experience?: string | null
+          id?: number
+          languages?: string[]
+          levels?: string[]
+          price_range?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_profiles_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_checkins"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "coach_profiles_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_reviews"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "coach_profiles_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_venues"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "coach_profiles_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "leaderboard_checkins"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "coach_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "leaderboard_reviews"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "coach_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "leaderboard_venues"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "coach_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coach_venues: {
+        Row: {
+          coach_id: number
+          venue_id: number
+        }
+        Insert: {
+          coach_id: number
+          venue_id: number
+        }
+        Update: {
+          coach_id?: number
+          venue_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_venues_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coach_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_venues_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venue_stats"
+            referencedColumns: ["venue_id"]
+          },
+          {
+            foreignKeyName: "coach_venues_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       condition_votes: {
         Row: {
           condition: string
@@ -1052,6 +1169,157 @@ export type Database = {
           },
           {
             foreignKeyName: "equipment_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_reviews: {
+        Row: {
+          author_grip: string | null
+          author_hand: string | null
+          author_style: string | null
+          body: string | null
+          category: string
+          control: number | null
+          created_at: string
+          flag_count: number
+          flagged: boolean
+          id: number
+          manufacturer_id: string
+          model: string
+          rating: number
+          speed: number | null
+          spin: number | null
+          time_used: string | null
+          user_id: string
+        }
+        Insert: {
+          author_grip?: string | null
+          author_hand?: string | null
+          author_style?: string | null
+          body?: string | null
+          category: string
+          control?: number | null
+          created_at?: string
+          flag_count?: number
+          flagged?: boolean
+          id?: number
+          manufacturer_id: string
+          model: string
+          rating: number
+          speed?: number | null
+          spin?: number | null
+          time_used?: string | null
+          user_id?: string
+        }
+        Update: {
+          author_grip?: string | null
+          author_hand?: string | null
+          author_style?: string | null
+          body?: string | null
+          category?: string
+          control?: number | null
+          created_at?: string
+          flag_count?: number
+          flagged?: boolean
+          id?: number
+          manufacturer_id?: string
+          model?: string
+          rating?: number
+          speed?: number | null
+          spin?: number | null
+          time_used?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_checkins"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "equipment_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_reviews"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "equipment_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_venues"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "equipment_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_wear_settings: {
+        Row: {
+          created_at: string
+          expected_hours: number
+          id: number
+          installed_at: string
+          notified_pct: number
+          side: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expected_hours?: number
+          id?: number
+          installed_at?: string
+          notified_pct?: number
+          side: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          expected_hours?: number
+          id?: number
+          installed_at?: string
+          notified_pct?: number
+          side?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_wear_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_checkins"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "equipment_wear_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_reviews"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "equipment_wear_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_venues"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "equipment_wear_settings_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -2575,6 +2843,113 @@ export type Database = {
           },
         ]
       }
+      training_sessions: {
+        Row: {
+          created_at: string
+          focus: string[]
+          hours: number
+          id: number
+          note: string | null
+          partner_id: string | null
+          session_type: string
+          user_id: string
+          venue_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          focus?: string[]
+          hours: number
+          id?: number
+          note?: string | null
+          partner_id?: string | null
+          session_type: string
+          user_id?: string
+          venue_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          focus?: string[]
+          hours?: number
+          id?: number
+          note?: string | null
+          partner_id?: string | null
+          session_type?: string
+          user_id?: string
+          venue_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_sessions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_checkins"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "training_sessions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_reviews"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "training_sessions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_venues"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "training_sessions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_checkins"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "training_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_reviews"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "training_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_venues"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "training_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_sessions_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venue_stats"
+            referencedColumns: ["venue_id"]
+          },
+          {
+            foreignKeyName: "training_sessions_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_badge_progress: {
         Row: {
           approved_count: number
@@ -3541,6 +3916,18 @@ export type Database = {
         }
       }
       apply_match_rating: { Args: { p_match_id: number }; Returns: undefined }
+      apply_to_coach: {
+        Args: {
+          p_bio: string
+          p_contact: string
+          p_experience: string
+          p_languages: string[]
+          p_levels: string[]
+          p_price_range: string
+          p_venue_ids: number[]
+        }
+        Returns: number
+      }
       approve_self_submission: {
         Args: { v_submission_id: string }
         Returns: {
@@ -3896,6 +4283,12 @@ export type Database = {
           upcoming_events: Json
         }[]
       }
+      get_coaching_venue_ids: {
+        Args: { p_city: string }
+        Returns: {
+          venue_id: number
+        }[]
+      }
       get_countries_delta: { Args: { p_since?: string }; Returns: Json }
       get_crossed_paths: {
         Args: { p_days?: number; p_limit?: number }
@@ -3937,6 +4330,17 @@ export type Database = {
       get_equipment_catalog_delta: {
         Args: { p_category: string; p_since?: string }
         Returns: Json
+      }
+      get_equipment_model_summary: {
+        Args: { p_category: string; p_manufacturer_id: string; p_model: string }
+        Returns: {
+          avg_control: number
+          avg_rating: number
+          avg_speed: number
+          avg_spin: number
+          review_count: number
+          users_count: number
+        }[]
       }
       get_event_challenge_submissions: {
         Args: { v_event_id: number }
@@ -4164,6 +4568,7 @@ export type Database = {
           best_streak: number
           current_streak: number
           events_joined: number
+          is_coach: boolean
           member_since: string
           reviews_written: number
           total_checkins: number
@@ -4188,6 +4593,16 @@ export type Database = {
           their_wins: number
           total: number
           user_id: string
+        }[]
+      }
+      get_rubber_wear: {
+        Args: { p_user_id?: string }
+        Returns: {
+          estimated_hours: number
+          expected_hours: number
+          installed_at: string
+          pct: number
+          side: string
         }[]
       }
       get_tournament_bracket: {
@@ -4230,6 +4645,15 @@ export type Database = {
         Args: { p_days_back?: number; p_venue_id: number }
         Returns: {
           day_count: number
+          full_name: string
+          user_id: string
+        }[]
+      }
+      get_venue_coaches: {
+        Args: { p_venue_id: number }
+        Returns: {
+          avatar_url: string
+          coach_id: number
           full_name: string
           user_id: string
         }[]
@@ -4376,10 +4800,25 @@ export type Database = {
         }
         Returns: number
       }
+      post_equipment_review: {
+        Args: {
+          p_body?: string
+          p_category: string
+          p_control?: number
+          p_manufacturer_id: string
+          p_model: string
+          p_rating: number
+          p_speed?: number
+          p_spin?: number
+          p_time_used?: string
+        }
+        Returns: number
+      }
       post_venue_message: {
         Args: { p_body: string; p_parent_id?: number; p_venue_id: number }
         Returns: number
       }
+      process_rubber_wear: { Args: never; Returns: undefined }
       process_weekly_streaks: { Args: never; Returns: undefined }
       prune_table_reports: { Args: never; Returns: number }
       recompute_badge_level: {
@@ -4555,6 +4994,14 @@ export type Database = {
           p_availability?: string[]
           p_note?: string
           p_sought_styles?: string[]
+        }
+        Returns: undefined
+      }
+      set_rubber_install: {
+        Args: {
+          p_expected_hours?: number
+          p_installed_at?: string
+          p_side: string
         }
         Returns: undefined
       }
@@ -4772,9 +5219,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       assignment_status: ["active", "completed", "expired", "cancelled"],
