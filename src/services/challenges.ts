@@ -8,7 +8,10 @@ export type ChallengeCategory =
   | 'table_guardian'
   | 'serve_lab'
   | 'competitor'
-  | 'explorer';
+  | 'explorer'
+  // F041: the Recruiter badge reuses badge_awards; its category is not a
+  // challenge track (no challenge_submissions), only an awarded badge.
+  | 'recruiter';
 
 export type VerificationType = 'self' | 'other';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'auto_approved' | 'expired';

@@ -13,7 +13,7 @@ const callRpc = supabase.rpc.bind(supabase) as unknown as (
 
 export interface FeedItem {
   id: string;
-  type: 'checkin' | 'review';
+  type: 'checkin' | 'review' | 'moment';
   userId: string;
   userName: string;
   venueName: string;
@@ -21,10 +21,11 @@ export interface FeedItem {
   timestamp: string;
   rating?: number;
   venueCity?: string;
+  photoUrl?: string | null;
 }
 
 interface FeedRpcRow {
-  kind: 'checkin' | 'review';
+  kind: 'checkin' | 'review' | 'moment';
   id: number;
   user_id: string;
   user_name: string;
@@ -33,6 +34,7 @@ interface FeedRpcRow {
   venue_city: string;
   rating: number | null;
   ts: string;
+  photo_url: string | null;
 }
 
 export async function getFriendFeed(limit = 30): Promise<{ data: FeedItem[]; error: PostgrestError | null }> {
@@ -54,6 +56,7 @@ export async function getFriendFeed(limit = 30): Promise<{ data: FeedItem[]; err
     venueCity: row.venue_city || undefined,
     rating: row.rating ?? undefined,
     timestamp: row.ts,
+    photoUrl: row.photo_url ?? null,
   }));
   return { data: items, error: null };
 }

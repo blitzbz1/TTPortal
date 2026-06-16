@@ -229,29 +229,31 @@ Derived from [features_suggestions.md](features_suggestions.md) (2026-06-10, gro
 
 ## Phase 5 — Clubs, community & growth (Theme 4)
 
+> **✅ SHIPPED.** Migrations: **123** F040 clubs, **124** F041 referrals, **125** F042 session moments — **applied to prod + types regenerated**. (The source's `119/120/121` placeholders were taken by the shipped competitive layer; next free numbers were 123–125.) New domains `src/features/{clubs,checkinMoments}`; the orphaned `ActivityFeedScreen` is finally **routed** (a 5th "Activity" tab). New **`club`** event-visibility scope (enum + `events.club_id` + reproduced SELECT policy + a `BEFORE INSERT OR UPDATE` membership trigger + `club_event_created` fan-out); a single **`/join/<code>`** deep link serves **both** referral and club codes; the Recruiter badge reuses the existing `badge_awards` (new `recruiter` `challenge_category`); moments add a dedicated **`moments` Storage bucket** + a 3rd `get_friend_feed` branch (with `photo_url`) + a lazy `get_venue_moments` strip. New notification categories: `club_event`, `referrals`. **`generate_recurring_events` fixed** to propagate `visibility`/`club_id` (a latent bug — recurring instances silently became `public`). pgTAP `f040` (13) / `f041` (10) / `f042` (11) executed green on the full chain via the `.migration-test` harness; `npm test` (1190) + `lint` (0 err) + `typecheck` green; locale keys ×8; maestro flow `club_create_join`. An adversarial multi-agent review caught & fixed **9 issues** before apply — incl. a **club-feed UPDATE-injection** (the membership trigger was INSERT-only), a **moment venue-spoof** (`post_checkin_moment` trusted the caller's `venue_id`), a **feed `checkin_visibility` privacy regression**, a recurrence/trigger **cron deadlock**, a duplicate-friendship, and two storage-bucket / return-type **apply blockers**. **Deferred (documented):** referee-side referral rate-limit (cosmetic-badge farming — a v1 call), the inert anon `referral_code` grant, the stash cold-start fallback, and native review of the 6 machine-translated locales.
+
 ### F040 · Clubs & groups — §4.1 `high` `large`
 **Files:** `supabase/migrations/119_clubs.sql` (new), `src/features/clubs/` (new), `src/screens/` club screen, `src/screens/EventSchedulingScreen.tsx`, `src/services/events.ts`
-- [ ] Migration: `clubs` + `club_members` (admin/member roles) with RLS; `ALTER events ADD club_id` and extend the 058–060 event-visibility policies with a `club` scope; `join_club_by_code` / `get_my_clubs` / `get_club_detail` RPCs; fan-out notification (new `club_event` category) via `create_and_send_notification`; avatar via the existing image pipeline.
-- [ ] Create-club flow (name, avatar, description, city, optional home venue → 6-char join code / share link); club screen (members + roles, home-venue card, upcoming club events); create-event "Club" visibility so club events appear in members' Events tabs with a push; admins remove members / rotate the code.
-- [ ] Builds on event visibility (058) and recurrence (016).
-- [ ] Tests: pgTAP (club RLS, club-scoped event visibility, join-by-code); jest for create/join + member admin; maestro `club_create_join`.
+- [x] Migration: `clubs` + `club_members` (admin/member roles) with RLS; `ALTER events ADD club_id` and extend the 058–060 event-visibility policies with a `club` scope; `join_club_by_code` / `get_my_clubs` / `get_club_detail` RPCs; fan-out notification (new `club_event` category) via `create_and_send_notification`; avatar via the existing image pipeline.
+- [x] Create-club flow (name, avatar, description, city, optional home venue → 6-char join code / share link); club screen (members + roles, home-venue card, upcoming club events); create-event "Club" visibility so club events appear in members' Events tabs with a push; admins remove members / rotate the code.
+- [x] Builds on event visibility (058) and recurrence (016).
+- [x] Tests: pgTAP (club RLS, club-scoped event visibility, join-by-code); jest for create/join + member admin; maestro `club_create_join`.
 
 **Done when:** a club created with a code lets a member join via link, a club-visibility event reaches members' tabs with a push, and admins can rotate the code / remove members.
 
 ### F041 [P] · Referral links with auto-friend on join — §4.2 `medium` `medium`
 **Files:** `supabase/migrations/120_referrals.sql` (new), `supabase/functions/send-app-invite/`, `src/screens/SettingsScreen.tsx` (Invite row), `src/contexts/SessionProvider.tsx`
-- [ ] Migration: `profiles.referral_code` (generated like usernames, 035); `referrals` table; `claim_referral(p_code)` RPC inserting an **accepted friendship** + badge awards (025); self-referral / re-claim guards.
-- [ ] Embed the code in `send-app-invite` emails (`ttportal.org/join/RADU42`); deep-link handling via the existing returnTo infra; "Invite friends" row with native share + an "Invited: N" counter; Recruiter badge at 1/5/10 via the existing badge system.
-- [ ] Tests: pgTAP (auto-friendship on claim, self-referral guard, badge award); jest for share + counter + deep-link claim.
+- [x] Migration: `profiles.referral_code` (generated like usernames, 035); `referrals` table; `claim_referral(p_code)` RPC inserting an **accepted friendship** + badge awards (025); self-referral / re-claim guards.
+- [x] Embed the code in `send-app-invite` emails (`ttportal.org/join/RADU42`); deep-link handling via the existing returnTo infra; "Invite friends" row with native share + an "Invited: N" counter; Recruiter badge at 1/5/10 via the existing badge system.
+- [x] Tests: pgTAP (auto-friendship on claim, self-referral guard, badge award); jest for share + counter + deep-link claim.
 
 **Done when:** signing up via a referral link auto-connects both users as friends with a push, the inviter's counter increments, and self/re-claim is blocked.
 
 ### F042 [P] · Session moments (photo + caption on check-in) — §4.3 `medium` `medium`
 **Depends on:** moderation infra (098, shipped).
 **Files:** `supabase/migrations/121_checkin_moments.sql` (new), `src/components/CheckinSuccessSheet.tsx`, `src/screens/ActivityFeedScreen.tsx`, `src/services/feed.ts`, `src/screens/VenueDetailScreen.tsx`, `src/lib/imageUpload.ts`
-- [ ] Migration: `checkin_moments` (UNIQUE per check-in, soft delete) with RLS; a `moments` Storage bucket reusing `imageUpload.ts` + CDN transforms; a **third UNION branch in the `friend_feed` RPC** (extends 052); latest-N in the venue bundle (044); `content_reports` type + `ugc_suspicious()` (098) + rate limits (047).
-- [ ] "Add a moment" (one photo + caption) on the check-in success sheet; moments render as photo cards in the friend feed — **finally giving the orphaned `ActivityFeedScreen` a reason to be routed** — and a "Recent moments" strip on venue detail; long-press to report, authors can delete.
-- [ ] Tests: pgTAP (per-check-in uniqueness, soft delete, report); jest for upload + feed card + venue strip; route `ActivityFeedScreen`.
+- [x] Migration: `checkin_moments` (UNIQUE per check-in, soft delete) with RLS; a `moments` Storage bucket reusing `imageUpload.ts` + CDN transforms; a **third UNION branch in the `friend_feed` RPC** (extends 052); latest-N in the venue bundle (044); `content_reports` type + `ugc_suspicious()` (098) + rate limits (047). *(Note: venue moments ship as a separate lazy `get_venue_moments` RPC rather than folded into the 044 bundle — the F016/venue-board convention, keeps the detail critical path light.)*
+- [x] "Add a moment" (one photo + caption) on the check-in success sheet; moments render as photo cards in the friend feed — **finally giving the orphaned `ActivityFeedScreen` a reason to be routed** — and a "Recent moments" strip on venue detail; long-press to report, authors can delete.
+- [x] Tests: pgTAP (per-check-in uniqueness, soft delete, report); jest for upload + feed card + venue strip; route `ActivityFeedScreen`.
 
 **Done when:** a moment attached to a check-in appears in friends' feeds and the venue's strip, `ActivityFeedScreen` is reachable, and reports/deletes work.
 

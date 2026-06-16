@@ -1,4 +1,4 @@
-import { playerUrl, playerLogMatchUrl, parseQuickMatchUserId } from '../shareLinks';
+import { playerUrl, playerLogMatchUrl, parseQuickMatchUserId, joinUrl } from '../shareLinks';
 
 describe('Quick Match deep links (F034)', () => {
   it('builds a player URL', () => {
@@ -27,5 +27,11 @@ describe('Quick Match deep links (F034)', () => {
     expect(parseQuickMatchUserId('https://example.com/venue/5')).toBeNull();
     expect(parseQuickMatchUserId('not a url')).toBeNull();
     expect(parseQuickMatchUserId('')).toBeNull();
+  });
+});
+
+describe('Referral links (F041)', () => {
+  it('builds a /join/<code> URL from a referral code', () => {
+    expect(joinUrl('RADU42')).toMatch(/\/join\/RADU42$/);
   });
 });

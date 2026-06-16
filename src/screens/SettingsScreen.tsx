@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, Linking, Share } from 'react-native';
 import { showAlert } from '../lib/dialogs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -10,6 +10,8 @@ import { Fonts, FontSize, FontWeight, Spacing, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getProfile, updateProfile, type CheckinVisibility } from '../services/profiles';
+import { getReferralStats } from '../services/referrals';
+import { joinUrl, sharePayload } from '../lib/shareLinks';
 import { useQueryClient } from '@tanstack/react-query';
 import { profileQueryKey } from '../hooks/queries/useProfileQuery';
 import { NotificationInboxModal, type NotificationInboxModalRef } from '../components/NotificationInboxModal';
@@ -36,6 +38,9 @@ export function SettingsScreen() {
   const [analyticsEnabled, setAnalyticsEnabled] = useState(() => !isAnalyticsOptedOut());
   const [exporting, setExporting] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  // F041: the caller's referral code + invited count, for the Invite row.
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [invitedCount, setInvitedCount] = useState(0);
   const inboxRef = useRef<NotificationInboxModalRef>(null);
 
   useEffect(() => {
@@ -49,6 +54,25 @@ export function SettingsScreen() {
       }
     });
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    getReferralStats().then((res) => {
+      if (res.data) {
+        setReferralCode(res.data.referral_code ?? null);
+        setInvitedCount(res.data.invited_count ?? 0);
+      }
+    });
+  }, [user]);
+
+  const handleInviteFriends = useCallback(async () => {
+    if (!referralCode) return;
+    try {
+      await Share.share(sharePayload(s('inviteShareMessage'), joinUrl(referralCode)));
+    } catch {
+      // User dismissed the share sheet — no-op.
+    }
+  }, [referralCode, s]);
 
   const handleToggleNotifCategory = useCallback(async (category: string, enabled: boolean) => {
     const next = { ...notifPrefs };
@@ -143,8 +167,10 @@ export function SettingsScreen() {
         {([
           { key: 'friend_requests', icon: 'users', labelKey: 'notifFriendRequests' },
           { key: 'events', icon: 'calendar', labelKey: 'notifEvents' },
+          { key: 'club_event', icon: 'calendar', labelKey: 'notifClubEvents' },
           { key: 'reviews_on_my_venue', icon: 'star', labelKey: 'notifReviews' },
           { key: 'feedback_replies', icon: 'message-circle', labelKey: 'notifFeedbackReplies' },
+          { key: 'referrals', icon: 'user-plus', labelKey: 'notifReferrals' },
         ] as const).map(({ key, icon, labelKey }) => (
           <View style={styles.row} key={key} testID={`settings-notif-${key}`}>
             <View style={[styles.rowIcon, { backgroundColor: colors.bgMuted }]}>
@@ -355,6 +381,24 @@ export function SettingsScreen() {
 
         {/* Support (T085) */}
         <Text style={styles.sectionHeader}>{s('supportSection')}</Text>
+
+        {/* Invite friends (F041): native share of /join/<referral_code> + an
+            "Invited: N" counter from get_referral_stats. */}
+        <TouchableOpacity
+          style={styles.row}
+          onPress={handleInviteFriends}
+          disabled={!referralCode}
+          testID="settings-invite-friends"
+        >
+          <View style={[styles.rowIcon, { backgroundColor: colors.primaryPale }]}>
+            <Lucide name="user-plus" size={18} color={colors.primaryMid} />
+          </View>
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>{s('inviteFriendsRow')}</Text>
+            <Text style={styles.rowDesc}>{s('inviteFriendsInvitedCount', String(invitedCount))}</Text>
+          </View>
+          <Lucide name="share-2" size={16} color={colors.textFaint} />
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.row}

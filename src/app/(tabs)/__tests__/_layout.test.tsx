@@ -121,13 +121,14 @@ describe('TabLayout', () => {
       { name: 'index', label: 'Hartă', icon: 'map' },
       { name: 'events', label: 'Evenimente', icon: 'calendar' },
       { name: 'challenges', label: 'Provocări', icon: 'target' },
+      { name: 'activity', label: 'Activitate', icon: 'activity' },
       { name: 'profile', label: 'Profil', icon: 'user' },
     ];
 
-    it('renders exactly 4 tab screens', () => {
+    it('renders exactly 5 tab screens', () => {
       const { getAllByTestId } = render(<TabLayout />);
       const tabScreens = getAllByTestId(/^tab-screen-/);
-      expect(tabScreens).toHaveLength(4);
+      expect(tabScreens).toHaveLength(5);
     });
 
     it.each(expectedTabs)(
@@ -142,7 +143,7 @@ describe('TabLayout', () => {
       },
     );
 
-    it('renders tabs in the correct order: Hartă, Evenimente, Provocări, Profil', () => {
+    it('renders tabs in the correct order: Hartă, Evenimente, Provocări, Activitate, Profil', () => {
       const { getAllByTestId } = render(<TabLayout />);
       const labels = getAllByTestId(/^tab-label-/);
       const labelTexts = labels.map(
@@ -152,6 +153,7 @@ describe('TabLayout', () => {
         'Hartă',
         'Evenimente',
         'Provocări',
+        'Activitate',
         'Profil',
       ]);
     });

@@ -1,5 +1,17 @@
-import React, { useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, Share } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  Pressable,
+  Share,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -16,8 +28,10 @@ import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme'
 import { useI18n } from '../hooks/useI18n';
 import { hapticSuccess } from '../lib/haptics';
 import { sharePayload, venueUrl } from '../lib/shareLinks';
+import { showAlert } from '../lib/dialogs';
 import { Springs, Duration, Easings } from '../lib/motion';
 import { VenueFreeTablesBlock } from './VenueFreeTablesBlock';
+import { uploadMomentImage, postCheckinMoment } from '../features/checkinMoments';
 
 /* ── Tiny particle burst (confetti-lite, no deps) ── */
 const PARTICLE_COUNT = 8;
@@ -100,6 +114,9 @@ interface CheckinSuccessSheetProps {
   venueName: string;
   /** When provided, the share button includes an openable venue link (T061). */
   venueId?: number | null;
+  /** F042: the just-created check-in id, enabling the "Add a moment" action.
+      Null for offline check-ins (no fresh row to attach to). */
+  checkinId?: number | null;
   endTime?: string;
   /** True when the check-in was queued offline and will sync later. */
   queuedOffline?: boolean;
@@ -107,6 +124,8 @@ interface CheckinSuccessSheetProps {
   tablesCount?: number | null;
   /** F011: when provided, shows a one-tap free-table report prompt. */
   onReportFreeTables?: (freeCount: number, groupSize: number | null) => Promise<void> | void;
+  /** F042: called after a moment is successfully posted (to refresh the strip). */
+  onMomentPosted?: () => void;
   onDismiss: () => void;
 }
 
@@ -114,10 +133,12 @@ export function CheckinSuccessSheet({
   visible,
   venueName,
   venueId = null,
+  checkinId = null,
   endTime,
   queuedOffline = false,
   tablesCount = null,
   onReportFreeTables,
+  onMomentPosted,
   onDismiss,
 }: CheckinSuccessSheetProps) {
   const { colors } = useTheme();
@@ -126,13 +147,74 @@ export function CheckinSuccessSheet({
 
   const checkScale = useSharedValue(0);
 
+  // F042: "Add a moment" state.
+  const [momentUri, setMomentUri] = useState<string | null>(null);
+  const [momentAsset, setMomentAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [caption, setCaption] = useState('');
+  const [momentPosting, setMomentPosting] = useState(false);
+  const [momentPosted, setMomentPosted] = useState(false);
+  // Moments can attach only to a fresh online check-in.
+  const canAddMoment = checkinId != null && venueId != null && !queuedOffline;
+
   useEffect(() => {
     if (visible) {
       hapticSuccess();
       checkScale.value = 0;
       checkScale.value = withSpring(1, Springs.celebration);
+      // Reset the moment composer each time the sheet opens.
+      setMomentUri(null);
+      setMomentAsset(null);
+      setCaption('');
+      setMomentPosting(false);
+      setMomentPosted(false);
     }
   }, [visible, checkScale]);
+
+  const pickMomentPhoto = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      showAlert(s('error'), s('photoPermissionDenied'));
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    if (result.canceled || result.assets.length === 0) return;
+    setMomentUri(result.assets[0].uri);
+    setMomentAsset(result.assets[0]);
+  }, [s]);
+
+  const postMoment = useCallback(async () => {
+    if (!momentAsset || checkinId == null || venueId == null) return;
+    setMomentPosting(true);
+    const uploaded = await uploadMomentImage({
+      uri: momentAsset.uri,
+      width: momentAsset.width,
+      height: momentAsset.height,
+    });
+    if (!uploaded.ok) {
+      setMomentPosting(false);
+      showAlert(
+        s('error'),
+        uploaded.reason === 'rate_limited'
+          ? s('momentRateLimited')
+          : uploaded.reason === 'processing_unavailable'
+            ? s('photoProcessingUnavailable')
+            : s('momentUploadError'),
+      );
+      return;
+    }
+    const { error } = await postCheckinMoment(checkinId, venueId, uploaded.url, caption.trim() || null);
+    setMomentPosting(false);
+    if (error) {
+      showAlert(s('error'), s('momentUploadError'));
+      return;
+    }
+    setMomentPosted(true);
+    onMomentPosted?.();
+  }, [momentAsset, checkinId, venueId, caption, s, onMomentPosted]);
 
   const checkStyle = useAnimatedStyle(() => ({
     transform: [{ scale: checkScale.value }],
@@ -190,6 +272,58 @@ export function CheckinSuccessSheet({
               tablesCount={tablesCount}
               onReport={onReportFreeTables}
             />
+          ) : null}
+
+          {/* F042: add a session moment (one photo + optional caption). */}
+          {canAddMoment ? (
+            <View style={styles.momentBlock} testID="checkin-moment-block">
+              {momentPosted ? (
+                <View style={styles.momentDoneRow}>
+                  <Lucide name="check-circle" size={16} color={colors.primaryLight} />
+                  <Text style={styles.momentDoneText}>{s('momentPosted')}</Text>
+                </View>
+              ) : momentUri ? (
+                <>
+                  <Image source={{ uri: momentUri }} style={styles.momentPreview} resizeMode="cover" />
+                  <TextInput
+                    style={styles.momentCaption}
+                    value={caption}
+                    onChangeText={setCaption}
+                    placeholder={s('momentCaptionPlaceholder')}
+                    placeholderTextColor={colors.textFaint}
+                    maxLength={280}
+                    multiline
+                    testID="checkin-moment-caption"
+                  />
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    style={[styles.momentPostBtn, momentPosting && { opacity: 0.6 }]}
+                    onPress={postMoment}
+                    disabled={momentPosting}
+                    testID="checkin-moment-post"
+                  >
+                    {momentPosting ? (
+                      <ActivityIndicator size="small" color={colors.textOnPrimary} />
+                    ) : (
+                      <>
+                        <Lucide name="camera" size={16} color={colors.textOnPrimary} />
+                        <Text style={styles.momentPostText}>{s('momentPostAction')}</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  style={styles.momentAddBtn}
+                  onPress={pickMomentPhoto}
+                  testID="checkin-add-moment"
+                >
+                  <Lucide name="camera" size={16} color={colors.primaryMid} />
+                  <Text style={styles.momentAddText}>{s('momentAddAction')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           ) : null}
 
           <TouchableOpacity accessibilityRole="button" style={styles.shareBtn} onPress={() => {
@@ -288,6 +422,75 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.heading,
       fontSize: FontSize.xxl,
       fontWeight: FontWeight.bold,
+      color: colors.primaryLight,
+    },
+    momentBlock: {
+      width: '100%',
+      marginTop: Spacing.md,
+      gap: Spacing.sm,
+    },
+    momentAddBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.xs,
+      borderRadius: Radius.lg,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: colors.primaryDim,
+      backgroundColor: colors.primaryPale,
+    },
+    momentAddText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
+      color: colors.primaryMid,
+    },
+    momentPreview: {
+      width: '100%',
+      height: 180,
+      borderRadius: Radius.md,
+      backgroundColor: colors.bg,
+    },
+    momentCaption: {
+      backgroundColor: colors.bg,
+      borderRadius: Radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      minHeight: 40,
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      color: colors.text,
+      textAlignVertical: 'top',
+    },
+    momentPostBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.xs,
+      backgroundColor: colors.primary,
+      borderRadius: Radius.lg,
+      paddingVertical: 12,
+    },
+    momentPostText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
+      color: colors.textOnPrimary,
+    },
+    momentDoneRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.xs,
+      paddingVertical: 10,
+    },
+    momentDoneText: {
+      fontFamily: Fonts.body,
+      fontSize: FontSize.md,
+      fontWeight: FontWeight.semibold,
       color: colors.primaryLight,
     },
     shareBtn: {

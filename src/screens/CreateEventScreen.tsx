@@ -27,6 +27,7 @@ import {
 import { Lucide } from '@/src/components/Icon';
 import { VenuePickerModal } from '@/src/components/VenuePickerModal';
 import { FriendPickerModal } from '@/src/components/FriendPickerModal';
+import { useMyClubsQuery } from '@/src/features/clubs';
 import type { EventType, EventVisibility, RecurrenceRule } from '@/src/types/database';
 
 function getDefaultDate() {
@@ -62,6 +63,7 @@ const VISIBILITY_OPTIONS: { value: EventVisibility; icon: string; titleKey: stri
   { value: 'public', icon: 'globe', titleKey: 'eventVisibilityPublic', descKey: 'eventVisibilityPublicDesc' },
   { value: 'friends', icon: 'users', titleKey: 'eventVisibilityFriends', descKey: 'eventVisibilityFriendsDesc' },
   { value: 'private', icon: 'lock', titleKey: 'eventVisibilityPrivate', descKey: 'eventVisibilityPrivateDesc' },
+  { value: 'club', icon: 'users-round', titleKey: 'eventVisibilityClub', descKey: 'eventVisibilityClubDesc' },
 ];
 
 /* -- Collapsible section -- */
@@ -161,6 +163,8 @@ export function CreateEventScreen() {
   /* visibility & invites */
   const [visibility, setVisibility] = useState<EventVisibility>('public');
   const [invitedFriendIds, setInvitedFriendIds] = useState<string[]>([]);
+  const [clubId, setClubId] = useState<number | null>(null);
+  const { data: myClubs = [] } = useMyClubsQuery(user?.id);
 
   /* post-creation */
   const [loading, setLoading] = useState(false);
@@ -221,6 +225,7 @@ export function CreateEventScreen() {
   const fmtTime = (d: Date) => d.toLocaleTimeString(getDateLocale(lang), { hour: '2-digit', minute: '2-digit' });
 
   const privateInviteMissing = visibility === 'private' && invitedFriendIds.length === 0;
+  const clubMissing = visibility === 'club' && clubId === null;
   const returnToFutureEvents = useCallback(() => {
     router.replace({ pathname: '/(tabs)/events', params: { tab: 'upcoming', refreshEvents: String(Date.now()) } });
   }, [router]);
@@ -232,6 +237,10 @@ export function CreateEventScreen() {
     if (eventType === 'tournament' && endDate <= date) { showAlert(t('error'), t('createEventEndAfterStart')); return; }
     if (visibility === 'private' && invitedFriendIds.length === 0) {
       showAlert(t('error'), t('eventPrivateNeedsInvite'));
+      return;
+    }
+    if (visibility === 'club' && clubId === null) {
+      showAlert(t('error'), t('eventClubNeedsClub'));
       return;
     }
 
@@ -254,6 +263,7 @@ export function CreateEventScreen() {
       venue_id: venueId ?? undefined,
       event_type: eventType,
       visibility,
+      club_id: visibility === 'club' ? clubId : null,
       recurrence_rule: recurrenceRule ?? undefined,
       recurrence_day: recurrenceDay,
     });
@@ -285,9 +295,17 @@ export function CreateEventScreen() {
       returnToFutureEvents();
       return;
     }
+    // Club events: every club member is already notified by the
+    // club_event_created fan-out trigger. The generic friend-invite picker would
+    // dead-end here — a picked non-member gets an 'event_invite' push to an event
+    // that RLS hides from them — so skip it for club scope.
+    if (visibility === 'club') {
+      returnToFutureEvents();
+      return;
+    }
     setCreatedEventId(data.id);
     setFriendPickerVisible(true);
-  }, [title, description, user, venueId, date, maxParticipantsText, durationHours, eventType, endDate, recurrenceRule, effectiveSelectedChallenge, attachChallenge, currentEventChallenge?.id, t, visibility, invitedFriendIds, returnToFutureEvents]);
+  }, [title, description, user, venueId, date, maxParticipantsText, durationHours, eventType, endDate, recurrenceRule, effectiveSelectedChallenge, attachChallenge, currentEventChallenge?.id, t, visibility, invitedFriendIds, clubId, returnToFutureEvents]);
 
   const handleInviteConfirm = useCallback(async (selectedIds: string[]) => {
     setFriendPickerVisible(false);
@@ -311,13 +329,21 @@ export function CreateEventScreen() {
     return sn('eventInvitedFriendsCount', invitedFriendIds.length);
   }, [invitedFriendIds.length, t, sn]);
 
+  const selectedClubName = useMemo(
+    () => myClubs.find((c) => c.id === clubId)?.name ?? null,
+    [myClubs, clubId],
+  );
+
   const visibilitySummary = useMemo(() => {
     const label = t(VISIBILITY_OPTIONS.find((o) => o.value === visibility)?.titleKey ?? 'eventVisibilityPublic');
     if (visibility === 'private' && invitedFriendIds.length > 0) {
       return `${label} · ${invitedFriendIds.length}`;
     }
+    if (visibility === 'club' && selectedClubName) {
+      return `${label} · ${selectedClubName}`;
+    }
     return label;
-  }, [visibility, invitedFriendIds.length, t]);
+  }, [visibility, invitedFriendIds.length, selectedClubName, t]);
 
   const themeVariant = isDark ? 'dark' : 'light';
 
@@ -553,6 +579,43 @@ export function CreateEventScreen() {
             )}
           </>
         )}
+
+        {visibility === 'club' && (
+          <>
+            {myClubs.length === 0 ? (
+              <Text style={s.inviteeWarning}>{t('eventClubNoneJoined')}</Text>
+            ) : (
+              <View style={s.visibilityList} testID="event-club-picker">
+                {myClubs.map((club) => {
+                  const selected = clubId === club.id;
+                  return (
+                    <Pressable
+                      key={club.id}
+                      style={[s.visibilityRow, selected && s.visibilityRowSelected]}
+                      onPress={() => setClubId(club.id)}
+                      testID={`event-club-${club.id}`}
+                    >
+                      <View style={[s.visibilityIcon, selected && s.visibilityIconSelected]}>
+                        <Lucide name="users-round" size={18} color={selected ? colors.primary : colors.textMuted} />
+                      </View>
+                      <View style={s.visibilityCopy}>
+                        <Text style={[s.visibilityTitle, selected && s.visibilityTitleSelected]} numberOfLines={1}>
+                          {club.name}
+                        </Text>
+                      </View>
+                      <View style={[s.visibilityCheck, selected && s.visibilityCheckSelected]}>
+                        {selected && <Lucide name="check" size={12} color={colors.textOnPrimary} />}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+            {clubMissing && myClubs.length > 0 && (
+              <Text style={s.inviteeWarning}>{t('eventClubNeedsClub')}</Text>
+            )}
+          </>
+        )}
       </Section>
 
       {/* -- Options section (collapsible) -- */}
@@ -666,9 +729,10 @@ export function CreateEventScreen() {
 
       {/* -- Actions -- */}
       <Pressable
-        style={[s.btn, (loading || privateInviteMissing) && { opacity: 0.6 }]}
+        style={[s.btn, (loading || privateInviteMissing || clubMissing) && { opacity: 0.6 }]}
         onPress={handleCreate}
-        disabled={loading || privateInviteMissing}
+        disabled={loading || privateInviteMissing || clubMissing}
+        testID="create-event-submit"
       >
         <Text style={s.btnText}>{loading ? t('createEventSubmitting') : t('createEventSubmit')}</Text>
       </Pressable>

@@ -35,12 +35,12 @@ describe('getFriendFeed', () => {
         {
           kind: 'review', id: 2, user_id: 'f2', user_name: 'Maria',
           venue_id: 20, venue_name: 'Parc Tineretului', venue_city: '',
-          rating: 5, ts: '2026-04-01T11:00:00Z',
+          rating: 5, ts: '2026-04-01T11:00:00Z', photo_url: null,
         },
         {
           kind: 'checkin', id: 1, user_id: 'f1', user_name: 'Andrei',
           venue_id: 10, venue_name: 'ClubPing', venue_city: 'Bucuresti',
-          rating: null, ts: '2026-04-01T10:00:00Z',
+          rating: null, ts: '2026-04-01T10:00:00Z', photo_url: null,
         },
       ],
       error: null,
@@ -52,12 +52,35 @@ describe('getFriendFeed', () => {
       {
         id: 'review-2', type: 'review', userId: 'f2', userName: 'Maria',
         venueId: 20, venueName: 'Parc Tineretului', venueCity: undefined,
-        rating: 5, timestamp: '2026-04-01T11:00:00Z',
+        rating: 5, timestamp: '2026-04-01T11:00:00Z', photoUrl: null,
       },
       {
         id: 'checkin-1', type: 'checkin', userId: 'f1', userName: 'Andrei',
         venueId: 10, venueName: 'ClubPing', venueCity: 'Bucuresti',
-        rating: undefined, timestamp: '2026-04-01T10:00:00Z',
+        rating: undefined, timestamp: '2026-04-01T10:00:00Z', photoUrl: null,
+      },
+    ]);
+  });
+
+  it('maps a moment row, carrying its photo_url (F042)', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          kind: 'moment', id: 9, user_id: 'f3', user_name: 'Ioana',
+          venue_id: 30, venue_name: 'ClubPing', venue_city: 'Cluj',
+          rating: null, ts: '2026-04-02T09:00:00Z', photo_url: 'https://cdn/m9.jpg',
+        },
+      ],
+      error: null,
+    });
+
+    const { data } = await getFriendFeed();
+
+    expect(data).toEqual([
+      {
+        id: 'moment-9', type: 'moment', userId: 'f3', userName: 'Ioana',
+        venueId: 30, venueName: 'ClubPing', venueCity: 'Cluj',
+        rating: undefined, timestamp: '2026-04-02T09:00:00Z', photoUrl: 'https://cdn/m9.jpg',
       },
     ]);
   });

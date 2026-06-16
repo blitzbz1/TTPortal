@@ -7,7 +7,8 @@ export type ReportContentType =
   | 'photo'
   | 'profile'
   | 'venue_post'
-  | 'dm_message';
+  | 'dm_message'
+  | 'checkin_moment';
 
 export type ReportReason =
   | 'spam'

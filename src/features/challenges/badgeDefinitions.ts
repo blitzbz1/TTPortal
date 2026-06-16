@@ -35,6 +35,21 @@ export const TIER_TARGETS: Record<BadgeTier, number> = {
   gold: 15,
 };
 
+/**
+ * F041: the Recruiter badge is awarded at 1/5/10 *referrals*, not the global
+ * 5/10/15 challenge thresholds. It is a badge-only track (no challenges); its
+ * earned tiers come straight from badge_awards (category 'recruiter'), so this
+ * map is only used for label/threshold display, never to drive challenge UI.
+ */
+export const RECRUITER_TIER_TARGETS: Record<BadgeTier, number> = {
+  bronze: 1,
+  silver: 5,
+  gold: 10,
+};
+
+/** Track id of the badge-only Recruiter track (F041). */
+export const RECRUITER_TRACK_ID = 'recruiter';
+
 export const BADGE_TIERS: BadgeTier[] = ['bronze', 'silver', 'gold'];
 
 export const BADGE_TIER_PALETTES: Record<BadgeTier, BadgeTierPalette> = {
@@ -317,6 +332,27 @@ export const BADGE_TRACKS: BadgeTrack[] = [
         { id: 'GLD144', title: 'Beat two different opponents in the same session', mode: 'friend required', tier: 'gold' },
         { id: 'GLD020', title: 'Win final deciding set', mode: 'friend optional', tier: 'gold' },
       ],
+    },
+  },
+  // F041: Recruiter is a badge-only track (no challenges). It is earned by
+  // inviting friends (badge_awards category 'recruiter', tiers at 1/5/10 — see
+  // RECRUITER_TIER_TARGETS). Empty challenge lists keep it out of the challenge
+  // tab grid (TRACK_ROWS only slices the first 8 tracks) while still rendering
+  // an earned chip in the Badges Won grid. Display strings use the recruiter*
+  // / badgeTrack_recruiter_* i18n prefixes — NOT badgeChallenge_*.
+  {
+    id: 'recruiter',
+    category: 'recruiter',
+    name: 'Recruiter',
+    shortName: 'Recruit',
+    icon: 'user-plus',
+    description: 'Grow the community by inviting friends.',
+    color: '#e11d48',
+    paleColor: '#ffe4e6',
+    challenges: {
+      bronze: [],
+      silver: [],
+      gold: [],
     },
   },
 ];

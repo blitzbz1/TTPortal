@@ -57,13 +57,22 @@ export function getTrackProgressSummaries(
   });
 }
 
+/** A challenge track has at least one challenge; badge-only tracks (F041
+ *  Recruiter) have empty challenge lists and must not drive the challenge
+ *  hero / featured / mastery aggregations (they have no challenge progress). */
+function isChallengeTrack(summary: TrackProgressSummary): boolean {
+  const t = summary.badge.challenges;
+  return t.bronze.length + t.silver.length + t.gold.length > 0;
+}
+
 export function getFeaturedTrackSummary(summaries: TrackProgressSummary[]) {
-  const inProgress = summaries
+  const challengeSummaries = summaries.filter(isChallengeTrack);
+  const inProgress = challengeSummaries
     .filter((summary) => summary.completedCount > 0 && summary.level !== 'Gold')
     .sort((a, b) => b.completedCount - a.completedCount);
   if (inProgress[0]) return inProgress[0];
 
-  const latestAwarded = summaries
+  const latestAwarded = challengeSummaries
     .filter((summary) => summary.latestAward)
     .sort((a, b) => (
       new Date(b.latestAward?.awarded_at ?? 0).getTime()
@@ -71,20 +80,23 @@ export function getFeaturedTrackSummary(summaries: TrackProgressSummary[]) {
     ));
   if (latestAwarded[0]) return latestAwarded[0];
 
-  return summaries.find((summary) => summary.badge.id === 'explorer') ?? summaries[0];
+  return challengeSummaries.find((summary) => summary.badge.id === 'explorer') ?? challengeSummaries[0];
 }
 
 export function getMonthlyMasterySummary(summaries: TrackProgressSummary[]) {
-  const completed = summaries.reduce((sum, summary) => sum + summary.completedCount, 0);
-  const earnedThisMonth = summaries.reduce((sum, summary) => (
+  // Badge-only tracks (F041 Recruiter) have no challenge progress; exclude them
+  // from the challenge-mastery aggregates so they don't skew the numbers.
+  const challengeSummaries = summaries.filter(isChallengeTrack);
+  const completed = challengeSummaries.reduce((sum, summary) => sum + summary.completedCount, 0);
+  const earnedThisMonth = challengeSummaries.reduce((sum, summary) => (
     sum + summary.earnedTiers.length
   ), 0);
-  const strongest = getFeaturedTrackSummary(summaries);
+  const strongest = getFeaturedTrackSummary(challengeSummaries);
 
   return {
     completed,
     earnedThisMonth,
     strongest,
-    tracksWithProgress: summaries.filter((summary) => summary.completedCount > 0).length,
+    tracksWithProgress: challengeSummaries.filter((summary) => summary.completedCount > 0).length,
   };
 }

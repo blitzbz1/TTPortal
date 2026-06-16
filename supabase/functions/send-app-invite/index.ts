@@ -3,6 +3,21 @@ import { withTiming } from '../_shared/logger.ts';
 
 const DEFAULT_INVITE_REDIRECT_TO = 'ttportal://auth/callback?flow=signup&next=%2Fsign-in';
 
+// F041: rewrite the invite redirect's `next` param so a fresh signup lands on
+// /join/<referral_code>, which auto-friends the inviter on the first session.
+// Falls back to the unmodified redirect when no code is available or the URL
+// can't be parsed.
+function withReferralNext(redirectTo: string, referralCode: string | null): string {
+  if (!referralCode) return redirectTo;
+  try {
+    const url = new URL(redirectTo);
+    url.searchParams.set('next', `/join/${referralCode}`);
+    return url.toString();
+  } catch {
+    return redirectTo;
+  }
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -137,10 +152,25 @@ Deno.serve(withTiming('send-app-invite', async (req) => {
       });
     }
 
+    // F041: resolve the inviter's referral code so the invite link carries
+    // /join/<code>. Best-effort — a missing code just falls back to the plain
+    // signup redirect (the existing behavior).
+    let referralCode: string | null = null;
+    {
+      const { data: profileRow } = await adminClient
+        .from('profiles')
+        .select('referral_code')
+        .eq('id', userRes.user.id)
+        .maybeSingle();
+      const code = (profileRow as { referral_code?: string | null } | null)?.referral_code ?? null;
+      referralCode = code ? String(code).trim() : null;
+    }
+
     const { error } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      redirectTo,
+      redirectTo: withReferralNext(redirectTo, referralCode),
       data: {
         invited_by: userRes.user.id,
+        referral_code: referralCode,
       },
     });
 

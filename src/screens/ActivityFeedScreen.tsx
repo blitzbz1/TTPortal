@@ -5,7 +5,7 @@
 // auth.uid()-derived get_friend_feed RPC (migration 083). Route it when the
 // feature ships; if Session Moments is descoped, delete the whole chain.
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl, Image } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -18,6 +18,7 @@ import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme'
 import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { useFeedQuery } from '../hooks/queries/useFeedQuery';
+import { venueImageUrl } from '../lib/imageTransforms';
 
 export function ActivityFeedScreen() {
   const insets = useSafeAreaInsets();
@@ -101,10 +102,15 @@ export function ActivityFeedScreen() {
         >
           {feed.map((item, index) => {
             const isCheckin = item.type === 'checkin';
-            const iconName = isCheckin ? 'map-pin' : 'star';
-            const iconColor = isCheckin ? colors.primaryLight : colors.accent;
-            const iconBg = isCheckin ? colors.primaryPale : colors.amberPale;
-            const actionText = isCheckin ? s('feedCheckinAction') : s('feedReviewAction');
+            const isMoment = item.type === 'moment';
+            const iconName = isCheckin ? 'map-pin' : isMoment ? 'camera' : 'star';
+            const iconColor = isCheckin ? colors.primaryLight : isMoment ? colors.primaryLight : colors.accent;
+            const iconBg = isCheckin ? colors.primaryPale : isMoment ? colors.primaryPale : colors.amberPale;
+            const actionText = isCheckin
+              ? s('feedCheckinAction')
+              : isMoment
+                ? s('momentFeedAction')
+                : s('feedReviewAction');
 
             return (
               <Animated.View key={item.id} entering={FadeInDown.delay(Math.min(index, 8) * 60).duration(300)}>
@@ -126,6 +132,14 @@ export function ActivityFeedScreen() {
                   {item.type === 'review' && item.rating != null && (
                     <Text style={styles.ratingText}>{renderStars(item.rating)}</Text>
                   )}
+                  {isMoment && item.photoUrl ? (
+                    <Image
+                      source={{ uri: venueImageUrl(item.photoUrl, { width: 600, quality: 75 }) ?? item.photoUrl }}
+                      style={styles.momentPhoto}
+                      resizeMode="cover"
+                      testID={`feed-moment-photo-${item.id}`}
+                    />
+                  ) : null}
                   <Text style={styles.timeText}>{formatTime(item.timestamp)}</Text>
                 </View>
               </TouchableOpacity>
@@ -200,6 +214,13 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.body,
       fontSize: FontSize.base,
       color: colors.accent,
+    },
+    momentPhoto: {
+      width: '100%',
+      height: 180,
+      borderRadius: Radius.md,
+      marginTop: 4,
+      backgroundColor: colors.bgAlt,
     },
     timeText: {
       fontFamily: Fonts.body,

@@ -350,6 +350,17 @@ export function EventSchedulingScreen({ hideTabBar = false }: EventSchedulingScr
           <SelectedCityPill city={selectedCity} onPress={() => setCityModalVisible(true)} compact />
         </View>
         <View style={styles.headerActions}>
+          {user ? (
+            <TouchableOpacity
+              onPress={() => router.push('/(protected)/clubs')}
+              hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel={s('clubsTitle')}
+              testID="events-clubs-button"
+            >
+              <Lucide name="users-round" size={18} color={headerFg} />
+            </TouchableOpacity>
+          ) : null}
           <FeedbackHeaderButton color={headerFg} />
           <NotificationBellButton color={headerFg} />
         </View>

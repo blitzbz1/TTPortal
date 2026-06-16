@@ -78,6 +78,8 @@ export function sanitizeAppRoute(route?: string): string {
   if (!route) return '/(tabs)';
   if (!route.startsWith('/') || route.startsWith('//')) return '/(tabs)';
 
-  const allowed = ['/(tabs)', '/(protected)', '/venue/', '/onboarding', '/sign-in', '/reset-password'];
+  // F041: '/join/' lets a referral returnTo survive the auth round-trip; without
+  // it sanitizeAppRoute silently downgrades /join/CODE to /(tabs).
+  const allowed = ['/(tabs)', '/(protected)', '/venue/', '/join/', '/onboarding', '/sign-in', '/reset-password'];
   return allowed.some((prefix) => route.startsWith(prefix)) ? route : '/(tabs)';
 }

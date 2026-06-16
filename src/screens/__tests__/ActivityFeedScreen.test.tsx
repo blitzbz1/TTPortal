@@ -126,6 +126,31 @@ describe('ActivityFeedScreen', () => {
     expect(getByText('ClubPing')).toBeTruthy();
   });
 
+  it('renders a moment feed item with its photo and verb (F042)', async () => {
+    mockUseSession.mockReturnValue({ user: { id: 'u1' } });
+    mockGetFriendFeed.mockResolvedValue({
+      data: [
+        {
+          id: 'moment-3',
+          type: 'moment',
+          userId: 'f2',
+          userName: 'Ioana',
+          venueName: 'ClubPing',
+          venueId: 42,
+          photoUrl: 'https://cdn/moments/f2/9.jpg',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      error: null,
+    });
+
+    const { findByTestId, getByText } = render(<ActivityFeedScreen />);
+    expect(await findByTestId('feed-item-moment-3')).toBeTruthy();
+    // The moment branch renders a photo card (camera icon variant) + author.
+    expect(await findByTestId('feed-moment-photo-moment-3')).toBeTruthy();
+    expect(getByText('Ioana')).toBeTruthy();
+  });
+
   it('navigates to venue when feed item is tapped', async () => {
     mockUseSession.mockReturnValue({ user: { id: 'u1' } });
     mockGetFriendFeed.mockResolvedValue({

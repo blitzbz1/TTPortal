@@ -18,6 +18,7 @@ export interface Profile {
   play_goals: PlayGoal[];
   home_venue_id: number | null;
   show_as_regular: boolean;
+  referral_code: string | null;
 }
 
 export interface City {
@@ -149,7 +150,7 @@ export interface Friendship {
 export type EventStatus = 'open' | 'confirmed' | 'closed' | 'cancelled' | 'completed';
 export type EventType = 'casual' | 'tournament';
 export type RecurrenceRule = 'daily' | 'weekly' | 'monthly';
-export type EventVisibility = 'public' | 'friends' | 'private';
+export type EventVisibility = 'public' | 'friends' | 'private' | 'club';
 
 export interface Event {
   id: number;
@@ -164,6 +165,7 @@ export interface Event {
   status: EventStatus;
   event_type: EventType;
   visibility: EventVisibility;
+  club_id: number | null;
   created_at: string;
   recurrence_rule: RecurrenceRule | null;
   recurrence_day: number | null;

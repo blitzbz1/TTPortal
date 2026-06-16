@@ -204,6 +204,7 @@ function RootNavigator() {
           <Stack.Screen name="forgot-password" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
           <Stack.Screen name="reset-password" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
           <Stack.Screen name="venue/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
+          <Stack.Screen name="join/[code]" options={{ headerShown: false, animation: 'fade' }} />
           <Stack.Screen name="(protected)" options={{ headerShown: false, animation: 'slide_from_right' }} />
         </Stack>
         <StatusBar style={isDark ? 'light' : 'dark'} />

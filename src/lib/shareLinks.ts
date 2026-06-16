@@ -30,6 +30,20 @@ export function playerUrl(userId: string): string {
   return `${getWebAppUrl()}/player/${userId}`;
 }
 
+/** F040: a shareable club-join link carrying the 6-char join code. */
+export function clubUrl(joinCode: string): string {
+  return `${getWebAppUrl()}/join/${joinCode}`;
+}
+
+/**
+ * F041: a shareable referral link carrying the inviter's 6-char referral code.
+ * Shares the `/join/<code>` route with club links — the route tries a referral
+ * claim first and falls back to club-join, so one path serves both codes.
+ */
+export function joinUrl(code: string): string {
+  return `${getWebAppUrl()}/join/${code}`;
+}
+
 /**
  * F034: a Quick-Match QR encodes a player link with ?logMatch=1, so scanning it
  * opens that player's profile with the Log Match sheet pre-targeted at them.

@@ -5,7 +5,12 @@ import { Lucide } from '../../components/Icon';
 import { getDateLocale } from '../../contexts/I18nProvider';
 import type { ThemeColors } from '../../theme';
 import type { BadgeTier, BadgeTrack } from '../../features/challenges/badgeDefinitions';
-import { TIER_TARGETS, getBadgeTierPalette } from '../../features/challenges/badgeDefinitions';
+import {
+  RECRUITER_TIER_TARGETS,
+  RECRUITER_TRACK_ID,
+  TIER_TARGETS,
+  getBadgeTierPalette,
+} from '../../features/challenges/badgeDefinitions';
 import type { createStyles } from '../ChallengeScreen.styles';
 
 export function formatEarnedMonth(value: string | null | undefined, lang: string) {
@@ -100,7 +105,10 @@ export function EarnedBadgeCard({
           <Lucide name="calendar-check" size={13} color={tierPalette.accent} />
           <Text style={[styles.wonMeta, { color: tierPalette.accent }]}>{s('challengeEarnedMonth', formatEarnedMonth(earnedAt, lang))}</Text>
         </View>
-        <Text style={[styles.wonSubMeta, { color: tierPalette.accent }]}>{sn('challengeCompletedCount', TIER_TARGETS[tier])}</Text>
+        <Text style={[styles.wonSubMeta, { color: tierPalette.accent }]}>{sn(
+          badge.id === RECRUITER_TRACK_ID ? 'recruiterReferralCount' : 'challengeCompletedCount',
+          (badge.id === RECRUITER_TRACK_ID ? RECRUITER_TIER_TARGETS : TIER_TARGETS)[tier],
+        )}</Text>
       </View>
     </Animated.View>
   );

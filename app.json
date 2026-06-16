@@ -110,7 +110,8 @@
           "autoVerify": true,
           "data": [
             { "scheme": "https", "host": "www.ttportal.org", "pathPrefix": "/TTPortal/app/venue" },
-            { "scheme": "https", "host": "www.ttportal.org", "pathPrefix": "/TTPortal/app/event" }
+            { "scheme": "https", "host": "www.ttportal.org", "pathPrefix": "/TTPortal/app/event" },
+            { "scheme": "https", "host": "www.ttportal.org", "pathPrefix": "/TTPortal/app/join" }
           ],
           "category": ["BROWSABLE", "DEFAULT"]
         }

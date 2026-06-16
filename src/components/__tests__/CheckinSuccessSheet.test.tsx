@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
 import { CheckinSuccessSheet } from '../CheckinSuccessSheet';
 import { hapticSuccess } from '../../lib/haptics';
@@ -23,6 +23,22 @@ jest.mock('../Icon', () => ({
 
 jest.mock('../../lib/haptics', () => ({
   hapticSuccess: jest.fn(),
+}));
+
+jest.mock('../../lib/dialogs', () => ({ showAlert: jest.fn() }));
+
+const mockRequestPerms = jest.fn();
+const mockLaunchLibrary = jest.fn();
+jest.mock('expo-image-picker', () => ({
+  requestMediaLibraryPermissionsAsync: (...a: any[]) => mockRequestPerms(...a),
+  launchImageLibraryAsync: (...a: any[]) => mockLaunchLibrary(...a),
+}));
+
+const mockUploadMoment = jest.fn();
+const mockPostMoment = jest.fn();
+jest.mock('../../features/checkinMoments', () => ({
+  uploadMomentImage: (...a: any[]) => mockUploadMoment(...a),
+  postCheckinMoment: (...a: any[]) => mockPostMoment(...a),
 }));
 
 const mockColors = {
@@ -50,6 +66,13 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockUseTheme.mockReturnValue({ colors: mockColors });
   mockS.mockImplementation((key: string) => key);
+  mockRequestPerms.mockResolvedValue({ status: 'granted' });
+  mockLaunchLibrary.mockResolvedValue({
+    canceled: false,
+    assets: [{ uri: 'file:///pic.jpg', width: 1200, height: 900 }],
+  });
+  mockUploadMoment.mockResolvedValue({ ok: true, url: 'https://cdn/moments/me/1.jpg' });
+  mockPostMoment.mockResolvedValue({ data: 5, error: null });
 });
 
 describe('CheckinSuccessSheet', () => {
@@ -121,5 +144,48 @@ describe('CheckinSuccessSheet', () => {
       />,
     );
     expect(hapticSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  describe('Add a moment (F042)', () => {
+    it('hides the moment action without a check-in id (e.g. offline)', () => {
+      const { queryByTestId } = render(
+        <CheckinSuccessSheet visible venueName="Test" venueId={42} queuedOffline onDismiss={jest.fn()} />,
+      );
+      expect(queryByTestId('checkin-add-moment')).toBeNull();
+    });
+
+    it('shows the moment action when a fresh check-in id is provided', () => {
+      const { getByTestId } = render(
+        <CheckinSuccessSheet visible venueName="Test" venueId={42} checkinId={7} onDismiss={jest.fn()} />,
+      );
+      expect(getByTestId('checkin-add-moment')).toBeTruthy();
+    });
+
+    it('uploads + posts a moment for the check-in', async () => {
+      const onMomentPosted = jest.fn();
+      const { getByTestId, findByTestId } = render(
+        <CheckinSuccessSheet
+          visible
+          venueName="Test"
+          venueId={42}
+          checkinId={7}
+          onMomentPosted={onMomentPosted}
+          onDismiss={jest.fn()}
+        />,
+      );
+      fireEvent.press(getByTestId('checkin-add-moment'));
+      // Preview + caption appear after picking.
+      const caption = await findByTestId('checkin-moment-caption');
+      fireEvent.changeText(caption, 'great rallies');
+      fireEvent.press(getByTestId('checkin-moment-post'));
+
+      await waitFor(() =>
+        expect(mockUploadMoment).toHaveBeenCalledWith({ uri: 'file:///pic.jpg', width: 1200, height: 900 }),
+      );
+      await waitFor(() =>
+        expect(mockPostMoment).toHaveBeenCalledWith(7, 42, 'https://cdn/moments/me/1.jpg', 'great rallies'),
+      );
+      expect(onMomentPosted).toHaveBeenCalled();
+    });
   });
 });

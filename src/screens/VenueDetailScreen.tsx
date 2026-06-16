@@ -41,6 +41,8 @@ import { venueSupportsAmenities } from '../lib/amenities';
 import { WeatherChip } from '../components/WeatherChip';
 import { VenueRegularsRow } from '../components/VenueRegularsRow';
 import { VenueBoardSection } from '../components/VenueBoardSection';
+import { VenueMomentsStrip } from '../components/VenueMomentsStrip';
+import { venueMomentsQueryKey } from '../features/checkinMoments';
 import { reportFreeTables, useVenueIntelQuery, venueIntelQueryKey } from '../features/venueIntel';
 import { useVenueOpenPlayQuery, useMyPlayIntentQuery, useInvalidateOpenPlay, useRespondToOpenPlayMutation, useConvertPlayIntentMutation, useCancelPlayIntentMutation, type WhenSlot } from '../features/openplay';
 import { useProfileQuery, profileQueryKey } from '../hooks/queries/useProfileQuery';
@@ -179,6 +181,9 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [successSheetVisible, setSuccessSheetVisible] = useState(false);
   const [lastCheckinEndTime, setLastCheckinEndTime] = useState<string | undefined>();
   const [checkinQueuedOffline, setCheckinQueuedOffline] = useState(false);
+  // F042: the just-created check-in id, threaded to CheckinSuccessSheet so the
+  // "Add a moment" action can attach a photo to it. Null for offline check-ins.
+  const [lastCheckinId, setLastCheckinId] = useState<number | null>(null);
   const { isOnline, enqueue } = useOfflineQueue();
   const [reportingReview, setReportingReview] = useState<Review | null>(null);
   const [reportSubmitting, setReportSubmitting] = useState(false);
@@ -443,13 +448,14 @@ export function VenueDetailScreen({ venueId }: Props) {
       });
       setLastCheckinEndTime(endTimeStr);
       setCheckinQueuedOffline(true);
+      setLastCheckinId(null);
       setSuccessSheetVisible(true);
       trackProductEvent(ProductEvents.checkinQueuedOffline, { venueId: vIdNum });
       return;
     }
 
     setCheckinLoading(true);
-    const { error } = await checkin(payload);
+    const { data: createdCheckin, error } = await checkin(payload);
     setCheckinLoading(false);
     if (error) {
       const rateMsg = rateLimitMessageFor(error, s);
@@ -470,6 +476,7 @@ export function VenueDetailScreen({ venueId }: Props) {
     }
     setLastCheckinEndTime(endTimeStr);
     setCheckinQueuedOffline(false);
+    setLastCheckinId((createdCheckin as { id?: number } | null)?.id ?? null);
     setSuccessSheetVisible(true);
     trackProductEvent(ProductEvents.checkinCompleted, { venueId: vIdNum });
   }, [user, venueId, vIdNum, invalidateVenueDetail, s, lang, isOnline, enqueue, lookingForPlayers, sessionNote, invalidateOpenPlay]);
@@ -823,6 +830,9 @@ export function VenueDetailScreen({ venueId }: Props) {
           )}
         </Reanimated.View>
 
+        {/* Recent moments (F042) — lazy strip under the photo carousel */}
+        {vIdNum ? <VenueMomentsStrip venueId={vIdNum} currentUserId={user?.id} /> : null}
+
         {/* Weather — outdoor venues only (F013) */}
         {venue.type === 'parc_exterior' && venue.lat != null && venue.lng != null ? (
           <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
@@ -1152,10 +1162,14 @@ export function VenueDetailScreen({ venueId }: Props) {
         visible={successSheetVisible}
         venueName={venue?.name ?? ''}
         venueId={vIdNum ?? null}
+        checkinId={lastCheckinId}
         endTime={lastCheckinEndTime}
         queuedOffline={checkinQueuedOffline}
         tablesCount={venue?.tables_count ?? null}
         onReportFreeTables={handleReportFreeTables}
+        onMomentPosted={() => {
+          if (vIdNum) queryClient.invalidateQueries({ queryKey: venueMomentsQueryKey(vIdNum) });
+        }}
         onDismiss={() => setSuccessSheetVisible(false)}
       />
 

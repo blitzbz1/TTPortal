@@ -9,7 +9,7 @@ import { invalidateProfileCache } from '../lib/profileCache';
 const PUBLIC_PROFILE_COLUMNS =
   'id, full_name, avatar_url, city, lang, auth_provider, created_at, ' +
   'username, is_admin, is_moderator, notify_friend_checkins, checkin_visibility, notification_prefs, ' +
-  'skill_level, play_goals, home_venue_id, show_as_regular';
+  'skill_level, play_goals, home_venue_id, show_as_regular, referral_code';
 
 export type CheckinVisibility = 'friends' | 'private';
 

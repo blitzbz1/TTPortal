@@ -14,10 +14,10 @@ import {
   Hand, Handshake, Hash, Heart, Home, Image as ImageIcon, Info,
   KeyRound, LampFloor, Lightbulb, List, ListChecks, Locate, Lock, LockKeyhole, LogIn, LogOut,
   Mail, Map, MapPin, Medal, Megaphone, MessageCircle, MessageSquare, Minus, Monitor, Moon, Move,
-  Navigation, Pen, PenLine, Pencil, Plus, QrCode,
+  Navigation, PartyPopper, Pen, PenLine, Pencil, Plus, QrCode,
   RefreshCw, Repeat, ScanLine, Search, Send, Settings, Share2, Shield, ShieldCheck, Sliders, Sparkles, Star, Sun, Swords,
   Table2, Tag, Target, Timer, Trash2, TrendingUp, Trophy,
-  User, UserCheck, UserPlus, UserRound, Users, Vote, Wind, WifiOff, X, XCircle, Zap,
+  User, UserCheck, UserPlus, UserRound, Users, UsersRound, Vote, Wind, WifiOff, X, XCircle, Zap,
   type LucideProps,
 } from 'lucide-react-native';
 import { lightColors } from '../theme';
@@ -100,6 +100,7 @@ const ICON_MAP: Record<string, React.ComponentType<LucideProps>> = {
   'moon': Moon,
   'move': Move,
   'navigation': Navigation,
+  'party-popper': PartyPopper,
   'pen': Pen,
   'pen-line': PenLine,
   'pencil': Pencil,
@@ -131,6 +132,7 @@ const ICON_MAP: Record<string, React.ComponentType<LucideProps>> = {
   'user-plus': UserPlus,
   'user-round': UserRound,
   'users': Users,
+  'users-round': UsersRound,
   'vote': Vote,
   'cloud': Cloud,
   'cloud-drizzle': CloudDrizzle,
