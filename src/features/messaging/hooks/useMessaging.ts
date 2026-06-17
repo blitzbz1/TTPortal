@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  canSendInThread,
   getDmMessages,
   getDmThreads,
   getUnreadDmCount,
@@ -15,6 +16,8 @@ export const dmMessagesQueryKey = (threadId: number | undefined) =>
   ['dm-messages', threadId ?? null] as const;
 export const unreadDmCountQueryKey = (userId: string | undefined) =>
   ['dm-unread', userId ?? null] as const;
+export const canSendInThreadQueryKey = (threadId: number | undefined) =>
+  ['dm-can-send', threadId ?? null] as const;
 
 export function useDmThreadsQuery(userId: string | undefined) {
   return useQuery<DmThread[]>({
@@ -54,6 +57,19 @@ export function useUnreadDmCountQuery(userId: string | undefined) {
     },
     enabled: !!userId,
     staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+}
+
+/** Gate for the thread's reply input (migration 136). False (read-only) when
+ *  neither the caller nor the other participant is staff — e.g. a legacy
+ *  user<->user thread. Mirrors the send_dm server gate. */
+export function useCanSendInThreadQuery(threadId: number | undefined) {
+  return useQuery<boolean>({
+    queryKey: canSendInThreadQueryKey(threadId),
+    queryFn: async () => (threadId ? canSendInThread(threadId) : false),
+    enabled: !!threadId,
+    staleTime: 60 * 1000,
     gcTime: 5 * 60 * 1000,
   });
 }

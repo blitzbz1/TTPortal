@@ -41,9 +41,9 @@
   "ratingCelebrationShareMessage": "Mon classement TTPortal grimpe ! 🏓",
   "messagesTitle": "Messages",
   "messagesEmptyTitle": "Aucun message",
-  "messagesEmptyDesc": "Écrivez à un ami ou à quelqu'un d'un événement.",
+  "messagesEmptyDesc": "Les messages de l’équipe TT Portal apparaîtront ici.",
   "messagesInputPlaceholder": "Message…",
-  "messagesCannotSend": "Vous ne pouvez écrire qu'à des amis ou à des personnes de vos événements.",
+  "messagesCannotSend": "Impossible d’envoyer le message.",
   "messagesReportTitle": "Signaler le message",
   "messagesReportBody": "Signaler ce message aux modérateurs ?",
   "messageButton": "Message",
@@ -1879,5 +1879,7 @@
   "equipReviewOwnerGate": "Seuls les joueurs qui possèdent ce matériel peuvent le noter. Ajoutez-le à votre configuration pour donner votre avis.",
   "equipReviewYours": "Votre avis",
   "equipReviewPublished": "Votre avis a été publié.",
-  "equipReviewError": "Impossible d’enregistrer votre avis. Réessayez."
+  "equipReviewError": "Impossible d’enregistrer votre avis. Réessayez.",
+  "messagesReadOnly": "Cette conversation est en lecture seule.",
+  "blockStaffError": "Vous ne pouvez pas bloquer un modérateur ou un administrateur."
 }

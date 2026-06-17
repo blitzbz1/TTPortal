@@ -15,6 +15,7 @@ import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useSession } from '../hooks/useSession';
+import { useCanModerate } from '../hooks/useCanModerate';
 import { useI18n } from '../hooks/useI18n';
 import { getDateLocale } from '../contexts/I18nProvider';
 import { useProfileQuery, useProfileStatsQuery } from '../hooks/queries/useProfileQuery';
@@ -142,6 +143,9 @@ export function PlayerProfileScreen({ userId, autoLogMatch }: Props) {
   }, [user, userId, fullName, router, s]);
 
   const isSelf = user?.id === userId;
+  // F023/136: DMs are staff-mediated — only admins/moderators may START a
+  // conversation. Hide the entry point for everyone else (server enforces too).
+  const canModerate = useCanModerate();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -300,14 +304,16 @@ export function PlayerProfileScreen({ userId, autoLogMatch }: Props) {
                 <Lucide name="swords" size={16} color={colors.primary} />
                 <Text style={[styles.inviteBtnText, { color: colors.primary }]}>{s('logMatchTitle')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.inviteBtn, { backgroundColor: colors.bgAlt, borderWidth: 1, borderColor: colors.border, marginTop: Spacing.sm }]}
-                onPress={handleMessage}
-                testID="message-player-btn"
-              >
-                <Lucide name="message-circle" size={16} color={colors.text} />
-                <Text style={[styles.inviteBtnText, { color: colors.text }]}>{s('messageButton')}</Text>
-              </TouchableOpacity>
+              {canModerate && (
+                <TouchableOpacity
+                  style={[styles.inviteBtn, { backgroundColor: colors.bgAlt, borderWidth: 1, borderColor: colors.border, marginTop: Spacing.sm }]}
+                  onPress={handleMessage}
+                  testID="message-player-btn"
+                >
+                  <Lucide name="message-circle" size={16} color={colors.text} />
+                  <Text style={[styles.inviteBtnText, { color: colors.text }]}>{s('messageButton')}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </ScrollView>

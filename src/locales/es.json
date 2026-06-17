@@ -41,9 +41,9 @@
   "ratingCelebrationShareMessage": "¡Mi clasificación TTPortal sube! 🏓",
   "messagesTitle": "Mensajes",
   "messagesEmptyTitle": "Aún no hay mensajes",
-  "messagesEmptyDesc": "Escribe a un amigo o a alguien de un evento.",
+  "messagesEmptyDesc": "Los mensajes del equipo de TT Portal aparecerán aquí.",
   "messagesInputPlaceholder": "Mensaje…",
-  "messagesCannotSend": "Solo puedes escribir a amigos o a personas de tus eventos.",
+  "messagesCannotSend": "No se pudo enviar el mensaje.",
   "messagesReportTitle": "Reportar mensaje",
   "messagesReportBody": "¿Reportar este mensaje a los moderadores?",
   "messageButton": "Mensaje",
@@ -1879,5 +1879,7 @@
   "equipReviewOwnerGate": "Solo los jugadores que tienen este equipo pueden reseñarlo. Añádelo a tu configuración para opinar.",
   "equipReviewYours": "Tu reseña",
   "equipReviewPublished": "Tu reseña se ha publicado.",
-  "equipReviewError": "No se pudo guardar tu reseña. Inténtalo de nuevo."
+  "equipReviewError": "No se pudo guardar tu reseña. Inténtalo de nuevo.",
+  "messagesReadOnly": "Esta conversación es de solo lectura.",
+  "blockStaffError": "No puedes bloquear a un moderador o administrador."
 }

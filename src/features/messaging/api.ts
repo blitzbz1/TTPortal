@@ -4,6 +4,7 @@ export {
   markDmThreadRead,
   reportDm,
   canMessage,
+  canSendInThread,
   getDmThreads,
   getDmMessages,
   getUnreadDmCount,

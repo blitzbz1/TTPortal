@@ -41,9 +41,9 @@
   "ratingCelebrationShareMessage": "Meine TTPortal-Wertung steigt! 🏓",
   "messagesTitle": "Nachrichten",
   "messagesEmptyTitle": "Noch keine Nachrichten",
-  "messagesEmptyDesc": "Schreibe einem Freund oder jemandem aus einem Event.",
+  "messagesEmptyDesc": "Nachrichten vom TT-Portal-Team erscheinen hier.",
   "messagesInputPlaceholder": "Nachricht…",
-  "messagesCannotSend": "Du kannst nur Freunden oder Personen aus deinen Events schreiben.",
+  "messagesCannotSend": "Nachricht konnte nicht gesendet werden.",
   "messagesReportTitle": "Nachricht melden",
   "messagesReportBody": "Diese Nachricht den Moderatoren melden?",
   "messageButton": "Nachricht",
@@ -1879,5 +1879,7 @@
   "equipReviewOwnerGate": "Nur Spieler, die diese Ausrüstung besitzen, können sie bewerten. Füge sie deinem Setup hinzu, um deine Meinung zu teilen.",
   "equipReviewYours": "Deine Bewertung",
   "equipReviewPublished": "Deine Bewertung wurde veröffentlicht.",
-  "equipReviewError": "Bewertung konnte nicht gespeichert werden. Bitte erneut versuchen."
+  "equipReviewError": "Bewertung konnte nicht gespeichert werden. Bitte erneut versuchen.",
+  "messagesReadOnly": "Diese Unterhaltung ist schreibgeschützt.",
+  "blockStaffError": "Du kannst keinen Moderator oder Administrator blockieren."
 }

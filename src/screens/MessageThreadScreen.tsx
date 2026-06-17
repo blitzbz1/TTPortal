@@ -17,7 +17,7 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Radius, Shadows, Spacing } from '../theme';
 import {
   markDmThreadRead, reportDm,
-  useDmMessagesQuery, useSendDmMutation, unreadDmCountQueryKey,
+  useDmMessagesQuery, useSendDmMutation, useCanSendInThreadQuery, unreadDmCountQueryKey,
   type DmMessage,
 } from '../features/messaging';
 
@@ -39,6 +39,7 @@ export function MessageThreadScreen({ threadId, otherName }: Props) {
   const listRef = useRef<FlatList<Row>>(null);
 
   const { data: messages = [], isLoading, refetch } = useDmMessagesQuery(threadId);
+  const { data: canSend, isLoading: canSendLoading } = useCanSendInThreadQuery(threadId);
   const sendMut = useSendDmMutation(threadId, user?.id);
 
   // On focus: refetch + mark read + refresh the unread badge.
@@ -125,27 +126,34 @@ export function MessageThreadScreen({ threadId, otherName }: Props) {
           />
         )}
 
-        <View style={styles.inputBar}>
-          <TextInput
-            style={styles.input}
-            placeholder={s('messagesInputPlaceholder')}
-            placeholderTextColor={colors.textFaint}
-            value={draft}
-            onChangeText={setDraft}
-            multiline
-            maxLength={2000}
-            testID="dm-input"
-          />
-          <TouchableOpacity
-            style={[styles.sendBtn, (!draft.trim() || sendMut.isPending) && styles.sendBtnDisabled]}
-            onPress={handleSend}
-            disabled={!draft.trim() || sendMut.isPending}
-            accessibilityLabel={s('send')}
-            testID="dm-send"
-          >
-            <Lucide name="send" size={18} color={colors.textOnPrimary} />
-          </TouchableOpacity>
-        </View>
+        {canSend ? (
+          <View style={styles.inputBar}>
+            <TextInput
+              style={styles.input}
+              placeholder={s('messagesInputPlaceholder')}
+              placeholderTextColor={colors.textFaint}
+              value={draft}
+              onChangeText={setDraft}
+              multiline
+              maxLength={2000}
+              testID="dm-input"
+            />
+            <TouchableOpacity
+              style={[styles.sendBtn, (!draft.trim() || sendMut.isPending) && styles.sendBtnDisabled]}
+              onPress={handleSend}
+              disabled={!draft.trim() || sendMut.isPending}
+              accessibilityLabel={s('send')}
+              testID="dm-send"
+            >
+              <Lucide name="send" size={18} color={colors.textOnPrimary} />
+            </TouchableOpacity>
+          </View>
+        ) : canSendLoading ? null : (
+          <View style={styles.readOnlyBar} testID="dm-readonly">
+            <Lucide name="lock" size={14} color={colors.textFaint} />
+            <Text style={styles.readOnlyText}>{s('messagesReadOnly')}</Text>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -185,5 +193,11 @@ function createStyles(colors: ThemeColors) {
     },
     sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', ...Shadows.sm },
     sendBtnDisabled: { opacity: 0.5 },
+    readOnlyBar: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+      paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
+      borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bgMuted,
+    },
+    readOnlyText: { fontFamily: Fonts.body, fontSize: FontSize.sm, color: colors.textFaint, textAlign: 'center' },
   });
 }

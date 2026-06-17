@@ -3,6 +3,7 @@ import {
   sendDm,
   markDmThreadRead,
   canMessage,
+  canSendInThread,
   getDmThreads,
   getDmMessages,
   getUnreadDmCount,
@@ -38,6 +39,16 @@ describe('messaging writes (F023)', () => {
     expect(await canMessage('u3')).toBe(false);
     mockRpc.mockResolvedValue({ data: null, error: { message: 'x' } });
     expect(await canMessage('u4')).toBe(false);
+  });
+
+  it('canSendInThread forwards p_thread_id and returns a boolean (false on error)', async () => {
+    mockRpc.mockResolvedValue({ data: true, error: null });
+    expect(await canSendInThread(7)).toBe(true);
+    expect(mockRpc).toHaveBeenCalledWith('can_send_in_thread', { p_thread_id: 7 });
+    mockRpc.mockResolvedValue({ data: false, error: null });
+    expect(await canSendInThread(7)).toBe(false);
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'x' } });
+    expect(await canSendInThread(7)).toBe(false);
   });
 });
 

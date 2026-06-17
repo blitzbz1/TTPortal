@@ -31,6 +31,11 @@ jest.mock('../../hooks/useSession', () => ({
   useSession: () => mockUseSession(),
 }));
 
+const mockCanModerate = jest.fn(() => false);
+jest.mock('../../hooks/useCanModerate', () => ({
+  useCanModerate: () => mockCanModerate(),
+}));
+
 jest.mock('../../components/Icon', () => ({
   Lucide: ({ name, ...props }: any) => {
     const { View } = require('react-native');
@@ -92,6 +97,7 @@ describe('PlayerProfileScreen', () => {
     mockSendEventInvites.mockResolvedValue({ error: null });
     mockGetCurrentEquipmentForUser.mockResolvedValue({ data: [], error: null });
     mockGetCoachProfile.mockResolvedValue({ data: null, error: null });
+    mockCanModerate.mockReturnValue(false);
   });
 
   it('renders profile name, username, and city', async () => {
@@ -128,6 +134,19 @@ describe('PlayerProfileScreen', () => {
     // Wait until profile loads
     await findByText('Andrei Popescu');
     expect(queryByText('inviteToEvent')).toBeNull();
+  });
+
+  it('hides the Message button for a non-staff viewer (DMs are staff-mediated, F023/136)', async () => {
+    mockCanModerate.mockReturnValue(false);
+    const { findByText, queryByText } = render(<PlayerProfileScreen userId="target-1" />);
+    await findByText('Andrei Popescu');
+    expect(queryByText('messageButton')).toBeNull();
+  });
+
+  it('shows the Message button for an admin/moderator viewer', async () => {
+    mockCanModerate.mockReturnValue(true);
+    const { findByText } = render(<PlayerProfileScreen userId="target-1" />);
+    expect(await findByText('messageButton')).toBeTruthy();
   });
 
   it('opens the picker and lists upcoming organizer events', async () => {

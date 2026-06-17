@@ -41,9 +41,9 @@
   "ratingCelebrationShareMessage": "My TTPortal rating is climbing! 🏓",
   "messagesTitle": "Messages",
   "messagesEmptyTitle": "No messages yet",
-  "messagesEmptyDesc": "Message a friend or someone from an event.",
+  "messagesEmptyDesc": "Messages from the TT Portal team will appear here.",
   "messagesInputPlaceholder": "Message…",
-  "messagesCannotSend": "You can only message friends or people from your events.",
+  "messagesCannotSend": "Couldn’t send your message.",
   "messagesReportTitle": "Report message",
   "messagesReportBody": "Report this message to moderators?",
   "messageButton": "Message",
@@ -1879,5 +1879,7 @@
   "equipReviewOwnerGate": "Only players who own this gear can review it. Add it to your setup to share your take.",
   "equipReviewYours": "Your review",
   "equipReviewPublished": "Your review was published.",
-  "equipReviewError": "Could not save your review. Please try again."
+  "equipReviewError": "Could not save your review. Please try again.",
+  "messagesReadOnly": "This conversation is read-only.",
+  "blockStaffError": "You can’t block a moderator or administrator."
 }

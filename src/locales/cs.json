@@ -41,9 +41,9 @@
   "ratingCelebrationShareMessage": "Moje hodnocení TTPortal stoupá! 🏓",
   "messagesTitle": "Zprávy",
   "messagesEmptyTitle": "Zatím žádné zprávy",
-  "messagesEmptyDesc": "Napiš příteli nebo někomu z události.",
+  "messagesEmptyDesc": "Zprávy od týmu TT Portal se zobrazí zde.",
   "messagesInputPlaceholder": "Zpráva…",
-  "messagesCannotSend": "Psát můžeš jen přátelům nebo lidem ze svých událostí.",
+  "messagesCannotSend": "Zprávu se nepodařilo odeslat.",
   "messagesReportTitle": "Nahlásit zprávu",
   "messagesReportBody": "Nahlásit tuto zprávu moderátorům?",
   "messageButton": "Zpráva",
@@ -1885,5 +1885,7 @@
   "equipReviewOwnerGate": "Toto vybavení mohou hodnotit jen hráči, kteří ho vlastní. Přidejte si ho do své sestavy a podělte se o názor.",
   "equipReviewYours": "Vaše recenze",
   "equipReviewPublished": "Vaše recenze byla zveřejněna.",
-  "equipReviewError": "Recenzi se nepodařilo uložit. Zkuste to znovu."
+  "equipReviewError": "Recenzi se nepodařilo uložit. Zkuste to znovu.",
+  "messagesReadOnly": "Tato konverzace je jen pro čtení.",
+  "blockStaffError": "Moderátora ani administrátora nelze zablokovat."
 }

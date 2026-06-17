@@ -54,6 +54,15 @@ export async function canMessage(otherId: string): Promise<boolean> {
   return data === true;
 }
 
+/** Whether the caller may send in this thread (migration 136): true if the
+ *  caller is staff OR the other participant is staff (a reply). Mirrors the
+ *  send_dm server gate so the UI can show a read-only state. */
+export async function canSendInThread(threadId: number): Promise<boolean> {
+  const { data, error } = await callRpc('can_send_in_thread', { p_thread_id: threadId });
+  if (error) return false;
+  return data === true;
+}
+
 // --- reads -----------------------------------------------------------------
 interface ThreadRpcRow {
   thread_id: number; other_id: string; other_name: string | null; other_avatar: string | null;

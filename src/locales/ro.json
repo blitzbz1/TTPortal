@@ -41,9 +41,9 @@
   "ratingCelebrationShareMessage": "Ratingul meu TTPortal crește! 🏓",
   "messagesTitle": "Mesaje",
   "messagesEmptyTitle": "Niciun mesaj încă",
-  "messagesEmptyDesc": "Scrie unui prieten sau cuiva dintr-un eveniment.",
+  "messagesEmptyDesc": "Mesajele de la echipa TT Portal vor apărea aici.",
   "messagesInputPlaceholder": "Mesaj…",
-  "messagesCannotSend": "Poți scrie doar prietenilor sau persoanelor din evenimentele tale.",
+  "messagesCannotSend": "Mesajul nu a putut fi trimis.",
   "messagesReportTitle": "Raportează mesajul",
   "messagesReportBody": "Raportezi acest mesaj moderatorilor?",
   "messageButton": "Mesaj",
@@ -1884,5 +1884,7 @@
   "equipReviewOwnerGate": "Doar jucătorii care dețin acest echipament îl pot recenza. Adaugă-l în setup-ul tău pentru a-ți spune părerea.",
   "equipReviewYours": "Recenzia ta",
   "equipReviewPublished": "Recenzia ta a fost publicată.",
-  "equipReviewError": "Recenzia nu a putut fi salvată. Încearcă din nou."
+  "equipReviewError": "Recenzia nu a putut fi salvată. Încearcă din nou.",
+  "messagesReadOnly": "Această conversație este doar pentru citire.",
+  "blockStaffError": "Nu poți bloca un moderator sau administrator."
 }

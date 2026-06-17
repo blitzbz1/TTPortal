@@ -41,9 +41,9 @@
   "ratingCelebrationShareMessage": "Mój ranking TTPortal rośnie! 🏓",
   "messagesTitle": "Wiadomości",
   "messagesEmptyTitle": "Brak wiadomości",
-  "messagesEmptyDesc": "Napisz do znajomego lub kogoś z wydarzenia.",
+  "messagesEmptyDesc": "Wiadomości od zespołu TT Portal pojawią się tutaj.",
   "messagesInputPlaceholder": "Wiadomość…",
-  "messagesCannotSend": "Możesz pisać tylko do znajomych lub osób z twoich wydarzeń.",
+  "messagesCannotSend": "Nie udało się wysłać wiadomości.",
   "messagesReportTitle": "Zgłoś wiadomość",
   "messagesReportBody": "Zgłosić tę wiadomość moderatorom?",
   "messageButton": "Wiadomość",
@@ -1889,5 +1889,7 @@
   "equipReviewOwnerGate": "Tylko gracze, którzy mają ten sprzęt, mogą go ocenić. Dodaj go do swojego zestawu, aby się wypowiedzieć.",
   "equipReviewYours": "Twoja recenzja",
   "equipReviewPublished": "Twoja recenzja została opublikowana.",
-  "equipReviewError": "Nie udało się zapisać recenzji. Spróbuj ponownie."
+  "equipReviewError": "Nie udało się zapisać recenzji. Spróbuj ponownie.",
+  "messagesReadOnly": "Ta rozmowa jest tylko do odczytu.",
+  "blockStaffError": "Nie możesz zablokować moderatora ani administratora."
 }

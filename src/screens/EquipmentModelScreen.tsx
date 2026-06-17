@@ -209,7 +209,8 @@ export function EquipmentModelScreen({ category, manufacturerId, manufacturer, m
     async (targetUserId: string) => {
       const { error } = await blockUser(targetUserId);
       if (error) {
-        showAlert(s('error'), s('blockUserError'));
+        const isStaff = String((error as { message?: string })?.message ?? '').includes('cannot_block_staff');
+        showAlert(s('error'), isStaff ? s('blockStaffError') : s('blockUserError'));
         return;
       }
       showAlert(s('blockedToastTitle'), s('blockedToastBody'));
