@@ -3988,6 +3988,7 @@ export type Database = {
       can_message: { Args: { p_other: string }; Returns: boolean }
       can_moderate: { Args: never; Returns: boolean }
       can_read_event: { Args: { p_event_id: number }; Returns: boolean }
+      can_send_in_thread: { Args: { p_thread_id: number }; Returns: boolean }
       cancel_account_deletion: { Args: never; Returns: undefined }
       cancel_play_intent: { Args: { p_intent_id: number }; Returns: undefined }
       challenge_xp_value: { Args: { v_code: string }; Returns: number }
