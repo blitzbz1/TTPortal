@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { invalidateVenueMetaCache, invalidateVenueReviewsCache } from '../lib/venueDetailCache';
+import { invalidateVenueIntelCache } from '../lib/venueIntelCache';
 import { clearCitiesCache } from '../lib/citiesPersistentCache';
 import { clearVenuesCache } from '../lib/venuesPersistentCache';
 import {
@@ -312,6 +313,8 @@ export async function resolveVenueChangeRequest(
     invalidateVenueChangeRequestsCache();
     invalidateMapVenuesCache();
     invalidateVenueMetaCache(venueId);
+    // Amenity edits (F012) live in the separate venue-intel cache.
+    invalidateVenueIntelCache(venueId);
     // Hiding or removing a venue changes per-city venue counts.
     if (availability === 'hide' || availability === 'remove') {
       invalidateLocationCatalogCache();

@@ -37,6 +37,7 @@ import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import type { Venue, VenueCondition } from '../types/database';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
 import { getDistanceKm, formatDistance } from '../lib/geo';
+import { conditionLabel as conditionLabelText, venueTypeLabel } from '../lib/venueLabels';
 import { getCityDisplayName, getMapRegionForCity } from '../lib/locationHelpers';
 
 type VenueWithStats = Venue & {
@@ -229,25 +230,26 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     { key: 'coaching', label: s('filterCoaching'), icon: 'graduation-cap' },
   ];
 
+  // Label text comes from the shared venueLabels helper (single source of
+  // truth, also used by the venue-detail screen); only the pin/dot color is
+  // map-specific and stays here.
   const conditionLabel = useCallback((condition: VenueCondition | null) => {
-    if (!condition) return { label: s('conditionUnknown'), color: colors.textFaint };
-    const map: Record<string, { label: string; color: string }> = {
-      buna: { label: s('conditionGood'), color: colors.primaryLight },
-      acceptabila: { label: s('conditionAcceptable'), color: colors.amber },
-      deteriorata: { label: s('conditionDegraded'), color: colors.red },
-      profesionala: { label: s('conditionPro'), color: colors.conditionPro },
-      necunoscuta: { label: s('conditionUnknown'), color: colors.textFaint },
+    const colorByCondition: Record<string, string> = {
+      buna: colors.primaryLight,
+      acceptabila: colors.amber,
+      deteriorata: colors.red,
+      profesionala: colors.conditionPro,
+      necunoscuta: colors.textFaint,
     };
-    return map[condition] || { label: condition, color: colors.textFaint };
+    return {
+      label: conditionLabelText(condition, s),
+      color: (condition && colorByCondition[condition]) || colors.textFaint,
+    };
   }, [colors, s]);
 
   // Stable identity (useCallback) so the memoized VenueMarkers props don't
   // churn per render.
-  const typeLabel = useCallback((type: string) => {
-    if (type === 'parc_exterior') return s('typePark');
-    if (type === 'sala_indoor') return s('typeHall');
-    return type;
-  }, [s]);
+  const typeLabel = useCallback((type: string) => venueTypeLabel(type, s), [s]);
 
   const fetchVenues = useCallback(async () => {
     await refetch();

@@ -48,7 +48,15 @@ export function ChangesTab({ isAdmin, styles }: ChangesTabProps) {
       showAlert(s('error'), s('vcrApplyError'));
       return false;
     }
-    await queryClient.invalidateQueries({ queryKey: ['venues'], exact: false });
+    // Refresh the list/map AND the affected venue's detail + intelligence
+    // (amenities) queries so the venue screen reflects the approved changes.
+    // Previously only ['venues'] was invalidated, so an already-loaded venue
+    // detail kept showing the stale, pre-approval values.
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['venues'], exact: false }),
+      queryClient.invalidateQueries({ queryKey: ['venue-detail', request.venue_id], exact: false }),
+      queryClient.invalidateQueries({ queryKey: ['venue-intel', request.venue_id], exact: false }),
+    ]);
     removeChangeRequest(request.id);
     return true;
   }, [queryClient, removeChangeRequest, user, s]);

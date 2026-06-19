@@ -62,6 +62,7 @@ import type { VenueChangeRequestInput } from '../services/venueChangeRequests';
 import { submitVote, uploadConditionVotePhoto, CONDITION_MAP, type ConditionChoice } from '../services/conditions';
 import { reportContent, blockUser, type ReportReason } from '../services/moderation';
 import { skillLevelKey, type SkillLevel } from '../lib/playerAttributes';
+import { conditionLabel, venueHoursLabel } from '../lib/venueLabels';
 import { hapticLight } from '../lib/haptics';
 import { sharePayload, venueUrl } from '../lib/shareLinks';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
@@ -914,11 +915,11 @@ export function VenueDetailScreen({ venueId }: Props) {
             </View>
             <View style={styles.infoRow}>
               <Lucide name="table-2" size={16} color={colors.textFaint} />
-              <Text style={styles.infoRowText}>{(venue.tables_count ?? '?') + ' ' + s('tablesState') + ' ' + (venue.condition ?? s('conditionUnknown'))}</Text>
+              <Text style={styles.infoRowText}>{(venue.tables_count ?? '?') + ' ' + s('tablesState') + ' ' + conditionLabel(venue.condition, s)}</Text>
             </View>
             <View style={styles.infoRow}>
               <Lucide name="clock" size={16} color={colors.textFaint} />
-              <Text style={styles.infoRowText}>{venue.hours || s('freeAccess247')}</Text>
+              <Text style={styles.infoRowText}>{venueHoursLabel(venue.hours, s)}</Text>
             </View>
             <View style={styles.infoRow}>
               <Lucide name="lamp-floor" size={16} color={colors.textFaint} />
