@@ -1,24 +1,29 @@
-import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { asset } from "@/lib/asset";
+import PhoneMock from "@/components/landing/PhoneMock";
 
-const featureImages: Record<number, { src: string }> = {
-  1: { src: asset("/screenshots/harta.png") },
-  2: { src: asset("/screenshots/locatie.png") },
-  3: { src: asset("/screenshots/evenimente.png") },
-  4: { src: asset("/screenshots/provocari.png") },
-  6: { src: asset("/screenshots/echipament.png") },
-  7: { src: asset("/screenshots/amatur.png") },
-};
-
-// Feature 5 (reviews) has no dedicated screenshot yet, so we skip it in the loop.
-const featureOrder = [1, 2, 3, 4, 6, 7];
+/**
+ * The curated set of flagship "phone block" features, in narrative order.
+ * `slot` maps to a screenshot in PhoneMock — slots without a real screenshot
+ * render an app-matched placeholder until one is dropped in.
+ */
+const FEATURES: { index: number; slot: string; live?: boolean }[] = [
+  { index: 1, slot: "map" },
+  { index: 2, slot: "busyness", live: true },
+  { index: 3, slot: "checkin" },
+  { index: 4, slot: "ladder-rating" },
+  { index: 5, slot: "find-players" },
+  { index: 6, slot: "challenges" },
+];
 
 function FeatureBlock({
   index,
+  slot,
+  live,
   reversed,
 }: {
   index: number;
+  slot: string;
+  live?: boolean;
   reversed: boolean;
 }) {
   const t = useTranslations("features");
@@ -71,24 +76,13 @@ function FeatureBlock({
   );
 
   const phoneBlock = (
-    <div className="relative w-[280px] shrink-0">
-      {/* cast shadow plate */}
-      <div
-        aria-hidden
-        className="absolute -inset-6 -z-10 rounded-[44px] bg-gradient-to-br from-moss-100/60 to-clay-100/40 blur-2xl"
-      />
-      <div className="rounded-[34px] bg-ink-900 p-[8px] shadow-[0_20px_60px_-20px_rgba(12,29,19,0.3)]">
-        <div className="relative h-[546px] w-full overflow-hidden rounded-[27px] bg-ink-900">
-          <Image
-            src={featureImages[index].src}
-            alt={t(`${prefix}Title`)}
-            fill
-            sizes="280px"
-            className="object-contain"
-          />
-        </div>
-      </div>
-    </div>
+    <PhoneMock
+      slot={slot}
+      variant="feature"
+      alt={`${t(`${prefix}Title`)} ${t(`${prefix}TitleLine2`)}`}
+      label={t(`${prefix}Title`)}
+      live={live}
+    />
   );
 
   return (
@@ -129,10 +123,15 @@ export default function Features() {
       </div>
 
       <div className="flex flex-col gap-28">
-        {featureOrder.map((i, idx) => (
-          <div key={i} className="flex flex-col gap-24">
-            <FeatureBlock index={i} reversed={idx % 2 === 1} />
-            {idx < featureOrder.length - 1 && (
+        {FEATURES.map((feat, idx) => (
+          <div key={feat.index} className="flex flex-col gap-24">
+            <FeatureBlock
+              index={feat.index}
+              slot={feat.slot}
+              live={feat.live}
+              reversed={idx % 2 === 1}
+            />
+            {idx < FEATURES.length - 1 && (
               <div className="rule-moss mx-auto w-full max-w-[600px]" />
             )}
           </div>

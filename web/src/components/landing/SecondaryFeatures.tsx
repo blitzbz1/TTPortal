@@ -1,11 +1,14 @@
 import { useTranslations } from "next-intl";
 import {
   Users,
+  GraduationCap,
+  MapPinCheck,
+  Star,
   Bell,
   BarChart3,
   Shield,
   Smartphone,
-  Zap,
+  Languages,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -14,12 +17,15 @@ const featureKeys: {
   titleKey: string;
   descKey: string;
 }[] = [
-  { icon: Users, titleKey: "friendManagement", descKey: "friendManagementDesc" },
-  { icon: Bell, titleKey: "smartNotifications", descKey: "smartNotificationsDesc" },
-  { icon: BarChart3, titleKey: "eventAnalytics", descKey: "eventAnalyticsDesc" },
-  { icon: Shield, titleKey: "privacyFirst", descKey: "privacyFirstDesc" },
-  { icon: Smartphone, titleKey: "worksEverywhere", descKey: "worksEverywhereDesc" },
-  { icon: Zap, titleKey: "realTimeSync", descKey: "realTimeSyncDesc" },
+  { icon: Users, titleKey: "clubs", descKey: "clubsDesc" },
+  { icon: GraduationCap, titleKey: "coaches", descKey: "coachesDesc" },
+  { icon: MapPinCheck, titleKey: "quickCheckin", descKey: "quickCheckinDesc" },
+  { icon: Star, titleKey: "reviews", descKey: "reviewsDesc" },
+  { icon: Bell, titleKey: "notifications", descKey: "notificationsDesc" },
+  { icon: BarChart3, titleKey: "venueAnalytics", descKey: "venueAnalyticsDesc" },
+  { icon: Shield, titleKey: "privacy", descKey: "privacyDesc" },
+  { icon: Smartphone, titleKey: "offline", descKey: "offlineDesc" },
+  { icon: Languages, titleKey: "languages", descKey: "languagesDesc" },
 ];
 
 export default function SecondaryFeatures() {

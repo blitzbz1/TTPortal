@@ -3,6 +3,8 @@ import { setRequestLocale } from "next-intl/server";
 import Header from "@/components/Header";
 import Hero from "@/components/landing/Hero";
 import Features from "@/components/landing/Features";
+import WaysToPlay from "@/components/landing/WaysToPlay";
+import WrappedMoment from "@/components/landing/WrappedMoment";
 import SecondaryFeatures from "@/components/landing/SecondaryFeatures";
 import HowItWorks from "@/components/landing/HowItWorks";
 import CTASection from "@/components/CTASection";
@@ -26,6 +28,8 @@ function LandingContent() {
       <Header />
       <Hero />
       <Features />
+      <WaysToPlay />
+      <WrappedMoment />
       <SecondaryFeatures />
       <HowItWorks />
       <CTASection
