@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Lucide } from './Icon';
@@ -31,7 +33,19 @@ export function LanguagePicker({ accessibilityLabel = 'Language' }: LanguagePick
   const { lang, setLang, s } = useI18n();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { height } = useWindowDimensions();
   const [open, setOpen] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const activeY = useRef(0);
+
+  // With 30+ languages the list scrolls; jump near the current selection on open.
+  useEffect(() => {
+    if (!open) return;
+    const id = requestAnimationFrame(() =>
+      scrollRef.current?.scrollTo({ y: Math.max(0, activeY.current - 120), animated: false }),
+    );
+    return () => cancelAnimationFrame(id);
+  }, [open]);
 
   const select = (next: Lang) => {
     setLang(next);
@@ -60,24 +74,31 @@ export function LanguagePicker({ accessibilityLabel = 'Language' }: LanguagePick
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
           <Pressable style={styles.card} onPress={() => {}}>
             <Text style={styles.cardTitle}>{s('language')}</Text>
-            {SUPPORTED_LANGS.map((option) => {
-              const active = option === lang;
-              return (
-                <TouchableOpacity
-                  key={option}
-                  style={[styles.option, active && styles.optionActive]}
-                  onPress={() => select(option)}
-                  activeOpacity={0.78}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                >
-                  <Text style={[styles.optionText, active && styles.optionTextActive]}>
-                    {LANGUAGE_NAMES[option]}
-                  </Text>
-                  {active ? <Lucide name="check" size={16} color={colors.primary} /> : null}
-                </TouchableOpacity>
-              );
-            })}
+            <ScrollView
+              ref={scrollRef}
+              style={[styles.list, { maxHeight: height * 0.7 }]}
+              showsVerticalScrollIndicator
+            >
+              {SUPPORTED_LANGS.map((option) => {
+                const active = option === lang;
+                return (
+                  <TouchableOpacity
+                    key={option}
+                    style={[styles.option, active && styles.optionActive]}
+                    onPress={() => select(option)}
+                    onLayout={active ? (e) => { activeY.current = e.nativeEvent.layout.y; } : undefined}
+                    activeOpacity={0.78}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                  >
+                    <Text style={[styles.optionText, active && styles.optionTextActive]}>
+                      {LANGUAGE_NAMES[option]}
+                    </Text>
+                    {active ? <Lucide name="check" size={16} color={colors.primary} /> : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -119,6 +140,9 @@ function createStyles(colors: ThemeColors) {
       borderWidth: 1,
       borderColor: colors.borderLight,
       padding: Spacing.sm,
+    },
+    list: {
+      alignSelf: 'stretch',
     },
     cardTitle: {
       fontFamily: Fonts.heading,
