@@ -200,8 +200,9 @@ describe('I18nProvider', () => {
   });
 
   it('keeps the ro fallback for unsupported languages when the device region is Romania (T067)', () => {
+    // Japanese is unsupported; a phone set to it but located in Romania → ro.
     mockGetLocales.mockReturnValueOnce([
-      { languageCode: 'hu', languageTag: 'hu-RO', regionCode: 'RO' },
+      { languageCode: 'ja', languageTag: 'ja-RO', regionCode: 'RO' },
     ]);
 
     render(

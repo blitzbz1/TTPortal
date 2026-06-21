@@ -8,11 +8,41 @@ import fr from '../locales/fr.json';
 import es from '../locales/es.json';
 import pl from '../locales/pl.json';
 import cs from '../locales/cs.json';
+import nl from '../locales/nl.json';
+import ru from '../locales/ru.json';
+import hu from '../locales/hu.json';
+import nb from '../locales/nb.json';
+import sk from '../locales/sk.json';
+import et from '../locales/et.json';
+import hr from '../locales/hr.json';
+import uk from '../locales/uk.json';
+import da from '../locales/da.json';
+import bg from '../locales/bg.json';
+import sv from '../locales/sv.json';
+import fi from '../locales/fi.json';
+import pt from '../locales/pt.json';
+import lv from '../locales/lv.json';
+import sl from '../locales/sl.json';
+import lt from '../locales/lt.json';
+import el from '../locales/el.json';
+import sr from '../locales/sr.json';
+import tr from '../locales/tr.json';
+import ka from '../locales/ka.json';
+import sq from '../locales/sq.json';
+import hy from '../locales/hy.json';
+import isLocale from '../locales/is.json'; // aliased: bare `is` reads as the type-predicate keyword
+import ar from '../locales/ar.json';
+import fa from '../locales/fa.json';
 
 const ROOT = path.resolve(__dirname, '../..');
 
 /** Every shipped locale keyed by code; `en` is the reference for parity. */
-const LOCALES: Record<string, Record<string, string>> = { ro, en, de, it: itLocale, fr, es, pl, cs };
+const LOCALES: Record<string, Record<string, string>> = {
+  ro, en, de, it: itLocale, fr, es, pl, cs,
+  nl, ru, hu, nb, sk, et, hr, uk, da, bg,
+  sv, fi, pt, lv, sl, lt, el, sr, tr, ka,
+  sq, hy, is: isLocale, ar, fa,
+};
 /** Locales audited against the English reference. */
 const NON_EN_LOCALES: [string, Record<string, string>][] = Object.entries(LOCALES).filter(
   ([code]) => code !== 'en',

@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
+import { I18nManager, Platform } from 'react-native';
 import * as Localization from 'expo-localization';
 import { getStringSync, setString } from '../lib/mmkv';
 // Only the English fallback is parsed at startup (T045). The other seven
@@ -14,20 +14,30 @@ import { getStringSync, setString } from '../lib/mmkv';
 // locale becomes its own split chunk).
 import enStrings from '../locales/en.json';
 
-/** Supported language codes. */
-export type Lang = 'ro' | 'en' | 'de' | 'it' | 'fr' | 'es' | 'pl' | 'cs';
+/**
+ * Supported language codes. The first eight are the original markets; the rest
+ * cover every country we have venues in (added per the OSM import — one locale
+ * per country's primary language, incl. RTL ar/fa).
+ */
+export type Lang =
+  | 'ro' | 'en' | 'de' | 'it' | 'fr' | 'es' | 'pl' | 'cs'
+  | 'nl' | 'ru' | 'hu' | 'nb' | 'sk' | 'et' | 'hr' | 'uk' | 'da' | 'bg'
+  | 'sv' | 'fi' | 'pt' | 'lv' | 'sl' | 'lt' | 'el' | 'sr' | 'tr' | 'ka'
+  | 'sq' | 'hy' | 'is' | 'ar' | 'fa';
 
-/** All supported languages, in the order shown in the language picker. */
+/** All supported languages, in the order shown in the language picker
+ * (original markets first, then the new locales by venue footprint). */
 export const SUPPORTED_LANGS: readonly Lang[] = [
-  'ro',
-  'en',
-  'de',
-  'it',
-  'fr',
-  'es',
-  'pl',
-  'cs',
+  'ro', 'en', 'de', 'it', 'fr', 'es', 'pl', 'cs',
+  'nl', 'ru', 'hu', 'nb', 'sk', 'et', 'hr', 'uk', 'da', 'bg',
+  'sv', 'fi', 'pt', 'lv', 'sl', 'lt', 'el', 'sr', 'tr', 'ka',
+  'sq', 'hy', 'is', 'ar', 'fa',
 ];
+
+/** Right-to-left languages. Full layout mirroring needs an app reload to apply
+ * on native (see applyDirection); the JSON/strings are direction-agnostic.
+ * Components read the active language's direction via `isRTL` on the context. */
+const RTL_LANGS: ReadonlySet<Lang> = new Set<Lang>(['ar', 'fa']);
 
 /** Native (endonym) display name for each language, shown in the picker. */
 export const LANGUAGE_NAMES: Record<Lang, string> = {
@@ -39,6 +49,31 @@ export const LANGUAGE_NAMES: Record<Lang, string> = {
   es: 'Español',
   pl: 'Polski',
   cs: 'Čeština',
+  nl: 'Nederlands',
+  ru: 'Русский',
+  hu: 'Magyar',
+  nb: 'Norsk',
+  sk: 'Slovenčina',
+  et: 'Eesti',
+  hr: 'Hrvatski',
+  uk: 'Українська',
+  da: 'Dansk',
+  bg: 'Български',
+  sv: 'Svenska',
+  fi: 'Suomi',
+  pt: 'Português',
+  lv: 'Latviešu',
+  sl: 'Slovenščina',
+  lt: 'Lietuvių',
+  el: 'Ελληνικά',
+  sr: 'Srpski',
+  tr: 'Türkçe',
+  ka: 'ქართული',
+  sq: 'Shqip',
+  hy: 'Հայերեն',
+  is: 'Íslenska',
+  ar: 'العربية',
+  fa: 'فارسی',
 };
 
 /** BCP-47 locale tag per language for date/number formatting. */
@@ -51,6 +86,31 @@ const LOCALE_TAGS: Record<Lang, string> = {
   es: 'es-ES',
   pl: 'pl-PL',
   cs: 'cs-CZ',
+  nl: 'nl-NL',
+  ru: 'ru-RU',
+  hu: 'hu-HU',
+  nb: 'nb-NO',
+  sk: 'sk-SK',
+  et: 'et-EE',
+  hr: 'hr-HR',
+  uk: 'uk-UA',
+  da: 'da-DK',
+  bg: 'bg-BG',
+  sv: 'sv-SE',
+  fi: 'fi-FI',
+  pt: 'pt-PT',
+  lv: 'lv-LV',
+  sl: 'sl-SI',
+  lt: 'lt-LT',
+  el: 'el-GR',
+  sr: 'sr-RS',
+  tr: 'tr-TR',
+  ka: 'ka-GE',
+  sq: 'sq-AL',
+  hy: 'hy-AM',
+  is: 'is-IS',
+  ar: 'ar',
+  fa: 'fa-IR',
 };
 
 /**
@@ -76,6 +136,8 @@ export interface I18nContextValue {
    * key (the "other" form). `{0}` is the count; further args fill `{1}`+.
    */
   sn: (key: string, count: number, ...args: string[]) => string;
+  /** Whether the active language renders right-to-left (ar/fa). */
+  isRTL: boolean;
 }
 
 /** @internal Exported for useI18n hook consumption. */
@@ -112,6 +174,31 @@ function loadLocaleSync(lang: Lang): Strings {
     case 'es': strings = require('../locales/es.json'); break;
     case 'pl': strings = require('../locales/pl.json'); break;
     case 'cs': strings = require('../locales/cs.json'); break;
+    case 'nl': strings = require('../locales/nl.json'); break;
+    case 'ru': strings = require('../locales/ru.json'); break;
+    case 'hu': strings = require('../locales/hu.json'); break;
+    case 'nb': strings = require('../locales/nb.json'); break;
+    case 'sk': strings = require('../locales/sk.json'); break;
+    case 'et': strings = require('../locales/et.json'); break;
+    case 'hr': strings = require('../locales/hr.json'); break;
+    case 'uk': strings = require('../locales/uk.json'); break;
+    case 'da': strings = require('../locales/da.json'); break;
+    case 'bg': strings = require('../locales/bg.json'); break;
+    case 'sv': strings = require('../locales/sv.json'); break;
+    case 'fi': strings = require('../locales/fi.json'); break;
+    case 'pt': strings = require('../locales/pt.json'); break;
+    case 'lv': strings = require('../locales/lv.json'); break;
+    case 'sl': strings = require('../locales/sl.json'); break;
+    case 'lt': strings = require('../locales/lt.json'); break;
+    case 'el': strings = require('../locales/el.json'); break;
+    case 'sr': strings = require('../locales/sr.json'); break;
+    case 'tr': strings = require('../locales/tr.json'); break;
+    case 'ka': strings = require('../locales/ka.json'); break;
+    case 'sq': strings = require('../locales/sq.json'); break;
+    case 'hy': strings = require('../locales/hy.json'); break;
+    case 'is': strings = require('../locales/is.json'); break;
+    case 'ar': strings = require('../locales/ar.json'); break;
+    case 'fa': strings = require('../locales/fa.json'); break;
     default: strings = enStrings;
   }
   loadedLocales[lang] = strings;
@@ -131,6 +218,31 @@ async function loadLocaleAsync(lang: Lang): Promise<Strings> {
     case 'es': mod = await import('../locales/es.json'); break;
     case 'pl': mod = await import('../locales/pl.json'); break;
     case 'cs': mod = await import('../locales/cs.json'); break;
+    case 'nl': mod = await import('../locales/nl.json'); break;
+    case 'ru': mod = await import('../locales/ru.json'); break;
+    case 'hu': mod = await import('../locales/hu.json'); break;
+    case 'nb': mod = await import('../locales/nb.json'); break;
+    case 'sk': mod = await import('../locales/sk.json'); break;
+    case 'et': mod = await import('../locales/et.json'); break;
+    case 'hr': mod = await import('../locales/hr.json'); break;
+    case 'uk': mod = await import('../locales/uk.json'); break;
+    case 'da': mod = await import('../locales/da.json'); break;
+    case 'bg': mod = await import('../locales/bg.json'); break;
+    case 'sv': mod = await import('../locales/sv.json'); break;
+    case 'fi': mod = await import('../locales/fi.json'); break;
+    case 'pt': mod = await import('../locales/pt.json'); break;
+    case 'lv': mod = await import('../locales/lv.json'); break;
+    case 'sl': mod = await import('../locales/sl.json'); break;
+    case 'lt': mod = await import('../locales/lt.json'); break;
+    case 'el': mod = await import('../locales/el.json'); break;
+    case 'sr': mod = await import('../locales/sr.json'); break;
+    case 'tr': mod = await import('../locales/tr.json'); break;
+    case 'ka': mod = await import('../locales/ka.json'); break;
+    case 'sq': mod = await import('../locales/sq.json'); break;
+    case 'hy': mod = await import('../locales/hy.json'); break;
+    case 'is': mod = await import('../locales/is.json'); break;
+    case 'ar': mod = await import('../locales/ar.json'); break;
+    case 'fa': mod = await import('../locales/fa.json'); break;
     default: mod = enStrings;
   }
   const strings = ((mod as { default?: Strings }).default ?? mod) as Strings;
@@ -146,7 +258,9 @@ function detectDeviceLang(): Lang | null {
   try {
     const locales = Localization.getLocales();
     for (const entry of locales) {
-      const code = entry?.languageCode?.toLowerCase();
+      const raw = entry?.languageCode?.toLowerCase();
+      // Norwegian variants (no/nn) map to our Bokmål locale.
+      const code = raw === 'no' || raw === 'nn' ? 'nb' : raw;
       if (code && VALID_LANGS.has(code)) return code as Lang;
     }
     // No supported language — devices physically in Romania still default
@@ -179,6 +293,22 @@ function saveLang(lang: Lang): void {
     setString(STORAGE_KEY, lang);
   } catch {
     // best-effort
+  }
+}
+
+/**
+ * Sync native layout direction with the active language. forceRTL flips the
+ * layout, but React Native only re-lays-out after an app reload — so we set it
+ * (making the next launch correct) without forcing a disruptive mid-session
+ * reload. Full RTL mirroring of every screen is a follow-up.
+ */
+function applyDirection(lang: Lang): void {
+  try {
+    I18nManager.allowRTL(true);
+    const rtl = RTL_LANGS.has(lang);
+    if (I18nManager.isRTL !== rtl) I18nManager.forceRTL(rtl);
+  } catch {
+    // I18nManager unavailable (e.g. in tests) — ignore.
   }
 }
 
@@ -222,6 +352,11 @@ export function I18nProvider({ children, initialLang }: I18nProviderProps) {
     setStrings(loadLocaleSync(lang));
   }, [lang]);
 
+  // Keep native layout direction in sync with the active language (RTL for ar/fa).
+  useEffect(() => {
+    applyDirection(lang);
+  }, [lang]);
+
   const setLang = useCallback((newLang: Lang) => {
     setLangState(newLang);
     saveLang(newLang);
@@ -263,7 +398,10 @@ export function I18nProvider({ children, initialLang }: I18nProviderProps) {
     [strings, lang]
   );
 
-  const value = useMemo(() => ({ lang, setLang, s, sn }), [lang, setLang, s, sn]);
+  const value = useMemo(
+    () => ({ lang, setLang, s, sn, isRTL: RTL_LANGS.has(lang) }),
+    [lang, setLang, s, sn],
+  );
 
   return (
     <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
