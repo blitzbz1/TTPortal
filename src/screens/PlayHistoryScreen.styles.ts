@@ -81,7 +81,7 @@ export function createStyles(colors: ThemeColors) {
     },
     statValue: {
       fontFamily: Fonts.heading,
-      fontSize: FontSize.xxl,
+      fontSize: FontSize.xl,
       fontWeight: FontWeight.extrabold,
     },
     statLabel: {

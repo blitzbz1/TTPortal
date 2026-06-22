@@ -48,7 +48,7 @@ function AnimatedCounter({ value, style }: { value: string; style: any }) {
     [sv, suffix, isDecimal],
   );
 
-  return <Text style={style}>{display}</Text>;
+  return <Text style={style} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{display}</Text>;
 }
 
 export function PlayHistoryScreen() {
