@@ -3,11 +3,11 @@ import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, Alert, Linking, Share, ActivityIndicator, Platform, FlatList, Dimensions, Animated } from 'react-native';
 import { showAlert, showConfirm } from '../lib/dialogs';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
-import { Fonts, Radius } from '../theme';
+import { Fonts } from '../theme';
 import { createStyles } from './VenueDetailScreen.styles';
 import { CheckinDurationModal } from './VenueDetailScreen/CheckinDurationModal';
 import { VenueOpenPlaySection } from './VenueDetailScreen/VenueOpenPlaySection';
@@ -28,22 +28,19 @@ import { useFriendsAtVenueQuery } from '../hooks/queries/useFriendsAtVenueQuery'
 import { useIsAdminQuery } from '../hooks/queries/useIsAdminQuery';
 import { useVenueReviewsQuery, venueReviewsQueryKey } from '../hooks/queries/useVenueReviewsQuery';
 import type { Venue, Review, VenueStats } from '../types/database';
-import { Card } from '../components/Card';
 import { safeErrorMessage } from '../lib/auth-utils';
 import { rateLimitMessageFor } from '../lib/rateLimit';
-import { VenueActionRow } from '../components/VenueActionRow';
 import { LogMatchModal } from '../components/LogMatchModal';
 import { CheckinSuccessSheet } from '../components/CheckinSuccessSheet';
 import { VenueBusynessBlock } from '../components/VenueBusynessBlock';
 import { VenueFreeTablesBlock } from '../components/VenueFreeTablesBlock';
 import { VenueAmenitiesGrid } from '../components/VenueAmenitiesGrid';
 import { venueSupportsAmenities } from '../lib/amenities';
-import { WeatherChip } from '../components/WeatherChip';
+import { WeatherHero } from '../components/WeatherHero';
 import { VenueRegularsRow } from '../components/VenueRegularsRow';
 import { VenueCoachesRow } from '../components/VenueCoachesRow';
 import { useVenueCoachesQuery } from '../features/coaches';
 import { VenueBoardSection } from '../components/VenueBoardSection';
-import { VenueMomentsStrip } from '../components/VenueMomentsStrip';
 import { venueMomentsQueryKey } from '../features/checkinMoments';
 import { reportFreeTables, useVenueIntelQuery, venueIntelQueryKey, invalidateVenueIntelCache } from '../features/venueIntel';
 import { useVenueOpenPlayQuery, useMyPlayIntentQuery, useInvalidateOpenPlay, useRespondToOpenPlayMutation, useConvertPlayIntentMutation, useCancelPlayIntentMutation, type WhenSlot } from '../features/openplay';
@@ -62,17 +59,11 @@ import type { VenueChangeRequestInput } from '../services/venueChangeRequests';
 import { submitVote, uploadConditionVotePhoto, CONDITION_MAP, type ConditionChoice } from '../services/conditions';
 import { reportContent, blockUser, type ReportReason } from '../services/moderation';
 import { skillLevelKey, type SkillLevel } from '../lib/playerAttributes';
-import { conditionLabel, venueHoursLabel } from '../lib/venueLabels';
+import { conditionLabel, venueHoursLabel, venueTypeLabel } from '../lib/venueLabels';
 import { hapticLight } from '../lib/haptics';
 import { sharePayload, venueUrl } from '../lib/shareLinks';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
-import Reanimated, {
-  useSharedValue,
-  useAnimatedStyle,
-  useAnimatedScrollHandler,
-  interpolate,
-  Extrapolation,
-} from 'react-native-reanimated';
+import Reanimated from 'react-native-reanimated';
 
 interface Props {
   venueId?: string;
@@ -83,6 +74,7 @@ export function VenueDetailScreen({ venueId }: Props) {
   const { user } = useSession();
   const { s, lang } = useI18n();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const dateLocale = getDateLocale(lang);
   const { styles } = useMemo(() => createStyles(colors), [colors]);
 
@@ -211,27 +203,6 @@ export function VenueDetailScreen({ venueId }: Props) {
   );
 
   const heartScale = useRef(new Animated.Value(1)).current;
-
-  // Scroll-driven collapsing header animation
-  const scrollY = useSharedValue(0);
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-    },
-  });
-  // Scroll-driven collapsing header. The strip is animated with a
-  // top-anchored scaleY (transformOrigin) so the work runs entirely on
-  // the UI thread — animating `height` would force a layout pass per
-  // frame on the JS thread.
-  const photoAnimStyle = useAnimatedStyle(() => {
-    const targetHeight = interpolate(scrollY.value, [0, 150], [photoHeight, 100], Extrapolation.CLAMP);
-    return {
-      transform: [{ scaleY: targetHeight / photoHeight }],
-      transformOrigin: 'top' as const,
-      opacity: interpolate(scrollY.value, [0, 120], [1, 0.6], Extrapolation.CLAMP),
-    };
-  });
-
 
   const handleReview = useCallback(() => {
     router.push({ pathname: '/(protected)/review/[venueId]', params: { venueId: String(venueId) } });
@@ -718,6 +689,18 @@ export function VenueDetailScreen({ venueId }: Props) {
     Linking.openURL('https://waze.com/ul?ll=' + venue.lat + ',' + venue.lng + '&navigate=yes');
   }, [venue]);
 
+  // Action-bar "Route" → choose a maps app (all three open-in handlers above).
+  const openRouteSheet = useCallback(() => {
+    if (!venue) return;
+    if (Platform.OS === 'web') { handleDirectionGoogle(); return; }
+    Alert.alert(s('vdRoute'), undefined, [
+      { text: 'Google Maps', onPress: handleDirectionGoogle },
+      { text: 'Apple Maps', onPress: handleDirectionApple },
+      { text: 'Waze', onPress: handleDirectionWaze },
+      { text: s('cancel'), style: 'cancel' },
+    ]);
+  }, [venue, s, handleDirectionGoogle, handleDirectionApple, handleDirectionWaze]);
+
   const renderStars = (rating: number) => {
     const full = Math.floor(rating);
     const empty = 5 - full;
@@ -768,30 +751,48 @@ export function VenueDetailScreen({ venueId }: Props) {
   const avgRating = stats?.avg_rating ?? 0;
   const reviewCount = stats?.review_count ?? 0;
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-          <Lucide name="arrow-left" size={20} color={colors.text} />
-          <Text style={styles.backText}>{s('back')}</Text>
-        </TouchableOpacity>
-        <View style={styles.headerActions}>
-          <TouchableOpacity onPress={handleToggleFavorite} accessibilityLabel={favorited ? s('favRemove') : s('favAdd')} accessibilityRole="button" hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-            <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-              <Lucide name="heart" size={20} color={favorited ? colors.red : colors.textFaint} />
-            </Animated.View>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleShare} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-            <Lucide name="share-2" size={20} color={colors.textFaint} />
-          </TouchableOpacity>
+  // "The tables" facts grid (also the indoor hero, where there's no weather).
+  const renderFacts = () => (
+    <View style={styles.facts}>
+      {([
+        { key: 'tables', icon: 'table-2', label: s('vdFactTables'), value: `${venue.tables_count ?? '?'} · ${conditionLabel(venue.condition, s)}`, warn: false },
+        { key: 'access', icon: 'clock', label: s('vdFactAccess'), value: venueHoursLabel(venue.hours, s), warn: false },
+        { key: 'lighting', icon: 'lamp-floor', label: s('vdFactLighting'), value: venue.night_lighting ? s('nightLighting') : '—', warn: !venue.night_lighting },
+        { key: 'nets', icon: 'grid-2x2', label: s('vdFactNets'), value: venue.nets ? s('netsPresent') : s('noNets'), warn: !venue.nets },
+      ] as const).map((f, i) => (
+        <View key={f.key} style={[styles.fact, i % 2 === 0 && styles.factDivRight, i >= 2 && styles.factDivTop]}>
+          <Lucide name={f.icon} size={16} color={colors.textFaint} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.factLabel}>{f.label}</Text>
+            <Text style={[styles.factValue, f.warn && styles.factValueWarn]} numberOfLines={1}>{f.value}</Text>
+          </View>
         </View>
-      </View>
+      ))}
+    </View>
+  );
 
-      <Reanimated.ScrollView style={styles.scroll} onScroll={scrollHandler} scrollEventThrottle={16}>
+  return (
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
+      <Reanimated.ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 28 }}>
+        {/* Overlay topbar — floats on the hero photo (de-dup: favorite lives ONLY here) */}
+        <View style={[styles.topbar, { top: insets.top + 6 }]}>
+          <TouchableOpacity style={styles.topbarBtn} onPress={() => router.back()} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }} accessibilityRole="button" accessibilityLabel={s('back')}>
+            <Lucide name="arrow-left" size={20} color={colors.text} />
+          </TouchableOpacity>
+          <View style={styles.topbarGroup}>
+            <TouchableOpacity onPress={handleToggleFavorite} accessibilityLabel={favorited ? s('favRemove') : s('favAdd')} accessibilityRole="button" hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+              <Animated.View style={[styles.topbarBtn, favorited && styles.topbarBtnFav, { transform: [{ scale: heartScale }] }]}>
+                <Lucide name="heart" size={19} color={favorited ? colors.accentBright : colors.text} />
+              </Animated.View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.topbarBtn} onPress={handleSuggestEdit} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }} accessibilityRole="button" accessibilityLabel={s('requestChangesCta')} testID="venue-overflow">
+              <Lucide name="more-horizontal" size={18} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+        </View>
         {/* Photo Strip — pin the height so the placeholder branch renders
             at the same size as a photo, instead of collapsing. */}
-        <Reanimated.View style={[styles.photoStrip, { height: photoHeight }, photoAnimStyle]}>
+        <View style={[styles.photoStrip, { height: photoHeight }]}>
           {venue.photos && venue.photos.length > 0 ? (
             <>
               <FlatList
@@ -858,154 +859,124 @@ export function VenueDetailScreen({ venueId }: Props) {
               )}
             </TouchableOpacity>
           )}
-        </Reanimated.View>
+        </View>
 
-        {/* Recent moments (F042) — lazy strip under the photo carousel */}
-        {vIdNum ? <VenueMomentsStrip venueId={vIdNum} currentUserId={user?.id} /> : null}
-
-        {/* Weather — outdoor venues only (F013) */}
-        {venue.type === 'parc_exterior' && venue.lat != null && venue.lng != null ? (
-          <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-            <WeatherChip lat={venue.lat} lng={venue.lng} enabled />
-          </View>
-        ) : null}
-
-        {/* Action Row */}
-        <VenueActionRow
-          favorited={favorited}
-          checkedIn={!!activeCheckin}
-          checkinLoading={checkinLoading}
-          onCheckin={activeCheckin ? handleCheckout : openCheckinModal}
-          onReview={handleReview}
-          onFavorite={handleToggleFavorite}
-          onShare={handleShare}
-        />
-
-        {/* Venue Info */}
-        <Card shadow="sm" borderRadius={0} style={styles.venueInfo}>
-          <View style={styles.infoTop}>
-            <View style={styles.infoTitleGroup}>
-              <Text style={styles.infoTitle}>{venue.name}</Text>
-              <View style={styles.infoBadges}>
-                {venue.verified && (
-                  <View style={styles.badgeVerified}>
-                    <Lucide name="check" size={10} color={colors.primaryMid} />
-                    <Text style={styles.badgeVerifiedText}>{s('verified')}</Text>
-                  </View>
-                )}
-                {venue.free_access && (
-                  <View style={styles.badgeFree}>
-                    <Text style={styles.badgeFreeText}>{s('freeLabel')}</Text>
-                  </View>
-                )}
+        {/* ───────── Identity ───────── */}
+        <View style={styles.identity}>
+          <Text style={styles.idKicker}>{`${venueTypeLabel(venue.type, s)} · ${venue.type === 'parc_exterior' ? s('vdOutdoor') : s('vdIndoor')}`}</Text>
+          <Text style={styles.idName}>{venue.name}</Text>
+          {venue.address ? (
+            <View style={styles.idAddress}>
+              <Lucide name="map-pin" size={14} color={colors.textFaint} />
+              <Text style={styles.idAddressText} numberOfLines={1}>{venue.address}</Text>
+            </View>
+          ) : null}
+          <View style={styles.idBadges}>
+            <View style={styles.idChip}>
+              <Text style={styles.idChipStar}>{'★'}</Text>
+              <Text style={styles.idChipText}>{avgRating.toFixed(1)}</Text>
+              <Text style={styles.idChipMuted}>{`(${reviewCount})`}</Text>
+            </View>
+            {venue.free_access ? (
+              <View style={[styles.idChip, styles.idChipPrice]}>
+                <Text style={styles.idChipPriceText}>{s('freeLabel')}</Text>
               </View>
-            </View>
-            <View style={styles.infoRating}>
-              <Text style={styles.ratingStars}>{renderStars(avgRating)}</Text>
-              <Text style={styles.ratingCount}>{avgRating.toFixed(1) + ' (' + reviewCount + ')'}</Text>
-            </View>
+            ) : null}
+            {venue.verified ? (
+              <View style={styles.idChip}>
+                <Lucide name="check" size={12} color={colors.primaryLight} />
+                <Text style={styles.idChipMuted}>{s('verified')}</Text>
+              </View>
+            ) : null}
           </View>
+        </View>
 
-          <View style={styles.divider} />
-
-          <View style={styles.infoGrid}>
-            <View style={styles.infoRow}>
-              <Lucide name="map-pin" size={16} color={colors.textFaint} />
-              <Text style={styles.infoRowText}>{venue.address || s('addressUnknown')}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Lucide name="table-2" size={16} color={colors.textFaint} />
-              <Text style={styles.infoRowText}>{(venue.tables_count ?? '?') + ' ' + s('tablesState') + ' ' + conditionLabel(venue.condition, s)}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Lucide name="clock" size={16} color={colors.textFaint} />
-              <Text style={styles.infoRowText}>{venueHoursLabel(venue.hours, s)}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Lucide name="lamp-floor" size={16} color={colors.textFaint} />
-              <Text style={styles.infoRowText}>
-                {(venue.night_lighting ? s('nightLighting') + ' \u00B7 ' : '') + (venue.nets ? s('netsPresent') : s('noNets'))}
-              </Text>
-            </View>
+        {/* ───────── Weather hero (outdoor) / facts hero (indoor) ───────── */}
+        {venue.type === 'parc_exterior' && venue.lat != null && venue.lng != null ? (
+          <View style={styles.heroWrap}>
+            <WeatherHero lat={venue.lat} lng={venue.lng} enabled />
           </View>
-
-          {champion && (
-            <View style={styles.championRow}>
-              <Lucide name="crown" size={16} color={colors.amber} />
-              <Text style={styles.championText}>
-                {s('venueChampion')}: {champion.fullName} ({champion.dayCount} {s('daysPlayed')})
-              </Text>
-            </View>
-          )}
-
-          {playerMix?.top && (
-            <View style={[styles.championRow, { backgroundColor: colors.primaryPale, borderColor: colors.primaryDim }]}>
-              <Lucide name="users" size={16} color={colors.primaryMid} />
-              <Text style={[styles.championText, { color: colors.primaryMid }]}>
-                {s('venuePlayerMixMostly', s(skillLevelKey(playerMix.top as SkillLevel)))}
-              </Text>
-            </View>
-          )}
-
-          {/* Log a match — when checked in, against a friend who's here (F002) */}
-          {activeCheckin && user?.id && (
-            <>
-              <TouchableOpacity style={[styles.evalBtn, { marginTop: 8 }]} onPress={() => setLogMatchVisible(true)} testID="venue-log-match-btn">
-                <Lucide name="swords" size={16} color={colors.primaryMid} />
-                <Text style={styles.evalText}>{s('logMatchTitle')}</Text>
-                <Lucide name="chevron-right" size={14} color={colors.primaryMid} />
-              </TouchableOpacity>
-              <LogMatchModal
-                visible={logMatchVisible}
-                currentUserId={user.id}
-                opponentOptions={friendsHere.map((f) => ({ id: f.user_id, name: f.profiles.full_name ?? s('player') }))}
-                venueId={venueId ? Number(venueId) : null}
-                onClose={() => setLogMatchVisible(false)}
-                onLogged={() => showAlert(s('success'), s('matchLoggedPending'))}
-              />
-            </>
-          )}
-
-          {/* Home venue toggle (F014) */}
-          {user && !fromCache && (
-            <TouchableOpacity style={[styles.evalBtn, { marginTop: 8 }]} onPress={handleToggleHomeVenue} testID="home-venue-toggle">
-              <Lucide name="home" size={16} color={colors.primaryMid} />
-              <Text style={styles.evalText}>{isHomeVenue ? s('homeVenueYours') : s('homeVenueSet')}</Text>
-              {isHomeVenue ? <Lucide name="check" size={14} color={colors.primaryMid} /> : null}
-            </TouchableOpacity>
-          )}
-
-          {/* Suggest an edit / report an issue — also hosts table-condition voting */}
-          <TouchableOpacity style={styles.evalBtn} onPress={handleSuggestEdit} testID="suggest-edit-btn">
-            <Lucide name="pencil" size={16} color={colors.primaryMid} />
-            <Text style={styles.evalText}>{s('requestChangesCta')}</Text>
-          </TouchableOpacity>
-        </Card>
-
-        {/* Amenities, fees & access (F012) — indoor halls only; parks don't have them. */}
-        {venueSupportsAmenities(venue.type) && (
-          <VenueAmenitiesGrid amenities={amenities} onSuggestEdit={handleSuggestEdit} />
+        ) : (
+          <View style={{ marginTop: 14 }}>{renderFacts()}</View>
         )}
 
-        {/* Busyness — live count + typical-hours histogram (F010) */}
-        <VenueBusynessBlock busyness={busyness} tablesCount={venue.tables_count} />
+        {/* ───────── Action bar (Check in · Share · Route) ───────── */}
+        <View style={styles.actionBar}>
+          <TouchableOpacity
+            style={[styles.abCta, activeCheckin && styles.abCtaCheckout]}
+            onPress={activeCheckin ? handleCheckout : openCheckinModal}
+            disabled={checkinLoading}
+            accessibilityRole="button"
+            testID="venue-action-checkin"
+          >
+            {checkinLoading ? (
+              <ActivityIndicator size="small" color={activeCheckin ? colors.red : colors.textOnPrimary} />
+            ) : (
+              <>
+                <Lucide name={activeCheckin ? 'check-circle' : 'map-pin'} size={20} color={activeCheckin ? colors.red : colors.textOnPrimary} />
+                <View>
+                  <Text style={[styles.abCtaTitle, activeCheckin && styles.abCtaTitleCheckout]}>{activeCheckin ? s('checkout') : s('checkinHere')}</Text>
+                  {!activeCheckin ? <Text style={styles.abCtaSub}>{s('vdCheckinSub')}</Text> : null}
+                </View>
+              </>
+            )}
+          </TouchableOpacity>
+          <View style={styles.abQuiet}>
+            <TouchableOpacity style={styles.qbtn} onPress={handleShare} accessibilityRole="button" accessibilityLabel={s('vdShare')}>
+              <Lucide name="share-2" size={18} color={colors.text} />
+              <Text style={styles.qbtnText}>{s('vdShare')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.qbtn} onPress={openRouteSheet} accessibilityRole="button" accessibilityLabel={s('vdRoute')}>
+              <Lucide name="navigation" size={18} color={colors.text} />
+              <Text style={styles.qbtnText}>{s('vdRoute')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        {activeCheckin ? (
+          <View style={styles.barnote}>
+            <Lucide name="check-circle" size={14} color={colors.primaryLight} />
+            <Text style={styles.barnoteText}>
+              {activeCheckin.ended_at
+                ? `${s('checkinSuccess').replace('!', '')} · ${s('untilTime')} ${new Date(activeCheckin.ended_at).toLocaleTimeString(getDateLocale(lang), { hour: '2-digit', minute: '2-digit' })}`
+                : s('vdBarnote')}
+            </Text>
+          </View>
+        ) : null}
+        {activeCheckin && user?.id ? (
+          <TouchableOpacity style={[styles.evalBtn, { marginHorizontal: 16, marginTop: 10 }]} onPress={() => setLogMatchVisible(true)} testID="venue-log-match-btn">
+            <Lucide name="swords" size={16} color={colors.primaryMid} />
+            <Text style={styles.evalText}>{s('logMatchTitle')}</Text>
+            <Lucide name="chevron-right" size={14} color={colors.primaryMid} />
+          </TouchableOpacity>
+        ) : null}
+        {user?.id ? (
+          <LogMatchModal
+            visible={logMatchVisible}
+            currentUserId={user.id}
+            opponentOptions={friendsHere.map((f) => ({ id: f.user_id, name: f.profiles.full_name ?? s('player') }))}
+            venueId={venueId ? Number(venueId) : null}
+            onClose={() => setLogMatchVisible(false)}
+            onLogged={() => showAlert(s('success'), s('matchLoggedPending'))}
+          />
+        ) : null}
 
-        {/* Free tables — latest report + on-site report prompt (F011) */}
-        <VenueFreeTablesBlock
-          freeTables={freeTables}
-          tablesCount={venue.tables_count}
-          canReport={!!activeCheckin && !fromCache}
-          onReport={handleReportFreeTables}
-        />
-
-        {/* Regulars — opt-in home-venue members (F014) */}
-        <VenueRegularsRow regulars={regulars} />
-
-        {/* Coaches here — approved coaches teaching at this venue (F063) */}
-        <VenueCoachesRow coaches={venueCoaches} />
-
-        {/* Friends Here */}
-        <View style={styles.friendsSection}>
+        {/* ═══════════ Right now ═══════════ */}
+        <View style={styles.group}>
+          <Text style={styles.groupKicker}>{s('vdGroupRightNow')}</Text>
+          <Text style={styles.groupTitle}>{s('vdTitleRightNow')}</Text>
+        </View>
+        <View style={[styles.cardFloat, styles.liveAccent]}>
+          <VenueBusynessBlock busyness={busyness} tablesCount={venue.tables_count} />
+          <View style={styles.peopleRowDiv}>
+            <VenueFreeTablesBlock
+              freeTables={freeTables}
+              tablesCount={venue.tables_count}
+              canReport={!!activeCheckin && !fromCache}
+              onReport={handleReportFreeTables}
+            />
+          </View>
+          {/* Friends here (check-in / check-out lives in the action bar now) */}
+          <View style={[styles.friendsSection, styles.peopleRowDiv]}>
           <View style={styles.friendsTitle}>
             <Lucide name="users" size={14} color={colors.purple} />
             <Text style={styles.friendsTitleText}>{s('friendsHereNow')}</Text>
@@ -1044,50 +1015,70 @@ export function VenueDetailScreen({ venueId }: Props) {
               </TouchableOpacity>
             );
           })}
-          {activeCheckin ? (
-            <View style={styles.activeCheckinWrap}>
-              <View style={styles.activeCheckinInfo}>
-                <Lucide name="check-circle" size={16} color={colors.primaryLight} />
-                <Text style={styles.activeCheckinText}>
-                  {s('checkinSuccess').replace('!', '')} {activeCheckin.ended_at
-                    ? `· ${s('untilTime')} ${new Date(activeCheckin.ended_at).toLocaleTimeString(getDateLocale(lang), { hour: '2-digit', minute: '2-digit' })}`
-                    : ''}
-                </Text>
-              </View>
-              <TouchableOpacity style={styles.checkoutBtn} onPress={handleCheckout} disabled={checkinLoading}>
-                {checkinLoading ? (
-                  <ActivityIndicator size="small" color={colors.red} />
-                ) : (
-                  <Text style={styles.checkoutBtnText}>{s('checkout')}</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.checkinBtn} onPress={openCheckinModal} disabled={checkinLoading}>
-              {checkinLoading ? (
-                <ActivityIndicator size="small" color={colors.textOnPrimary} />
-              ) : (
-                <>
-                  <Lucide name="map-pin" size={16} color={colors.textOnPrimary} />
-                  <Text style={styles.checkinBtnText}>{s('checkinHere')}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
+          </View>
         </View>
 
+        {/* ═══════════ The tables ═══════════ */}
+        <View style={styles.group}>
+          <Text style={styles.groupKicker}>{s('vdGroupTables')}</Text>
+          <Text style={styles.groupTitle}>{`${venue.tables_count ?? '?'} · ${conditionLabel(venue.condition, s)}`}</Text>
+        </View>
+        {venue.type === 'parc_exterior' ? renderFacts() : null}
+        {venueSupportsAmenities(venue.type) && (
+          <View style={[styles.cardFloat, { marginTop: 10 }]}>
+            <VenueAmenitiesGrid amenities={amenities} onSuggestEdit={handleSuggestEdit} />
+          </View>
+        )}
+
+        {/* ═══════════ People here ═══════════ */}
+        <View style={styles.group}>
+          <Text style={styles.groupKicker}>{s('vdGroupPeople')}</Text>
+          <Text style={styles.groupTitle}>{s('vdTitlePeople')}</Text>
+        </View>
+        <View style={styles.cardFloat}>
+          {champion && (
+            <View style={styles.peopleRow}>
+              <View style={styles.champAvatar}><Text style={styles.champInitials}>{champion.fullName.charAt(0).toUpperCase()}</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.peopleName} numberOfLines={1}>{champion.fullName}</Text>
+                <Text style={styles.peopleMeta} numberOfLines={1}>{`${champion.dayCount} ${s('daysPlayed')}`}</Text>
+              </View>
+              <View style={styles.champTag}><Text style={styles.champTagText}>{s('venueChampion')}</Text></View>
+            </View>
+          )}
+          {playerMix?.top && (
+            <View style={[styles.peopleRow, champion && styles.peopleRowDiv]}>
+              <Lucide name="users" size={16} color={colors.primaryMid} />
+              <Text style={styles.peopleText}>{s('venuePlayerMixMostly', s(skillLevelKey(playerMix.top as SkillLevel)))}</Text>
+            </View>
+          )}
+          <View style={(champion || playerMix?.top) ? styles.peopleRowDiv : undefined}>
+            <VenueRegularsRow regulars={regulars} />
+          </View>
+          <View style={styles.peopleRowDiv}>
+            <VenueCoachesRow coaches={venueCoaches} />
+          </View>
+        </View>
+
+        {/* ═══════════ Play together ═══════════ */}
+        <View style={styles.group}>
+          <Text style={styles.groupKicker}>{s('vdGroupPlay')}</Text>
+          <Text style={styles.groupTitle}>{s('vdTitlePlay')}</Text>
+        </View>
         {/* Open Play — looking-for-players broadcasts here (F020) */}
-        <VenueOpenPlaySection
-          items={venueOpenPlay}
-          busyId={openPlayBusyId}
-          canPlan={!!user && !myPlayIntent}
-          planning={planningSession}
-          onJoin={handleJoinOpenPlay}
-          onLeave={handleLeaveOpenPlay}
-          onConvert={handleConvertOpenPlay}
-          onCancel={handleCancelOpenPlay}
-          onPlan={handlePlanSession}
-        />
+        <View style={styles.cardFloat}>
+          <VenueOpenPlaySection
+            items={venueOpenPlay}
+            busyId={openPlayBusyId}
+            canPlan={!!user && !myPlayIntent}
+            planning={planningSession}
+            onJoin={handleJoinOpenPlay}
+            onLeave={handleLeaveOpenPlay}
+            onConvert={handleConvertOpenPlay}
+            onCancel={handleCancelOpenPlay}
+            onPlan={handlePlanSession}
+          />
+        </View>
 
         {/* Venue Links */}
         <View style={styles.navSection}>
@@ -1109,33 +1100,15 @@ export function VenueDetailScreen({ venueId }: Props) {
           </TouchableOpacity>
         </View>
 
-        {/* Directions */}
-        <Card shadow="sm" borderRadius={0} style={styles.directionsSection}>
-          <Text style={styles.directionsTitle}>{s('navigation')}</Text>
-          <View style={styles.directionsRow}>
-            <TouchableOpacity style={styles.dirGoogle} onPress={handleDirectionGoogle}>
-              <Lucide name="navigation" size={14} color={colors.textMuted} />
-              <Text style={styles.dirGoogleText}>Google</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.dirOther} onPress={handleDirectionApple}>
-              <Lucide name="navigation" size={14} color={colors.textMuted} />
-              <Text style={styles.dirOtherText}>Apple</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.dirOther} onPress={handleDirectionWaze}>
-              <Lucide name="navigation" size={14} color={colors.textMuted} />
-              <Text style={styles.dirOtherText}>Waze</Text>
-            </TouchableOpacity>
-          </View>
-        </Card>
-
+        {/* ═══════════ Reviews & board ═══════════ */}
+        <View style={styles.group}>
+          <Text style={styles.groupKicker}>{s('vdKickerReviews')}</Text>
+          <Text style={styles.groupTitle}>{s('vdGroupReviews')}</Text>
+        </View>
         {/* Reviews */}
         <View style={styles.reviewsSection}>
           <View style={styles.reviewsHeader}>
             <Text style={styles.reviewsTitle}>{s('reviewsCount') + ' (' + reviews.length + ')'}</Text>
-            <TouchableOpacity style={styles.writeReviewBtn} onPress={() => router.push({ pathname: '/(protected)/review/[venueId]', params: { venueId: String(venueId) } })} testID="write-review-btn" accessibilityLabel={s('writeBtn')}>
-              <Lucide name="pen-line" size={12} color={colors.primaryMid} />
-              <Text style={styles.writeReviewText}>{s('writeBtn')}</Text>
-            </TouchableOpacity>
           </View>
 
           {reviews.length === 0 && (
@@ -1151,7 +1124,7 @@ export function VenueDetailScreen({ venueId }: Props) {
           )}
 
           {visibleReviews.map((review) => (
-            <Card key={review.id} shadow="sm" borderRadius={Radius.md} style={styles.reviewCard}>
+            <View key={review.id} style={styles.reviewCard}>
               <View style={styles.reviewTop}>
                 <Text style={styles.reviewAuthor}>{review.reviewer_name || s('anon')}</Text>
                 <View style={styles.reviewTopRight}>
@@ -1171,7 +1144,7 @@ export function VenueDetailScreen({ venueId }: Props) {
               </View>
               <Text style={styles.reviewText}>{review.body || ''}</Text>
               <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString(dateLocale)}</Text>
-            </Card>
+            </View>
           ))}
           {!showAllReviews && reviews.length > REVIEW_INITIAL_LIMIT && (
             <TouchableOpacity
@@ -1187,7 +1160,61 @@ export function VenueDetailScreen({ venueId }: Props) {
         </View>
 
         {/* Board & Q&A (F016) */}
-        {vIdNum ? <VenueBoardSection venueId={vIdNum} currentUserId={user?.id} /> : null}
+        {vIdNum ? (
+          <View style={[styles.cardFloat, { marginTop: 10 }]}>
+            <VenueBoardSection venueId={vIdNum} currentUserId={user?.id} />
+          </View>
+        ) : null}
+
+        {/* ═══════════ Contribute (de-dup: write-review / suggest-edit / set-home live ONLY here) ═══════════ */}
+        <View style={styles.group}>
+          <Text style={styles.groupKicker}>{s('vdHelpAccurate')}</Text>
+          <Text style={styles.groupTitle}>{s('vdContribute')}</Text>
+        </View>
+        <View style={styles.cardFloat}>
+          <View style={styles.contrib}>
+            <TouchableOpacity style={[styles.cbtn, styles.factDivRight]} onPress={openCheckinModal} testID="contribute-report-tables">
+              <View style={styles.cbtnIcon}><Lucide name="table-2" size={16} color={colors.textMuted} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cbtnTitle} numberOfLines={1}>{s('vdReportTables')}</Text>
+                <Text style={styles.cbtnSub} numberOfLines={1}>{s('vdReportTablesSub')}</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cbtn} onPress={handleSuggestEdit} testID="contribute-rate">
+              <View style={styles.cbtnIcon}><Lucide name="check-circle" size={16} color={colors.textMuted} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cbtnTitle} numberOfLines={1}>{s('vdRateCondition')}</Text>
+                <Text style={styles.cbtnSub} numberOfLines={1}>{conditionLabel(venue.condition, s)}</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.cbtn, styles.factDivRight, styles.factDivTop]} onPress={handleReview} testID="contribute-review">
+              <View style={styles.cbtnIcon}><Lucide name="pen-line" size={16} color={colors.textMuted} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cbtnTitle} numberOfLines={1}>{s('vdWriteReviewFull')}</Text>
+                <Text style={styles.cbtnSub} numberOfLines={1}>{s('vdWriteReviewSub')}</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.cbtn, styles.factDivTop]} onPress={handleSuggestEdit} testID="suggest-edit-btn">
+              <View style={styles.cbtnIcon}><Lucide name="pencil" size={16} color={colors.textMuted} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cbtnTitle} numberOfLines={1}>{s('requestChangesCta')}</Text>
+                <Text style={styles.cbtnSub} numberOfLines={1}>{s('vdSuggestEditSub')}</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+          {user && !fromCache ? (
+            <TouchableOpacity style={styles.chome} onPress={handleToggleHomeVenue} testID="home-venue-toggle">
+              <View style={styles.chomeIcon}><Lucide name="home" size={16} color={colors.primaryLight} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cbtnTitle} numberOfLines={1}>{isHomeVenue ? s('homeVenueYours') : s('homeVenueSet')}</Text>
+                <Text style={styles.cbtnSub} numberOfLines={1}>{s('vdSetHomeSub')}</Text>
+              </View>
+              <View style={styles.chomeSet}>
+                <Text style={styles.chomeSetText}>{isHomeVenue ? '✓' : s('vdSet')}</Text>
+              </View>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </Reanimated.ScrollView>
 
       {/* Check-in Success Sheet */}

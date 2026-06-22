@@ -11,8 +11,9 @@ import {
   CircleDot, ClipboardPenLine, Clock, Clock3, Cloud, CloudDrizzle, CloudLightning,
   CloudRain, CloudSnow, CloudSun, Coffee, Compass, Crown,
   Bot, Dumbbell, Footprints, GraduationCap,
-  ExternalLink, Eye, EyeOff, FlagOff, Flame, FlaskConical, Gift, Globe,
+  ExternalLink, Eye, EyeOff, FlagOff, Flame, FlaskConical, Gift, Globe, Grid2x2,
   Hand, Handshake, Hash, Heart, Home, Image as ImageIcon, Info,
+  MoreHorizontal,
   KeyRound, LampFloor, Lightbulb, List, ListChecks, Locate, Lock, LockKeyhole, LogIn, LogOut,
   Mail, Map, MapPin, Medal, Megaphone, MessageCircle, MessageSquare, Minus, Monitor, Moon, Move,
   Navigation, PartyPopper, Pen, PenLine, Pencil, Plus, QrCode,
@@ -153,6 +154,8 @@ const ICON_MAP: Record<string, React.ComponentType<LucideProps>> = {
   'x': X,
   'x-circle': XCircle,
   'zap': Zap,
+  'grid-2x2': Grid2x2,
+  'more-horizontal': MoreHorizontal,
 };
 
 export function Lucide({ name, size = 24, color = lightColors.text, strokeWidth }: IconProps) {

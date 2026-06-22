@@ -2,6 +2,10 @@
 // Data comes from get_venue_busyness (migration 106), merged into the venue
 // bundle by useVenueDetailQuery. Counts only — no identities (084 privacy
 // contract). Renders the empty state below the server-side sample threshold.
+//
+// Visual: the venue redesign's "Right now" histogram — a LIVE tag, an
+// intensity-coloured curve (busy hours warm/hot orange, the current hour green),
+// with am/pm axis ticks. Bars read as "how busy, typically" at a glance.
 import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Lucide } from './Icon';
@@ -18,6 +22,9 @@ import type { VenueBusyness } from '../services/venueIntel';
 const START_HOUR = 7;
 const END_HOUR = 22;
 const BAR_AREA_HEIGHT = 56;
+
+/** 13 -> "1p", 7 -> "7a" — compact am/pm tick, mirrors the design axis. */
+const fmtHour = (h: number) => `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? 'a' : 'p'}`;
 
 interface Props {
   busyness: VenueBusyness | null | undefined;
@@ -65,6 +72,7 @@ export function VenueBusynessBlock({ busyness, tablesCount }: Props) {
   if (!busyness) return null;
 
   const liveCount = busyness.live_count ?? 0;
+  const isLive = liveCount > 0;
   const hasHistogram = !!busyness.histogram && busyness.histogram.length > 0;
   const peakLabel =
     busyness.peak_hour != null
@@ -73,16 +81,16 @@ export function VenueBusynessBlock({ busyness, tablesCount }: Props) {
 
   return (
     <Card shadow="sm" borderRadius={0} style={styles.section}>
-      <View style={styles.titleRow}>
-        <Lucide name="activity" size={16} color={colors.blue} />
-        <Text style={styles.title}>{s('venueBusynessTitle')}</Text>
-      </View>
-
-      {/* Live line */}
-      <View style={styles.liveRow}>
-        <View style={[styles.liveDot, { backgroundColor: liveCount > 0 ? colors.primaryLight : colors.textFaint }]} />
-        <Text style={styles.liveText}>
-          {liveCount > 0
+      {/* LIVE header: tag (left) · live count (right) */}
+      <View style={styles.topRow}>
+        <View style={styles.liveTag}>
+          <View style={[styles.liveDot, { backgroundColor: colors.accentBright }]} />
+          <Text style={[styles.liveLabel, { color: colors.accentBright }]}>
+            {s('venueBusynessTitle')}
+          </Text>
+        </View>
+        <Text style={styles.liveCount} numberOfLines={1}>
+          {isLive
             ? s('venueBusynessHereNow', String(liveCount)) +
               (tablesCount ? ` · ${tablesCount} ${s('tables')}` : '')
             : s('venueBusynessQuiet')}
@@ -110,13 +118,25 @@ export function VenueBusynessBlock({ busyness, tablesCount }: Props) {
             })}
           </View>
 
-          {/* Histogram */}
+          {peakLabel ? (
+            <Text style={styles.peakText}>{s('venueBusynessPeak', peakLabel)}</Text>
+          ) : null}
+
+          {/* Histogram — bars coloured by typical intensity, "now" in green */}
           <View style={styles.bars} accessibilityLabel={peakLabel ? s('venueBusynessPeak', peakLabel) : undefined}>
             {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => {
               const hour = START_HOUR + i;
               const count = hourCounts.get(hour) ?? 0;
               const ratio = maxCount > 0 ? count / maxCount : 0;
               const isNow = selectedDow === todayDow && hour === currentHour;
+              const barColor = isNow
+                ? colors.primary
+                : ratio >= 0.66
+                  ? colors.accentBright
+                  : ratio >= 0.33
+                    ? colors.accent
+                    : colors.bgMid;
+              const showTick = isNow || hour % 3 === 0;
               return (
                 <View key={hour} style={styles.barSlot}>
                   <View
@@ -124,20 +144,18 @@ export function VenueBusynessBlock({ busyness, tablesCount }: Props) {
                       styles.bar,
                       {
                         height: Math.max(2, Math.round(ratio * BAR_AREA_HEIGHT)),
-                        backgroundColor: isNow ? colors.primary : colors.blue,
-                        opacity: count > 0 ? 1 : 0.25,
+                        backgroundColor: barColor,
+                        opacity: count > 0 || isNow ? 1 : 0.5,
                       },
                     ]}
                   />
-                  {hour % 4 === 0 ? <Text style={styles.barLabel}>{hour}</Text> : <Text style={styles.barLabel}> </Text>}
+                  <Text style={[styles.barLabel, isNow && styles.barLabelNow]} numberOfLines={1}>
+                    {isNow ? s('weatherHeroNow').toLowerCase() : showTick ? fmtHour(hour) : ' '}
+                  </Text>
                 </View>
               );
             })}
           </View>
-
-          {peakLabel ? (
-            <Text style={styles.peakText}>{s('venueBusynessPeak', peakLabel)}</Text>
-          ) : null}
         </>
       ) : (
         <View style={styles.emptyRow}>
@@ -154,18 +172,19 @@ function createStyles(colors: ThemeColors) {
     section: {
       backgroundColor: colors.bgAlt,
       padding: Spacing.md,
-      gap: 10,
+      gap: 12,
     },
-    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    title: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.md,
-      fontWeight: FontWeight.semibold,
-      color: colors.blue,
-    },
-    liveRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+    liveTag: { flexDirection: 'row', alignItems: 'center', gap: 7 },
     liveDot: { width: 8, height: 8, borderRadius: 4 },
-    liveText: { fontFamily: Fonts.body, fontSize: FontSize.md, color: colors.text, flex: 1 },
+    liveLabel: {
+      fontFamily: Fonts.body, fontSize: FontSize.sm, fontWeight: FontWeight.bold,
+      letterSpacing: 1.2, textTransform: 'uppercase',
+    },
+    liveCount: {
+      fontFamily: Fonts.body, fontSize: FontSize.md, fontWeight: FontWeight.semibold,
+      color: colors.text, flexShrink: 1,
+    },
     weekdayRow: { flexDirection: 'row', gap: 4 },
     weekdayBtn: {
       flex: 1,
@@ -174,14 +193,17 @@ function createStyles(colors: ThemeColors) {
       borderRadius: Radius.sm,
       backgroundColor: colors.bgMuted,
     },
-    weekdayBtnActive: { backgroundColor: colors.bluePale, borderWidth: 1, borderColor: colors.blue },
+    weekdayBtnActive: { backgroundColor: colors.amberPale, borderWidth: 1, borderColor: colors.accent },
     weekdayText: { fontFamily: Fonts.body, fontSize: FontSize.sm, color: colors.textMuted },
-    weekdayTextActive: { color: colors.blue, fontWeight: FontWeight.bold },
-    bars: { flexDirection: 'row', alignItems: 'flex-end', height: BAR_AREA_HEIGHT + 14, gap: 2 },
+    weekdayTextActive: { color: colors.accentBright, fontWeight: FontWeight.bold },
+    peakText: {
+      fontFamily: Fonts.body, fontSize: FontSize.sm, fontWeight: FontWeight.medium, color: colors.textMuted,
+    },
+    bars: { flexDirection: 'row', alignItems: 'flex-end', height: BAR_AREA_HEIGHT + 16, gap: 3 },
     barSlot: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
-    bar: { width: '70%', borderTopLeftRadius: 2, borderTopRightRadius: 2 },
-    barLabel: { fontFamily: Fonts.body, fontSize: 9, color: colors.textFaint, marginTop: 2 },
-    peakText: { fontFamily: Fonts.body, fontSize: FontSize.sm, color: colors.textMuted },
+    bar: { width: '66%', borderTopLeftRadius: 3, borderTopRightRadius: 3 },
+    barLabel: { fontFamily: Fonts.body, fontSize: 9, color: colors.textFaint, marginTop: 4 },
+    barLabelNow: { color: colors.primaryLight, fontWeight: FontWeight.bold },
     emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     emptyText: { fontFamily: Fonts.body, fontSize: FontSize.sm, color: colors.textFaint, flex: 1 },
   });

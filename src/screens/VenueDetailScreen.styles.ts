@@ -30,32 +30,6 @@ export function createStyles(colors: ThemeColors) {
       flex: 1,
       backgroundColor: colors.bg,
     },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: colors.bgAlt,
-      height: 52,
-      paddingHorizontal: Spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      ...Shadows.bar,
-    },
-    backBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    backText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.lg,
-      fontWeight: FontWeight.medium,
-      color: colors.textMuted,
-    },
-    headerActions: {
-      flexDirection: 'row',
-      gap: Spacing.sm,
-    },
     scroll: {
       flex: 1,
     },
@@ -119,103 +93,6 @@ export function createStyles(colors: ThemeColors) {
       fontSize: FontSize.sm,
       color: colors.textOnPrimary,
     },
-    venueInfo: {
-      padding: Spacing.md,
-      gap: 14,
-    },
-    infoTop: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-    },
-    infoTitleGroup: {
-      flex: 1,
-      gap: 6,
-    },
-    infoTitle: {
-      fontFamily: Fonts.heading,
-      fontSize: FontSize.xxxl,
-      fontWeight: FontWeight.bold,
-      color: colors.text,
-    },
-    infoBadges: {
-      flexDirection: 'row',
-      gap: 6,
-    },
-    badgeVerified: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.primaryPale,
-      borderRadius: 100,
-      paddingVertical: 2,
-      paddingHorizontal: 8,
-      gap: 4,
-    },
-    badgeVerifiedText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.xs,
-      fontWeight: FontWeight.semibold,
-      color: colors.primaryMid,
-    },
-    badgeFree: {
-      backgroundColor: colors.bluePale,
-      borderRadius: 100,
-      paddingVertical: 2,
-      paddingHorizontal: 8,
-    },
-    badgeFreeText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.xs,
-      fontWeight: FontWeight.semibold,
-      color: colors.blue,
-    },
-    infoRating: {
-      alignItems: 'flex-end',
-      gap: 2,
-    },
-    ratingStars: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.lg,
-      color: colors.accent,
-    },
-    ratingCount: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.base,
-      color: colors.textFaint,
-    },
-    divider: {
-      height: 1,
-      backgroundColor: colors.bgMid,
-    },
-    infoGrid: {
-      gap: 10,
-    },
-    infoRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-    },
-    infoRowText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.md,
-      color: colors.textMuted,
-    },
-    championRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      backgroundColor: colors.amberPale,
-      borderRadius: Radius.md,
-      padding: 10,
-      borderWidth: 1,
-      borderColor: colors.amberDeep,
-    },
-    championText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.md,
-      fontWeight: FontWeight.medium,
-      color: colors.accent,
-      flex: 1,
-    },
     evalBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -235,10 +112,9 @@ export function createStyles(colors: ThemeColors) {
       color: colors.primaryMid,
     },
     friendsSection: {
-      backgroundColor: colors.purplePale,
+      backgroundColor: colors.bgAlt,
       padding: Spacing.md,
       gap: 10,
-      ...Shadows.sm,
     },
     friendsTitle: {
       flexDirection: 'row',
@@ -284,61 +160,15 @@ export function createStyles(colors: ThemeColors) {
       fontSize: FontSize.sm,
       color: colors.textFaint,
     },
-    checkinBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.purple,
-      borderRadius: Radius.md,
-      height: 40,
-      gap: 8,
-      ...Shadows.md,
-    },
-    checkinBtnText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.md,
-      fontWeight: FontWeight.semibold,
-      color: colors.textOnPrimary,
-    },
-    activeCheckinWrap: {
-      gap: Spacing.xs,
-    },
-    activeCheckinInfo: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: Spacing.xs,
-      backgroundColor: colors.primaryPale,
-      borderRadius: Radius.md,
-      padding: Spacing.sm,
-      borderWidth: 1,
-      borderColor: colors.primaryDim,
-    },
-    activeCheckinText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.md,
-      fontWeight: FontWeight.medium,
-      color: colors.primaryMid,
-      flex: 1,
-    },
-    checkoutBtn: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: Radius.md,
-      height: 40,
-      borderWidth: 1.5,
-      borderColor: colors.red,
-      backgroundColor: colors.redPale,
-    },
-    checkoutBtnText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.md,
-      fontWeight: FontWeight.semibold,
-      color: colors.red,
-    },
     navSection: {
       backgroundColor: colors.bgAlt,
+      marginHorizontal: Spacing.md,
+      marginTop: 10,
       paddingHorizontal: Spacing.md,
       paddingVertical: Spacing.xs,
+      borderRadius: Radius.lg,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
     },
     navRow: {
       flexDirection: 'row',
@@ -378,59 +208,14 @@ export function createStyles(colors: ThemeColors) {
       fontWeight: FontWeight.bold,
       color: colors.accent,
     },
-    directionsSection: {
-      padding: Spacing.md,
-      gap: 10,
-    },
-    directionsTitle: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.lg,
-      fontWeight: FontWeight.semibold,
-      color: colors.text,
-    },
-    directionsRow: {
-      flexDirection: 'row',
-      gap: Spacing.xs,
-    },
-    dirGoogle: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.bgAlt,
-      borderRadius: Radius.md,
-      height: 40,
-      gap: 6,
-      ...Shadows.sm,
-    },
-    dirGoogleText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.base,
-      fontWeight: FontWeight.semibold,
-      color: colors.text,
-    },
-    dirOther: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.bgAlt,
-      borderRadius: Radius.md,
-      height: 40,
-      ...Shadows.sm,
-    },
-    dirOtherText: {
-      fontFamily: Fonts.body,
-      fontSize: FontSize.base,
-      fontWeight: FontWeight.semibold,
-      color: colors.text,
-    },
     reviewsSection: {
       backgroundColor: colors.bgAlt,
+      marginHorizontal: Spacing.md,
       padding: Spacing.md,
       gap: Spacing.sm,
-      borderTopWidth: 1,
-      borderTopColor: colors.borderLight,
+      borderRadius: Radius.lg,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
     },
     reviewsHeader: {
       flexDirection: 'row',
@@ -462,8 +247,10 @@ export function createStyles(colors: ThemeColors) {
       color: colors.primaryMid,
     },
     reviewCard: {
-      padding: Spacing.sm,
+      paddingVertical: Spacing.sm,
       gap: Spacing.xs,
+      borderTopWidth: 1,
+      borderTopColor: colors.borderLight,
     },
     reviewTop: {
       flexDirection: 'row',
@@ -497,6 +284,138 @@ export function createStyles(colors: ThemeColors) {
       fontSize: 11,
       color: colors.textFaint,
     },
+
+    // ───────────────────────── Redesign (v4-playbanner-bar) ─────────────────
+    // Overlay topbar (floats on the hero photo)
+    topbar: {
+      position: 'absolute', left: 0, right: 0, zIndex: 20,
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 12,
+    },
+    topbarGroup: { flexDirection: 'row', gap: 8 },
+    topbarBtn: {
+      width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+      backgroundColor: colors.overlayHeavy, borderWidth: 1, borderColor: colors.overlayLight,
+    },
+    topbarBtnFav: { backgroundColor: colors.amberPale, borderColor: colors.accentBright },
+
+    // Identity zone
+    identity: { paddingHorizontal: Spacing.md, paddingTop: 14 },
+    idKicker: {
+      fontFamily: Fonts.body, fontSize: FontSize.sm, fontWeight: FontWeight.semibold,
+      letterSpacing: 1, textTransform: 'uppercase', color: colors.primaryLight, marginBottom: 6,
+    },
+    idName: {
+      fontFamily: Fonts.heading, fontSize: FontSize.display, fontWeight: FontWeight.bold,
+      color: colors.text, lineHeight: FontSize.display * 1.08,
+    },
+    idAddress: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+    idAddressText: { flex: 1, fontFamily: Fonts.body, fontSize: FontSize.md, color: colors.textMuted },
+    idBadges: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, marginTop: 11 },
+    idChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      backgroundColor: colors.bgAlt, borderWidth: 1, borderColor: colors.borderLight,
+      borderRadius: 11, paddingVertical: 5, paddingHorizontal: 10,
+    },
+    idChipStar: { fontFamily: Fonts.body, fontSize: FontSize.base, color: colors.amber },
+    idChipText: { fontFamily: Fonts.body, fontSize: FontSize.base, fontWeight: FontWeight.bold, color: colors.text },
+    idChipMuted: { fontFamily: Fonts.body, fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.textMuted },
+    idChipPrice: { backgroundColor: colors.primaryPale, borderColor: colors.primaryDim },
+    idChipPriceText: { fontFamily: Fonts.body, fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.primaryLight },
+
+    // Hero slot wrapper
+    heroWrap: { marginHorizontal: Spacing.md, marginTop: 14 },
+
+    // Indoor status hero
+
+    // Action bar (Check in · Share · Route)
+    actionBar: {
+      marginHorizontal: Spacing.md, marginTop: 13, padding: 8, borderRadius: Radius.lg,
+      backgroundColor: colors.bgMid, borderWidth: 1, borderColor: colors.border,
+      flexDirection: 'row', alignItems: 'stretch', gap: 14, ...Shadows.sm,
+    },
+    abCta: {
+      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+      paddingVertical: 12, paddingHorizontal: 14, borderRadius: Radius.md, backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primaryLight, ...Shadows.sm,
+    },
+    abCtaCheckout: { backgroundColor: colors.redPale, borderWidth: 1.5, borderColor: colors.red },
+    abCtaTitle: { fontFamily: Fonts.body, fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: colors.textOnPrimary },
+    abCtaTitleCheckout: { color: colors.red },
+    abCtaSub: { fontFamily: Fonts.body, fontSize: 10, fontWeight: FontWeight.medium, color: colors.textOnPrimary, opacity: 0.85, marginTop: 2 },
+    abQuiet: { flexDirection: 'row', gap: 7 },
+    qbtn: {
+      width: 54, alignItems: 'center', justifyContent: 'center', gap: 5,
+      borderRadius: Radius.md, backgroundColor: colors.bgMuted, borderWidth: 1, borderColor: colors.borderLight,
+    },
+    qbtnText: { fontFamily: Fonts.body, fontSize: 10, fontWeight: FontWeight.bold, color: colors.text },
+    barnote: { flexDirection: 'row', alignItems: 'center', gap: 7, marginHorizontal: Spacing.md + 6, marginTop: 10 },
+    barnoteText: { flex: 1, fontFamily: Fonts.body, fontSize: FontSize.sm, color: colors.textMuted },
+
+    // Section group header
+    group: { paddingHorizontal: Spacing.md, marginTop: 22, marginBottom: 10 },
+    groupKicker: {
+      fontFamily: Fonts.body, fontSize: FontSize.sm, fontWeight: FontWeight.bold,
+      letterSpacing: 1, textTransform: 'uppercase', color: colors.primaryLight,
+    },
+    groupTitle: { fontFamily: Fonts.heading, fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: colors.text, marginTop: 2 },
+
+    // Generic floating card
+    cardFloat: {
+      marginHorizontal: Spacing.md, backgroundColor: colors.bgAlt,
+      borderWidth: 1, borderColor: colors.borderLight, borderRadius: Radius.lg, overflow: 'hidden',
+    },
+    // "Right now" live card — orange accent border (matches the design .now card)
+    liveAccent: { borderColor: colors.accent },
+
+    // Facts grid (2-col)
+    facts: {
+      marginHorizontal: Spacing.md, flexDirection: 'row', flexWrap: 'wrap',
+      borderRadius: Radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.borderLight, backgroundColor: colors.bgAlt,
+    },
+    fact: { width: '50%', paddingVertical: 13, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 11 },
+    factDivRight: { borderRightWidth: 1, borderRightColor: colors.borderLight },
+    factDivTop: { borderTopWidth: 1, borderTopColor: colors.borderLight },
+    factLabel: {
+      fontFamily: Fonts.body, fontSize: 10, fontWeight: FontWeight.semibold,
+      letterSpacing: 0.4, textTransform: 'uppercase', color: colors.textFaint,
+    },
+    factValue: { fontFamily: Fonts.body, fontSize: FontSize.md, fontWeight: FontWeight.bold, color: colors.text, marginTop: 2 },
+    factValueWarn: { color: colors.amber },
+
+    // People (champion / mix) compact rows inside a floating card
+    peopleRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, paddingHorizontal: 14 },
+    peopleRowDiv: { borderTopWidth: 1, borderTopColor: colors.borderLight },
+    peopleText: { flex: 1, fontFamily: Fonts.body, fontSize: FontSize.md, fontWeight: FontWeight.medium, color: colors.text },
+    peopleName: { fontFamily: Fonts.body, fontSize: FontSize.md, fontWeight: FontWeight.bold, color: colors.text },
+    peopleMeta: { fontFamily: Fonts.body, fontSize: FontSize.sm, color: colors.textMuted, marginTop: 1 },
+    champAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center' },
+    champInitials: { fontFamily: Fonts.body, fontSize: FontSize.md, fontWeight: FontWeight.bold, color: colors.bg },
+    champTag: { paddingVertical: 4, paddingHorizontal: 9, borderRadius: 8, backgroundColor: colors.amberPale, borderWidth: 1, borderColor: colors.amber },
+    champTagText: { fontFamily: Fonts.body, fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: colors.amber },
+
+    // Contribute panel
+    contrib: { flexDirection: 'row', flexWrap: 'wrap' },
+    cbtn: { width: '50%', paddingVertical: 13, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
+    cbtnIcon: {
+      width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center',
+      borderWidth: 1, borderColor: colors.borderLight, backgroundColor: colors.bgMuted,
+    },
+    cbtnTitle: { fontFamily: Fonts.body, fontSize: FontSize.base, fontWeight: FontWeight.bold, color: colors.text },
+    cbtnSub: { fontFamily: Fonts.body, fontSize: 10, fontWeight: FontWeight.medium, color: colors.textFaint, marginTop: 2 },
+    chomeIcon: {
+      width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center',
+      borderWidth: 1, borderColor: colors.primaryDim, backgroundColor: colors.primaryPale,
+    },
+    chome: {
+      flexDirection: 'row', alignItems: 'center', gap: 11,
+      paddingVertical: 13, paddingHorizontal: 14,
+      borderTopWidth: 1, borderTopColor: colors.borderLight,
+    },
+    chomeSet: {
+      paddingVertical: 7, paddingHorizontal: 14, borderRadius: Radius.md,
+      backgroundColor: colors.primaryMid, borderWidth: 1, borderColor: colors.primary,
+    },
+    chomeSetText: { fontFamily: Fonts.body, fontSize: FontSize.base, fontWeight: FontWeight.bold, color: colors.textOnPrimary },
   });
 
   return { cm, styles };

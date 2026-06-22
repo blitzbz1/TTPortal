@@ -31,9 +31,10 @@ jest.mock('../Card', () => ({
 }));
 
 const mockColors = {
-  bg: '#fff', bgAlt: '#fff', bgMuted: '#eee', text: '#111', textMuted: '#444',
+  bg: '#fff', bgAlt: '#fff', bgMuted: '#eee', bgMid: '#ddd', text: '#111', textMuted: '#444',
   textFaint: '#999', textOnPrimary: '#fff', blue: '#1e40af', bluePale: '#eff6ff',
   primary: '#14532d', primaryLight: '#22c55e',
+  accent: '#ea580c', accentBright: '#f97316', amberPale: '#fef3c7',
 };
 
 beforeEach(() => {

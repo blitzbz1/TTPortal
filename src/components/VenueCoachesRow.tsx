@@ -1,15 +1,16 @@
-// F063: a venue's approved coaches — count + avatar row. Tapping an avatar opens
-// that coach's player profile (where the pinned coach card lives). Hidden when
-// there are no approved coaches at this venue. Clones VenueRegularsRow.
+// F063: a venue's approved coaches — an overlapping avatar stack + count, as a
+// unified "People here" row (matches the venue redesign .prow). Tapping an avatar
+// opens that coach's player profile. Hidden when there are no approved coaches.
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Lucide } from './Icon';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing } from '../theme';
 import type { VenueCoach } from '../features/coaches';
+
+const MAX_AVATARS = 5;
 
 export function VenueCoachesRow({ coaches }: { coaches: VenueCoach[] | null | undefined }) {
   const { colors } = useTheme();
@@ -19,20 +20,18 @@ export function VenueCoachesRow({ coaches }: { coaches: VenueCoach[] | null | un
 
   const list = Array.isArray(coaches) ? coaches : [];
   if (list.length === 0) return null;
+  const avatars = list.slice(0, MAX_AVATARS);
+  const overflow = list.length - avatars.length;
 
   return (
-    <View style={styles.section} testID="venue-coaches">
-      <View style={styles.titleRow}>
-        <Lucide name="graduation-cap" size={14} color={colors.blue} />
-        <Text style={styles.title}>{`${s('venueCoachesTitle')} · ${list.length}`}</Text>
-      </View>
-      <View style={styles.avatarRow}>
-        {list.map((c) => {
+    <View style={styles.prow} testID="venue-coaches">
+      <View style={styles.stack}>
+        {avatars.map((c, i) => {
           const name = c.full_name || '?';
           return (
             <TouchableOpacity
               key={c.user_id}
-              style={styles.coach}
+              style={i > 0 ? styles.overlap : undefined}
               onPress={() => router.push({ pathname: '/(protected)/player/[userId]', params: { userId: c.user_id } })}
               accessibilityRole="button"
               accessibilityLabel={name}
@@ -41,31 +40,42 @@ export function VenueCoachesRow({ coaches }: { coaches: VenueCoach[] | null | un
               <View style={styles.avatar}>
                 <Text style={styles.initials}>{name.charAt(0).toUpperCase()}</Text>
               </View>
-              <Text style={styles.name} numberOfLines={1}>{name.split(' ')[0]}</Text>
             </TouchableOpacity>
           );
         })}
+        {overflow > 0 ? (
+          <View style={[styles.more, styles.overlap]}>
+            <Text style={styles.moreText}>{`+${overflow}`}</Text>
+          </View>
+        ) : null}
       </View>
+      <Text style={styles.title} numberOfLines={1}>{`${s('venueCoachesTitle')} · ${list.length}`}</Text>
+      <View style={styles.tag}><Text style={styles.tagText}>{s('venueCoachesTitle')}</Text></View>
     </View>
   );
 }
 
 function createStyles(colors: ThemeColors) {
+  const ring = { borderWidth: 2, borderColor: colors.bgAlt };
   return StyleSheet.create({
-    section: { backgroundColor: colors.bluePale, padding: Spacing.md, gap: 10 },
-    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    title: { fontFamily: Fonts.body, fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: colors.blue },
-    avatarRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-    coach: { alignItems: 'center', width: 52, gap: 3 },
+    prow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: Spacing.md },
+    stack: { flexDirection: 'row', alignItems: 'center' },
+    overlap: { marginLeft: -10 },
     avatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.blue,
-      alignItems: 'center',
-      justifyContent: 'center',
+      width: 36, height: 36, borderRadius: 18, backgroundColor: colors.blue,
+      alignItems: 'center', justifyContent: 'center', ...ring,
     },
-    initials: { fontFamily: Fonts.body, fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: colors.textOnPrimary },
-    name: { fontFamily: Fonts.body, fontSize: FontSize.xs, color: colors.textMuted, textAlign: 'center' },
+    initials: { fontFamily: Fonts.body, fontSize: FontSize.md, fontWeight: FontWeight.bold, color: colors.textOnPrimary },
+    more: {
+      width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bgMuted,
+      alignItems: 'center', justifyContent: 'center', ...ring,
+    },
+    moreText: { fontFamily: Fonts.body, fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: colors.textMuted },
+    title: { flex: 1, fontFamily: Fonts.body, fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: colors.text },
+    tag: {
+      paddingVertical: 4, paddingHorizontal: 9, borderRadius: 8,
+      backgroundColor: colors.bluePale, borderWidth: 1, borderColor: colors.blue,
+    },
+    tagText: { fontFamily: Fonts.body, fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: colors.blue },
   });
 }

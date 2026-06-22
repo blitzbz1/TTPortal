@@ -7,7 +7,7 @@ const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 
 jest.mock('../../hooks/useTheme', () => ({
-  useTheme: () => ({ colors: { purplePale: '#f3e8ff', purple: '#7c3aed', purpleMid: '#a855f7', textOnPrimary: '#fff', textMuted: '#444' } }),
+  useTheme: () => ({ colors: { purplePale: '#f3e8ff', purple: '#7c3aed', purpleMid: '#a855f7', purpleDim: '#581c87', textOnPrimary: '#fff', textMuted: '#444', text: '#111', bgAlt: '#1a1d1a', bgMuted: '#232623' } }),
 }));
 jest.mock('../../hooks/useI18n', () => ({ useI18n: () => ({ s: (key: string) => key }) }));
 jest.mock('../Icon', () => ({
