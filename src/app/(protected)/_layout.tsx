@@ -11,6 +11,8 @@ export default function ProtectedLayout() {
       <Stack.Screen name="review/[venueId]" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="friends" />
       <Stack.Screen name="play-history" />
+      <Stack.Screen name="quick-match/setup" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="quick-match/board" options={{ animation: 'fade', gestureEnabled: false }} />
       <Stack.Screen name="equipment" />
       <Stack.Screen name="coach-apply" />
       <Stack.Screen name="gear/index" />

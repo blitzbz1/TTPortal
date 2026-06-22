@@ -523,8 +523,8 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
           </TouchableOpacity>
           {user?.id && (
             <TouchableOpacity style={styles.navRow} onPress={() => setQuickMatchVisible(true)} testID="profile-quick-match">
-              <View style={[styles.navIcon, { backgroundColor: colors.amberPale }]}>
-                <Lucide name="qr-code" size={18} color={colors.accent} />
+              <View style={[styles.navIcon, { backgroundColor: colors.primaryPale }]}>
+                <Lucide name="swords" size={18} color={colors.primaryMid} />
               </View>
               <Text style={styles.navLabel}>{s('quickMatchTitle')}</Text>
               <Lucide name="chevron-right" size={16} color={colors.textFaint} />

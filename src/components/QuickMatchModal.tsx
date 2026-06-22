@@ -31,7 +31,8 @@ export function QuickMatchModal({ visible, userId, onClose }: Props) {
     setScanning(false);
     if (!opponentId || opponentId === userId) return;
     onClose();
-    router.push(`/player/${opponentId}?logMatch=1` as Href);
+    // Opponent paired → go set up the match (names pre-fill from both profiles).
+    router.push(`/(protected)/quick-match/setup?opponentId=${opponentId}` as Href);
   };
 
   return (

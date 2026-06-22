@@ -9,6 +9,8 @@ export { EquipmentModelScreen } from './EquipmentModelScreen';
 export { PlayerProfileScreen } from './PlayerProfileScreen';
 export { FriendsScreen } from './FriendsScreen';
 export { PlayHistoryScreen } from './PlayHistoryScreen';
+export { QuickMatchSetupScreen } from './QuickMatchSetupScreen';
+export { QuickMatchBoardScreen } from './QuickMatchBoardScreen';
 export { EventSchedulingScreen } from './EventSchedulingScreen';
 export { VenueEventsScreen } from './VenueEventsScreen';
 export { LeaderboardsScreen } from './LeaderboardsScreen';
