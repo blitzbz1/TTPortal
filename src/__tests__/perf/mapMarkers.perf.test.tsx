@@ -5,6 +5,7 @@
  * its props.
  */
 const mockMarkerRenders = { count: 0 };
+const mockEmptyVenueIds = new Set<number>();
 
 jest.mock('react-native-maps', () => {
   const React = require('react');
@@ -52,6 +53,25 @@ jest.mock('../../hooks/useTheme', () => ({
 }));
 jest.mock('../../hooks/useNotifications', () => ({
   useNotifications: () => ({ unreadCount: 0, refreshUnreadCount: jest.fn(), clearAll: jest.fn(), pushToken: null }),
+}));
+// This regression measures search-state isolation only. Keep the independent
+// marker overlays stable so a background query settling during the debounce
+// window cannot be misreported as a search-triggered marker render.
+jest.mock('../../hooks/queries/useFriendPresenceQuery', () => ({
+  useFriendPresenceQuery: () => ({ data: undefined }),
+}));
+jest.mock('../../features/venueIntel', () => ({
+  useLiveVenueCountsQuery: () => ({ data: undefined }),
+  useCityVenueAmenitiesQuery: () => ({ data: undefined }),
+}));
+jest.mock('../../features/coaches', () => ({
+  useCoachingVenueIdsQuery: () => ({ data: undefined }),
+}));
+jest.mock('../../features/openplay', () => ({
+  useOpenPlayCountsQuery: () => ({ data: undefined }),
+}));
+jest.mock('../../features/explorer', () => ({
+  useUnvisitedVenuesQuery: () => ({ unvisitedVenueIds: mockEmptyVenueIds }),
 }));
 jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: jest.fn(),

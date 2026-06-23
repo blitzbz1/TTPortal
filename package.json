@@ -17,6 +17,7 @@
     "postinstall": "patch-package",
     "gen:types": "supabase gen types typescript --project-id vzewwlaqqgukjkqjyfoq --schema public > src/types/supabase.ts",
     "lint": "expo lint",
+    "pretypecheck": "expo customize tsconfig.json",
     "typecheck": "tsc --noEmit",
     "build:web": "npx expo export --platform web",
     "predeploy": "npm run build:web && cp dist/index.html dist/404.html",
