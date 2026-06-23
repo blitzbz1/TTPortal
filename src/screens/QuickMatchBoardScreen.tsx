@@ -3,15 +3,17 @@
 // it upright) — no native orientation module needed. Tap a player's side to add
 // a point; tap their "Undo point" strip to take one back. Games & the match
 // resolve automatically (see features/quickMatch).
-import React, { useMemo, useState } from 'react';
-import { View, Text, Pressable, useWindowDimensions, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, View, Text, Pressable, useWindowDimensions, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
+import { useSession } from '../hooks/useSession';
 import { hapticLight } from '../lib/haptics';
 import { showConfirm } from '../lib/dialogs';
+import { useLogMatchMutation } from '../features/matches';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontWeight } from '../theme';
 import {
@@ -25,11 +27,22 @@ const asBestOf = (v: unknown): BestOf => (String(v) === '3' ? 3 : String(v) === 
 export function QuickMatchBoardScreen() {
   const router = useRouter();
   const { s } = useI18n();
+  const { user } = useSession();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { width, height } = useWindowDimensions();
 
-  const params = useLocalSearchParams<{ points?: string; bestOf?: string; n0?: string; n1?: string; server?: string }>();
+  const params = useLocalSearchParams<{
+    opponentId?: string;
+    points?: string;
+    bestOf?: string;
+    n0?: string;
+    n1?: string;
+    server?: string;
+  }>();
+  const logMatch = useLogMatchMutation(user?.id);
+  const submittedMatchRef = useRef<MatchState | null>(null);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [match, setMatch] = useState<MatchState>(() =>
     createMatch({
       points: asPoints(params.points),
@@ -48,6 +61,40 @@ export function QuickMatchBoardScreen() {
 
   const onScore = (p: PlayerIndex) => { if (match.winner === null) { hapticLight(); setMatch((m) => scorePoint(m, p)); } };
   const onUndo = (p: PlayerIndex) => { hapticLight(); setMatch((m) => undoPoint(m, p)); };
+  const saveCompletedMatch = useCallback(async (completedMatch: MatchState) => {
+    if (completedMatch.winner === null || !user?.id || !params.opponentId) {
+      setSaveState('error');
+      return;
+    }
+    submittedMatchRef.current = completedMatch;
+    setSaveState('saving');
+    try {
+      await logMatch.mutateAsync({
+        opponentId: params.opponentId,
+        sets: completedMatch.completed.map(([a, b]) => ({ a, b })),
+        winnerId: completedMatch.winner === 0 ? user.id : params.opponentId,
+      });
+      setSaveState('saved');
+    } catch {
+      setSaveState('error');
+    }
+  }, [logMatch, params.opponentId, user?.id]);
+
+  useEffect(() => {
+    if (match.winner === null || submittedMatchRef.current === match) return;
+    void saveCompletedMatch(match);
+  }, [match, saveCompletedMatch]);
+
+  const retrySave = () => {
+    const completedMatch = submittedMatchRef.current ?? match;
+    submittedMatchRef.current = null;
+    void saveCompletedMatch(completedMatch);
+  };
+  const rematch = () => {
+    submittedMatchRef.current = null;
+    setSaveState('idle');
+    setMatch(createMatch(config));
+  };
   // Leaving the match returns to where the flow launched (the Profile tab).
   // dismissAll pops the board AND the setup screen pushed beneath it in one step;
   // a plain router.back() would strand the user back on the match-settings screen.
@@ -128,12 +175,32 @@ export function QuickMatchBoardScreen() {
               <Lucide name="trophy" size={30} color={colors.amber} />
               <Text style={styles.winName}>{s('qmWins', config.names[match.winner])}</Text>
               <Text style={styles.winScore}>{match.completed.map((g) => `${g[0]}–${g[1]}`).join('  ·  ')}</Text>
+              {saveState === 'saving' ? (
+                <View style={styles.saveStatus}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.saveStatusText}>{s('pending')}</Text>
+                </View>
+              ) : saveState === 'saved' ? (
+                <Text style={styles.saveStatusText}>{s('matchLoggedPending')}</Text>
+              ) : saveState === 'error' ? (
+                <Text style={[styles.saveStatusText, { color: colors.red }]}>{s('genericError')}</Text>
+              ) : null}
               <View style={styles.winBtns}>
-                <Pressable style={[styles.winBtn, styles.winGhost]} onPress={leave} testID="qm-done">
+                <Pressable
+                  style={[styles.winBtn, styles.winGhost, saveState === 'saving' && styles.winBtnDisabled]}
+                  onPress={leave}
+                  disabled={saveState === 'saving'}
+                  testID="qm-done"
+                >
                   <Text style={styles.winGhostText}>{s('qmDone')}</Text>
                 </Pressable>
-                <Pressable style={[styles.winBtn, styles.winPrimary]} onPress={() => setMatch(createMatch(config))} testID="qm-rematch">
-                  <Text style={styles.winPrimaryText}>{s('qmRematch')}</Text>
+                <Pressable
+                  style={[styles.winBtn, styles.winPrimary, saveState === 'saving' && styles.winBtnDisabled]}
+                  onPress={saveState === 'error' ? retrySave : rematch}
+                  disabled={saveState === 'saving'}
+                  testID={saveState === 'error' ? 'qm-retry-save' : 'qm-rematch'}
+                >
+                  <Text style={styles.winPrimaryText}>{saveState === 'error' ? s('retry') : s('qmRematch')}</Text>
                 </Pressable>
               </View>
             </View>
@@ -175,8 +242,11 @@ function createStyles(colors: ThemeColors) {
     winCard: { alignItems: 'center', gap: 10, paddingVertical: 26, paddingHorizontal: 34, borderRadius: 22, backgroundColor: colors.bgAlt, borderWidth: 1, borderColor: colors.borderLight },
     winName: { fontFamily: Fonts.heading, fontSize: 24, fontWeight: FontWeight.extrabold, color: colors.text },
     winScore: { fontFamily: Fonts.body, fontSize: 13, fontWeight: FontWeight.semibold, color: colors.textMuted },
+    saveStatus: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    saveStatusText: { fontFamily: Fonts.body, fontSize: 12, fontWeight: FontWeight.semibold, color: colors.textMuted, textAlign: 'center' },
     winBtns: { flexDirection: 'row', gap: 10, marginTop: 8 },
     winBtn: { paddingVertical: 11, paddingHorizontal: 22, borderRadius: 12 },
+    winBtnDisabled: { opacity: 0.5 },
     winGhost: { backgroundColor: colors.bgMuted, borderWidth: 1, borderColor: colors.borderLight },
     winGhostText: { fontFamily: Fonts.body, fontSize: 14, fontWeight: FontWeight.bold, color: colors.text },
     winPrimary: { backgroundColor: colors.primary },

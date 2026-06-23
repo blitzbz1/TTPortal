@@ -49,6 +49,7 @@ export function QuickMatchSetupScreen() {
     router.replace({
       pathname: '/(protected)/quick-match/board',
       params: {
+        opponentId: params.opponentId,
         points: String(points),
         bestOf: String(bestOf),
         n0: names[0].trim() || s('qmYou'),

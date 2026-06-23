@@ -58,7 +58,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const [editorVisible, setEditorVisible] = useState(false);
   const [quickMatchVisible, setQuickMatchVisible] = useState(false);
   const [trainingVisible, setTrainingVisible] = useState(false);
-  const { data: matches = [] } = usePlayerMatchesQuery(user?.id);
+  const { data: matches = [], refetch: refetchMatches } = usePlayerMatchesQuery(user?.id);
   const confirmedMatches = useMemo(
     () => matches.filter((m) => m.status === 'confirmed' && m.winner_id),
     [matches],
@@ -78,7 +78,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   }, [s]);
 
   // ── F030: rating + celebration on rating-up.
-  const { data: rating } = usePlayerRatingQuery(user?.id);
+  const { data: rating, refetch: refetchRating } = usePlayerRatingQuery(user?.id);
   const [celebrate, setCelebrate] = useState(false);
   useEffect(() => {
     if (!user?.id || rating?.rating == null) return;
@@ -92,7 +92,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   } = useBadgeProgress(user?.id);
 
   // F050: weekly play streak (rides get_profile_stats; migration 126).
-  const { data: profileStats } = useProfileStatsQuery(user?.id);
+  const { data: profileStats, refetch: refetchProfileStats } = useProfileStatsQuery(user?.id);
   const currentStreak = profileStats?.current_streak ?? 0;
   const bestStreak = profileStats?.best_streak ?? 0;
   const [streakDetailVisible, setStreakDetailVisible] = useState(false);
@@ -175,6 +175,20 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   );
   const loading = isLoading && !profile;
   const profileError = isError && !profile;
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshProfileScreen = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        refetchProfile(),
+        refetchProfileStats(),
+        refetchMatches(),
+        refetchRating(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetchMatches, refetchProfile, refetchProfileStats, refetchRating]);
 
   // F014: home venue ("plays at X") + auto-suggestion when none is set yet.
   const queryClient = useQueryClient();
@@ -264,7 +278,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
 
       <ScrollView
         style={styles.scroll}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetchProfile} colors={[colors.primary]} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshProfileScreen} colors={[colors.primary]} tintColor={colors.primary} />}
       >
         <View style={styles.profileSummaryCard}>
           <View style={styles.identityHeaderRow}>
