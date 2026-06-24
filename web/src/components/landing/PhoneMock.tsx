@@ -18,7 +18,7 @@ const SCREENSHOTS: Record<string, string> = {
   equipment: "/screenshots/echipament.png",
   players: "/screenshots/amatur.png",
   // --- New features (captured from the app on iOS sim) ---
-  busyness: "/screenshots/busyness.png", // Feature 02 — live busyness + weather
+  // Feature 02 (venue weather + busyness) is rendered by VenueShowcase, not here.
   "ladder-rating": "/screenshots/ladder-rating.png", // Feature 04 — matches, Elo rating, ladder
   "find-players": "/screenshots/find-players.png", // Feature 05 — find players / open play
   "tt-wrapped-story": "/screenshots/tt-wrapped-story.png", // TT Wrapped story
@@ -52,7 +52,6 @@ export default function PhoneMock({
   label,
   variant = "feature",
   priority = false,
-  live = false,
 }: {
   slot: string;
   alt: string;
@@ -60,8 +59,6 @@ export default function PhoneMock({
   label?: string;
   variant?: Variant;
   priority?: boolean;
-  /** Pin a small animated "Live" badge to the frame. */
-  live?: boolean;
 }) {
   const src = SCREENSHOTS[slot];
   const d = DIMS[variant];
@@ -98,15 +95,6 @@ export default function PhoneMock({
             <ScreenshotPlaceholder slot={slot} label={label ?? alt} />
           )}
         </div>
-
-        {live && (
-          <div className="absolute -right-3 top-24 rotate-6 rounded-md border border-ink-100 bg-surface px-2 py-1 shadow-[0_6px_16px_-6px_rgba(12,29,19,0.18)]">
-            <span className="kicker flex items-center gap-1.5 text-moss-800">
-              <span className="inline-block h-[6px] w-[6px] animate-pulse rounded-full bg-clay-500" />
-              Live
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );

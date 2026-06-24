@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import Hero from "@/components/landing/Hero";
 import Features from "@/components/landing/Features";
 import WaysToPlay from "@/components/landing/WaysToPlay";
+import QuickMatch from "@/components/landing/QuickMatch";
 import WrappedMoment from "@/components/landing/WrappedMoment";
 import SecondaryFeatures from "@/components/landing/SecondaryFeatures";
 import HowItWorks from "@/components/landing/HowItWorks";
@@ -29,6 +30,7 @@ function LandingContent() {
       <Hero />
       <Features />
       <WaysToPlay />
+      <QuickMatch />
       <WrappedMoment />
       <SecondaryFeatures />
       <HowItWorks />

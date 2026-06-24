@@ -1,14 +1,15 @@
 import { useTranslations } from "next-intl";
 import PhoneMock from "@/components/landing/PhoneMock";
+import VenueShowcase from "@/components/landing/VenueShowcase";
 
 /**
  * The curated set of flagship "phone block" features, in narrative order.
  * `slot` maps to a screenshot in PhoneMock — slots without a real screenshot
  * render an app-matched placeholder until one is dropped in.
  */
-const FEATURES: { index: number; slot: string; live?: boolean }[] = [
+const FEATURES: { index: number; slot: string }[] = [
   { index: 1, slot: "map" },
-  { index: 2, slot: "busyness", live: true },
+  { index: 2, slot: "venue" },
   { index: 3, slot: "checkin" },
   { index: 4, slot: "ladder-rating" },
   { index: 5, slot: "find-players" },
@@ -18,12 +19,10 @@ const FEATURES: { index: number; slot: string; live?: boolean }[] = [
 function FeatureBlock({
   index,
   slot,
-  live,
   reversed,
 }: {
   index: number;
   slot: string;
-  live?: boolean;
   reversed: boolean;
 }) {
   const t = useTranslations("features");
@@ -75,15 +74,20 @@ function FeatureBlock({
     </div>
   );
 
-  const phoneBlock = (
-    <PhoneMock
-      slot={slot}
-      variant="feature"
-      alt={`${t(`${prefix}Title`)} ${t(`${prefix}TitleLine2`)}`}
-      label={t(`${prefix}Title`)}
-      live={live}
-    />
-  );
+  const phoneBlock =
+    slot === "venue" ? (
+      <VenueShowcase
+        weatherAlt={t("feature2AltWeather")}
+        busynessAlt={t("feature2AltBusyness")}
+      />
+    ) : (
+      <PhoneMock
+        slot={slot}
+        variant="feature"
+        alt={`${t(`${prefix}Title`)} ${t(`${prefix}TitleLine2`)}`}
+        label={t(`${prefix}Title`)}
+      />
+    );
 
   return (
     <div className="flex flex-col items-center gap-16 lg:flex-row lg:gap-24">
@@ -106,7 +110,10 @@ export default function Features() {
   const t = useTranslations("features");
 
   return (
-    <section id="features" className="bg-surface px-6 py-28 md:px-20">
+    <section
+      id="features"
+      className="overflow-x-clip bg-surface px-6 py-28 md:px-20"
+    >
       <div className="mx-auto flex max-w-[820px] flex-col items-center gap-5 pb-20 text-center">
         <span className="kicker flex items-center gap-2 text-clay-700">
           <span className="inline-block h-[6px] w-[6px] rounded-full bg-clay-500" />
@@ -128,7 +135,6 @@ export default function Features() {
             <FeatureBlock
               index={feat.index}
               slot={feat.slot}
-              live={feat.live}
               reversed={idx % 2 === 1}
             />
             {idx < FEATURES.length - 1 && (

@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import GetStartedModal from "@/components/GetStartedModal";
+import LiveBadge from "@/components/landing/LiveBadge";
 import { asset } from "@/lib/asset";
 
 function BallGlyph({ className = "" }: { className?: string }) {
@@ -128,12 +129,7 @@ export default function Hero() {
               />
             </div>
             {/* small "LIVE" sports-style badge pinned to the frame */}
-            <div className="absolute -right-3 top-24 rotate-6 rounded-md border border-ink-100 bg-surface px-2 py-1 shadow-[0_6px_16px_-6px_rgba(12,29,19,0.18)]">
-              <span className="kicker flex items-center gap-1.5 text-moss-800">
-                <span className="inline-block h-[6px] w-[6px] animate-pulse rounded-full bg-clay-500" />
-                Live
-              </span>
-            </div>
+            <LiveBadge className="absolute -right-3 top-24 rotate-6" />
           </div>
         </div>
       </div>
