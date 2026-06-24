@@ -256,7 +256,9 @@ export function PlayHistoryScreen() {
     return formatHours(total);
   };
 
-  const grouped = groupByDay(displayHistory);
+  // Memoized: groupByDay sorts + buckets the full (paginated) history into a
+  // Map on each call — avoid re-running it on every unrelated re-render.
+  const grouped = useMemo(() => groupByDay(displayHistory), [displayHistory, s, lang]);
 
   const filteredVenueCount = useMemo(() => {
     const start = getPeriodStart();
