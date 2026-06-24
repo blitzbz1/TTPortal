@@ -65,11 +65,11 @@ export function parseQuickMatchUserId(scanned: string): string | null {
 
 /**
  * Builds the payload for Share.share(): the URL rides in the message on
- * Android (which ignores `url`) and additionally in the `url` field on iOS
- * (which renders it as a rich link).
+ * Android (which ignores `url`) and rides separately on iOS/web so share
+ * targets receive clean text + URL instead of one composed message.
  */
 export function sharePayload(message: string, url: string): { message: string; url?: string } {
-  if (Platform.OS === 'ios') {
+  if (Platform.OS === 'ios' || Platform.OS === 'web') {
     return { message, url };
   }
   return { message: `${message}\n${url}` };

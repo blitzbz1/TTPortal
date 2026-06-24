@@ -41,6 +41,11 @@ jest.mock('../../services/clubs', () => ({
   joinClubByCode: (...a: any[]) => mockJoinClubByCode(...a),
 }));
 
+const mockInvalidateClubsCache = jest.fn();
+jest.mock('../../lib/clubsCache', () => ({
+  invalidateClubsCache: (...a: any[]) => mockInvalidateClubsCache(...a),
+}));
+
 const mockStash = jest.fn();
 const mockClear = jest.fn();
 jest.mock('../../lib/referralStash', () => ({
@@ -97,6 +102,7 @@ describe('JoinReferralScreen (F041 deep-link claim)', () => {
         pathname: '/(protected)/clubs/[id]',
         params: { id: '42' },
       });
+      expect(mockInvalidateClubsCache).toHaveBeenCalledWith('me-1');
     });
   });
 

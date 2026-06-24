@@ -623,6 +623,8 @@
   "noLeaderboard": "Nincs ranglistaeredmény",
   "you": "Te",
   "sortRecent": "Legújabb",
+  "sortOldest": "Oldest",
+  "sortTopRated": "Top rated",
   "sortName": "Név",
   "noFavorites": "Nincs mentett kedvenc",
   "favPark": "🌳 Park",

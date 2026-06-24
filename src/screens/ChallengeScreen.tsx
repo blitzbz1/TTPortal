@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, RefreshControl, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Easing, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { showAlert } from '../lib/dialogs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -12,6 +12,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useI18n } from '../hooks/useI18n';
 import { getDateLocale } from '../contexts/I18nProvider';
 import { useSession } from '../hooks/useSession';
+import { useAppShare } from '../contexts/ShareProvider';
 import { createStyles } from './ChallengeScreen.styles';
 import { EarnedBadgeModal } from './ChallengeScreen/EarnedBadgeModal';
 import { BadgesTab } from './ChallengeScreen/BadgesTab';
@@ -124,6 +125,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const { colors, isDark } = useTheme();
   const { s, sn, lang } = useI18n();
   const { user } = useSession();
+  const { share } = useAppShare();
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
   const { selectedCity } = useSelectedLocation();
@@ -464,7 +466,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
 
   const handleShareEarnedBadge = async () => {
     if (!earnedBadgeModal) return;
-    await Share.share({
+    await share({
       message: s(
         'challengeBadgeShareMessage',
         tierLabel(earnedBadgeModal.tier),

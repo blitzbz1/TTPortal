@@ -56,12 +56,7 @@ export function WeatherHero({ lat, lng, enabled = true }: Props) {
   const tonePale =
     verdict === 'good' ? colors.primaryPale : verdict === 'windy' ? colors.amberPale : colors.bluePale;
 
-  const kicker =
-    verdict === 'good'
-      ? s('weatherHeroGoodKicker')
-      : verdict === 'windy'
-        ? s('weatherHeroWindyKicker')
-        : s('weatherHeroWetKicker');
+  const kicker = s('weatherHeroNow');
   const headline =
     verdict === 'good'
       ? s('weatherHeroGood')
@@ -90,7 +85,7 @@ export function WeatherHero({ lat, lng, enabled = true }: Props) {
       {/* ── Banner: verdict (left) · current readout (right) ── */}
       <View style={styles.banner}>
         <View style={[styles.orb, { backgroundColor: tonePale, borderColor: tone }]}>
-          <Lucide name={weatherCodeIcon(data.weather_code)} size={24} color={tone} />
+          <Lucide name={weatherCodeIcon(data.weather_code)} size={21} color={tone} />
         </View>
         <View style={styles.verdict}>
           <View style={styles.kickerRow}>
@@ -142,7 +137,7 @@ export function WeatherHero({ lat, lng, enabled = true }: Props) {
                   </Text>
                   <Lucide
                     name={weatherCodeIcon(h.weather_code)}
-                    size={15}
+                    size={14}
                     color={wet ? colors.blue : h.weather_code != null && h.weather_code <= 2 ? colors.accentBright : colors.textMuted}
                   />
                   <Text style={styles.hTemp}>{h.temp_c != null ? `${Math.round(h.temp_c)}°` : '—'}</Text>
@@ -171,32 +166,32 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.bgAlt,
     },
     // banner
-    banner: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, padding: 12 },
+    banner: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, padding: 10 },
     orb: {
-      width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center',
+      width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
       borderWidth: 1, alignSelf: 'center',
     },
     verdict: { flex: 1, minWidth: 0 },
-    kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
-    dot: { width: 6, height: 6, borderRadius: 3 },
+    kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 1 },
+    dot: { width: 5, height: 5, borderRadius: 2.5 },
     kicker: {
       fontFamily: Fonts.body, fontSize: 10, fontWeight: FontWeight.bold,
       letterSpacing: 0.6, textTransform: 'uppercase', flexShrink: 1,
     },
-    headline: { fontFamily: Fonts.heading, fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: colors.text },
-    sub: { fontFamily: Fonts.body, fontSize: FontSize.sm, color: colors.textMuted, marginTop: 3 },
+    headline: { fontFamily: Fonts.heading, fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: colors.text },
+    sub: { fontFamily: Fonts.body, fontSize: 12, color: colors.textMuted, marginTop: 1 },
     subAmber: { color: colors.amber, fontWeight: FontWeight.bold },
     read: { alignItems: 'flex-end' },
-    temp: { fontFamily: Fonts.heading, fontSize: 23, fontWeight: FontWeight.bold, color: colors.text },
+    temp: { fontFamily: Fonts.heading, fontSize: 21, fontWeight: FontWeight.bold, color: colors.text },
     windChip: {
-      flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 7,
-      paddingVertical: 4, paddingHorizontal: 8, borderRadius: 9, borderWidth: 1,
+      flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5,
+      paddingVertical: 3, paddingHorizontal: 7, borderRadius: 8, borderWidth: 1,
     },
     windText: { fontFamily: Fonts.body, fontSize: FontSize.sm, fontWeight: FontWeight.bold },
     windUnit: { fontFamily: Fonts.body, fontSize: 10, fontWeight: FontWeight.semibold, color: colors.textMuted },
     // forecast
-    fore: { borderTopWidth: 1, borderTopColor: colors.borderLight, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 11 },
-    foreHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 },
+    fore: { borderTopWidth: 1, borderTopColor: colors.borderLight, paddingHorizontal: 10, paddingTop: 8, paddingBottom: 8 },
+    foreHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 },
     foreTitle: {
       fontFamily: Fonts.body, fontSize: 10, fontWeight: FontWeight.bold,
       letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textFaint,
@@ -204,19 +199,19 @@ function createStyles(colors: ThemeColors) {
     bestChip: {
       flexDirection: 'row', alignItems: 'center', gap: 4,
       backgroundColor: colors.primaryPale, borderWidth: 1, borderColor: colors.primaryDim,
-      borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8,
+      borderRadius: 8, paddingVertical: 2, paddingHorizontal: 7,
     },
     bestText: { fontFamily: Fonts.body, fontSize: 10, fontWeight: FontWeight.bold, color: colors.primaryLight },
     timeline: { flexDirection: 'row', alignItems: 'flex-end' },
-    hour: { flex: 1, alignItems: 'center', gap: 5, paddingTop: 2 },
+    hour: { flex: 1, alignItems: 'center', gap: 4, paddingTop: 1 },
     hourTint: {
-      position: 'absolute', top: -3, bottom: -4, left: 1, right: 1, borderRadius: 8,
+      position: 'absolute', top: -2, bottom: -3, left: 1, right: 1, borderRadius: 8,
       backgroundColor: colors.primaryPale, borderWidth: 1, borderColor: colors.primaryDim,
     },
     hTime: { fontFamily: Fonts.body, fontSize: 10, fontWeight: FontWeight.semibold, color: colors.textFaint },
     hTemp: { fontFamily: Fonts.body, fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: colors.text },
     hBar: {
-      width: 22, height: 20, borderRadius: 4, overflow: 'hidden',
+      width: 22, height: 17, borderRadius: 4, overflow: 'hidden',
       backgroundColor: colors.bgMuted, borderWidth: 1, borderColor: colors.borderLight,
       justifyContent: 'flex-end',
     },

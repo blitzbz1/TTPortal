@@ -623,6 +623,8 @@
   "noLeaderboard": "Edetabeli tulemused puuduvad",
   "you": "Sina",
   "sortRecent": "Viimased",
+  "sortOldest": "Oldest",
+  "sortTopRated": "Top rated",
   "sortName": "Nimi",
   "noFavorites": "Salvestatud lemmikuid pole",
   "favPark": "🌳 Park",

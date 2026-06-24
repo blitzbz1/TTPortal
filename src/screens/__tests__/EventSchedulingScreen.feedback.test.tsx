@@ -321,7 +321,7 @@ describe('EventSchedulingScreen — deep link via eventId param', () => {
     render(<EventSchedulingScreen />);
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith({ pathname: '/(protected)/event/[eventId]', params: { eventId: '42' } });
+      expect(mockReplace).toHaveBeenCalledWith({ pathname: '/event/[eventId]', params: { eventId: '42' } });
     });
   });
 
@@ -361,7 +361,7 @@ describe('EventSchedulingScreen — card tap navigation', () => {
     const card = await findByText(/Arena X .* Past Tournament/);
     fireEvent.press(card);
 
-    expect(mockPush).toHaveBeenCalledWith({ pathname: '/(protected)/event/[eventId]', params: { eventId: '1' } });
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/event/[eventId]', params: { eventId: '1' } });
   });
 });
 

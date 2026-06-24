@@ -2,15 +2,16 @@
 // OS share sheet. react-native-view-shot is the only capture dep installed;
 // expo-sharing/file-system are NOT, so we share through RN's built-in Share.
 import type { RefObject } from 'react';
-import { Platform, Share, type View } from 'react-native';
+import { Platform, type View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { logger } from './logger';
+import { shareContent } from './nativeShare';
 
 export async function shareCardImage(ref: RefObject<View | null>, message: string): Promise<void> {
   if (!ref.current) return;
   try {
     const uri = await captureRef(ref as RefObject<View>, { format: 'png', quality: 1, result: 'tmpfile' });
-    await Share.share(
+    await shareContent(
       Platform.OS === 'ios' ? { url: uri, message } : { message, url: uri },
     );
   } catch (e) {

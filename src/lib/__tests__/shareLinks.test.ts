@@ -1,4 +1,18 @@
-import { playerUrl, playerLogMatchUrl, parseQuickMatchUserId, joinUrl } from '../shareLinks';
+import {
+  eventUrl,
+  joinUrl,
+  parseQuickMatchUserId,
+  playerLogMatchUrl,
+  playerUrl,
+  venueUrl,
+} from '../shareLinks';
+
+describe('Public content links', () => {
+  it('builds canonical venue and event paths handled by public routes', () => {
+    expect(venueUrl(11)).toMatch(/\/venue\/11$/);
+    expect(eventUrl(23)).toMatch(/\/event\/23$/);
+  });
+});
 
 describe('Quick Match deep links (F034)', () => {
   it('builds a player URL', () => {

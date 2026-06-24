@@ -44,8 +44,9 @@ jest.mock('../../lib/supabase', () => ({
     })),
   },
 }));
+const mockGetReviewsForVenue = jest.fn();
 jest.mock('../../services/reviews', () => ({
-  getReviewsForVenue: jest.fn().mockResolvedValue({ data: [] }),
+  getReviewsForVenue: (...a: any[]) => mockGetReviewsForVenue(...a),
 }));
 jest.mock('../../services/checkins', () => ({
   checkin: jest.fn(),
@@ -160,6 +161,56 @@ describe('VenueDetailScreen — merged suggest-edit / condition-vote handler', (
     );
     mockSubmitVote.mockResolvedValue({ data: { id: 9 }, error: null });
     mockSubmitChangeRequest.mockResolvedValue({ data: 1, error: null });
+    mockGetReviewsForVenue.mockResolvedValue({ data: [], error: null });
+  });
+
+  it('uses a compact empty review row', async () => {
+    const utils = render(<VenueDetailScreen venueId="1" />);
+    expect(await utils.findByTestId('empty-reviews-cta')).toBeTruthy();
+  });
+
+  it('shows three reviews by default and can expand and collapse', async () => {
+    const reviews = Array.from({ length: 5 }, (_, index) => ({
+      id: index + 1,
+      venue_id: 1,
+      user_id: `reviewer-${index + 1}`,
+      reviewer_name: `Reviewer ${index + 1}`,
+      rating: index === 4 ? 5 : 4,
+      body: `Body ${index + 1}`,
+      created_at: new Date(2026, 0, index + 1).toISOString(),
+    }));
+    mockGetReviewsForVenue.mockResolvedValue({ data: reviews, error: null });
+    mockRpc.mockImplementation((fn: string) =>
+      fn === 'get_venue_detail'
+        ? Promise.resolve({
+            data: {
+              venue: VENUE,
+              stats: { ...VENUE.venue_stats, review_count: 5 },
+              is_favorited: false,
+              user_active_checkin: null,
+              upcoming_event_count: 0,
+              champion: null,
+              recent_reviews: reviews.slice(-5).reverse(),
+            },
+            error: null,
+          })
+        : Promise.resolve({ data: [], error: null }),
+    );
+
+    const utils = render(<VenueDetailScreen venueId="1" />);
+    await utils.findByTestId('review-card-5');
+    expect(utils.getByTestId('review-card-4')).toBeTruthy();
+    expect(utils.getByTestId('review-card-3')).toBeTruthy();
+    expect(utils.queryByTestId('review-card-2')).toBeNull();
+
+    fireEvent.press(utils.getByTestId('reviews-expand-toggle'));
+    expect(utils.getByTestId('review-card-2')).toBeTruthy();
+    expect(utils.getByTestId('review-card-1')).toBeTruthy();
+
+    fireEvent.press(utils.getByTestId('reviews-expand-toggle'));
+    expect(utils.queryByTestId('review-card-2')).toBeNull();
+    expect(utils.getByTestId('review-sort-oldest')).toBeTruthy();
+    expect(utils.getByTestId('review-sort-top')).toBeTruthy();
   });
 
   it('hides the amenities grid and the modal amenity fields for outdoor parks', async () => {

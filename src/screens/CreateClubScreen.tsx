@@ -7,7 +7,6 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
-  Share,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -25,12 +24,14 @@ import { useSession } from '../hooks/useSession';
 import { CityPickerModal } from '../components/CityPickerModal';
 import { VenuePickerModal } from '../components/VenuePickerModal';
 import { useCreateClub, getClubDetail, uploadClubAvatar } from '../features/clubs';
+import { useAppShare } from '../contexts/ShareProvider';
 import { clubUrl, sharePayload } from '../lib/shareLinks';
 import { venueImageUrl } from '../lib/imageTransforms';
 
 export function CreateClubScreen() {
   const router = useRouter();
   const { s } = useI18n();
+  const { share } = useAppShare();
   const { user } = useSession();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -106,8 +107,8 @@ export function CreateClubScreen() {
 
   const handleShare = useCallback(() => {
     if (!joinCode) return;
-    Share.share(sharePayload(s('clubShareMessage', joinCode), clubUrl(joinCode)));
-  }, [joinCode, s]);
+    share({ ...sharePayload(s('clubShareMessage', joinCode), clubUrl(joinCode)), title: s('clubCreatedTitle') });
+  }, [joinCode, s, share]);
 
   // -- Success view: show the join code + share + go-to-club --
   if (createdClubId && joinCode) {

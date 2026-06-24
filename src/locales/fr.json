@@ -606,6 +606,8 @@
   "noLeaderboard": "Aucun résultat au classement",
   "you": "Vous",
   "sortRecent": "Récent",
+  "sortOldest": "Oldest",
+  "sortTopRated": "Top rated",
   "sortName": "Nom",
   "noFavorites": "Aucun favori enregistré",
   "favPark": "🌳 Parc",

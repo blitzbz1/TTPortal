@@ -129,11 +129,11 @@ describe('ProtectedLayout', () => {
       getByTestId('stack-navigator');
     });
 
-    it('registers event detail route for restored /event/:id navigation state', () => {
-      render(<ProtectedLayout />);
+  it('keeps the public event detail route out of the protected stack', () => {
+    render(<ProtectedLayout />);
 
-      expect(mockStackScreenNames).toContain('event/[eventId]');
-    });
+    expect(mockStackScreenNames).not.toContain('event/[eventId]');
+  });
 
     it('does not log a redirect', () => {
       render(<ProtectedLayout />);

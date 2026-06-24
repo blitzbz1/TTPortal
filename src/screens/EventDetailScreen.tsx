@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, Share } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { showAlert } from '../lib/dialogs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -38,6 +38,7 @@ import {
   useEventChallenges,
 } from '../features/challenges';
 import { useOfflineQueue } from '../contexts/OfflineQueueProvider';
+import { useAppShare } from '../contexts/ShareProvider';
 import { eventUrl, sharePayload } from '../lib/shareLinks';
 
 export function EventDetailScreen() {
@@ -47,6 +48,7 @@ export function EventDetailScreen() {
   const eventId = Number(eventIdParam);
   const { user } = useSession();
   const { s, lang } = useI18n();
+  const { share } = useAppShare();
   const { isOnline } = useOfflineQueue();
   const { colors, isDark } = useTheme();
   const { styles } = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
@@ -341,7 +343,7 @@ export function EventDetailScreen() {
           <TouchableOpacity
             onPress={() => {
               if (!event) return;
-              Share.share(sharePayload(event.title ?? s('eventDetails'), eventUrl(event.id)));
+              share({ ...sharePayload(event.title ?? s('eventDetails'), eventUrl(event.id)), title: event.title ?? s('eventDetails') });
             }}
             hitSlop={8}
             accessibilityRole="button"

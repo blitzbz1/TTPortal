@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 // eslint-disable-next-line no-restricted-imports -- dynamic review action sheet keeps Alert; it has an explicit web fallback
-import { View, Text, TouchableOpacity, Alert, Linking, Share, ActivityIndicator, Platform, FlatList, Dimensions, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator, Platform, FlatList, Dimensions, Animated } from 'react-native';
 import { showAlert, showConfirm } from '../lib/dialogs';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,12 +48,12 @@ import { useProfileQuery, profileQueryKey, profileStatsQueryKey } from '../hooks
 import { getUserMilestones } from '../features/milestones';
 import { MilestoneCelebrationSheet } from '../components/MilestoneCelebrationSheet';
 import { updateProfile } from '../services/profiles';
-import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { ReportReasonModal } from '../components/ReportReasonModal';
 import { VenueChangeRequestModal } from '../components/VenueChangeRequestModal';
 import type { SelectedImage } from '../components/VenueChangeRequestModal';
 import { FullscreenImageViewer } from '../components/FullscreenImageViewer';
+import { MapAppChooserModal } from '../components/MapAppChooserModal';
 import { submitVenueChangeRequest, uploadChangeRequestImage } from '../services/venueChangeRequests';
 import type { VenueChangeRequestInput } from '../services/venueChangeRequests';
 import { submitVote, uploadConditionVotePhoto, CONDITION_MAP, type ConditionChoice } from '../services/conditions';
@@ -61,9 +61,11 @@ import { reportContent, blockUser, type ReportReason } from '../services/moderat
 import { skillLevelKey, type SkillLevel } from '../lib/playerAttributes';
 import { conditionLabel, venueHoursLabel, venueTypeLabel } from '../lib/venueLabels';
 import { hapticLight } from '../lib/haptics';
+import { useAppShare } from '../contexts/ShareProvider';
 import { sharePayload, venueUrl } from '../lib/shareLinks';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
 import Reanimated from 'react-native-reanimated';
+import { sortReviews, type ReviewSort } from '../lib/reviewSorting';
 
 interface Props {
   venueId?: string;
@@ -73,6 +75,7 @@ export function VenueDetailScreen({ venueId }: Props) {
   const router = useRouter();
   const { user } = useSession();
   const { s, lang } = useI18n();
+  const { share } = useAppShare();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const dateLocale = getDateLocale(lang);
@@ -92,8 +95,9 @@ export function VenueDetailScreen({ venueId }: Props) {
 
   // ── Phase 2 (lazy): full reviews (top-N comes from bundle).
   const [showAllReviews, setShowAllReviews] = useState(false);
-  const REVIEW_INITIAL_LIMIT = 10;
-  const fullReviewsEnabled = showAllReviews || (bundle?.recent_reviews?.length ?? 0) >= 5;
+  const [reviewSort, setReviewSort] = useState<ReviewSort>('latest');
+  const REVIEW_INITIAL_LIMIT = 3;
+  const fullReviewsEnabled = (bundle?.stats?.review_count ?? 0) > 0;
   const { data: fullReviews } = useVenueReviewsQuery(vIdNum, fullReviewsEnabled);
 
   // ── Phase 3 (deferred): friends-at-venue (own RPC).
@@ -127,8 +131,8 @@ export function VenueDetailScreen({ venueId }: Props) {
     [bundle],
   );
   const reviews = useMemo(
-    () => (fullReviews ?? bundle?.recent_reviews ?? []) as Review[],
-    [fullReviews, bundle],
+    () => sortReviews((fullReviews ?? bundle?.recent_reviews ?? []) as Review[], reviewSort),
+    [fullReviews, bundle, reviewSort],
   );
   const favorited = !!bundle?.is_favorited;
   const activeCheckin = bundle?.user_active_checkin ?? null;
@@ -167,6 +171,7 @@ export function VenueDetailScreen({ venueId }: Props) {
   const [uploading, setUploading] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [viewerPhotoUrl, setViewerPhotoUrl] = useState<string | null>(null);
+  const [routeChooserVisible, setRouteChooserVisible] = useState(false);
   const screenWidth = Dimensions.get('window').width;
   const photoWidth = Platform.OS === 'web' ? Math.min(screenWidth, 430) : screenWidth;
   const photoHeight = Math.round(photoWidth * 9 / 16);
@@ -208,13 +213,15 @@ export function VenueDetailScreen({ venueId }: Props) {
     router.push({ pathname: '/(protected)/review/[venueId]', params: { venueId: String(venueId) } });
   }, [router, venueId]);
 
-  const handleShare = useCallback(() => {
+  const handleShare = useCallback(async () => {
     if (!venue || !vIdNum) return;
     // T061: share an openable link, not just text — the web build renders
     // /venue/[id] publicly, so the link works for everyone.
     trackProductEvent(ProductEvents.shareInitiated, { surface: 'venue', venueId: vIdNum });
-    Share.share(sharePayload(venue.name + ' - ' + (venue.address || ''), venueUrl(vIdNum)));
-  }, [venue, vIdNum]);
+    const url = venueUrl(vIdNum);
+    const message = venue.name + ' - ' + (venue.address || '');
+    await share({ ...sharePayload(message, url), title: venue.name });
+  }, [share, venue, vIdNum]);
 
   const handleSuggestEdit = useCallback(() => {
     // Submitting requires a session; bounce to sign-in if signed out.
@@ -521,7 +528,7 @@ export function VenueDetailScreen({ venueId }: Props) {
     setOpenPlayBusyId(intentId);
     convertOpenPlay.mutate({ intentId }, {
       onSuccess: (eventId) => {
-        if (eventId) router.push({ pathname: '/(protected)/event/[eventId]', params: { eventId: String(eventId) } });
+        if (eventId) router.push({ pathname: '/event/[eventId]', params: { eventId: String(eventId) } });
       },
       onError: () => showAlert(s('error'), s('genericError')),
       onSettled: () => setOpenPlayBusyId(null),
@@ -674,32 +681,11 @@ export function VenueDetailScreen({ venueId }: Props) {
     animateHeart();
   }, [user, vIdNum, favorited, fromCache, toggleFavoriteMutation, invalidateVenueDetail, animateHeart, s]);
 
-  const handleDirectionGoogle = useCallback(() => {
-    if (!venue) return;
-    Linking.openURL('https://maps.google.com/?q=' + venue.lat + ',' + venue.lng);
-  }, [venue]);
-
-  const handleDirectionApple = useCallback(() => {
-    if (!venue) return;
-    Linking.openURL('https://maps.apple.com/?q=' + venue.lat + ',' + venue.lng);
-  }, [venue]);
-
-  const handleDirectionWaze = useCallback(() => {
-    if (!venue) return;
-    Linking.openURL('https://waze.com/ul?ll=' + venue.lat + ',' + venue.lng + '&navigate=yes');
-  }, [venue]);
-
   // Action-bar "Route" → choose a maps app (all three open-in handlers above).
   const openRouteSheet = useCallback(() => {
     if (!venue) return;
-    if (Platform.OS === 'web') { handleDirectionGoogle(); return; }
-    Alert.alert(s('vdRoute'), undefined, [
-      { text: 'Google Maps', onPress: handleDirectionGoogle },
-      { text: 'Apple Maps', onPress: handleDirectionApple },
-      { text: 'Waze', onPress: handleDirectionWaze },
-      { text: s('cancel'), style: 'cancel' },
-    ]);
-  }, [venue, s, handleDirectionGoogle, handleDirectionApple, handleDirectionWaze]);
+    setRouteChooserVisible(true);
+  }, [venue]);
 
   const renderStars = (rating: number) => {
     const full = Math.floor(rating);
@@ -923,12 +909,16 @@ export function VenueDetailScreen({ venueId }: Props) {
           </TouchableOpacity>
           <View style={styles.abQuiet}>
             <TouchableOpacity style={styles.qbtn} onPress={handleShare} accessibilityRole="button" accessibilityLabel={s('vdShare')}>
-              <Lucide name="share-2" size={18} color={colors.text} />
+              <View style={styles.qbtnIcon}>
+                <Lucide name="share-2" size={17} color={colors.text} />
+              </View>
               <Text style={styles.qbtnText}>{s('vdShare')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.qbtn} onPress={openRouteSheet} accessibilityRole="button" accessibilityLabel={s('vdRoute')}>
-              <Lucide name="navigation" size={18} color={colors.text} />
-              <Text style={styles.qbtnText}>{s('vdRoute')}</Text>
+            <TouchableOpacity style={[styles.qbtn, styles.qbtnRoute]} onPress={openRouteSheet} accessibilityRole="button" accessibilityLabel={s('vdRoute')}>
+              <View style={styles.qbtnRouteIcon}>
+                <Lucide name="navigation" size={17} color={colors.primaryMid} />
+              </View>
+              <Text style={[styles.qbtnText, styles.qbtnRouteText]}>{s('vdRoute')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1111,20 +1101,48 @@ export function VenueDetailScreen({ venueId }: Props) {
             <Text style={styles.reviewsTitle}>{s('reviewsCount') + ' (' + reviews.length + ')'}</Text>
           </View>
 
-          {reviews.length === 0 && (
-            <EmptyState
-              icon="pen-line"
-              title={s('emptyReviewsTitle')}
-              description={s('emptyReviewsDesc')}
-              ctaLabel={s('emptyReviewsCta')}
-              onCtaPress={() => router.push({ pathname: '/(protected)/review/[venueId]', params: { venueId: String(venueId) } })}
-              iconColor={colors.primaryMid}
-              iconBg={colors.primaryPale}
-            />
-          )}
+          {reviews.length > 1 ? (
+            <View style={styles.reviewSortRow}>
+              {([
+                ['latest', s('sortRecent')],
+                ['oldest', s('sortOldest')],
+                ['top', s('sortTopRated')],
+              ] as const).map(([value, label]) => (
+                <TouchableOpacity
+                  key={value}
+                  style={[styles.reviewSortChip, reviewSort === value && styles.reviewSortChipActive]}
+                  onPress={() => setReviewSort(value)}
+                  testID={`review-sort-${value}`}
+                >
+                  <Text style={[styles.reviewSortText, reviewSort === value && styles.reviewSortTextActive]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
+
+          {reviews.length === 0 ? (
+            <View style={styles.emptyReviewsCompact}>
+              <View style={styles.emptyReviewsIcon}>
+                <Lucide name="pen-line" size={18} color={colors.primaryMid} />
+              </View>
+              <View style={styles.emptyReviewsCopy}>
+                <Text style={styles.emptyReviewsTitle}>{s('emptyReviewsTitle')}</Text>
+                <Text style={styles.emptyReviewsDesc} numberOfLines={1}>{s('emptyReviewsDesc')}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.emptyReviewsCta}
+                onPress={() => router.push({ pathname: '/(protected)/review/[venueId]', params: { venueId: String(venueId) } })}
+                testID="empty-reviews-cta"
+              >
+                <Text style={styles.emptyReviewsCtaText}>{s('emptyReviewsCta')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           {visibleReviews.map((review) => (
-            <View key={review.id} style={styles.reviewCard}>
+            <View key={review.id} style={styles.reviewCard} testID={`review-card-${review.id}`}>
               <View style={styles.reviewTop}>
                 <Text style={styles.reviewAuthor}>{review.reviewer_name || s('anon')}</Text>
                 <View style={styles.reviewTopRight}>
@@ -1146,14 +1164,17 @@ export function VenueDetailScreen({ venueId }: Props) {
               <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString(dateLocale)}</Text>
             </View>
           ))}
-          {!showAllReviews && reviews.length > REVIEW_INITIAL_LIMIT && (
+          {reviews.length > REVIEW_INITIAL_LIMIT && (
             <TouchableOpacity
-              onPress={() => setShowAllReviews(true)}
+              onPress={() => setShowAllReviews((current) => !current)}
               style={styles.writeReviewBtn}
               accessibilityRole="button"
+              testID="reviews-expand-toggle"
             >
               <Text style={styles.writeReviewText}>
-                {`+ ${reviews.length - REVIEW_INITIAL_LIMIT}`}
+                {showAllReviews
+                  ? s('profileShowLessBadges')
+                  : `${s('profileShowMoreBadges')} (+${reviews.length - REVIEW_INITIAL_LIMIT})`}
               </Text>
             </TouchableOpacity>
           )}
@@ -1284,6 +1305,16 @@ export function VenueDetailScreen({ venueId }: Props) {
       />
 
       <FullscreenImageViewer url={viewerPhotoUrl} onClose={() => setViewerPhotoUrl(null)} />
+      <MapAppChooserModal
+        visible={routeChooserVisible}
+        destination={venue ? {
+          latitude: venue.lat,
+          longitude: venue.lng,
+          name: venue.name,
+          address: venue.address,
+        } : null}
+        onClose={() => setRouteChooserVisible(false)}
+      />
     </SafeAreaView>
   );
 }

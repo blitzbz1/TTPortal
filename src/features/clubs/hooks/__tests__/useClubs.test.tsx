@@ -15,6 +15,7 @@ import {
 } from '../useClubs';
 
 const mockGetMyClubs = jest.fn();
+const mockLoadCachedClubs: jest.Mock = jest.fn(() => null);
 const mockCreateClub = jest.fn();
 const mockJoinClubByCode = jest.fn();
 const mockLeaveClub = jest.fn();
@@ -29,7 +30,7 @@ jest.mock('../../../../services/clubs', () => ({
 }));
 
 jest.mock('../../../../lib/clubsCache', () => ({
-  loadCachedClubs: jest.fn(() => null),
+  loadCachedClubs: (userId: string) => mockLoadCachedClubs(userId),
   saveCachedClubs: jest.fn(),
   invalidateClubsCache: jest.fn(),
 }));
@@ -54,7 +55,10 @@ function newClient() {
   return client;
 }
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockLoadCachedClubs.mockReturnValue(null);
+});
 afterEach(() => {
   for (const client of liveClients.splice(0)) {
     client.clear();
@@ -79,6 +83,19 @@ describe('useMyClubsQuery (F040)', () => {
     const { result } = renderHook(() => useMyClubsQuery(undefined), { wrapper: wrapperWith(client) });
     expect(result.current.fetchStatus).toBe('idle');
     expect(mockGetMyClubs).not.toHaveBeenCalled();
+  });
+
+  it('revalidates a cached empty list so cross-device joins appear', async () => {
+    const rows = [{ id: 23, name: 'Team 23', role: 'member', member_count: 2 }];
+    mockLoadCachedClubs.mockReturnValue({ data: [], fresh: true });
+    mockGetMyClubs.mockResolvedValue({ data: rows, error: null });
+    const client = newClient();
+
+    const { result } = renderHook(() => useMyClubsQuery(USER), { wrapper: wrapperWith(client) });
+
+    expect(result.current.data).toEqual([]);
+    await waitFor(() => expect(result.current.data).toEqual(rows));
+    expect(mockGetMyClubs).toHaveBeenCalledTimes(1);
   });
 });
 

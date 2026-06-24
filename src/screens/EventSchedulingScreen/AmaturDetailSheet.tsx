@@ -7,6 +7,7 @@ import { useI18n } from '../../hooks/useI18n';
 import { getDateLocale } from '../../contexts/I18nProvider';
 import type { AmaturEvent } from '../../services/amatur';
 import { createStyles } from '../EventSchedulingScreen.styles';
+import { buildMapAppLinks } from '../../lib/mapLinks';
 
 interface Props {
   event: AmaturEvent | null;
@@ -19,6 +20,14 @@ export function AmaturDetailSheet({ event, bottomInset, onClose }: Props) {
   const { colors, isDark } = useTheme();
   const { styles, ms } = React.useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const locale = getDateLocale(lang);
+  const mapLinks = event?.latitude != null && event.longitude != null
+    ? buildMapAppLinks({
+        latitude: event.latitude,
+        longitude: event.longitude,
+        name: event.name || event.city,
+        address: event.address,
+      })
+    : null;
 
   return (
     <Modal
@@ -116,15 +125,15 @@ export function AmaturDetailSheet({ event, bottomInset, onClose }: Props) {
               {event.latitude != null && event.longitude != null && (
                 <View style={styles.amaturNavSection}>
                   <View style={styles.amaturNavRow}>
-                    <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://maps.google.com/?q=${event.latitude},${event.longitude}`)}>
+                    <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(mapLinks!.google)}>
                       <Lucide name="navigation" size={14} color={colors.textMuted} />
                       <Text style={styles.amaturNavBtnText}>Google</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://maps.apple.com/?q=${event.latitude},${event.longitude}`)}>
+                    <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(mapLinks!.apple)}>
                       <Lucide name="navigation" size={14} color={colors.textMuted} />
                       <Text style={styles.amaturNavBtnText}>Apple</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://waze.com/ul?ll=${event.latitude},${event.longitude}&navigate=yes`)}>
+                    <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(mapLinks!.waze)}>
                       <Lucide name="navigation" size={14} color={colors.textMuted} />
                       <Text style={styles.amaturNavBtnText}>Waze</Text>
                     </TouchableOpacity>

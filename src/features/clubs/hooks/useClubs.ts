@@ -31,7 +31,12 @@ export function useMyClubsQuery(userId: string | undefined) {
     },
     initialData: () => (userId ? loadCachedClubs<MyClub>(userId)?.data : undefined),
     enabled: !!userId,
-    staleTime: 5 * 60 * 1000,
+    // Membership can change on another device. Cached rows are only an
+    // instant/offline paint; verify them whenever this screen mounts or the
+    // browser regains focus so a cached empty list cannot hide a real join.
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 }
 

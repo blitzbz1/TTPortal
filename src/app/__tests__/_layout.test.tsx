@@ -12,6 +12,7 @@ const mockUseSession = jest.fn();
 const mockStackScreenNames: string[] = [];
 let mockGlobalSearchParams: Record<string, string> = {};
 let mockPathname = '/';
+const mockReplace = jest.fn();
 const mockUseSelectedLocation = jest.fn();
 
 jest.mock('../../hooks/useSession', () => ({
@@ -73,6 +74,7 @@ jest.mock('expo-router', () => {
     Stack: StackComponent,
     useGlobalSearchParams: () => mockGlobalSearchParams,
     usePathname: () => mockPathname,
+    useRouter: () => ({ replace: mockReplace }),
     ErrorBoundary: () => null,
   };
 });
@@ -211,6 +213,11 @@ describe('RootLayout', () => {
       expect(mockStackScreenNames).toContain('venue/[id]');
     });
 
+    it('registers public event detail route for shared links', () => {
+      render(<RootLayout />);
+      expect(mockStackScreenNames).toContain('event/[eventId]');
+    });
+
     it('hides native splash screen once fully loaded', () => {
       render(<RootLayout />);
 
@@ -235,6 +242,18 @@ describe('RootLayout', () => {
 
       const { getByTestId, queryByTestId } = render(<RootLayout />);
 
+      getByTestId('stack-navigator');
+      expect(queryByTestId('initial-location-setup-modal')).toBeNull();
+    });
+
+    it('does not put initial location setup in front of a shared venue link', () => {
+      mockPathname = '/venue/11';
+      mockUseSelectedLocation.mockReturnValueOnce({
+        hasCompletedInitialLocationSetup: false,
+        resetInitialLocationSetup: jest.fn(),
+      });
+
+      const { getByTestId, queryByTestId } = render(<RootLayout />);
       getByTestId('stack-navigator');
       expect(queryByTestId('initial-location-setup-modal')).toBeNull();
     });

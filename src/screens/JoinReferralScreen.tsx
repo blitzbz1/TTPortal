@@ -15,6 +15,7 @@ import {
   stashPendingReferralCode,
 } from '../lib/referralStash';
 import { invalidateFriendsCache } from '../lib/friendsCache';
+import { invalidateClubsCache } from '../lib/clubsCache';
 
 interface Props {
   /** The 6-char code from /join/<code>; falls back to a stashed code. */
@@ -77,6 +78,7 @@ export function JoinReferralScreen({ code: codeProp }: Props) {
       const { data: clubId, error: clubError } = await joinClubByCode(code);
       if (!clubError && clubId) {
         clearPendingReferralCode();
+        invalidateClubsCache(user.id);
         setStatus('done');
         router.replace({ pathname: '/(protected)/clubs/[id]', params: { id: String(clubId) } });
         return;

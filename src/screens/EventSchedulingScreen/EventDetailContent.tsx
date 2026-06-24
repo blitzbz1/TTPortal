@@ -14,6 +14,7 @@ import { BADGE_TRACKS } from '../../features/challenges/badgeDefinitions';
 import type { DbChallenge, EventChallengeSubmission } from '../../features/challenges';
 import { TournamentSection } from '../../features/tournaments';
 import { createStyles } from '../EventSchedulingScreen.styles';
+import { buildMapAppLinks } from '../../lib/mapLinks';
 
 type BadgeInfo = { text: string; bg: string; color: string };
 
@@ -147,6 +148,14 @@ export function EventDetailContent(props: EventDetailContentProps) {
   const venueCity = ev.venues?.city ?? '';
   const venueLat = ev.venues?.lat as number | null;
   const venueLng = ev.venues?.lng as number | null;
+  const venueMapLinks = venueLat != null && venueLng != null
+    ? buildMapAppLinks({
+        latitude: venueLat,
+        longitude: venueLng,
+        name: venueName,
+        address: [ev.venues?.address, venueCity].filter(Boolean).join(', '),
+      })
+    : null;
   const isJoined = ev.event_participants?.some((p: any) => p.user_id === user?.id);
   const duration = getDuration(ev.starts_at, ev.ends_at);
   const description = typeof ev.description === 'string' ? ev.description.trim() : '';
@@ -496,15 +505,15 @@ export function EventDetailContent(props: EventDetailContentProps) {
           </View>
           <View style={styles.amaturNavSection}>
             <View style={styles.amaturNavRow}>
-              <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://maps.google.com/?q=${venueLat},${venueLng}`)}>
+              <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(venueMapLinks!.google)}>
                 <Lucide name="navigation" size={14} color={colors.textMuted} />
                 <Text style={styles.amaturNavBtnText}>Google</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://maps.apple.com/?q=${venueLat},${venueLng}`)}>
+              <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(venueMapLinks!.apple)}>
                 <Lucide name="navigation" size={14} color={colors.textMuted} />
                 <Text style={styles.amaturNavBtnText}>Apple</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(`https://waze.com/ul?ll=${venueLat},${venueLng}&navigate=yes`)}>
+              <TouchableOpacity style={styles.amaturNavBtn} onPress={() => Linking.openURL(venueMapLinks!.waze)}>
                 <Lucide name="navigation" size={14} color={colors.textMuted} />
                 <Text style={styles.amaturNavBtnText}>Waze</Text>
               </TouchableOpacity>

@@ -1,4 +1,9 @@
 export function recoverRouteFromUnmatchedPath(pathname?: string | null): string {
+  return recoverSharedRoute(pathname) ?? '/(tabs)/';
+}
+
+/** Resolve a public/shared URL path without forcing unknown paths to tabs. */
+export function recoverSharedRoute(pathname?: string | null): string | null {
   const rawPath = pathname?.split(/[?#]/)[0] ?? '';
   let path = rawPath;
   try {
@@ -14,8 +19,18 @@ export function recoverRouteFromUnmatchedPath(pathname?: string | null): string 
 
   const eventMatch = path.match(/(?:^|\/)event\/([^/]+)\/?$/);
   if (eventMatch?.[1]) {
-    return `/(protected)/event/${encodeURIComponent(eventMatch[1])}`;
+    return `/event/${encodeURIComponent(eventMatch[1])}`;
   }
 
-  return '/(tabs)/';
+  const playerMatch = path.match(/(?:^|\/)player\/([^/]+)\/?$/);
+  if (playerMatch?.[1]) {
+    return `/(protected)/player/${encodeURIComponent(playerMatch[1])}`;
+  }
+
+  const joinMatch = path.match(/(?:^|\/)join\/([^/]+)\/?$/);
+  if (joinMatch?.[1]) {
+    return `/join/${encodeURIComponent(joinMatch[1])}`;
+  }
+
+  return null;
 }

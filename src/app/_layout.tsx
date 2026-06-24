@@ -13,10 +13,10 @@ import {
   DMSans_400Regular,
   DMSans_500Medium,
 } from '@expo-google-fonts/dm-sans';
-import { Stack, useGlobalSearchParams, usePathname } from 'expo-router';
+import { Stack, useGlobalSearchParams, usePathname, useRouter, type Href } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LogBox, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import AnimatedSplash from '../components/AnimatedSplash';
@@ -27,11 +27,13 @@ import { I18nProvider } from '../contexts/I18nProvider';
 import { LocationProvider } from '../contexts/LocationProvider';
 import { ThemeProvider } from '../contexts/ThemeProvider';
 import { OfflineQueueProvider } from '../contexts/OfflineQueueProvider';
+import { ShareProvider } from '../contexts/ShareProvider';
 import { useSession } from '../hooks/useSession';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { installCrashReporting } from '../lib/telemetry';
+import { recoverSharedRoute } from '../lib/routeRecovery';
 
 function readInitialLocationParamFromUrl(name: string): boolean {
   if (typeof window === 'undefined') return false;
@@ -84,7 +86,9 @@ export default function RootLayout() {
                     <ThemeProvider>
                       <NotificationProvider>
                         <BottomSheetModalProvider>
-                          <RootNavigator />
+                          <ShareProvider>
+                            <RootNavigator />
+                          </ShareProvider>
                         </BottomSheetModalProvider>
                       </NotificationProvider>
                     </ThemeProvider>
@@ -104,6 +108,7 @@ export default function RootLayout() {
  * and renders the Stack navigator once ready.
  */
 function RootNavigator() {
+  const router = useRouter();
   const { isLoading } = useSession();
   const {
     hasCompletedInitialLocationSetup,
@@ -111,6 +116,10 @@ function RootNavigator() {
   } = useSelectedLocation();
   const searchParams = useGlobalSearchParams();
   const pathname = usePathname();
+  const webSharedRoute =
+    Platform.OS === 'web' && typeof window !== 'undefined'
+      ? recoverSharedRoute(window.location.pathname)
+      : null;
   const { isDark, colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [urlForcesInitialLocation, setUrlForcesInitialLocation] = useState(
@@ -133,6 +142,7 @@ function RootNavigator() {
   });
 
   const [splashDone, setSplashDone] = useState(false);
+  const recoveredWebLinkRef = useRef(false);
   const handleSplashComplete = useCallback(() => setSplashDone(true), []);
   const appReady = fontsLoaded && !isLoading;
 
@@ -145,6 +155,19 @@ function RootNavigator() {
       SplashScreen.hideAsync();
     }
   }, [appReady]);
+
+  // GitHub Pages serves the SPA fallback for deep links under the deployed
+  // /TTPortal/app base. Recover the real content route from window.location
+  // before the default tabs route can strand a shared venue/event link.
+  useEffect(() => {
+    if (!appReady || Platform.OS !== 'web' || recoveredWebLinkRef.current) return;
+    if (typeof window === 'undefined') return;
+    recoveredWebLinkRef.current = true;
+    const target = webSharedRoute;
+    if (!target || target === pathname) return;
+    const search = window.location.search ?? '';
+    router.replace(`${target}${search}` as Href);
+  }, [appReady, pathname, router, webSharedRoute]);
 
   useEffect(() => {
     if (
@@ -183,8 +206,13 @@ function RootNavigator() {
     pathname === '/forgot-password' ||
     pathname === '/reset-password' ||
     pathname === '/auth/callback';
+  const isSharedContentRoute =
+    !!webSharedRoute ||
+    pathname.startsWith('/venue/') ||
+    pathname.startsWith('/event/');
   const showInitialLocation =
     !isAuthRoute &&
+    !isSharedContentRoute &&
     initialLocationGateReady &&
     (!hasCompletedInitialLocationSetup || forceInitialLocationPreview);
 
@@ -204,6 +232,7 @@ function RootNavigator() {
           <Stack.Screen name="forgot-password" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
           <Stack.Screen name="reset-password" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
           <Stack.Screen name="venue/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
+          <Stack.Screen name="event/[eventId]" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="recap" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="wrapped" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="join/[code]" options={{ headerShown: false, animation: 'fade' }} />

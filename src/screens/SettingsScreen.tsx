@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, Linking, Share } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, Linking } from 'react-native';
 import { showAlert } from '../lib/dialogs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import { useSession } from '../hooks/useSession';
 import { useI18n } from '../hooks/useI18n';
 import { getProfile, updateProfile, type CheckinVisibility } from '../services/profiles';
 import { getReferralStats } from '../services/referrals';
+import { useAppShare } from '../contexts/ShareProvider';
 import { joinUrl, sharePayload } from '../lib/shareLinks';
 import { useQueryClient } from '@tanstack/react-query';
 import { profileQueryKey } from '../hooks/queries/useProfileQuery';
@@ -26,6 +27,7 @@ export function SettingsScreen() {
   const { user } = useSession();
   const queryClient = useQueryClient();
   const { s, lang } = useI18n();
+  const { share } = useAppShare();
   const { colors, mode, setMode, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -68,11 +70,11 @@ export function SettingsScreen() {
   const handleInviteFriends = useCallback(async () => {
     if (!referralCode) return;
     try {
-      await Share.share(sharePayload(s('inviteShareMessage'), joinUrl(referralCode)));
+      await share({ ...sharePayload(s('inviteShareMessage'), joinUrl(referralCode)), title: s('inviteFriends') });
     } catch {
       // User dismissed the share sheet — no-op.
     }
-  }, [referralCode, s]);
+  }, [referralCode, s, share]);
 
   const handleToggleNotifCategory = useCallback(async (category: string, enabled: boolean) => {
     const next = { ...notifPrefs };

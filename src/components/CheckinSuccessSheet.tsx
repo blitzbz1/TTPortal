@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Modal,
   Pressable,
-  Share,
   Image,
   ActivityIndicator,
 } from 'react-native';
@@ -27,6 +26,7 @@ import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
 import { useI18n } from '../hooks/useI18n';
 import { hapticSuccess } from '../lib/haptics';
+import { useAppShare } from '../contexts/ShareProvider';
 import { sharePayload, venueUrl } from '../lib/shareLinks';
 import { showAlert } from '../lib/dialogs';
 import { Springs, Duration, Easings } from '../lib/motion';
@@ -146,6 +146,7 @@ export function CheckinSuccessSheet({
 }: CheckinSuccessSheetProps) {
   const { colors } = useTheme();
   const { s } = useI18n();
+  const { share } = useAppShare();
   const { user } = useSession();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -364,9 +365,9 @@ export function CheckinSuccessSheet({
           </TouchableOpacity>
 
           <TouchableOpacity accessibilityRole="button" style={styles.shareBtn} onPress={() => {
-            Share.share(
+            share(
               venueId != null
-                ? sharePayload(`${s('checkinSuccess')} ${venueName} | TT Portal`, venueUrl(venueId))
+                ? { ...sharePayload(`${s('checkinSuccess')} ${venueName} | TT Portal`, venueUrl(venueId)), title: venueName }
                 : { message: `${s('checkinSuccess')} ${venueName} | TT Portal` },
             );
           }} testID="checkin-success-share">

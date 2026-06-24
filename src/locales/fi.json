@@ -623,6 +623,8 @@
   "noLeaderboard": "Ei tulostaulukkotuloksia",
   "you": "Sinä",
   "sortRecent": "Uusimmat",
+  "sortOldest": "Oldest",
+  "sortTopRated": "Top rated",
   "sortName": "Nimi",
   "noFavorites": "Ei tallennettuja suosikkeja",
   "favPark": "🌳 Puisto",

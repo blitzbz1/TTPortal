@@ -623,6 +623,8 @@
   "noLeaderboard": "Nema rezultata ljestvice",
   "you": "Ti",
   "sortRecent": "Nedavno",
+  "sortOldest": "Oldest",
+  "sortTopRated": "Top rated",
   "sortName": "Naziv",
   "noFavorites": "Nema spremljenih favorita",
   "favPark": "🌳 Park",

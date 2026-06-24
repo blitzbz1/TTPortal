@@ -6,7 +6,6 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
-  Share,
   StyleSheet,
   RefreshControl,
 } from 'react-native';
@@ -27,6 +26,7 @@ import {
   useRotateCode,
   type ClubMember,
 } from '../features/clubs';
+import { useAppShare } from '../contexts/ShareProvider';
 import { clubUrl, sharePayload } from '../lib/shareLinks';
 import { venueImageUrl } from '../lib/imageTransforms';
 
@@ -35,6 +35,7 @@ export function ClubScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const clubId = id ? Number(id) : undefined;
   const { s, lang } = useI18n();
+  const { share } = useAppShare();
   const { user } = useSession();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -48,8 +49,8 @@ export function ClubScreen() {
 
   const handleShareCode = useCallback(() => {
     if (!club) return;
-    Share.share(sharePayload(s('clubShareMessage', club.join_code), clubUrl(club.join_code)));
-  }, [club, s]);
+    share({ ...sharePayload(s('clubShareMessage', club.join_code), clubUrl(club.join_code)), title: club.name });
+  }, [club, s, share]);
 
   const handleRotate = useCallback(async () => {
     if (!clubId) return;
@@ -205,7 +206,7 @@ export function ClubScreen() {
             <Pressable
               key={ev.id}
               style={styles.eventRow}
-              onPress={() => router.push({ pathname: '/(protected)/event/[eventId]', params: { eventId: String(ev.id) } })}
+              onPress={() => router.push({ pathname: '/event/[eventId]', params: { eventId: String(ev.id) } })}
               testID={`club-event-${ev.id}`}
             >
               <View style={styles.eventIcon}>

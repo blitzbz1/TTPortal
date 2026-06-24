@@ -623,6 +623,8 @@
   "noLeaderboard": "Нет результатов в таблице лидеров",
   "you": "Вы",
   "sortRecent": "Недавние",
+  "sortOldest": "Oldest",
+  "sortTopRated": "Top rated",
   "sortName": "Название",
   "noFavorites": "Нет сохранённых избранных",
   "favPark": "🌳 Парк",

@@ -623,6 +623,8 @@
   "noLeaderboard": "Ingen resultater på topplisten",
   "you": "Du",
   "sortRecent": "Nyeste",
+  "sortOldest": "Oldest",
+  "sortTopRated": "Top rated",
   "sortName": "Navn",
   "noFavorites": "Ingen lagrede favoritter",
   "favPark": "🌳 Park",
