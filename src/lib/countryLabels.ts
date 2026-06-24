@@ -151,11 +151,23 @@ function normalizeCountryNameKey(name: string | null | undefined): string {
     .trim();
 }
 
+// `new Intl.DisplayNames(...)` is expensive (loads ICU region data) and was
+// previously constructed on EVERY call. Rendering the country list sorts ~44
+// countries (localeCompare → getCountryLabel ×~480) and renders 44 options, so a
+// single render built hundreds of DisplayNames instances — freezing the
+// switch-city modal on Android Hermes. Cache one instance per locale and reuse
+// it; `.of(code)` is cheap.
+const regionNamesByLocale = new Map<string, { of(code: string): string | undefined } | null>();
+
 function getIntlRegionName(code: string, locale: string): string | null {
   try {
-    const DisplayNames = (Intl as IntlWithDisplayNames).DisplayNames;
-    if (!DisplayNames) return null;
-    return new DisplayNames([locale], { type: 'region' }).of(code) ?? null;
+    let names = regionNamesByLocale.get(locale);
+    if (names === undefined) {
+      const DisplayNames = (Intl as IntlWithDisplayNames).DisplayNames;
+      names = DisplayNames ? new DisplayNames([locale], { type: 'region' }) : null;
+      regionNamesByLocale.set(locale, names);
+    }
+    return names ? (names.of(code) ?? null) : null;
   } catch {
     return null;
   }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, FlatList, Platform } from 'react-native';
 import { showAlert } from '../lib/dialogs';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +17,7 @@ import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { DraggableSheet } from '../components/DraggableSheet';
 import { VenueMarkers } from '../components/VenueMarkers';
+import { VenueClusterLayer } from '../components/VenueClusterLayer';
 import { MapSearchBar } from '../components/MapSearchBar';
 import { MapRainBanner } from '../components/MapRainBanner';
 import { hapticSelection } from '../lib/haptics';
@@ -432,6 +433,16 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
     openVenue(venueId, 'map');
   }, [openVenue]);
 
+  // Android cluster tap → zoom the camera to the level where the cluster splits.
+  // animateToRegion converts the delta back to that exact zoom (delta 360° ⇔ zoom 0).
+  const handleClusterPress = useCallback((center: [number, number], expansionZoom: number) => {
+    const delta = 360 / Math.pow(2, expansionZoom);
+    mapRef.current?.animateToRegion(
+      { latitude: center[1], longitude: center[0], latitudeDelta: delta, longitudeDelta: delta },
+      300,
+    );
+  }, []);
+
   const handleVenueListPress = useCallback((venueId: number) => {
     openVenue(venueId, 'list');
   }, [openVenue]);
@@ -466,22 +477,38 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
           showsUserLocation={false}
           initialRegion={selectedMapRegion}
         >
-          <VenueMarkers
-            venues={chipFilteredVenues}
-            friendVenueIds={friendCheckinVenueIds}
-            liveCounts={liveCounts}
-            openPlayVenueIds={openPlaySet}
-            unvisitedVenueIds={unvisitedVenueIds}
-            onVenuePress={handleVenueMarkerPress}
-            conditionLabel={conditionLabel}
-            typeLabel={typeLabel}
-            friendsActiveLabel={s('friendsActive')}
-            liveHereLabel={liveHereLabel}
-            openPlayLabel={openPlayJoinLabel}
-            newToYouLabel={newToYouLabel}
-            pinStyles={pinStyles}
-            colors={colors}
-          />
+          {/* Android renders a GPU-clustered GeoJSON layer (scales to thousands
+              of pins without freezing); iOS keeps the rich per-pin Markers. */}
+          {Platform.OS === 'android' ? (
+            <VenueClusterLayer
+              venues={chipFilteredVenues}
+              friendVenueIds={friendCheckinVenueIds}
+              liveCounts={liveCounts}
+              openPlayVenueIds={openPlaySet}
+              unvisitedVenueIds={unvisitedVenueIds}
+              onVenuePress={handleVenueMarkerPress}
+              onClusterPress={handleClusterPress}
+              conditionLabel={conditionLabel}
+              colors={colors}
+            />
+          ) : (
+            <VenueMarkers
+              venues={chipFilteredVenues}
+              friendVenueIds={friendCheckinVenueIds}
+              liveCounts={liveCounts}
+              openPlayVenueIds={openPlaySet}
+              unvisitedVenueIds={unvisitedVenueIds}
+              onVenuePress={handleVenueMarkerPress}
+              conditionLabel={conditionLabel}
+              typeLabel={typeLabel}
+              friendsActiveLabel={s('friendsActive')}
+              liveHereLabel={liveHereLabel}
+              openPlayLabel={openPlayJoinLabel}
+              newToYouLabel={newToYouLabel}
+              pinStyles={pinStyles}
+              colors={colors}
+            />
+          )}
           {nearMeEnabled && userLocation ? (
             <Marker
               identifier="current-location"

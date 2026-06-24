@@ -40,10 +40,17 @@ export function useCitiesQuery() {
     gcTime: 24 * 60 * 60 * 1000,
   });
 
+  // NOTE: must NOT depend on `query.data`. This callback calls setQueryData,
+  // which changes query.data — depending on it would give refreshCatalog a new
+  // identity every run, and any effect keyed on it (e.g. LocationSelector's
+  // refresh-on-open) would re-fire forever, looping full-catalog fetches and
+  // re-cleaning ~10k cities each pass (the switch-city modal freeze). Read the
+  // current data imperatively instead so the identity stays stable.
   const refreshCatalog = useCallback(async () => {
     const { data, error } = await getCitiesDelta(null);
     if (error || !data) {
-      if (query.data) return query.data;
+      const current = queryClient.getQueryData<PersistedCity[]>(citiesQueryKey);
+      if (current) return current;
       throw error ?? new Error('cities full refresh failed and no cache');
     }
     const next = applyCitiesDelta(
@@ -54,7 +61,7 @@ export function useCitiesQuery() {
     const cleaned = cleanCityCatalog(next.cities);
     queryClient.setQueryData(citiesQueryKey, cleaned);
     return cleaned;
-  }, [query.data, queryClient]);
+  }, [queryClient]);
 
   return {
     ...query,

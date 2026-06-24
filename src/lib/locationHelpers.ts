@@ -1,4 +1,5 @@
 import type { PersistedCity } from './citiesPersistentCache';
+import { compareDefault, compareEn, compareRo } from './collation';
 import { getCanonicalCountryName } from './countryLabels';
 import type { CityExpansionStatus, Country, CountryCode, LocationCity } from './locationTypes';
 
@@ -185,8 +186,8 @@ export function mergeExpansionCityWave(cities: LocationCity[]): LocationCity[] {
   }
 
   return Array.from(byCountryAndName.values()).sort((a, b) => {
-    const country = a.country_code.localeCompare(b.country_code);
-    return country === 0 ? a.name.localeCompare(b.name, 'ro') : country;
+    const country = compareDefault(a.country_code, b.country_code);
+    return country === 0 ? compareRo(a.name, b.name) : country;
   });
 }
 
@@ -222,7 +223,7 @@ export function getCountriesFromCities(cities: LocationCity[]): Country[] {
       active: true,
     });
   }
-  return Array.from(byCode.values()).sort((a, b) => a.name.localeCompare(b.name, 'en'));
+  return Array.from(byCode.values()).sort((a, b) => compareEn(a.name, b.name));
 }
 
 export function getCountryFlagEmoji(code: string | null | undefined): string {
@@ -309,12 +310,30 @@ export const CAPITAL_BY_CC: Record<string, string> = {
   SK: 'Bratislava', TR: 'Ankara', UA: 'Kyiv',
 };
 
-const normalizeCityName = (value: string): string =>
-  value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+// normalizeCityName runs NFD normalization + two regex passes per call. The
+// catalog repeats the same ~10k city names across every getRecommendedCities
+// run, so cache by raw name (a bounded set). Output is byte-identical.
+const normalizedCityNameCache = new Map<string, string>();
+const normalizeCityName = (value: string): string => {
+  const cached = normalizedCityNameCache.get(value);
+  if (cached !== undefined) return cached;
+  const normalized = value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  normalizedCityNameCache.set(value, normalized);
+  return normalized;
+};
+
+// Precompute the capital lookup once as `${country_code}:${normalizedCapital}`.
+// isCapitalCity previously re-normalized both the city name AND the matching
+// capital constant on every call — ~20k normalizations per ALL-countries
+// getRecommendedCities run. This keeps the exact same match semantics
+// (country-code-scoped, diacritic/case-insensitive) with one normalize per city.
+const NORMALIZED_CAPITAL_KEYS = new Set<string>(
+  Object.entries(CAPITAL_BY_CC).map(([cc, name]) => `${cc}:${normalizeCityName(name)}`),
+);
 
 export function isCapitalCity(city: Pick<LocationCity, 'name' | 'country_code'>): boolean {
-  const capital = city.country_code ? CAPITAL_BY_CC[city.country_code] : undefined;
-  return capital != null && normalizeCityName(capital) === normalizeCityName(city.name);
+  if (!city.country_code) return false;
+  return NORMALIZED_CAPITAL_KEYS.has(`${city.country_code}:${normalizeCityName(city.name)}`);
 }
 
 // "Recommended cities": national capitals first (busiest first), then the busiest remaining
@@ -327,7 +346,7 @@ export function getRecommendedCities(
   const rest: LocationCity[] = [];
   for (const city of cities) (isCapitalCity(city) ? capitals : rest).push(city);
   const byVenues = (a: LocationCity, b: LocationCity) =>
-    (b.venue_count ?? 0) - (a.venue_count ?? 0) || a.name.localeCompare(b.name);
+    (b.venue_count ?? 0) - (a.venue_count ?? 0) || compareDefault(a.name, b.name);
   capitals.sort(byVenues);
   rest.sort(byVenues);
   return [...capitals, ...rest].slice(0, limit);

@@ -137,4 +137,21 @@ describe('LocationSelector', () => {
 
     expect(mockRefreshCities).toHaveBeenCalledTimes(1);
   });
+
+  it('skips the forced catalog refresh on Android (avoids the per-open freeze burst)', () => {
+    // Android only: the full since=null re-pull + re-sort + MMKV write froze the
+    // picker on Hermes. refetchOnMount + staleTime keep the catalog fresh, so we
+    // skip the redundant refresh on open. iOS/web still refresh (asserted above).
+    const { Platform } = require('react-native');
+    const original = Platform.OS;
+    Platform.OS = 'android';
+    try {
+      render(
+        <LocationSelector visible mode="switcher" onClose={jest.fn()} />,
+      );
+      expect(mockRefreshCities).not.toHaveBeenCalled();
+    } finally {
+      Platform.OS = original;
+    }
+  });
 });

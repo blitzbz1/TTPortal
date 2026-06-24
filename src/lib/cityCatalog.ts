@@ -1,4 +1,5 @@
 import type { PersistedCity } from './citiesPersistentCache';
+import { compareRo } from './collation';
 
 export const PIATRA_NEAMT_CANONICAL_NAME = 'Piatra Neamț';
 
@@ -52,5 +53,5 @@ export function cleanCityCatalog(cities: PersistedCity[]): PersistedCity[] {
     });
   }
 
-  return visible.sort((a, b) => a.name.localeCompare(b.name, 'ro'));
+  return visible.sort((a, b) => compareRo(a.name, b.name));
 }
