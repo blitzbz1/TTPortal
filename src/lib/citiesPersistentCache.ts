@@ -1,5 +1,6 @@
 import { createMMKV } from 'react-native-mmkv';
 import { CACHE_SCHEMA_VERSION } from './cacheSchema';
+import { compareRo } from './collation';
 
 const store = createMMKV({ id: 'cities-cache-v2' });
 const KEY = 'cities';
@@ -63,7 +64,7 @@ export function applyCitiesDelta(
   for (const c of upsertById.values()) {
     if (!tombstones.has(c.id)) merged.push(c);
   }
-  merged.sort((a, b) => a.name.localeCompare(b.name, 'ro'));
+  merged.sort((a, b) => compareRo(a.name, b.name));
 
   const next: CitiesCache = { cities: merged, syncedAt };
   writeCities(next);

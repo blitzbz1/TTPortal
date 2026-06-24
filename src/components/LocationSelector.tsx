@@ -17,6 +17,7 @@ import { Lucide } from './Icon';
 import { useI18n } from '../hooks/useI18n';
 import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { useTheme } from '../hooks/useTheme';
+import { compareLocale } from '../lib/collation';
 import { getDistanceKm } from '../lib/geo';
 import { getLocalizedCountryName } from '../lib/countryLabels';
 import { getCountryFlagEmoji, getRecommendedCities } from '../lib/locationHelpers';
@@ -78,9 +79,16 @@ export function LocationSelector({
     return [...filtered].sort((a, b) => sortSearchCities(a, b, normalizedQuery, lang));
   }, [activeCities, lang, pendingCountry.code, query]);
   const countriesWithCities = useMemo(
-    () => activeCountries
-      .filter((country) => activeCities.some((city) => city.country_code === country.code))
-      .sort((a, b) => getCountryLabel(a, lang).localeCompare(getCountryLabel(b, lang), lang)),
+    () => {
+      // Set membership instead of activeCountries.filter(activeCities.some(...)),
+      // which was O(countries × cities) ≈ 44 × 10k ≈ 450k comparisons per run —
+      // a key part of the switch-city freeze.
+      const present = new Set<string>();
+      for (const city of activeCities) present.add(city.country_code);
+      return activeCountries
+        .filter((country) => present.has(country.code))
+        .sort((a, b) => getCountryLabel(a, lang).localeCompare(getCountryLabel(b, lang), lang));
+    },
     [activeCities, activeCountries, lang],
   );
   const menuCities = useMemo(() => searchedCities.slice(0, 8), [searchedCities]);
@@ -91,6 +99,13 @@ export function LocationSelector({
 
   useEffect(() => {
     if (!visible) return;
+    // Android only: skip the forced full catalog re-pull on open. On a dense
+    // catalog (~10k cities) refreshCities() does a since=null fetch + re-merge +
+    // re-sort + JSON re-serialize + MMKV write + structural-sharing deep-walk —
+    // a multi-pass O(10k) burst that froze the picker on Hermes. The cities query
+    // already refreshes via refetchOnMount + a 5-min staleTime, so freshness is
+    // unaffected. iOS/web keep the forced refresh-on-open behaviour unchanged.
+    if (Platform.OS === 'android') return;
     void refreshCities();
   }, [refreshCities, visible]);
 
@@ -531,7 +546,7 @@ function sortSearchCities(a: LocationCity, b: LocationCity, normalizedQuery: str
     const venueDelta = (b.venue_count ?? 0) - (a.venue_count ?? 0);
     if (venueDelta !== 0) return venueDelta;
   }
-  return a.name.localeCompare(b.name, locale);
+  return compareLocale(locale)(a.name, b.name);
 }
 
 function normalizeSearch(value: string | null | undefined): string {

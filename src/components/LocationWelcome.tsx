@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,6 +20,7 @@ import { useSelectedLocation } from '../hooks/useSelectedLocation';
 import { useTheme } from '../hooks/useTheme';
 import { getStringSync } from '../lib/mmkv';
 import { foldDiacritics } from '../lib/textSearch';
+import { compareLocale } from '../lib/collation';
 import { getLocalizedCountryName } from '../lib/countryLabels';
 import { getCountryFlagEmoji, getRecommendedCities } from '../lib/locationHelpers';
 import type { Country, LocationCity } from '../lib/locationTypes';
@@ -55,9 +57,16 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
     ? s('locationSelectorAllCountries')
     : getCountryLabel(pendingCountry, lang);
   const countriesWithCities = useMemo(
-    () => activeCountries
-      .filter((country) => activeCities.some((city) => city.country_code === country.code))
-      .sort((a, b) => getCountryLabel(a, lang).localeCompare(getCountryLabel(b, lang), lang)),
+    () => {
+      // Set membership instead of activeCountries.filter(activeCities.some(...)),
+      // which was O(countries × cities) ≈ 44 × 10k comparisons per run — part of
+      // the onboarding-picker freeze. Mirrors the LocationSelector fix.
+      const present = new Set<string>();
+      for (const city of activeCities) present.add(city.country_code);
+      return activeCountries
+        .filter((country) => present.has(country.code))
+        .sort((a, b) => getCountryLabel(a, lang).localeCompare(getCountryLabel(b, lang), lang));
+    },
     [activeCities, activeCountries, lang],
   );
 
@@ -77,6 +86,10 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
 
   useEffect(() => {
     if (!visible) return;
+    // Android only: skip the forced full catalog re-pull on open (see
+    // LocationSelector for the rationale). The cities query already refreshes via
+    // refetchOnMount + a 5-min staleTime. iOS/web keep the behaviour unchanged.
+    if (Platform.OS === 'android') return;
     void refreshCities();
   }, [refreshCities, visible]);
 
@@ -314,7 +327,7 @@ function sortLocationCities(
     if (visitDelta !== 0) return visitDelta;
     const venueDelta = (b.venue_count ?? 0) - (a.venue_count ?? 0);
     if (venueDelta !== 0) return venueDelta;
-    return a.name.localeCompare(b.name, locale);
+    return compareLocale(locale)(a.name, b.name);
   }
 
   const aName = normalizeLocationText(a.name);
@@ -326,7 +339,7 @@ function sortLocationCities(
     const venueDelta = (b.venue_count ?? 0) - (a.venue_count ?? 0);
     if (venueDelta !== 0) return venueDelta;
   }
-  return a.name.localeCompare(b.name, locale);
+  return compareLocale(locale)(a.name, b.name);
 }
 
 function CountryOption({
