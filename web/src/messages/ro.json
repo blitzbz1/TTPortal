@@ -1,4 +1,7 @@
 {
+  "common": {
+    "live": "Live"
+  },
   "metadata": {
     "title": "TTPortal – Găsește masa. Urmărește-ți jocul.",
     "description": "Aplicația pentru jucătorii de tenis de masă. Găsește săli, vezi cât de aglomerate sunt chiar acum, înregistrează meciuri și obține un rating Elo, urcă în clasament și conectează-te cu jucători din orașul tău."
@@ -63,6 +66,8 @@
     "feature2Bullet1": "Aglomerație live: câți sunt aici acum, perioadele liniștite și ora de vârf obișnuită",
     "feature2Bullet2": "Rapoarte despre mese libere de la jucătorii prezenți, actualizate la minut",
     "feature2Bullet3": "Vremea curentă și prognoza de ploaie, plus comutare dintr-o atingere către sălile interioare",
+    "feature2AltWeather": "Ecranul locației axat pe vreme, cu starea de joc și prognoza pe ore",
+    "feature2AltBusyness": "Ecranul de aglomerație live, cu câți jucători sunt acum și câte mese sunt libere",
     "feature3Number": "03",
     "feature3Title": "Fă check-in și",
     "feature3TitleLine2": "înregistrează fiecare sesiune.",
@@ -105,10 +110,31 @@
     "tournamentsDesc": "Creează un eveniment de tip turneu, generează automat un tablou cu eliminare directă după rating și încoronează un campion.",
     "openPlayTitle": "Joc deschis",
     "openPlayDesc": "Spune că ieși la joc acum, diseară sau mâine și lasă jucătorii din apropiere să ți se alăture.",
-    "quickMatchTitle": "Meci rapid",
-    "quickMatchDesc": "Scanează codul QR al adversarului ca să înregistrezi un meci cu el în câteva secunde.",
     "rivalsTitle": "Rivali și meciuri directe",
     "rivalsDesc": "Ține evidența rezultatelor cu toți cei cu care joci și reglează conturile."
+  },
+  "quickMatch": {
+    "label": "MECI RAPID",
+    "title": "Împerechere prin QR.",
+    "titleLine2": "Țineți scorul împreună.",
+    "description": "Scanează codul QR al adversarului ca să legați meciul de el, apoi întoarce un telefon pe orizontală pentru o tabelă de scor partajată. Vezi cine e la serviciu și anulează orice atingere greșită — la final, rezultatul este trimis adversarului spre confirmare, apoi rating-ul tău Elo se actualizează.",
+    "scoreboardAlt": "Tabela de scor live a meciului rapid — Tu 8, Adversar 6, setul 3 din 5, tu la serviciu",
+    "you": "Tu",
+    "opponent": "Adversar",
+    "serving": "La serviciu",
+    "undo": "Anulează punctul",
+    "game": "Setul 3",
+    "format": "11 pct · din 5 seturi",
+    "spec1": "11 sau 21 de puncte",
+    "spec2": "Din 3 · 5 · 7 seturi",
+    "spec3": "Indicator de serviciu",
+    "spec4": "Anulează orice punct",
+    "step1Title": "Scanează ca să împerechezi",
+    "step1Desc": "Arată-ți codul QR sau scanează-l pe al adversarului — asta leagă meciul de el, cu ambele nume precompletate.",
+    "step2Title": "Atinge ca să marchezi",
+    "step2Desc": "Întoarce telefonul pe orizontală și împărțiți o singură tabelă de scor. Atinge partea ta ca să adaugi un punct, vezi cine e la serviciu și anulează orice atingere greșită.",
+    "step3Title": "Contează",
+    "step3Desc": "Termină meciul, iar rezultatul este trimis adversarului spre confirmare — apoi rating-ul tău Elo și locul în clasament se actualizează."
   },
   "wrapped": {
     "label": "ANUL TĂU ÎN TT",

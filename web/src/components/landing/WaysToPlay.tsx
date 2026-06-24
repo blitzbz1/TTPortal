@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { CalendarDays, Backpack, Trophy, Radio, QrCode, Swords } from "lucide-react";
+import { CalendarDays, Backpack, Trophy, Radio, Swords } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { asset } from "@/lib/asset";
 
@@ -21,10 +21,11 @@ const mediaCards: { icon: LucideIcon; img: string; titleKey: string; descKey: st
 ];
 
 /** Compact "mode" cards for the competitive/social play surfaces. */
+// Quick Match has its own dedicated section (see QuickMatch.tsx), so it is not
+// repeated here.
 const modeCards: { icon: LucideIcon; titleKey: string; descKey: string }[] = [
   { icon: Trophy, titleKey: "tournamentsTitle", descKey: "tournamentsDesc" },
   { icon: Radio, titleKey: "openPlayTitle", descKey: "openPlayDesc" },
-  { icon: QrCode, titleKey: "quickMatchTitle", descKey: "quickMatchDesc" },
   { icon: Swords, titleKey: "rivalsTitle", descKey: "rivalsDesc" },
 ];
 
@@ -84,8 +85,8 @@ export default function WaysToPlay() {
           ))}
         </div>
 
-        {/* Four compact mode cards */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Compact mode cards */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
           {modeCards.map((card) => (
             <div
               key={card.titleKey}

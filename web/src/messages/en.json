@@ -1,4 +1,7 @@
 {
+  "common": {
+    "live": "Live"
+  },
   "metadata": {
     "title": "TTPortal – Find Your Table. Track Your Game.",
     "description": "The companion app for table tennis players. Find venues, see how busy they are right now, log matches and get an Elo rating, climb the ladder, and connect with players in your city."
@@ -63,6 +66,8 @@
     "feature2Bullet1": "Live busyness: how many are here now, quiet vs. busy, and the usual peak time",
     "feature2Bullet2": "Free-table reports from players on the spot, fresh to the minute",
     "feature2Bullet3": "Current weather and a rain forecast, plus a one-tap switch to indoor venues",
+    "feature2AltWeather": "Weather-first venue screen showing playability and the hourly forecast",
+    "feature2AltBusyness": "Live busyness screen showing how many players are here now and how many tables are free",
     "feature3Number": "03",
     "feature3Title": "Check in and",
     "feature3TitleLine2": "log every session.",
@@ -105,10 +110,31 @@
     "tournamentsDesc": "Spin up a tournament event, auto-seed a single-elimination bracket by rating, and crown a champion.",
     "openPlayTitle": "Open play",
     "openPlayDesc": "Say you're heading out now, tonight, or tomorrow and let nearby players join your session.",
-    "quickMatchTitle": "Quick Match",
-    "quickMatchDesc": "Scan an opponent's QR code to log a match against them in seconds.",
     "rivalsTitle": "Rivals & head-to-head",
     "rivalsDesc": "Track your record against everyone you play and settle the score."
+  },
+  "quickMatch": {
+    "label": "QUICK MATCH",
+    "title": "Pair by QR.",
+    "titleLine2": "Keep score together.",
+    "description": "Scan your opponent's QR code to pair the match to them, then turn one phone sideways for a shared tap-to-score board. See who's serving and undo any mistap — when you finish, the result goes to your opponent to confirm before your Elo updates.",
+    "scoreboardAlt": "Quick Match live scoreboard — You 8, Opponent 6, game 3 of best-of-5, you serving",
+    "you": "You",
+    "opponent": "Opponent",
+    "serving": "Serving",
+    "undo": "Undo point",
+    "game": "Game 3",
+    "format": "11 pts · best of 5",
+    "spec1": "11 or 21 points",
+    "spec2": "Best of 3 · 5 · 7",
+    "spec3": "Serving indicator",
+    "spec4": "Undo any point",
+    "step1Title": "Scan to pair",
+    "step1Desc": "Show your QR code or scan your opponent's — that pairs the match to them, with both names pre-filled.",
+    "step2Title": "Tap to score",
+    "step2Desc": "Turn the phone sideways and share one landscape board. Tap your side to add a point, see who's serving, and undo any mistap.",
+    "step3Title": "It counts",
+    "step3Desc": "Finish the match and the result goes to your opponent to confirm — then your Elo rating and ladder spot update."
   },
   "wrapped": {
     "label": "YOUR YEAR IN TT",
