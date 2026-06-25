@@ -1,4 +1,4 @@
-// F042: "Recent moments" strip on venue detail (under the photo carousel).
+// F042: "Recent moments" strip on venue detail.
 // Photo cards from check-in moments; long-press to report (non-authors) or
 // soft-delete (authors). Block filtering + auto-flag happen server-side
 // (migration 125). Lazily loaded via its own RPC, mirroring VenueBoardSection.

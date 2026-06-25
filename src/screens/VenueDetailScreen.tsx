@@ -41,7 +41,7 @@ import { VenueRegularsRow } from '../components/VenueRegularsRow';
 import { VenueCoachesRow } from '../components/VenueCoachesRow';
 import { useVenueCoachesQuery } from '../features/coaches';
 import { VenueBoardSection } from '../components/VenueBoardSection';
-import { venueMomentsQueryKey } from '../features/checkinMoments';
+import { VenueMomentsStrip } from '../components/VenueMomentsStrip';
 import { reportFreeTables, useVenueIntelQuery, venueIntelQueryKey, invalidateVenueIntelCache } from '../features/venueIntel';
 import { useVenueOpenPlayQuery, useMyPlayIntentQuery, useInvalidateOpenPlay, useRespondToOpenPlayMutation, useConvertPlayIntentMutation, useCancelPlayIntentMutation, type WhenSlot } from '../features/openplay';
 import { useProfileQuery, profileQueryKey, profileStatsQueryKey } from '../hooks/queries/useProfileQuery';
@@ -950,6 +950,13 @@ export function VenueDetailScreen({ venueId }: Props) {
           />
         ) : null}
 
+        {/* Recent check-in moments (creator + friends, server-filtered). */}
+        {vIdNum && user?.id ? (
+          <View style={[styles.cardFloat, { marginTop: 12 }]}>
+            <VenueMomentsStrip venueId={vIdNum} currentUserId={user.id} />
+          </View>
+        ) : null}
+
         {/* ═══════════ Right now ═══════════ */}
         <View style={styles.group}>
           <Text style={styles.groupKicker}>{s('vdGroupRightNow')}</Text>
@@ -1249,7 +1256,7 @@ export function VenueDetailScreen({ venueId }: Props) {
         tablesCount={venue?.tables_count ?? null}
         onReportFreeTables={handleReportFreeTables}
         onMomentPosted={() => {
-          if (vIdNum) queryClient.invalidateQueries({ queryKey: venueMomentsQueryKey(vIdNum) });
+          if (vIdNum) queryClient.invalidateQueries({ queryKey: ['checkin-moments', vIdNum] });
         }}
         onDismiss={() => {
           setSuccessSheetVisible(false);

@@ -123,15 +123,15 @@ describe('CheckinSuccessSheet', () => {
     expect(getByText('untilTime 15:30')).toBeTruthy();
   });
 
-  it('shows XP text', () => {
-    const { getByText } = render(
+  it('does not show redundant check-in XP text', () => {
+    const { queryByText } = render(
       <CheckinSuccessSheet
         visible={true}
         venueName="Test"
         onDismiss={jest.fn()}
       />,
     );
-    expect(getByText('+10 XP')).toBeTruthy();
+    expect(queryByText('+10 XP')).toBeNull();
   });
 
   it('calls onDismiss when dismiss button is pressed', () => {
