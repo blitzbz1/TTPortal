@@ -91,11 +91,13 @@ export function VenueMomentsStrip({ venueId, currentUserId }: Props) {
             style={styles.card}
             testID={`moment-card-${moment.id}`}
           >
-            <Image
-              source={{ uri: venueImageUrl(moment.photo_url, { width: 360, quality: 75 }) ?? moment.photo_url }}
-              style={styles.photo}
-              resizeMode="cover"
-            />
+            <View style={styles.photoFrame}>
+              <Image
+                source={{ uri: venueImageUrl(moment.photo_url, { width: 360, quality: 75 }) ?? moment.photo_url }}
+                style={styles.photo}
+                resizeMode="contain"
+              />
+            </View>
             <View style={styles.meta}>
               <Text style={styles.author} numberOfLines={1}>{moment.author_name || s('anon')}</Text>
               <Text style={styles.age}>{fmtAge(moment.created_at)}</Text>
@@ -122,17 +124,24 @@ function createStyles(colors: ThemeColors) {
     section: { backgroundColor: colors.bg, padding: Spacing.md, gap: 10 },
     titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     title: { fontFamily: Fonts.heading, fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: colors.text },
-    row: { gap: 12, paddingRight: Spacing.md },
-    card: { width: 180, gap: 4 },
-    photo: {
-      width: 180,
-      height: 180,
+    row: { gap: 10, paddingRight: Spacing.md, paddingBottom: 2 },
+    card: { width: 148, gap: 6 },
+    photoFrame: {
+      width: 148,
+      height: 172,
       borderRadius: Radius.md,
       backgroundColor: colors.bgAlt,
+      overflow: 'hidden',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    photo: {
+      width: '100%',
+      height: '100%',
     },
     meta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     author: { flex: 1, fontFamily: Fonts.body, fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.text },
-    age: { fontFamily: Fonts.body, fontSize: FontSize.sm, color: colors.textFaint },
+    age: { flexShrink: 0, marginLeft: 8, fontFamily: Fonts.body, fontSize: FontSize.xs, color: colors.textFaint },
     caption: { fontFamily: Fonts.body, fontSize: FontSize.sm, color: colors.textMuted },
   });
 }
