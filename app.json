@@ -2,7 +2,7 @@
   "expo": {
     "name": "TTPortal",
     "slug": "ttportal",
-    "version": "0.0.8",
+    "version": "0.0.10",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -104,6 +104,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "package": "com.ttportal.app",
+      "versionCode": 3,
       "intentFilters": [
         {
           "action": "VIEW",
