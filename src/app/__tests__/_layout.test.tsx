@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, within } from '@testing-library/react-native';
+import { render, waitFor, within } from '@testing-library/react-native';
 
 // --- Mocks (must be defined before component import) ---
 
@@ -132,6 +132,7 @@ import * as SplashScreen from 'expo-splash-screen';
 
 describe('RootLayout', () => {
   beforeEach(() => {
+    jest.restoreAllMocks();
     jest.clearAllMocks();
     mockStackScreenNames.length = 0;
     mockUseSession.mockReturnValue({
@@ -256,6 +257,27 @@ describe('RootLayout', () => {
       const { getByTestId, queryByTestId } = render(<RootLayout />);
       getByTestId('stack-navigator');
       expect(queryByTestId('initial-location-setup-modal')).toBeNull();
+    });
+
+    it('recovers deployed share links from the initial browser URL before the tabs fallback can win', async () => {
+      jest.replaceProperty(require('react-native').Platform, 'OS', 'web');
+      Object.defineProperty(globalThis, 'window', {
+        value: {
+          location: {
+            pathname: '/TTPortal/app/venue/46',
+            search: '?utm=share',
+            href: 'https://www.ttportal.org/TTPortal/app/venue/46?utm=share',
+          },
+        },
+        configurable: true,
+      });
+      mockPathname = '/';
+
+      render(<RootLayout />);
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith('/venue/46?utm=share');
+      });
     });
   });
 

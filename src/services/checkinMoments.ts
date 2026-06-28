@@ -103,7 +103,7 @@ export async function uploadMomentImage(asset: MomentImageAsset): Promise<Moment
   }
 }
 
-/** Recent non-deleted, non-flagged moments for a venue (block-filtered server-side). */
+/** Recent venue moments visible to the caller: own + accepted friends, block-filtered server-side. */
 export async function getVenueMoments(
   venueId: number,
   limit = 12,

@@ -10,8 +10,8 @@ import {
   saveCachedCheckinMoments,
 } from '../../../lib/checkinMomentsCache';
 
-export const venueMomentsQueryKey = (venueId: number | undefined) =>
-  ['checkin-moments', venueId ?? null] as const;
+export const venueMomentsQueryKey = (venueId: number | undefined, currentUserId?: string) =>
+  ['checkin-moments', venueId ?? null, currentUserId ?? null] as const;
 
 /**
  * A venue's recent moments (cache-first + refetch — useLeaderboardQuery shape).
@@ -21,17 +21,17 @@ export const venueMomentsQueryKey = (venueId: number | undefined) =>
  */
 export function useVenueMomentsQuery(venueId: number | undefined, currentUserId?: string) {
   return useQuery<VenueMoment[]>({
-    queryKey: venueMomentsQueryKey(venueId),
+    queryKey: venueMomentsQueryKey(venueId, currentUserId),
     enabled: !!currentUserId && venueId != null && venueId > 0,
     staleTime: 60 * 1000,
     queryFn: async () => {
       if (venueId == null) return [];
       const { data, error } = await getVenueMoments(venueId);
       if (error) throw error;
-      saveCachedCheckinMoments(venueId, data);
+      if (currentUserId) saveCachedCheckinMoments(venueId, currentUserId, data);
       return data;
     },
-    initialData: () => (venueId != null ? loadCachedCheckinMoments<VenueMoment>(venueId)?.data : undefined),
+    initialData: () => (venueId != null && currentUserId ? loadCachedCheckinMoments<VenueMoment>(venueId, currentUserId)?.data : undefined),
   });
 }
 
@@ -52,7 +52,7 @@ export function usePostMomentMutation(venueId: number | undefined) {
       return data;
     },
     onSettled: () => {
-      if (venueId != null) qc.invalidateQueries({ queryKey: venueMomentsQueryKey(venueId) });
+      if (venueId != null) qc.invalidateQueries({ queryKey: ['checkin-moments', venueId] });
     },
   });
 }
@@ -65,7 +65,7 @@ export function useDeleteMomentMutation(venueId: number | undefined) {
       if (error) throw error;
     },
     onSettled: () => {
-      if (venueId != null) qc.invalidateQueries({ queryKey: venueMomentsQueryKey(venueId) });
+      if (venueId != null) qc.invalidateQueries({ queryKey: ['checkin-moments', venueId] });
     },
   });
 }

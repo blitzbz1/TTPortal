@@ -52,6 +52,27 @@ function readInitialLocationParamFromUrl(name: string): boolean {
   );
 }
 
+type WebSharedLink = {
+  route: string;
+  search: string;
+};
+
+function readCurrentWebSharedLink(): WebSharedLink | null {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
+  const route = recoverSharedRoute(window.location.pathname);
+  if (!route) return null;
+  return {
+    route,
+    search: window.location.search ?? '',
+  };
+}
+
+// Capture the hosted browser URL as early as this module loads. On GitHub Pages
+// deep links can briefly look like /TTPortal/app/venue/:id before the SPA/router
+// normalises history back to the app root; keeping this first value lets us
+// recover the intended content route after providers/fonts/session finish booting.
+const INITIAL_WEB_SHARED_LINK = readCurrentWebSharedLink();
+
 // Suppress LogBox in development to prevent overlay from blocking tab bar during E2E tests
 if (__DEV__) {
   LogBox.ignoreAllLogs(true);
@@ -123,10 +144,13 @@ function RootNavigator() {
   } = useSelectedLocation();
   const searchParams = useGlobalSearchParams();
   const pathname = usePathname();
-  const webSharedRoute =
-    Platform.OS === 'web' && typeof window !== 'undefined'
-      ? recoverSharedRoute(window.location.pathname)
-      : null;
+  const initialWebSharedLinkRef = useRef<WebSharedLink | null | undefined>(undefined);
+  if (initialWebSharedLinkRef.current === undefined) {
+    initialWebSharedLinkRef.current = INITIAL_WEB_SHARED_LINK ?? readCurrentWebSharedLink();
+  }
+  const currentWebSharedLink = readCurrentWebSharedLink();
+  const webSharedLink = initialWebSharedLinkRef.current ?? currentWebSharedLink;
+  const webSharedRoute = webSharedLink?.route ?? null;
   const { isDark, colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [urlForcesInitialLocation, setUrlForcesInitialLocation] = useState(
@@ -182,9 +206,9 @@ function RootNavigator() {
     recoveredWebLinkRef.current = true;
     const target = webSharedRoute;
     if (!target || target === pathname) return;
-    const search = window.location.search ?? '';
+    const search = webSharedLink?.search ?? window.location.search ?? '';
     router.replace(`${target}${search}` as Href);
-  }, [appReady, pathname, router, webSharedRoute]);
+  }, [appReady, pathname, router, webSharedLink?.search, webSharedRoute]);
 
   useEffect(() => {
     if (

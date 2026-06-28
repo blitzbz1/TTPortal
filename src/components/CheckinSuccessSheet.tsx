@@ -270,14 +270,6 @@ export function CheckinSuccessSheet({
             </View>
           )}
 
-          {/* XP animation — slides up after checkmark */}
-          <Animated.View
-            entering={FadeInUp.delay(600).duration(400).easing(Easings.decelerate)}
-            style={styles.xpRow}
-          >
-            <Text style={styles.xpText}>+10 XP</Text>
-          </Animated.View>
-
           {/* F050: weekly play streak nudge ("Week 6 — keep it alive!"). */}
           {currentStreak > 0 ? (
             <Animated.View
@@ -455,21 +447,6 @@ function createStyles(colors: ThemeColors) {
       fontFamily: Fonts.body,
       fontSize: FontSize.md,
       color: colors.textFaint,
-    },
-    xpRow: {
-      marginTop: Spacing.md,
-      backgroundColor: colors.primaryPale,
-      borderRadius: Radius.md,
-      paddingVertical: Spacing.xs,
-      paddingHorizontal: Spacing.lg,
-      borderWidth: 1,
-      borderColor: colors.primaryDim,
-    },
-    xpText: {
-      fontFamily: Fonts.heading,
-      fontSize: FontSize.xxl,
-      fontWeight: FontWeight.bold,
-      color: colors.primaryLight,
     },
     streakRow: {
       flexDirection: 'row',

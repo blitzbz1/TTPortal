@@ -4,14 +4,14 @@ import { cachedLoad, cachedSave, cachedInvalidate, type CacheRead } from './cach
 
 const TTL_MS = 5 * 60 * 1000; // 5min
 
-const key = (venueId: number) => `checkin-moments:${venueId}:list`;
+const key = (venueId: number, userId: string) => `checkin-moments:${venueId}:${userId}:list`;
 
-export function loadCachedCheckinMoments<T>(venueId: number): CacheRead<T[]> | null {
-  return cachedLoad<T[]>(key(venueId), TTL_MS);
+export function loadCachedCheckinMoments<T>(venueId: number, userId: string): CacheRead<T[]> | null {
+  return cachedLoad<T[]>(key(venueId, userId), TTL_MS);
 }
-export function saveCachedCheckinMoments<T>(venueId: number, data: T[]): void {
-  cachedSave(key(venueId), data);
+export function saveCachedCheckinMoments<T>(venueId: number, userId: string, data: T[]): void {
+  cachedSave(key(venueId, userId), data);
 }
-export function invalidateCheckinMomentsCache(venueId: number): void {
-  cachedInvalidate(key(venueId));
+export function invalidateCheckinMomentsCache(venueId: number, userId: string): void {
+  cachedInvalidate(key(venueId, userId));
 }

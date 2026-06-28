@@ -72,6 +72,10 @@ jest.mock('../../services/favorites', () => ({
 jest.mock('../../services/profiles', () => ({
   getProfile: (...args: any[]) => mockGetProfile(...args),
 }));
+const mockVenueMomentsStrip = jest.fn((_props: any) => null);
+jest.mock('../../components/VenueMomentsStrip', () => ({
+  VenueMomentsStrip: (props: any) => mockVenueMomentsStrip(props),
+}));
 jest.mock('expo-image-picker', () => ({
   requestMediaLibraryPermissionsAsync: jest.fn(),
   launchImageLibraryAsync: jest.fn(),
@@ -167,6 +171,15 @@ describe('VenueDetailScreen — merged suggest-edit / condition-vote handler', (
   it('uses a compact empty review row', async () => {
     const utils = render(<VenueDetailScreen venueId="1" />);
     expect(await utils.findByTestId('empty-reviews-cta')).toBeTruthy();
+  });
+
+  it('mounts recent moments for the signed-in viewer on the venue page', async () => {
+    const utils = render(<VenueDetailScreen venueId="1" />);
+    await utils.findByTestId('suggest-edit-btn');
+
+    expect(mockVenueMomentsStrip).toHaveBeenCalledWith(
+      expect.objectContaining({ venueId: 1, currentUserId: 'u1' }),
+    );
   });
 
   it('shows three reviews by default and can expand and collapse', async () => {

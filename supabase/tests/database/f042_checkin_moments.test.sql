@@ -2,7 +2,8 @@
 -- Verifies: one moment per check-in (a second post_checkin_moment for the same
 -- check-in REPLACES, count stays 1); soft delete hides the moment from
 -- get_venue_moments; a non-owner cannot directly SELECT another user's moment
--- row (RLS read-own); get_venue_moments block-filters a blocked author;
+-- row (RLS read-own); get_venue_moments is author/friends-only and
+-- block-filters a blocked author;
 -- content_reports CHECK accepts 'checkin_moment' (lives_ok) + rejects a bogus
 -- type (throws_ok 23514); a friend's moment appears in get_friend_feed.
 
@@ -11,7 +12,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 GRANT USAGE ON SCHEMA extensions TO anon, authenticated;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA extensions TO anon, authenticated;
 
-SELECT extensions.plan(11);
+SELECT extensions.plan(13);
 
 -- ── seed: A author, B friend-of-A viewer, C stranger/blocked ────────────────
 -- (the on_auth_user_created trigger auto-creates each profile row.)
@@ -116,6 +117,11 @@ SELECT extensions.is(
   (SELECT count(*)::int FROM public.checkin_moments),
   0, 'a non-owner sees no checkin_moments rows via RLS');
 
+-- (6b) A stranger cannot see A's moment through the venue moments RPC.
+SELECT extensions.is(
+  jsonb_array_length(public.get_venue_moments((SELECT id FROM public.venues WHERE name='Moment Venue'), 12)),
+  0, 'a non-friend sees no venue moments from another user');
+
 -- C blocks A: A's moment must drop out of get_venue_moments for C (RPC-layer filter).
 INSERT INTO public.user_blocks (blocker_id, blocked_id)
 VALUES ('e0420000-0000-4000-8000-000000000003', 'e0420000-0000-4000-8000-000000000001');
@@ -131,6 +137,11 @@ RESET ROLE;
 SELECT set_config('request.jwt.claim.sub', 'e0420000-0000-4000-8000-000000000002', true);
 SELECT set_config('request.jwt.claims', '{"sub":"e0420000-0000-4000-8000-000000000002","role":"authenticated"}', true);
 SET LOCAL ROLE authenticated;
+
+-- (7b) An accepted friend can see A's moment through the venue moments RPC.
+SELECT extensions.is(
+  jsonb_array_length(public.get_venue_moments((SELECT id FROM public.venues WHERE name='Moment Venue'), 12)),
+  1, 'an accepted friend sees the venue moment');
 
 -- (8) A friend's moment appears in get_friend_feed with kind 'moment' + photo_url.
 SELECT extensions.ok(
