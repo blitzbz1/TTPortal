@@ -1,4 +1,4 @@
--- Migration: 138_friend_scoped_checkin_moments
+-- Migration: 140_friend_scoped_checkin_moments
 -- Tighten venue moments visibility to the author and accepted friends only.
 -- This keeps the venue strip social/private instead of venue-wide public UGC,
 -- while preserving deleted/flagged/block filtering from migration 125.
