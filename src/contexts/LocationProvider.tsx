@@ -222,12 +222,16 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       // A newer id superseded this fetch (selectedCityId changed mid-flight).
       if (fetchingFallbackIdRef.current !== idForFetch) return;
       fetchingFallbackIdRef.current = null;
-      // A transient RPC/network error returns empty data (getCitiesByIds never
-      // throws). Do NOT record `city: null` — that would fall through to the
-      // default city and the persist effects would clobber the saved id/object
-      // in MMKV. Leave selectedCity pending (null) so the saved city is
-      // preserved; the effect retries when the catalog next updates.
-      if (error) return;
+      if (error) {
+        // PGRST202 = the RPC isn't deployed (get_cities_by_ids ships with the
+        // not-yet-deployed migration 139). That's PERMANENT, so resolve to the
+        // default city rather than hanging null forever. Any OTHER error is
+        // treated as transient: leave selectedCity pending (null) so the saved
+        // id/object is preserved (not clobbered) and the effect retries on the
+        // next catalog update.
+        if (error.code === 'PGRST202') setFallback({ id: idForFetch, city: null });
+        return;
+      }
       const row = data[0];
       setFallback({ id: idForFetch, city: row ? toLocationCity(row) : null });
     });

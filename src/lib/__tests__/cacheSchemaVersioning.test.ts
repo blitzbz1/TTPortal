@@ -27,8 +27,11 @@ beforeEach(() => {
 
 describe('cache schema versioning (T034)', () => {
   it('exposes three independent per-domain schema versions (T010)', () => {
-    expect(CITIES_CACHE_SCHEMA_VERSION).toBe(2); // Stage 2 tiered catalog row (search_key)
-    expect(VENUES_CACHE_SCHEMA_VERSION).toBe(2); // Stage 3 slim venue row
+    // All 1 until the matching server RPCs (mig 138/139) are deployed to prod —
+    // bumping before deploy invalidates caches + forces a re-pull against a 404ing
+    // RPC. See cacheSchema.ts.
+    expect(CITIES_CACHE_SCHEMA_VERSION).toBe(1);
+    expect(VENUES_CACHE_SCHEMA_VERSION).toBe(1);
     expect(KV_CACHE_SCHEMA_VERSION).toBe(1);
   });
 

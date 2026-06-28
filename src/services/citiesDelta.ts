@@ -9,16 +9,19 @@ export interface CitiesDeltaResponse {
 }
 
 /**
- * Stage 2: the eager cities delta now ships ONLY the venue-bearing / eager tier
- * via get_cities_catalog_v2 (was the full ~10,330-row get_cities_delta). Same
- * {upserts, tombstone_ids, synced_at} envelope — the client merge/cache logic is
- * unchanged; only the row population shrinks to the tier (plus a fell-out-of-tier
- * tombstone branch). get_cities_delta stays server-side for pre-138 clients.
+ * Reverted to the PROD-deployed get_cities_delta. The tiered get_cities_catalog_v2
+ * (Stage 2, migration 139) is NOT on prod, so calling it 404s → cities fail to
+ * load (empty switcher, city falls back to București). Stage 2 tiering is also
+ * MEASURED MOOT (prod tier ≈ the whole catalog, research §8), so there is little
+ * reason to deploy 139. If it is ever deployed, switch this back to
+ * 'get_cities_catalog_v2' and bump CITIES_CACHE_SCHEMA_VERSION. The Stage-2 client
+ * code (search/fallback/search_key) stays in the repo but is dormant on the full
+ * catalog.
  */
 export async function getCitiesDelta(
   since: string | null,
 ): Promise<{ data: CitiesDeltaResponse | null; error: PostgrestError | null }> {
-  const { data, error } = await supabase.rpc('get_cities_catalog_v2', { p_since: since ?? undefined });
+  const { data, error } = await supabase.rpc('get_cities_delta', { p_since: since ?? undefined });
   return { data: (data as CitiesDeltaResponse | null) ?? null, error };
 }
 

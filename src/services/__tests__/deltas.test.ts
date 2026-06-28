@@ -20,7 +20,7 @@ describe('getVenuesDelta', () => {
 
     const { data, error } = await getVenuesDelta('2026-06-01T00:00:00Z', 'Wien', 'parc_exterior', 7);
 
-    expect(mockRpc).toHaveBeenCalledWith('get_venues_map_delta', {
+    expect(mockRpc).toHaveBeenCalledWith('get_venues_delta', {
       p_since: '2026-06-01T00:00:00Z',
       p_city: 'Wien',
       p_type: 'parc_exterior',
@@ -35,7 +35,7 @@ describe('getVenuesDelta', () => {
 
     await getVenuesDelta(null);
 
-    expect(mockRpc).toHaveBeenCalledWith('get_venues_map_delta', {
+    expect(mockRpc).toHaveBeenCalledWith('get_venues_delta', {
       p_since: undefined,
       p_city: undefined,
       p_type: undefined,
@@ -51,17 +51,19 @@ describe('getVenuesDelta', () => {
   });
 });
 
-describe('getCitiesDelta (Stage 2 — tiered catalog)', () => {
-  it('targets get_cities_catalog_v2 and passes the watermark through', async () => {
+describe('getCitiesDelta (reverted to prod-deployed get_cities_delta)', () => {
+  // get_cities_catalog_v2 (mig 139) is NOT on prod, so the client must keep
+  // calling the deployed get_cities_delta until 139 ships.
+  it('targets get_cities_delta and passes the watermark through', async () => {
     mockRpc.mockResolvedValue({ data: { upserts: [], tombstone_ids: [], synced_at: 't' }, error: null });
     await getCitiesDelta('2026-06-01T00:00:00Z');
-    expect(mockRpc).toHaveBeenCalledWith('get_cities_catalog_v2', { p_since: '2026-06-01T00:00:00Z' });
+    expect(mockRpc).toHaveBeenCalledWith('get_cities_delta', { p_since: '2026-06-01T00:00:00Z' });
   });
 
   it('omits a null watermark', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null });
     await getCitiesDelta(null);
-    expect(mockRpc).toHaveBeenCalledWith('get_cities_catalog_v2', { p_since: undefined });
+    expect(mockRpc).toHaveBeenCalledWith('get_cities_delta', { p_since: undefined });
   });
 });
 

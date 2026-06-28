@@ -108,6 +108,19 @@ describe('LocationProvider — Stage 2 out-of-tier fallback (T051)', () => {
     expect(getStringSync('last_selected_city_id')).toBe('888');
   });
 
+  it('falls to the default city when get_cities_by_ids is not deployed (PGRST202)', async () => {
+    // Prod scenario: migration 139 (get_cities_by_ids) isn't deployed, so a saved
+    // out-of-tier positive id 404s. A MISSING RPC is permanent → resolve to the
+    // default city (Cluj here) rather than hanging on a null selectedCity.
+    mockGetCitiesByIds.mockResolvedValue({ data: [], error: { code: 'PGRST202', message: 'Could not find the function' } });
+    setString('last_selected_city_id', '888'); // not in TIER_ROWS
+    setString('initial_location_setup_completed', 'true');
+
+    render(<LocationProvider><Probe /></LocationProvider>);
+    await waitFor(() => expect(observed?.selectedCity?.id).toBe(7)); // default (Cluj), not null
+    expect(observed?.selectedCity?.name).toBe('Cluj');
+  });
+
   it('resolves a saved negative wave id to the EXPANSION_CITY_WAVE entry without any fetch', async () => {
     setString('last_selected_city_id', '-1002'); // Berlin wave city
     setString('initial_location_setup_completed', 'true');

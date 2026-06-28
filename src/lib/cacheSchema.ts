@@ -19,13 +19,18 @@
  * Lives in its own module so cacheUtils, offline-cache, and the MMKV delta
  * caches can import without a cycle.
  */
-// Stage 2: bumped to 2 for the tiered catalog row (get_cities_catalog_v2) — the
-// row now carries a server-built `search_key`, and the cached set shrinks from
-// the full ~10,330-row catalog to the venue-bearing/eager tier. Old v:1 envelopes
-// (full catalog, no search_key) are treated as a miss → one since=null re-pull of
-// the CITIES store only (venues/KV untouched — the Stage-0 footgun, DO-NOT #1).
-export const CITIES_CACHE_SCHEMA_VERSION = 2;
-// Stage 3: bumped to 2 for the slim 12-field venue row (get_venues_map_delta) —
-// old 17-field cached scopes are treated as a miss and re-pulled from since=null.
-export const VENUES_CACHE_SCHEMA_VERSION = 2;
+// NOTE (2026-06-28): these stay at 1 — DELIBERATELY NOT bumped — until the
+// matching server RPCs are actually deployed to PROD. Migrations 138
+// (get_venues_map_delta) and 139 (get_cities_catalog_v2) are committed but NOT on
+// prod, so the client must keep calling the deployed get_cities_delta /
+// get_venues_delta and keep its existing v:1 caches valid (no re-pull). Bumping
+// these BEFORE the migrations deploy invalidates the offline caches AND forces a
+// re-pull against an RPC that 404s → cities + venues both fail to load.
+// WHEN DEPLOYING: deploy the migration to prod, switch the service RPC name
+// (src/services/citiesDelta.ts / venuesDelta.ts), THEN bump the matching version
+// here so old-shape caches are refreshed. (Stage 2 cities tiering is measured
+// MOOT — see research §8 — so 139 may stay undeployed; Stage 3 venue slim is a
+// real ~39% win, so 138 is the one worth deploying.)
+export const CITIES_CACHE_SCHEMA_VERSION = 1;
+export const VENUES_CACHE_SCHEMA_VERSION = 1;
 export const KV_CACHE_SCHEMA_VERSION = 1;
