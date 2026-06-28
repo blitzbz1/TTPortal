@@ -1,20 +1,24 @@
 import { createMMKV } from 'react-native-mmkv';
-import { CACHE_SCHEMA_VERSION } from './cacheSchema';
+import { VENUES_CACHE_SCHEMA_VERSION } from './cacheSchema';
 
 // Persistent on-device venue list, scoped by (city, type). Each scope holds:
-//   - v: CACHE_SCHEMA_VERSION at write time (mismatch ⇒ cache miss ⇒ the
+//   - v: VENUES_CACHE_SCHEMA_VERSION at write time (mismatch ⇒ cache miss ⇒ the
 //     delta client re-syncs from since=null — delta sync never backfills
-//     shape changes on its own)
+//     shape changes on its own). This is the venues-only version: bumping it
+//     re-pulls venue scopes without touching the cities or offline-KV caches.
 //   - venues: full list as currently known to the device
 //   - syncedAt: ISO timestamp passed back to the server on the next delta call
 const store = createMMKV({ id: 'venues-cache-v2' });
 
+// Stage 3: the slim 12-field map/list row from get_venues_map_delta. The five
+// fields the old 17-field shape carried — city, city_id, approved, updated_at,
+// created_at — earned nothing on the load path (city duplicates
+// selectedCity.name; the rest are client-dead), so they are dropped to cut the
+// per-city-switch parse / MMKV-stringify / GC. address STAYS (read by search).
 export interface PersistedVenue {
   id: number;
   name: string;
   type: string;
-  city: string;
-  city_id: number;
   address: string;
   lat: number;
   lng: number;
@@ -24,9 +28,6 @@ export interface PersistedVenue {
   night_lighting: boolean | null;
   nets: boolean | null;
   verified: boolean | null;
-  approved: boolean | null;
-  updated_at: string;
-  created_at: string;
 }
 
 export interface VenueScopeCache {
@@ -46,7 +47,7 @@ export function readVenueScope(city?: string | null, type?: string | null): Venu
     const parsed = JSON.parse(raw) as VenueScopeCache;
     if (!parsed || !Array.isArray(parsed.venues)) return null;
     // Schema mismatch ⇒ miss (pre-versioning envelopes have v undefined).
-    if (parsed.v !== CACHE_SCHEMA_VERSION) return null;
+    if (parsed.v !== VENUES_CACHE_SCHEMA_VERSION) return null;
     return parsed;
   } catch {
     return null;
@@ -58,7 +59,7 @@ export function writeVenueScope(
   type: string | null | undefined,
   cache: VenueScopeCache,
 ): void {
-  store.set(scopeKey(city, type), JSON.stringify({ ...cache, v: CACHE_SCHEMA_VERSION }));
+  store.set(scopeKey(city, type), JSON.stringify({ ...cache, v: VENUES_CACHE_SCHEMA_VERSION }));
 }
 
 export function applyVenuesDelta(

@@ -57,7 +57,9 @@ export function VenuePickerModal({
 
   const venues: VenueOption[] = useMemo(() => {
     const all = (cachedVenues ?? []).map((v) => ({
-      id: v.id, name: v.name, city: v.city, type: v.type,
+      // Stage 3: the slim venue row no longer carries `city`; within this
+      // single-city scope every venue is in selectedCity, so use its name.
+      id: v.id, name: v.name, city: selectedCityName, type: v.type,
     }));
     const trimmed = query.trim();
     if (!trimmed) return all;

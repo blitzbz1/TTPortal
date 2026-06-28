@@ -1,7 +1,15 @@
-import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+// INVARIANT (Stage 1.5): the root LocationProvider must NOT parse the full
+// cities catalog on the synchronous mount path. Boot resolves selectedCity from
+// a persisted 1-row object (loadPersistedSelectedCity); the heavy activeCities
+// build (toLocationCity + mergeExpansionCityWave over ~10k rows) is deferred off
+// first paint via InteractionManager / requestCatalog. Stage 2 must preserve
+// this invariant — the lazy build is the seam tiering reuses.
+import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { InteractionManager } from 'react-native';
 import { getStringSync, removeString, setString } from '../lib/mmkv';
 import { useCitiesQuery } from '../hooks/queries/useCitiesQuery';
 import {
+  EXPANSION_CITY_WAVE,
   FALLBACK_COUNTRY_CODE,
   getCountriesFromCities,
   getCountryForCity,
@@ -10,12 +18,18 @@ import {
   mergeExpansionCityWave,
   toLocationCity,
 } from '../lib/locationHelpers';
+import { getCitiesByIds } from '../services/citiesDelta';
 import type { Country, CountryCode, LocationCity } from '../lib/locationTypes';
+import { traceSegment } from '../lib/launchTrace';
 
 const COUNTRY_KEY = 'last_selected_country_code';
 const CITY_KEY = 'last_selected_city_id';
+const CITY_OBJ_KEY = 'last_selected_city';
 const CITY_VISIT_COUNTS_KEY = 'location_city_visit_counts';
 const SETUP_DONE_KEY = 'initial_location_setup_completed';
+
+// Stable empty reference so the deferred activeCities memo doesn't churn.
+const EMPTY_CITIES: LocationCity[] = [];
 
 function hasInitialLocationResetParam(): boolean {
   if (typeof window === 'undefined') return false;
@@ -42,6 +56,8 @@ export interface LocationContextValue {
   citiesForSelectedCountry: LocationCity[];
   loadingCities: boolean;
   locationReady: boolean;
+  /** Stage 1.5: force the deferred full-catalog build (called on switcher-open). */
+  requestCatalog: () => void;
   hasCompletedInitialLocationSetup: boolean;
   refreshCities: () => Promise<void>;
   setSelectedCountry: (country: Country | CountryCode) => void;
@@ -65,6 +81,22 @@ function loadCityId(): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function loadPersistedSelectedCity(): LocationCity | null {
+  // Stage 1.5 (T030): resolve the saved city from a persisted 1-row object so
+  // boot needs ZERO catalog parse. Stores the whole LocationCity, so negative
+  // EXPANSION_CITY_WAVE client ids (e.g. Vienna -1001) rehydrate without any
+  // catalog access. MUST NOT call readCities()/cleanCityCatalog.
+  if (hasInitialLocationResetParam()) return null;
+  const raw = getStringSync(CITY_OBJ_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as LocationCity;
+    return parsed && typeof parsed.id === 'number' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function loadInitialSetupCompleted(): boolean {
   if (hasInitialLocationResetParam()) return false;
   return getStringSync(SETUP_DONE_KEY) === 'true';
@@ -82,21 +114,59 @@ function incrementCityVisitCount(cityId: number): void {
 }
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {
-  const { data: cityRows, isLoading, refreshCatalog } = useCitiesQuery();
   const [selectedCountry, setSelectedCountryState] = useState<Country>(loadCountry);
   const [selectedCityId, setSelectedCityId] = useState<number | null>(loadCityId);
   const [hasCompletedInitialLocationSetup, setHasCompletedInitialLocationSetup] = useState<boolean>(
     loadInitialSetupCompleted,
   );
-  const cityRowsCount = cityRows?.length ?? 0;
-  const locationReady = !isLoading || cityRowsCount > 0;
+  const [persistedCity] = useState<LocationCity | null>(loadPersistedSelectedCity);
+  // Stage 1.5 (T031): defer the full-catalog activeCities build until the catalog
+  // is "requested" — post-first-paint via InteractionManager, eagerly on
+  // switcher-open (requestCatalog), or when there's no persisted city to resolve
+  // from. This is the seam Stage 2 reuses (the lazy build runs over the tier).
+  const [catalogRequested, setCatalogRequested] = useState(false);
+  const requestCatalog = useCallback(() => setCatalogRequested(true), []);
+  // Stage 2 (T051): a saved selectedCity whose id is no longer in the eager tier
+  // is resolved from a single row (fetched by id, or held by the persisted boot
+  // object) — never a full catalog re-pull. Records the attempted id + its result
+  // (`city: null` ⇒ fetched but genuinely gone, so resolution falls to default).
+  const [fallback, setFallback] = useState<{ id: number; city: LocationCity | null } | null>(null);
+  // The id currently in flight in the fallback fetch — dedupes redundant
+  // getCitiesByIds calls when activeCities churns mid-fetch (a delta landing
+  // gives it a new identity).
+  const fetchingFallbackIdRef = useRef<number | null>(null);
 
-  const activeCities = useMemo(
-    () => mergeExpansionCityWave(
+  // Stage 1.5: gate the cities query on catalogRequested so its initialData parse
+  // is deferred off the synchronous mount path (boot resolves selectedCity from
+  // the persisted 1-row object instead); enabling it post-first-paint hydrates
+  // the catalog via queryFn.
+  const { data: cityRows, isLoading, refreshCatalog } = useCitiesQuery(catalogRequested);
+
+  const cityRowsCount = cityRows?.length ?? 0;
+
+  useEffect(() => {
+    if (catalogRequested) return;
+    if (hasCompletedInitialLocationSetup && !persistedCity) {
+      // Nothing persisted to resolve selectedCity from (first run, or an upgrade
+      // from the id-only format) — build promptly instead of deferring.
+      setCatalogRequested(true);
+      return;
+    }
+    const handle = InteractionManager.runAfterInteractions(() => setCatalogRequested(true));
+    return () => handle.cancel();
+  }, [catalogRequested, hasCompletedInitialLocationSetup, persistedCity]);
+
+  const activeCities = useMemo(() => {
+    // Stage 1.5: [] until requested AND the rows are loaded, so the ~10k
+    // toLocationCity map + mergeExpansionCityWave never runs on the synchronous
+    // mount path, and selectedCity holds the persisted object (not a transient
+    // EXPANSION_CITY_WAVE default) during the post-request load window.
+    if (!catalogRequested || !cityRows) return EMPTY_CITIES;
+    // T003 (Stage M): time the full-catalog build (warm-cache + post-delta).
+    return traceSegment('cities: toLocationCity+mergeWave', () => mergeExpansionCityWave(
       (cityRows ?? []).map(toLocationCity).filter((city) => city.expansion_status !== 'hidden'),
-    ),
-    [cityRows],
-  );
+    ));
+  }, [catalogRequested, cityRows]);
   const activeCountries = useMemo(() => getCountriesFromCities(activeCities), [activeCities]);
   const citiesForSelectedCountry = useMemo(
     () => activeCities.filter((city) => city.country_code === selectedCountry.code),
@@ -105,12 +175,70 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
 
   const selectedCity = useMemo(() => {
     if (!hasCompletedInitialLocationSetup) return null;
+    // Pre-build (activeCities deferred to []): resolve from the persisted 1-row
+    // object — zero catalog parse. Once built, activeCities is authoritative
+    // (fresh venue_count, tombstone-aware).
+    if (activeCities.length === 0) return persistedCity;
     if (selectedCityId != null) {
       const saved = activeCities.find((city) => city.id === selectedCityId);
       if (saved) return saved;
+      // Stage 2 (T051): the saved id is not in the tier. Resolve it from ONE row
+      // instead of a full re-pull, so boot shows the correct city, not a
+      // default-city flicker. Negative ids are the client-only EXPANSION_CITY_WAVE
+      // (§8.5); positive ids come from the persisted boot object (Stage 1.5) or a
+      // single getCitiesByIds fetch.
+      if (selectedCityId < 0) {
+        const wave = EXPANSION_CITY_WAVE.find((city) => city.id === selectedCityId);
+        if (wave) return wave;
+      }
+      if (persistedCity?.id === selectedCityId) return persistedCity;
+      if (fallback?.id === selectedCityId) {
+        // Fetched: the resolved row, or fall through to default if it's gone.
+        if (fallback.city) return fallback.city;
+      } else if (selectedCityId > 0) {
+        // A saved positive id, still resolving by single-row fetch. Hold at null
+        // (not the default) so the persist effect can't clobber the saved id
+        // before getCitiesByIds returns.
+        return null;
+      }
     }
     return getDefaultCity(citiesForSelectedCountry);
-  }, [activeCities, citiesForSelectedCountry, hasCompletedInitialLocationSetup, selectedCityId]);
+  }, [activeCities, citiesForSelectedCountry, hasCompletedInitialLocationSetup, selectedCityId, persistedCity, fallback]);
+
+  // Stage 2 (T051): when the tier is built but a saved POSITIVE id is missing
+  // from it and not already covered by the persisted boot object, fetch that one
+  // row by id. Negative (wave) ids and in-tier ids never reach here, so the map
+  // settles to the right city without ever re-pulling the whole catalog.
+  useEffect(() => {
+    if (selectedCityId == null || selectedCityId < 0) return;
+    if (!catalogRequested || activeCities.length === 0) return;
+    if (activeCities.some((city) => city.id === selectedCityId)) return;
+    if (persistedCity?.id === selectedCityId) return;
+    if (fallback?.id === selectedCityId) return; // already attempted (found or gone)
+    if (fetchingFallbackIdRef.current === selectedCityId) return; // already in flight
+    const idForFetch = selectedCityId;
+    fetchingFallbackIdRef.current = idForFetch;
+    void getCitiesByIds([idForFetch]).then(({ data, error }) => {
+      // A newer id superseded this fetch (selectedCityId changed mid-flight).
+      if (fetchingFallbackIdRef.current !== idForFetch) return;
+      fetchingFallbackIdRef.current = null;
+      // A transient RPC/network error returns empty data (getCitiesByIds never
+      // throws). Do NOT record `city: null` — that would fall through to the
+      // default city and the persist effects would clobber the saved id/object
+      // in MMKV. Leave selectedCity pending (null) so the saved city is
+      // preserved; the effect retries when the catalog next updates.
+      if (error) return;
+      const row = data[0];
+      setFallback({ id: idForFetch, city: row ? toLocationCity(row) : null });
+    });
+  }, [selectedCityId, catalogRequested, activeCities, persistedCity, fallback]);
+
+  // Stage 1.5 (T032): ready once a city is resolved (persisted or catalog) or the
+  // cities query settles — no longer keyed off cityRowsCount, so nothing blocks
+  // the tree on the catalog parse. NOTE: no tree-gating consumer reads this today
+  // (the visible gate is appReady = fontsLoaded && !isLoading in _layout.tsx);
+  // keep it honest, but the app tree must NEVER block on the full-catalog build.
+  const locationReady = selectedCity != null || !isLoading;
 
   useEffect(() => {
     if (!selectedCity || selectedCityId === selectedCity.id) return;
@@ -118,6 +246,16 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     setSelectedCityId(selectedCity.id);
     setString(CITY_KEY, String(selectedCity.id));
   }, [hasCompletedInitialLocationSetup, selectedCity, selectedCityId]);
+
+  useEffect(() => {
+    // Stage 1.5 (T030): keep the persisted 1-row boot cache fresh with the
+    // resolved city. Skips the redundant boot write when selectedCity IS the
+    // persisted object; writes the authoritative catalog row once it's built
+    // (and seeds CITY_OBJ_KEY for users upgrading from the id-only format).
+    if (selectedCity && selectedCity !== persistedCity) {
+      setString(CITY_OBJ_KEY, JSON.stringify(selectedCity));
+    }
+  }, [selectedCity, persistedCity]);
 
   useEffect(() => {
     if (!selectedCity || selectedCity.country_code === selectedCountry.code) return;
@@ -140,6 +278,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     }
     setSelectedCityId(city.id);
     setString(CITY_KEY, String(city.id));
+    setString(CITY_OBJ_KEY, JSON.stringify(city)); // Stage 1.5: 1-row boot cache
     incrementCityVisitCount(city.id);
     const country = getCountryForCity(city);
     setSelectedCountryState(country);
@@ -155,6 +294,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     setHasCompletedInitialLocationSetup(false);
     setSelectedCityId(null);
     removeString(CITY_KEY);
+    removeString(CITY_OBJ_KEY);
     removeString(SETUP_DONE_KEY);
   }, []);
 
@@ -171,6 +311,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       citiesForSelectedCountry,
       loadingCities: isLoading && cityRowsCount === 0,
       locationReady,
+      requestCatalog,
       hasCompletedInitialLocationSetup,
       refreshCities,
       setSelectedCountry,
@@ -187,6 +328,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       cityRowsCount,
       locationReady,
+      requestCatalog,
       hasCompletedInitialLocationSetup,
       refreshCities,
       setSelectedCountry,

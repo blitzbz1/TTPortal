@@ -8,6 +8,7 @@ const mockSetSelectedCountry = jest.fn();
 const mockSetSelectedCity = jest.fn();
 const mockCompleteInitialLocationSetup = jest.fn();
 const mockRefreshCities = jest.fn(async () => {});
+const mockRequestCatalog = jest.fn();
 
 const cities: LocationCity[] = [
   {
@@ -62,6 +63,7 @@ jest.mock('../../hooks/useSelectedLocation', () => ({
     citiesForSelectedCountry: cities,
     loadingCities: false,
     hasCompletedInitialLocationSetup: false,
+    requestCatalog: mockRequestCatalog,
     refreshCities: mockRefreshCities,
     setSelectedCountry: mockSetSelectedCountry,
     setSelectedCity: mockSetSelectedCity,

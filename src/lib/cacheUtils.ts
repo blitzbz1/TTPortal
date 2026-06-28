@@ -10,8 +10,6 @@ import {
   removeCacheItemsByPrefix as _removeCacheItemsByPrefix,
 } from './offline-cache';
 
-export { CACHE_SCHEMA_VERSION } from './cacheSchema';
-
 export const removeCacheItemsByPrefix = _removeCacheItemsByPrefix;
 
 export type CacheRead<T> = { data: T; fresh: boolean };

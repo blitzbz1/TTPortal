@@ -3,12 +3,21 @@ import { compareRo } from './collation';
 
 export const PIATRA_NEAMT_CANONICAL_NAME = 'Piatra Neamț';
 
+// cityKey runs NFD normalization + two regex passes. cleanCityCatalog calls it
+// ~2\u00d7 per row (hidden check + Piatra check) over ~10k rows, on every pipeline
+// run, so cache by raw name (a bounded set \u2014 the catalog's distinct names).
+// Output is byte-identical; mirrors normalizeCityName's cache in locationHelpers.
+const cityKeyCache = new Map<string, string>();
 function cityKey(name: string): string {
-  return name
+  const cached = cityKeyCache.get(name);
+  if (cached !== undefined) return cached;
+  const key = name
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '');
+  cityKeyCache.set(name, key);
+  return key;
 }
 
 const HIDDEN_CITY_KEYS = new Set(['carcea', 'circea']);

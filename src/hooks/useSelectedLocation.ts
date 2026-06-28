@@ -12,6 +12,7 @@ export function useSelectedLocation() {
     citiesForSelectedCountry: [],
     loadingCities: false,
     locationReady: true,
+    requestCatalog: () => {},
     hasCompletedInitialLocationSetup: true,
     refreshCities: async () => {},
     setSelectedCountry: () => {},

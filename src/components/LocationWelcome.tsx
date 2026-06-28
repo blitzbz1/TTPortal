@@ -22,7 +22,8 @@ import { getStringSync } from '../lib/mmkv';
 import { foldDiacritics } from '../lib/textSearch';
 import { compareLocale } from '../lib/collation';
 import { getLocalizedCountryName } from '../lib/countryLabels';
-import { getCountryFlagEmoji, getRecommendedCities } from '../lib/locationHelpers';
+import { getCountryFlagEmoji, getRecommendedCities, mergeSearchedCities } from '../lib/locationHelpers';
+import { useCitySearchQuery } from '../hooks/queries/useCitySearchQuery';
 import type { Country, LocationCity } from '../lib/locationTypes';
 import { Fonts, FontSize, FontWeight, Spacing, type ThemeColors } from '../theme';
 
@@ -32,6 +33,8 @@ interface LocationWelcomeProps {
 
 const ALL_COUNTRIES: Country = { code: 'ALL', name: 'Europe', active: true };
 const CITY_VISIT_COUNTS_KEY = 'location_city_visit_counts';
+// Below this many in-tier matches, reach the long-tail with the server search.
+const SEARCH_FALLBACK_THRESHOLD = 5;
 
 export function LocationWelcome({ visible }: LocationWelcomeProps) {
   const { s, lang } = useI18n();
@@ -43,6 +46,7 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
     activeCities,
     loadingCities,
     refreshCities,
+    requestCatalog,
     setSelectedCity,
     completeInitialLocationSetup,
   } = useSelectedLocation();
@@ -70,7 +74,7 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
     [activeCities, activeCountries, lang],
   );
 
-  const cities = useMemo(() => {
+  const inTierCities = useMemo(() => {
     const source = activeCities.filter(
       (city) => city.expansion_status !== 'hidden' && (pendingCountry.code === 'ALL' || city.country_code === pendingCountry.code),
     );
@@ -81,17 +85,36 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
     return [...filtered].sort((a, b) => sortLocationCities(a, b, normalizedQuery, cityVisitCounts, lang));
   }, [activeCities, cityVisitCounts, lang, normalizedQuery, pendingCountry.code]);
 
+  // Stage 2 (T053): onboarding can reach a zero-venue long-tail city by search
+  // without shipping the full catalog — fire the debounced server search only
+  // when the in-tier matches are sparse, and fold its rows in (mirrors T052).
+  const wantsServerSearch = normalizedQuery.length > 0 && inTierCities.length < SEARCH_FALLBACK_THRESHOLD;
+  const { results: serverResults, isSearching } = useCitySearchQuery(query, wantsServerSearch);
+
+  const cities = useMemo(() => {
+    if (!wantsServerSearch || serverResults.length === 0) return inTierCities;
+    const scoped =
+      pendingCountry.code === 'ALL'
+        ? serverResults
+        : serverResults.filter((city) => city.country_code === pendingCountry.code);
+    return [...mergeSearchedCities(inTierCities, scoped)].sort((a, b) =>
+      sortLocationCities(a, b, normalizedQuery, cityVisitCounts, lang),
+    );
+  }, [inTierCities, serverResults, wantsServerSearch, pendingCountry.code, normalizedQuery, cityVisitCounts, lang]);
+
   const [pendingCityId, setPendingCityId] = useState<number | null>(null);
   const pendingCity = cities.find((city) => city.id === pendingCityId) ?? cities[0] ?? null;
 
   useEffect(() => {
     if (!visible) return;
+    // Stage 1.5: force the deferred full-catalog build when the picker opens.
+    requestCatalog();
     // Android only: skip the forced full catalog re-pull on open (see
     // LocationSelector for the rationale). The cities query already refreshes via
     // refetchOnMount + a 5-min staleTime. iOS/web keep the behaviour unchanged.
     if (Platform.OS === 'android') return;
     void refreshCities();
-  }, [refreshCities, visible]);
+  }, [refreshCities, requestCatalog, visible]);
 
   const chooseCountry = (country: Country | 'ALL') => {
     setPendingCountry(country === 'ALL' ? ALL_COUNTRIES : country);
@@ -208,7 +231,7 @@ export function LocationWelcome({ visible }: LocationWelcomeProps) {
         ) : null}
       </View>
 
-      {loadingCities && cities.length === 0 ? (
+      {(loadingCities || isSearching) && cities.length === 0 ? (
         <View style={styles.loader}>
           <ActivityIndicator color={colors.primary} />
         </View>

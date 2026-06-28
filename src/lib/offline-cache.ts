@@ -6,12 +6,14 @@
 // works on web (the SQLite version was a no-op there).
 //
 // Storage shape: one envelope per key — JSON { v: <value>, t: <written-at ms> }.
-// Schema versioning (T034): a CACHE_SCHEMA_VERSION mismatch wipes the store
-// — hydrating stale-shaped JSON is worse than a cold refetch.
+// Schema versioning (T034): a KV_CACHE_SCHEMA_VERSION mismatch wipes this store
+// — hydrating stale-shaped JSON is worse than a cold refetch. The version is
+// KV-only: it gates the `offline-kv-cache` store and NOT the cities/venues MMKV
+// delta caches, which own CITIES_/VENUES_CACHE_SCHEMA_VERSION respectively.
 
 import { createMMKV } from 'react-native-mmkv';
 import { Platform } from 'react-native';
-import { CACHE_SCHEMA_VERSION } from './cacheSchema';
+import { KV_CACHE_SCHEMA_VERSION } from './cacheSchema';
 
 const SCHEMA_VERSION_KEY = '__schema_version__';
 const SQLITE_MIGRATED_KEY = '__migrated_from_sqlite__';
@@ -61,9 +63,9 @@ function migrateFromSqliteOnce(): void {
 (function ensureSchema() {
   try {
     const stored = store.getString(SCHEMA_VERSION_KEY);
-    if (Number(stored) !== CACHE_SCHEMA_VERSION) {
+    if (Number(stored) !== KV_CACHE_SCHEMA_VERSION) {
       store.clearAll();
-      store.set(SCHEMA_VERSION_KEY, String(CACHE_SCHEMA_VERSION));
+      store.set(SCHEMA_VERSION_KEY, String(KV_CACHE_SCHEMA_VERSION));
       migrateFromSqliteOnce();
     }
   } catch {

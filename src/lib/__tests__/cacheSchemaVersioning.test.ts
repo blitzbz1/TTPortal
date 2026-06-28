@@ -1,5 +1,9 @@
 import { createMMKV } from 'react-native-mmkv';
-import { CACHE_SCHEMA_VERSION } from '../cacheSchema';
+import {
+  CITIES_CACHE_SCHEMA_VERSION,
+  VENUES_CACHE_SCHEMA_VERSION,
+  KV_CACHE_SCHEMA_VERSION,
+} from '../cacheSchema';
 import {
   readVenueScope,
   writeVenueScope,
@@ -12,7 +16,7 @@ const venuesStore = createMMKV({ id: 'venues-cache-v2' });
 const citiesStore = createMMKV({ id: 'cities-cache-v2' });
 
 const SCOPE: VenueScopeCache = {
-  venues: [{ id: 1, name: 'V', type: 'parc_exterior', city: 'X', city_id: 1, address: 'A', lat: 1, lng: 2, tables_count: null, condition: null, free_access: null, night_lighting: null, nets: null, verified: null, approved: true, updated_at: 't', created_at: 't' }],
+  venues: [{ id: 1, name: 'V', type: 'parc_exterior', address: 'A', lat: 1, lng: 2, tables_count: null, condition: null, free_access: null, night_lighting: null, nets: null, verified: null }],
   syncedAt: '2026-06-01T00:00:00Z',
 };
 
@@ -22,11 +26,17 @@ beforeEach(() => {
 });
 
 describe('cache schema versioning (T034)', () => {
+  it('exposes three independent per-domain schema versions (T010)', () => {
+    expect(CITIES_CACHE_SCHEMA_VERSION).toBe(2); // Stage 2 tiered catalog row (search_key)
+    expect(VENUES_CACHE_SCHEMA_VERSION).toBe(2); // Stage 3 slim venue row
+    expect(KV_CACHE_SCHEMA_VERSION).toBe(1);
+  });
+
   it('round-trips venue scopes written at the current version', () => {
     writeVenueScope('X', null, SCOPE);
     const read = readVenueScope('X', null);
     expect(read?.venues).toHaveLength(1);
-    expect(read?.v).toBe(CACHE_SCHEMA_VERSION);
+    expect(read?.v).toBe(VENUES_CACHE_SCHEMA_VERSION);
     expect(read?.syncedAt).toBe(SCOPE.syncedAt);
   });
 
@@ -36,7 +46,7 @@ describe('cache schema versioning (T034)', () => {
   });
 
   it('treats version-mismatched venue envelopes as a miss', () => {
-    venuesStore.set('scope:X:all', JSON.stringify({ ...SCOPE, v: CACHE_SCHEMA_VERSION + 1 }));
+    venuesStore.set('scope:X:all', JSON.stringify({ ...SCOPE, v: VENUES_CACHE_SCHEMA_VERSION + 1 }));
     expect(readVenueScope('X', null)).toBeNull();
   });
 
@@ -45,6 +55,6 @@ describe('cache schema versioning (T034)', () => {
     expect(readCities()).toBeNull();
 
     writeCities({ cities: [], syncedAt: '2026-06-01T00:00:00Z' });
-    expect(readCities()?.v).toBe(CACHE_SCHEMA_VERSION);
+    expect(readCities()?.v).toBe(CITIES_CACHE_SCHEMA_VERSION);
   });
 });

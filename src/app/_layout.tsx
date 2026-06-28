@@ -34,6 +34,7 @@ import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { installCrashReporting } from '../lib/telemetry';
 import { recoverSharedRoute } from '../lib/routeRecovery';
+import { trace, traceOnce, traceSummary } from '../lib/launchTrace';
 
 function readInitialLocationParamFromUrl(name: string): boolean {
   if (typeof window === 'undefined') return false;
@@ -64,6 +65,10 @@ export const unstable_settings = {
 
 SplashScreen.preventAutoHideAsync();
 
+// Cold-start tracing (temporary). Runs at module-eval, so its absolute time ≈
+// native init + bundle load before app JS ran. See src/lib/launchTrace.ts.
+trace('00 js-eval (module)');
+
 // Crash reporting (T080): global JS error handlers → ingest-telemetry Edge
 // Function → Grafana Loki. No-op in dev (red box stays authoritative).
 installCrashReporting();
@@ -74,6 +79,7 @@ installCrashReporting();
  * While session or fonts are loading, a splash view is shown to prevent auth flicker.
  */
 export default function RootLayout() {
+  traceOnce('10 RootLayout render');
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
@@ -108,6 +114,7 @@ export default function RootLayout() {
  * and renders the Stack navigator once ready.
  */
 function RootNavigator() {
+  traceOnce('20 providers rendered (RootNavigator)');
   const router = useRouter();
   const { isLoading } = useSession();
   const {
@@ -143,8 +150,17 @@ function RootNavigator() {
 
   const [splashDone, setSplashDone] = useState(false);
   const recoveredWebLinkRef = useRef(false);
-  const handleSplashComplete = useCallback(() => setSplashDone(true), []);
+  const handleSplashComplete = useCallback(() => {
+    trace('70 splash done (app visible)');
+    traceSummary();
+    setSplashDone(true);
+  }, []);
   const appReady = fontsLoaded && !isLoading;
+
+  // ── launch tracing milestones (temporary) ──
+  useEffect(() => { trace('30 first commit (tree mounted)'); }, []);
+  useEffect(() => { if (!isLoading) traceOnce('40 session resolved'); }, [isLoading]);
+  useEffect(() => { if (fontsLoaded) traceOnce('50 fonts loaded'); }, [fontsLoaded]);
 
   useEffect(() => {
     if (fontError) throw fontError;
@@ -152,6 +168,7 @@ function RootNavigator() {
 
   useEffect(() => {
     if (appReady) {
+      trace('60 appReady → hiding native splash');
       SplashScreen.hideAsync();
     }
   }, [appReady]);

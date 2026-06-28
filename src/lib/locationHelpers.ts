@@ -175,6 +175,19 @@ export const EXPANSION_CITY_WAVE: LocationCity[] = [
   },
 ];
 
+// Shared catalog ordering: country_code, then city name (Romanian collation).
+// Used by both the wave merge and the searched-city merge so a long-tail result
+// slots into exactly the position the switcher already sorts by.
+function compareCityByCountryThenName(a: LocationCity, b: LocationCity): number {
+  // Perf (cold-mount materialize): country codes are 2-letter UPPERCASE ASCII, so
+  // a plain comparison is byte-identical to the default ICU collation but skips an
+  // Intl.Collator call on EVERY one of the ~133k comparisons in the ~10k-city
+  // wave-merge sort. Name keeps compareRo so the visible Romanian-collated order
+  // is unchanged.
+  if (a.country_code !== b.country_code) return a.country_code < b.country_code ? -1 : 1;
+  return compareRo(a.name, b.name);
+}
+
 export function mergeExpansionCityWave(cities: LocationCity[]): LocationCity[] {
   const byCountryAndName = new Map<string, LocationCity>();
 
@@ -185,14 +198,34 @@ export function mergeExpansionCityWave(cities: LocationCity[]): LocationCity[] {
     byCountryAndName.set(getCityKey(city), city);
   }
 
-  return Array.from(byCountryAndName.values()).sort((a, b) => {
-    const country = compareDefault(a.country_code, b.country_code);
-    return country === 0 ? compareRo(a.name, b.name) : country;
-  });
+  return Array.from(byCountryAndName.values()).sort(compareCityByCountryThenName);
+}
+
+// Stage 2 (T050): fold long-tail useCitySearchQuery results into the in-memory
+// activeCities set so a searched zero-venue city becomes selectable without a
+// full catalog re-sync. Deduped by the same country:name key as the wave merge,
+// so a real searched row overrides a placeholder wave entry (e.g. searching
+// Vienna replaces the -1001 wave Vienna), and an already-present tier row is a
+// no-op. Returns `base` unchanged (stable identity) when there is nothing to
+// merge, so the selector memo doesn't churn on every keystroke.
+export function mergeSearchedCities(base: LocationCity[], searched: LocationCity[]): LocationCity[] {
+  if (searched.length === 0) return base;
+  const byKey = new Map<string, LocationCity>();
+  for (const city of base) byKey.set(getCityKey(city), city);
+  for (const city of searched) {
+    if (city.expansion_status === 'hidden') continue;
+    byKey.set(getCityKey(city), city);
+  }
+  return Array.from(byKey.values()).sort(compareCityByCountryThenName);
 }
 
 function getCityKey(city: Pick<LocationCity, 'country_code' | 'name'>): string {
-  return `${city.country_code}:${city.name.toLocaleLowerCase('ro')}`;
+  // Perf (cold-mount materialize): toLowerCase, NOT toLocaleLowerCase('ro').
+  // Romanian has no special lowercasing rules (unlike Turkish's dotless i), so
+  // the output is identical for Latin + Romanian text, but toLowerCase skips the
+  // per-call ICU locale path — this runs ~10,339× building the wave-merge dedup
+  // Map and was a large chunk of the measured ~1.9s materialize on Hermes.
+  return `${city.country_code}:${city.name.toLowerCase()}`;
 }
 
 export function getCountryByCode(code?: string | null): Country {

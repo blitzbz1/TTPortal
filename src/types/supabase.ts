@@ -4233,6 +4233,8 @@ export type Database = {
           verification_type: Database["public"]["Enums"]["verification_type"]
         }[]
       }
+      get_cities_by_ids: { Args: { p_ids: number[] }; Returns: Json }
+      get_cities_catalog_v2: { Args: { p_since?: string }; Returns: Json }
       get_cities_delta: { Args: { p_since?: string }; Returns: Json }
       get_city_guide: { Args: { p_city_id: number }; Returns: Json }
       get_city_ladder: {
@@ -4704,6 +4706,15 @@ export type Database = {
         }
         Returns: Json
       }
+      get_venues_map_delta: {
+        Args: {
+          p_city?: string
+          p_city_id?: number
+          p_since?: string
+          p_type?: string
+        }
+        Returns: Json
+      }
       get_venues_near: {
         Args: {
           p_lat: number
@@ -4913,6 +4924,7 @@ export type Database = {
       }
       rollover_ladder_seasons: { Args: never; Returns: number }
       rotate_club_join_code: { Args: { p_club_id: number }; Returns: string }
+      search_cities: { Args: { p_limit?: number; p_query: string }; Returns: Json }
       search_venues_admin: {
         Args: { p_limit?: number; p_query: string }
         Returns: {

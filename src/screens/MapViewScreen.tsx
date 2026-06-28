@@ -87,6 +87,9 @@ interface VenueListRowProps {
   conditionInfo: { label: string; color: string };
   typeText: string;
   tablesLabel: string;
+  /** Stage 3: city badge text (selectedCity.name) shown when distanceKm == null —
+   * the slim venue row no longer carries a per-row `city`. */
+  cityLabel: string;
   /** F010: anonymous "{0} here now" count for this venue, 0 = hidden. */
   liveCount: number;
   liveLabel?: string;
@@ -104,6 +107,7 @@ const VenueListRow = React.memo(function VenueListRow({
   conditionInfo,
   typeText,
   tablesLabel,
+  cityLabel,
   liveCount,
   liveLabel,
   openPlay,
@@ -161,9 +165,9 @@ const VenueListRow = React.memo(function VenueListRow({
               <View style={styles.distanceBadge}>
                 <Text style={styles.distanceText}>{formatDistance(venue.distanceKm)}</Text>
               </View>
-            ) : venue.city ? (
+            ) : cityLabel ? (
               <View style={styles.distanceBadge}>
-                <Text style={styles.distanceText}>{venue.city}</Text>
+                <Text style={styles.distanceText}>{cityLabel}</Text>
               </View>
             ) : null}
             {starsText ? <Text style={styles.venueStars}>{starsText}</Text> : null}
@@ -404,15 +408,16 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
   const filteredVenues = useMemo(() => {
     let result = chipFilteredVenues;
 
-    // Apply search query (debounced). Diacritic- and case-insensitive
-    // across name, address and city — see lib/textSearch.
+    // Apply search query (debounced). Diacritic- and case-insensitive across
+    // name and address — see lib/textSearch. Stage 3: the per-row `city` clause
+    // is dropped (the slim row has no `city`; within a single-city scope the
+    // city name is constant, so it adds no discriminating power).
     if (debouncedQuery.trim()) {
       const q = debouncedQuery.trim();
       result = result.filter(
         (v) =>
           matchesQuery(v.name, q) ||
-          (!!v.address && matchesQuery(v.address, q)) ||
-          (!!v.city && matchesQuery(v.city, q)),
+          (!!v.address && matchesQuery(v.address, q)),
       );
     }
 
@@ -672,6 +677,7 @@ export function MapViewScreen({ hideTabBar = false }: MapViewScreenProps) {
                     conditionInfo={conditionLabel(venue.condition)}
                     typeText={typeLabel(venue.type)}
                     tablesLabel={s('tables')}
+                    cityLabel={selectedCityName}
                     liveCount={lc}
                     liveLabel={lc > 0 ? liveHereLabel(lc) : undefined}
                     openPlay={op}

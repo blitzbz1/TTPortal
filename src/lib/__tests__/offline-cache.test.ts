@@ -9,6 +9,7 @@ import {
   removeCacheItem,
   removeCacheItemsByPrefix,
 } from '../offline-cache';
+import { KV_CACHE_SCHEMA_VERSION } from '../cacheSchema';
 
 const store = createMMKV({ id: 'offline-kv-cache' });
 
@@ -58,13 +59,14 @@ describe('offline-cache', () => {
     expect(getCacheAge('corrupt')).toBeNull();
   });
 
-  it('seeds the schema version row on init', () => {
+  it('seeds the KV schema version row on init', () => {
     // The global MMKV reset (jest.setup.afterEnv) wipes the row written at
     // module import — re-import a fresh copy to exercise ensureSchema.
     jest.isolateModules(() => {
       require('../offline-cache');
     });
-    expect(store.getString('__schema_version__')).toBeDefined();
+    // Gates on the KV-only constant, not a shared global (T012).
+    expect(store.getString('__schema_version__')).toBe(String(KV_CACHE_SCHEMA_VERSION));
   });
 
   it('functions do not throw', () => {
