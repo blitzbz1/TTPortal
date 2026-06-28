@@ -20,7 +20,7 @@ describe('getVenuesDelta', () => {
 
     const { data, error } = await getVenuesDelta('2026-06-01T00:00:00Z', 'Wien', 'parc_exterior', 7);
 
-    expect(mockRpc).toHaveBeenCalledWith('get_venues_delta', {
+    expect(mockRpc).toHaveBeenCalledWith('get_venues_map_delta', {
       p_since: '2026-06-01T00:00:00Z',
       p_city: 'Wien',
       p_type: 'parc_exterior',
@@ -35,7 +35,7 @@ describe('getVenuesDelta', () => {
 
     await getVenuesDelta(null);
 
-    expect(mockRpc).toHaveBeenCalledWith('get_venues_delta', {
+    expect(mockRpc).toHaveBeenCalledWith('get_venues_map_delta', {
       p_since: undefined,
       p_city: undefined,
       p_type: undefined,
