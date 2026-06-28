@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Öppna länk",
+  "shareCopyLink": "Kopiera länk",
+  "shareCopied": "Kopierat",
   "ladder": "Ladder",
   "ladderPoints": "p",
   "ladderInPlacement": "Placering pågår — {0}/{1} matcher",

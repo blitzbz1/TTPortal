@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Otvoriť odkaz",
+  "shareCopyLink": "Kopírovať odkaz",
+  "shareCopied": "Skopírované",
   "ladder": "Rebríček",
   "ladderPoints": "b.",
   "ladderInPlacement": "Zaraďovanie — {0}/{1} zápasov",

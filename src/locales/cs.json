@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Otevřít odkaz",
+  "shareCopyLink": "Kopírovat odkaz",
+  "shareCopied": "Zkopírováno",
   "ladder": "Žebříček",
   "ladderPoints": "b.",
   "ladderInPlacement": "V kvalifikaci — {0}/{1} zápasů",

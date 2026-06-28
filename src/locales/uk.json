@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Відкрити посилання",
+  "shareCopyLink": "Копіювати посилання",
+  "shareCopied": "Скопійовано",
   "ladder": "Рейтинг",
   "ladderPoints": "оч",
   "ladderInPlacement": "Розміщення — {0}/{1} матчів",

@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Bağlantıyı aç",
+  "shareCopyLink": "Bağlantıyı kopyala",
+  "shareCopied": "Kopyalandı",
   "ladder": "Lider Tablosu",
   "ladderPoints": "puan",
   "ladderInPlacement": "Yerleşim aşamasında — {0}/{1} maç",

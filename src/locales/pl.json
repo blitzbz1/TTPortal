@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Otwórz link",
+  "shareCopyLink": "Kopiuj link",
+  "shareCopied": "Skopiowano",
   "ladder": "Drabinka",
   "ladderPoints": "pkt",
   "ladderInPlacement": "W kwalifikacji — {0}/{1} meczów",

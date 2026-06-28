@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "باز کردن پیوند",
+  "shareCopyLink": "کپی کردن پیوند",
+  "shareCopied": "کپی شد",
   "ladder": "جدول رده‌بندی",
   "ladderPoints": "امتیاز",
   "ladderInPlacement": "در حال تعیین جایگاه — {0}/{1} بازی",

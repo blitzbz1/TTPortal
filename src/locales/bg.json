@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Отвори връзката",
+  "shareCopyLink": "Копирай връзката",
+  "shareCopied": "Копирано",
   "ladder": "Класация",
   "ladderPoints": "т.",
   "ladderInPlacement": "В класиране — {0}/{1} мача",

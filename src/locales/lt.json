@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Atidaryti nuorodą",
+  "shareCopyLink": "Kopijuoti nuorodą",
+  "shareCopied": "Nukopijuota",
   "ladder": "Reitingų lentelė",
   "ladderPoints": "tšk.",
   "ladderInPlacement": "Vietos nustatymas — {0}/{1} rungtynių",

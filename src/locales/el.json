@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Άνοιγμα συνδέσμου",
+  "shareCopyLink": "Αντιγραφή συνδέσμου",
+  "shareCopied": "Αντιγράφηκε",
   "ladder": "Κατάταξη",
   "ladderPoints": "πόντ.",
   "ladderInPlacement": "Σε τοποθέτηση — {0}/{1} αγώνες",

@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Открыть ссылку",
+  "shareCopyLink": "Копировать ссылку",
+  "shareCopied": "Скопировано",
   "ladder": "Рейтинг",
   "ladderPoints": "очк.",
   "ladderInPlacement": "Калибровка — {0}/{1} матчей",

@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Åbn link",
+  "shareCopyLink": "Kopiér link",
+  "shareCopied": "Kopieret",
   "ladder": "Rangliste",
   "ladderPoints": "pts",
   "ladderInPlacement": "Placering — {0}/{1} kampe",

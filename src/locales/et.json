@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Ava link",
+  "shareCopyLink": "Kopeeri link",
+  "shareCopied": "Kopeeritud",
   "ladder": "Edetabel",
   "ladderPoints": "pts",
   "ladderInPlacement": "Paigutuses — {0}/{1} mängu",

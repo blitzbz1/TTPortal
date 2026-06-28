@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Atvērt saiti",
+  "shareCopyLink": "Kopēt saiti",
+  "shareCopied": "Nokopēts",
   "ladder": "Rangs",
   "ladderPoints": "pt",
   "ladderInPlacement": "Izvietošana — {0}/{1} spēles",

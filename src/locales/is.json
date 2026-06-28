@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Opna tengil",
+  "shareCopyLink": "Afrita tengil",
+  "shareCopied": "Afritað",
   "ladder": "Stigatafla",
   "ladderPoints": "stig",
   "ladderInPlacement": "Í flokkun — {0}/{1} leikir",

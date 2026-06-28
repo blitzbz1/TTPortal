@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Link openen",
+  "shareCopyLink": "Link kopiëren",
+  "shareCopied": "Gekopieerd",
   "ladder": "Ladder",
   "ladderPoints": "pts",
   "ladderInPlacement": "In plaatsing — {0}/{1} wedstrijden",

@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Otvori link",
+  "shareCopyLink": "Kopiraj link",
+  "shareCopied": "Kopirano",
   "ladder": "Rang lista",
   "ladderPoints": "pts",
   "ladderInPlacement": "Plasiranje — {0}/{1} mečeva",

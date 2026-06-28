@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Link megnyitása",
+  "shareCopyLink": "Link másolása",
+  "shareCopied": "Másolva",
   "ladder": "Ranglétra",
   "ladderPoints": "pt",
   "ladderInPlacement": "Besorolás — {0}/{1} meccs",

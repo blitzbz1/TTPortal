@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Ouvrir le lien",
+  "shareCopyLink": "Copier le lien",
+  "shareCopied": "Copié",
   "ladder": "Échelle",
   "ladderPoints": "pts",
   "ladderInPlacement": "En placement — {0}/{1} matchs",

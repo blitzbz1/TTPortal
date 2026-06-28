@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "ბმულის გახსნა",
+  "shareCopyLink": "ბმულის კოპირება",
+  "shareCopied": "დაკოპირდა",
   "ladder": "რეიტინგი",
   "ladderPoints": "ქულა",
   "ladderInPlacement": "განთავსება — {0}/{1} მატჩი",

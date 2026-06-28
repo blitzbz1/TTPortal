@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "فتح الرابط",
+  "shareCopyLink": "نسخ الرابط",
+  "shareCopied": "تم النسخ",
   "ladder": "السلّم",
   "ladderPoints": "نقطة",
   "ladderInPlacement": "في التصنيف — {0}/{1} مباريات",

@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Avaa linkki",
+  "shareCopyLink": "Kopioi linkki",
+  "shareCopied": "Kopioitu",
   "ladder": "Tikastaulukko",
   "ladderPoints": "p",
   "ladderInPlacement": "Sijoitusvaihe — {0}/{1} ottelua",

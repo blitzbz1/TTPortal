@@ -1,4 +1,5 @@
-import { Alert, Platform, Share, type ShareContent, type ShareOptions, type ShareAction } from 'react-native';
+import { Platform, Share, type ShareContent, type ShareOptions, type ShareAction } from 'react-native';
+import { showAlert } from './dialogs';
 
 type WebShareData = {
   title?: string;
@@ -58,13 +59,15 @@ export async function shareContent(content: ShareContent, options?: ShareOptions
   if (text && typeof nav?.clipboard?.writeText === 'function') {
     try {
       await nav.clipboard.writeText(text);
-      Alert.alert('Link copied', 'Native sharing is not available in this browser, so the link was copied instead.');
+      // showAlert (not Alert.alert, a no-op on web) so the confirmation actually
+      // renders on the web fallback path this branch exists for.
+      showAlert('Link copied', 'Native sharing is not available in this browser, so the link was copied instead.');
       return { action: 'copied' };
     } catch {
       // Fall through to the explicit unavailable message below.
     }
   }
 
-  Alert.alert('Sharing unavailable', 'Native sharing is not available in this browser.');
+  showAlert('Sharing unavailable', 'Native sharing is not available in this browser.');
   return { action: 'unavailable' };
 }

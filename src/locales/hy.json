@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Բացել հղումը",
+  "shareCopyLink": "Պատճենել հղումը",
+  "shareCopied": "Պատճենվեց",
   "ladder": "Վարկանիշ",
   "ladderPoints": "միավ.",
   "ladderInPlacement": "Տեղաբաշխում — {0}/{1} խաղ",

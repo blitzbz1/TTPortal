@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Abrir link",
+  "shareCopyLink": "Copiar link",
+  "shareCopied": "Copiado",
   "ladder": "Classificação",
   "ladderPoints": "pts",
   "ladderInPlacement": "Em colocação — {0}/{1} jogos",

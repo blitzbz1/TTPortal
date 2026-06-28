@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Odpri povezavo",
+  "shareCopyLink": "Kopiraj povezavo",
+  "shareCopied": "Kopirano",
   "ladder": "Lestvica",
   "ladderPoints": "točke",
   "ladderInPlacement": "Uvrstitev — {0}/{1} tekem",

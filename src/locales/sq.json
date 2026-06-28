@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Hap lidhjen",
+  "shareCopyLink": "Kopjo lidhjen",
+  "shareCopied": "U kopjua",
   "ladder": "Klasifikim",
   "ladderPoints": "pikë",
   "ladderInPlacement": "Në vendosje — {0}/{1} ndeshje",

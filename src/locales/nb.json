@@ -1,4 +1,7 @@
 {
+  "shareOpenLink": "Åpne lenke",
+  "shareCopyLink": "Kopier lenke",
+  "shareCopied": "Kopiert",
   "ladder": "Rangliste",
   "ladderPoints": "pkt",
   "ladderInPlacement": "I plassering — {0}/{1} kamper",
