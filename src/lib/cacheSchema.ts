@@ -24,10 +24,8 @@
 // re-pull against an RPC that 404s, breaking that domain's load.
 // - VENUES = 2: migration 138 (get_venues_map_delta, slim 12-field row) is
 //   DEPLOYED (2026-06-28); the bump refreshes old 17-field cached scopes.
-// - CITIES = 1: migration 139 (get_cities_catalog_v2) is NOT deployed (and the
-//   tiering is measured MOOT, research §8), so the client keeps calling the
-//   deployed get_cities_delta and keeps its v:1 caches valid. If 139 ever ships,
-//   switch citiesDelta's RPC name and bump CITIES here.
+// - CITIES = 1: the client uses the deployed get_cities_delta (full catalog). The
+//   Stage-2 tiering (get_cities_catalog_v2) was measured moot and removed.
 export const CITIES_CACHE_SCHEMA_VERSION = 1;
 export const VENUES_CACHE_SCHEMA_VERSION = 2;
 export const KV_CACHE_SCHEMA_VERSION = 1;

@@ -2,14 +2,12 @@
 // cities catalog on the synchronous mount path. Boot resolves selectedCity from
 // a persisted 1-row object (loadPersistedSelectedCity); the heavy activeCities
 // build (toLocationCity + mergeExpansionCityWave over ~10k rows) is deferred off
-// first paint via InteractionManager / requestCatalog. Stage 2 must preserve
-// this invariant — the lazy build is the seam tiering reuses.
-import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+// first paint via InteractionManager / requestCatalog.
+import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { InteractionManager } from 'react-native';
 import { getStringSync, removeString, setString } from '../lib/mmkv';
 import { useCitiesQuery } from '../hooks/queries/useCitiesQuery';
 import {
-  EXPANSION_CITY_WAVE,
   FALLBACK_COUNTRY_CODE,
   getCountriesFromCities,
   getCountryForCity,
@@ -18,7 +16,6 @@ import {
   mergeExpansionCityWave,
   toLocationCity,
 } from '../lib/locationHelpers';
-import { getCitiesByIds } from '../services/citiesDelta';
 import type { Country, CountryCode, LocationCity } from '../lib/locationTypes';
 import { traceSegment } from '../lib/launchTrace';
 
@@ -123,18 +120,9 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   // Stage 1.5 (T031): defer the full-catalog activeCities build until the catalog
   // is "requested" — post-first-paint via InteractionManager, eagerly on
   // switcher-open (requestCatalog), or when there's no persisted city to resolve
-  // from. This is the seam Stage 2 reuses (the lazy build runs over the tier).
+  // from.
   const [catalogRequested, setCatalogRequested] = useState(false);
   const requestCatalog = useCallback(() => setCatalogRequested(true), []);
-  // Stage 2 (T051): a saved selectedCity whose id is no longer in the eager tier
-  // is resolved from a single row (fetched by id, or held by the persisted boot
-  // object) — never a full catalog re-pull. Records the attempted id + its result
-  // (`city: null` ⇒ fetched but genuinely gone, so resolution falls to default).
-  const [fallback, setFallback] = useState<{ id: number; city: LocationCity | null } | null>(null);
-  // The id currently in flight in the fallback fetch — dedupes redundant
-  // getCitiesByIds calls when activeCities churns mid-fetch (a delta landing
-  // gives it a new identity).
-  const fetchingFallbackIdRef = useRef<number | null>(null);
 
   // Stage 1.5: gate the cities query on catalogRequested so its initialData parse
   // is deferred off the synchronous mount path (boot resolves selectedCity from
@@ -177,65 +165,15 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     if (!hasCompletedInitialLocationSetup) return null;
     // Pre-build (activeCities deferred to []): resolve from the persisted 1-row
     // object — zero catalog parse. Once built, activeCities is authoritative
-    // (fresh venue_count, tombstone-aware).
+    // (fresh venue_count, tombstone-aware). EXPANSION_CITY_WAVE cities (negative
+    // ids) are merged into activeCities, so a saved wave id resolves via find too.
     if (activeCities.length === 0) return persistedCity;
     if (selectedCityId != null) {
       const saved = activeCities.find((city) => city.id === selectedCityId);
       if (saved) return saved;
-      // Stage 2 (T051): the saved id is not in the tier. Resolve it from ONE row
-      // instead of a full re-pull, so boot shows the correct city, not a
-      // default-city flicker. Negative ids are the client-only EXPANSION_CITY_WAVE
-      // (§8.5); positive ids come from the persisted boot object (Stage 1.5) or a
-      // single getCitiesByIds fetch.
-      if (selectedCityId < 0) {
-        const wave = EXPANSION_CITY_WAVE.find((city) => city.id === selectedCityId);
-        if (wave) return wave;
-      }
-      if (persistedCity?.id === selectedCityId) return persistedCity;
-      if (fallback?.id === selectedCityId) {
-        // Fetched: the resolved row, or fall through to default if it's gone.
-        if (fallback.city) return fallback.city;
-      } else if (selectedCityId > 0) {
-        // A saved positive id, still resolving by single-row fetch. Hold at null
-        // (not the default) so the persist effect can't clobber the saved id
-        // before getCitiesByIds returns.
-        return null;
-      }
     }
     return getDefaultCity(citiesForSelectedCountry);
-  }, [activeCities, citiesForSelectedCountry, hasCompletedInitialLocationSetup, selectedCityId, persistedCity, fallback]);
-
-  // Stage 2 (T051): when the tier is built but a saved POSITIVE id is missing
-  // from it and not already covered by the persisted boot object, fetch that one
-  // row by id. Negative (wave) ids and in-tier ids never reach here, so the map
-  // settles to the right city without ever re-pulling the whole catalog.
-  useEffect(() => {
-    if (selectedCityId == null || selectedCityId < 0) return;
-    if (!catalogRequested || activeCities.length === 0) return;
-    if (activeCities.some((city) => city.id === selectedCityId)) return;
-    if (persistedCity?.id === selectedCityId) return;
-    if (fallback?.id === selectedCityId) return; // already attempted (found or gone)
-    if (fetchingFallbackIdRef.current === selectedCityId) return; // already in flight
-    const idForFetch = selectedCityId;
-    fetchingFallbackIdRef.current = idForFetch;
-    void getCitiesByIds([idForFetch]).then(({ data, error }) => {
-      // A newer id superseded this fetch (selectedCityId changed mid-flight).
-      if (fetchingFallbackIdRef.current !== idForFetch) return;
-      fetchingFallbackIdRef.current = null;
-      if (error) {
-        // PGRST202 = the RPC isn't deployed (get_cities_by_ids ships with the
-        // not-yet-deployed migration 139). That's PERMANENT, so resolve to the
-        // default city rather than hanging null forever. Any OTHER error is
-        // treated as transient: leave selectedCity pending (null) so the saved
-        // id/object is preserved (not clobbered) and the effect retries on the
-        // next catalog update.
-        if (error.code === 'PGRST202') setFallback({ id: idForFetch, city: null });
-        return;
-      }
-      const row = data[0];
-      setFallback({ id: idForFetch, city: row ? toLocationCity(row) : null });
-    });
-  }, [selectedCityId, catalogRequested, activeCities, persistedCity, fallback]);
+  }, [activeCities, citiesForSelectedCountry, hasCompletedInitialLocationSetup, selectedCityId, persistedCity]);
 
   // Stage 1.5 (T032): ready once a city is resolved (persisted or catalog) or the
   // cities query settles — no longer keyed off cityRowsCount, so nothing blocks

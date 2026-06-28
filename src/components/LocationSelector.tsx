@@ -20,16 +20,13 @@ import { useTheme } from '../hooks/useTheme';
 import { compareLocale } from '../lib/collation';
 import { getDistanceKm } from '../lib/geo';
 import { getLocalizedCountryName } from '../lib/countryLabels';
-import { getCountryFlagEmoji, getRecommendedCities, mergeSearchedCities } from '../lib/locationHelpers';
-import { useCitySearchQuery } from '../hooks/queries/useCitySearchQuery';
+import { getCountryFlagEmoji, getRecommendedCities } from '../lib/locationHelpers';
 import type { Country, LocationCity } from '../lib/locationTypes';
 import { Fonts, FontSize, FontWeight, Radius, Shadows, Spacing, type ThemeColors } from '../theme';
 
 type LocationSelectorMode = 'welcome' | 'switcher';
 
 const ALL_COUNTRIES: Country = { code: 'ALL', name: 'Europe', active: true };
-// Below this many in-tier matches, reach the long-tail with the server search.
-const SEARCH_FALLBACK_THRESHOLD = 5;
 
 interface LocationSelectorProps {
   visible: boolean;
@@ -68,7 +65,7 @@ export function LocationSelector({
   const wasVisibleRef = useRef(false);
   const hasSearchQuery = query.trim().length > 0;
 
-  const inTierSearched = useMemo(() => {
+  const searchedCities = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
     const countryCities = activeCities.filter((city) => {
       if (pendingCountry.code !== 'ALL' && city.country_code !== pendingCountry.code) return false;
@@ -82,25 +79,6 @@ export function LocationSelector({
     });
     return [...filtered].sort((a, b) => sortSearchCities(a, b, normalizedQuery, lang));
   }, [activeCities, lang, pendingCountry.code, query]);
-
-  // Stage 2 (T052): only when the in-tier matches are sparse do we reach the
-  // long-tail via the debounced server search — a venue-bearing city already in
-  // the cached tier stays fully offline/instant. The results fold into the list
-  // via the same merge + ranking as the in-tier rows.
-  const wantsServerSearch = hasSearchQuery && inTierSearched.length < SEARCH_FALLBACK_THRESHOLD;
-  const { results: serverResults, isSearching } = useCitySearchQuery(query, wantsServerSearch);
-
-  const searchedCities = useMemo(() => {
-    if (!wantsServerSearch || serverResults.length === 0) return inTierSearched;
-    const normalizedQuery = normalizeSearch(query);
-    const scoped =
-      pendingCountry.code === 'ALL'
-        ? serverResults
-        : serverResults.filter((city) => city.country_code === pendingCountry.code);
-    return [...mergeSearchedCities(inTierSearched, scoped)].sort((a, b) =>
-      sortSearchCities(a, b, normalizedQuery, lang),
-    );
-  }, [inTierSearched, serverResults, wantsServerSearch, pendingCountry.code, query, lang]);
   const countriesWithCities = useMemo(
     () => {
       // Set membership instead of activeCountries.filter(activeCities.some(...)),
@@ -357,7 +335,7 @@ export function LocationSelector({
 
         {hint ? <Text style={styles.hintText}>{hint}</Text> : null}
 
-        {countryPanelOpen ? null : (loadingCities || isSearching) && filteredCities.length === 0 ? (
+        {countryPanelOpen ? null : loadingCities && filteredCities.length === 0 ? (
           <View style={styles.loader}>
             <ActivityIndicator color={colors.primary} />
           </View>

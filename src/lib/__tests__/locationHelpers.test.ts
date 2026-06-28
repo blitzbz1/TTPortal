@@ -3,8 +3,6 @@ import {
   isCapitalCity,
   RECOMMENDED_CITY_LIMIT,
   mergeExpansionCityWave,
-  mergeSearchedCities,
-  EXPANSION_CITY_WAVE,
 } from '../locationHelpers';
 import type { LocationCity } from '../locationTypes';
 
@@ -94,32 +92,5 @@ describe('mergeExpansionCityWave (Stage 2 — wave survives the tier shrink)', (
       .filter((c) => c.id > 0)
       .map((c) => `${c.country_code}:${c.name}`);
     expect(order).toEqual(['AT:Graz', 'DE:Aachen', 'DE:Zwickau', 'RO:Arad']);
-  });
-});
-
-describe('mergeSearchedCities (T050 — fold long-tail results into activeCities)', () => {
-  it('returns the base array identity when there is nothing to merge', () => {
-    const base = [city(1, 'Cluj', 'RO', 3)];
-    expect(mergeSearchedCities(base, [])).toBe(base);
-  });
-
-  it('adds a searched long-tail city, deduped + sorted into the set', () => {
-    const base = mergeExpansionCityWave([city(1, 'Cluj', 'RO', 3)]);
-    const searched = [city(900, 'Buftea', 'RO', 0)]; // zero-venue long-tail, not in tier
-    const merged = mergeSearchedCities(base, searched);
-    expect(merged.find((c) => c.id === 900)?.name).toBe('Buftea');
-    // RO group stays name-sorted: Buftea before Cluj.
-    const ro = merged.filter((c) => c.country_code === 'RO').map((c) => c.name);
-    expect(ro.indexOf('Buftea')).toBeLessThan(ro.indexOf('Cluj'));
-  });
-
-  it('lets a real searched row override a placeholder wave entry (same country:name)', () => {
-    const wave = EXPANSION_CITY_WAVE.find((c) => c.name === 'Vienna')!;
-    const base = mergeExpansionCityWave([]); // contains the -1001 placeholder Vienna
-    const realVienna: LocationCity = { ...wave, id: 555, venue_count: 12 };
-    const merged = mergeSearchedCities(base, [realVienna]);
-    const viennas = merged.filter((c) => c.name === 'Vienna');
-    expect(viennas).toHaveLength(1); // no duplicate
-    expect(viennas[0].id).toBe(555); // the real row won
   });
 });

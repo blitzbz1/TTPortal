@@ -28,8 +28,7 @@ beforeEach(() => {
 describe('cache schema versioning (T034)', () => {
   it('exposes three independent per-domain schema versions (T010)', () => {
     // VENUES = 2: mig 138 (get_venues_map_delta) is deployed to prod. CITIES = 1:
-    // mig 139 (get_cities_catalog_v2) is NOT deployed (tiering is moot). A version
-    // must only lead its RPC's deploy. See cacheSchema.ts.
+    // the client uses the deployed get_cities_delta (full catalog). See cacheSchema.ts.
     expect(CITIES_CACHE_SCHEMA_VERSION).toBe(1);
     expect(VENUES_CACHE_SCHEMA_VERSION).toBe(2);
     expect(KV_CACHE_SCHEMA_VERSION).toBe(1);

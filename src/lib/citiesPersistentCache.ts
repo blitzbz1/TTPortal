@@ -22,12 +22,6 @@ export interface PersistedCity {
   active: boolean | null;
   expansion_status?: string | null;
   updated_at: string;
-  // Stage 2 (T046): server-built ascii search key (folded name + admin_area +
-  // local_area + county + country_name) shipped on every tier row by
-  // get_cities_catalog_v2 / search_cities, so the switcher's substring filter has
-  // a consistent diacritic-folded multi-field key. Optional: 063-shaped rows and
-  // the client-only EXPANSION_CITY_WAVE entries omit it.
-  search_key?: string | null;
 }
 
 export interface CitiesCache {
@@ -99,15 +93,6 @@ export function getCleanedCities(): PersistedCity[] | undefined {
   return cleanedMemo;
 }
 
-// T054 / §8.7 — offline-upgrade migrator decision: we deliberately did NOT ship
-// an in-place old-shape→tier-shape client migrator. The pre-Stage-2 cache held
-// the full ~10,330-row catalog WITHOUT the server-built `search_key`; a migrator
-// could filter rows to the tier predicate but cannot synthesize `search_key`, so
-// the long-tail merge (T050) would be keyless. The CITIES_CACHE_SCHEMA_VERSION
-// 1→2 bump instead forces ONE since=null re-pull of the authoritative tier (with
-// search_key) on upgrade — offline users keep showing their persisted
-// selectedCity (Stage 1.5) and re-pull the catalog on their next online sync.
-// Break introduced at CITIES_CACHE_SCHEMA_VERSION = 2.
 export function applyCitiesDelta(
   upserts: PersistedCity[],
   tombstoneIds: number[],

@@ -99,16 +99,9 @@ jest.mock('../BrandLockup', () => {
   };
 });
 
-const mockUseCitySearchQuery = jest.fn();
-jest.mock('../../hooks/queries/useCitySearchQuery', () => ({
-  useCitySearchQuery: (...args: unknown[]) => mockUseCitySearchQuery(...args),
-}));
-
 describe('LocationSelector', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Default: dormant long-tail search (no results). Individual tests override.
-    mockUseCitySearchQuery.mockReturnValue({ results: [], isSearching: false, isActive: false });
   });
 
   it('filters by country before capping featured cities', () => {
@@ -162,29 +155,5 @@ describe('LocationSelector', () => {
     } finally {
       Platform.OS = original;
     }
-  });
-
-  it('T052 — an in-tier city stays offline; a sparse long-tail query reaches the server search', () => {
-    const buftea = city(900, 'Buftea', 'RO', 'Romania', 0); // NOT in the tier mockCities
-    mockUseCitySearchQuery.mockReturnValue({ results: [buftea], isSearching: false, isActive: true });
-
-    const { getByPlaceholderText, getAllByText } = render(
-      <LocationSelector visible mode="switcher" onClose={jest.fn()} />,
-    );
-    const input = getByPlaceholderText('Search city or country');
-
-    // An in-tier match (one of the 55 Romania cities) keeps the search dormant.
-    fireEvent.changeText(input, 'Romania City 1');
-    expect(mockUseCitySearchQuery).toHaveBeenLastCalledWith('Romania City 1', false);
-
-    // A long-tail query with no in-tier match enables the server search and folds
-    // the returned row into the list.
-    fireEvent.changeText(input, 'Buftea');
-    expect(mockUseCitySearchQuery).toHaveBeenLastCalledWith('Buftea', true);
-    expect(getAllByText('Buftea').length).toBeGreaterThan(0);
-
-    // Selecting the searched city commits it.
-    fireEvent.press(getAllByText('Buftea')[0]);
-    expect(mockSetSelectedCity).toHaveBeenCalledWith(expect.objectContaining({ id: 900 }));
   });
 });

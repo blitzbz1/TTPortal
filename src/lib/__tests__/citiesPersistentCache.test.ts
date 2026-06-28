@@ -1,5 +1,4 @@
 // Stage 1 (T020, T022) — the cities cache's parse-avoidance + memoization.
-// Stage 2 (T046) — the tier reshape (search_key + the CITIES version bump).
 import { createMMKV } from 'react-native-mmkv';
 import {
   readCities,
@@ -101,13 +100,7 @@ describe('citiesPersistentCache (Stage 1)', () => {
     });
   });
 
-  describe('T046 — tier reshape (search_key + version bump)', () => {
-    it('round-trips the server-built search_key on a tier row', () => {
-      const tierCity: PersistedCity = { ...city(7, 'Cluj-Napoca'), search_key: 'clujnapoca cluj romania' };
-      writeCities({ cities: [tierCity], syncedAt: 't' });
-      expect(readCities()?.cities[0].search_key).toBe('clujnapoca cluj romania');
-    });
-
+  describe('cache version gating + merge', () => {
     it('treats a payload at the PREVIOUS cities version as a miss (forces since=null re-pull)', () => {
       // A full-catalog v:(N-1) envelope written before the Stage-2 reshape.
       store.set('cities', JSON.stringify({ v: CITIES_CACHE_SCHEMA_VERSION - 1, cities: [city(1, 'Praha')], syncedAt: 's' }));

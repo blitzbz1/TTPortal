@@ -69,41 +69,21 @@ jest.mock('../LanguagePicker', () => {
   return { LanguagePicker: () => <View testID="language-picker" /> };
 });
 
-const mockUseCitySearchQuery = jest.fn();
-jest.mock('../../hooks/queries/useCitySearchQuery', () => ({
-  useCitySearchQuery: (...args: unknown[]) => mockUseCitySearchQuery(...args),
-}));
-
-describe('LocationWelcome — Stage 2 long-tail search (T053)', () => {
+describe('LocationWelcome', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseCitySearchQuery.mockReturnValue({ results: [], isSearching: false, isActive: false });
   });
 
-  it('renders the featured in-tier list from activeCities with no network', () => {
+  it('renders the featured in-tier list from activeCities', () => {
     const { getAllByText } = render(<LocationWelcome visible />);
     expect(getAllByText('Paris').length).toBeGreaterThan(0); // capital featured
-    expect(mockUseCitySearchQuery).toHaveBeenLastCalledWith('', false); // dormant
   });
 
-  it('reaches the server search only for a sparse long-tail query and renders the returned city', () => {
-    const buftea = city(900, 'Buftea', 'RO', 'Romania', 0); // not in the tier
-    mockUseCitySearchQuery.mockReturnValue({ results: [buftea], isSearching: false, isActive: true });
-
-    const { getByPlaceholderText, getAllByText } = render(<LocationWelcome visible />);
+  it('filters the list by the typed query (in-tier client filter)', () => {
+    const { getByPlaceholderText, getAllByText, queryByText } = render(<LocationWelcome visible />);
     const input = getByPlaceholderText('Search city or country');
-
-    // An in-tier prefix matching many featured cities keeps the search dormant.
     fireEvent.changeText(input, 'Bucharest');
-    expect(mockUseCitySearchQuery).toHaveBeenLastCalledWith('Bucharest', false);
-
-    // A long-tail query with no in-tier match enables the search; the row folds in.
-    fireEvent.changeText(input, 'Buftea');
-    expect(mockUseCitySearchQuery).toHaveBeenLastCalledWith('Buftea', true);
-    const matches = getAllByText('Buftea');
-    expect(matches.length).toBeGreaterThan(0);
-
-    // The searched city is selectable (sets the pending choice).
-    fireEvent.press(matches[0]);
+    expect(getAllByText(/Bucharest District/).length).toBeGreaterThan(0);
+    expect(queryByText('Paris')).toBeNull(); // filtered out
   });
 });

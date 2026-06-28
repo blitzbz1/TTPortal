@@ -128,19 +128,16 @@ describe('useCitiesQuery — Stage 1 warm-delta optimizations', () => {
   });
 });
 
-describe('useCitiesQuery — Stage 2 tiered catalog (T048)', () => {
-  // The hook is unchanged: getCitiesDelta now targets get_cities_catalog_v2, so
-  // the same delta→merge→clean flow operates on the ~1,500-row tier instead of
-  // the full ~10,330 catalog. These pin the two behaviours the tier must keep.
-  it('merges + cleans a tier upsert and preserves its server-built search_key', async () => {
+describe('useCitiesQuery — merge + refreshCatalog stability', () => {
+  it('merges + cleans a delta upsert into the catalog', async () => {
     writeCities(SEED);
     mockGetCitiesDelta.mockResolvedValue({
-      data: { upserts: [{ ...city(5, 'Sibiu'), search_key: 'sibiu' }], tombstone_ids: [], synced_at: 'orig+1' },
+      data: { upserts: [city(5, 'Sibiu')], tombstone_ids: [], synced_at: 'orig+1' },
       error: null,
     });
     const { result } = renderHook(() => useCitiesQuery());
     await waitFor(() => expect(result.current.data?.length).toBe(3));
-    expect(result.current.data?.find((c) => c.id === 5)?.search_key).toBe('sibiu');
+    expect(result.current.data?.find((c) => c.id === 5)?.name).toBe('Sibiu');
   });
 
   it('keeps refreshCatalog identity stable across rerenders (the switch-city freeze guard)', async () => {
