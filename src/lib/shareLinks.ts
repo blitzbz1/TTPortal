@@ -26,6 +26,10 @@ export function eventUrl(eventId: number | string): string {
   return `${getWebAppUrl()}/event/${eventId}`;
 }
 
+export function challengesUrl(): string {
+  return `${getWebAppUrl()}/challenges`;
+}
+
 export function playerUrl(userId: string): string {
   return `${getWebAppUrl()}/player/${userId}`;
 }

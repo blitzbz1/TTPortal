@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "pabeigti",
   "challengeSeasonBadges": "žetoni",
   "challengeSeasonTracks": "ceļi",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Neizdevās sinhronizēt progresu",
   "challengeProgressErrorDesc": "Tavs žetonu progress ir drošībā. Mēģini vēlreiz, lai atjauninātu šī mēneša kopsummas.",
   "challengeChoicesError": "Neizdevās ielādēt izaicinājumus",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Uzvar divus dažādus pretiniekus vienā sesijā",
   "badgeChallenge_GLD020": "Uzvar izšķirošo pēdējo setu",
   "shareCard": "Kopīgot",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Sniegt atsauksmi",
   "eventFeedbackTitle": "Pasākuma atsauksme",
   "hoursPlayed": "Nospēlētās stundas",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Tava atsauksme tika publicēta.",
   "equipReviewError": "Nevarēja saglabāt atsauksmi. Lūdzu, mēģini vēlreiz.",
   "messagesReadOnly": "Šī saruna ir tikai lasāma.",
-  "blockStaffError": "Nevar bloķēt moderatoru vai administratoru."
+  "blockStaffError": "Nevar bloķēt moderatoru vai administratoru.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

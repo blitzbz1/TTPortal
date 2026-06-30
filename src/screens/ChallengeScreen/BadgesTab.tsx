@@ -10,6 +10,12 @@ import {
   type BadgeTier,
   type BadgeTrack,
 } from '../../features/challenges/badgeDefinitions';
+import {
+  EXPLORER_QUEST_META,
+  explorerTierTarget,
+  type ExplorerProgress,
+  type ExplorerQuestAward,
+} from '../../features/explorer';
 import type { createStyles } from '../ChallengeScreen.styles';
 import { EarnedBadgeCard } from './EarnedBadgeCard';
 
@@ -18,6 +24,8 @@ interface Props {
   activeCategory: string;
   completedCount: number;
   earnedAtByBadgeTier: Map<string, string>;
+  explorerAwards: ExplorerQuestAward[];
+  explorerQuests: ExplorerProgress[];
   latestEarnedBadgeKey: string | null;
   styles: ReturnType<typeof createStyles>;
   colors: ThemeColors;
@@ -36,6 +44,8 @@ export function BadgesTab({
   activeCategory,
   completedCount,
   earnedAtByBadgeTier,
+  explorerAwards,
+  explorerQuests,
   latestEarnedBadgeKey,
   styles,
   colors,
@@ -48,12 +58,44 @@ export function BadgesTab({
   renderMonthlyMastery,
   renderCurrentProgress,
 }: Props) {
-  const wonBadges = BADGE_TRACKS.flatMap((badge) => (
+  const challengeWonBadges = BADGE_TRACKS.flatMap((badge) => (
     BADGE_TIERS.flatMap((tier) => {
       const earnedAt = earnedAtByBadgeTier.get(`${badge.category}:${tier}`);
-      return earnedAt ? [{ badge, tier, earnedAt }] : [];
+      return earnedAt ? [{
+        badge,
+        tier,
+        earnedAt,
+        key: `${badge.category}:${tier}`,
+        completedCountLabel: undefined as string | undefined,
+      }] : [];
     })
-  )).sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime());
+  ));
+  const explorerWonBadges = explorerAwards.flatMap((award) => {
+    const meta = EXPLORER_QUEST_META[award.quest_key];
+    if (!meta) return [];
+    const quest = explorerQuests.find((row) => row.key === award.quest_key);
+    const target = quest ? explorerTierTarget(quest, award.tier) : null;
+    const badge = {
+      id: `explorer:${award.quest_key}`,
+      category: `explorer_quest:${award.quest_key}`,
+      name: s(`explorerQuest_${award.quest_key}_title`),
+      shortName: s(`explorerQuest_${award.quest_key}_title`),
+      icon: meta.icon,
+      description: s(`explorerQuest_${award.quest_key}_desc`),
+      color: meta.color,
+      paleColor: meta.paleColor,
+      challenges: { bronze: [], silver: [], gold: [] },
+    } as BadgeTrack;
+    return [{
+      badge,
+      tier: award.tier,
+      earnedAt: award.awarded_at,
+      key: `explorer:${award.quest_key}:${award.tier}`,
+      completedCountLabel: target != null ? s('cityGuideVenuesCount', String(target)) : undefined,
+    }];
+  });
+  const wonBadges = [...challengeWonBadges, ...explorerWonBadges]
+    .sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime());
   const tierSegments = BADGE_TIERS.map((tier, index) => {
     const segmentStart = index * 5;
     const segmentCompleted = Math.max(0, Math.min(5, completedCount - segmentStart));
@@ -140,13 +182,13 @@ export function BadgesTab({
       </View>
       {wonBadges.length > 0 ? (
         <View style={styles.wonGrid}>
-          {wonBadges.map(({ badge, tier, earnedAt }) => (
+          {wonBadges.map(({ badge, tier, earnedAt, key, completedCountLabel }) => (
             <EarnedBadgeCard
-              key={`${badge.id}-${tier}`}
+              key={key}
               badge={badge}
               tier={tier}
               earnedAt={earnedAt}
-              isLatest={`${badge.category}:${tier}` === latestEarnedBadgeKey}
+              isLatest={key === latestEarnedBadgeKey}
               styles={styles}
               colors={colors}
               tierLabel={tierLabel}
@@ -154,6 +196,7 @@ export function BadgesTab({
               s={s}
               sn={sn}
               lang={lang}
+              completedCountLabel={completedCountLabel}
             />
           ))}
         </View>

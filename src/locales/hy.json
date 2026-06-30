@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "ավարտված",
   "challengeSeasonBadges": "կրծքանշաններ",
   "challengeSeasonTracks": "ուղիներ",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Չհաջողվեց համաժամացնել առաջընթացը",
   "challengeProgressErrorDesc": "Ձեր կրծքանշանի առաջընթացն ապահով է: Կրկին փորձեք՝ այս ամսվա ընդհանուրները թարմացնելու համար:",
   "challengeChoicesError": "Չհաջողվեց բեռնել մարտահրավերները",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Նույն նստաշրջանում հաղթիր երկու տարբեր հակառակորդի",
   "badgeChallenge_GLD020": "Շահիր վճռական վերջին ցեղ",
   "shareCard": "Կիսվել",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Կարծիք հայտնել",
   "eventFeedbackTitle": "Միջոցառման կարծիք",
   "hoursPlayed": "Խաղացած ժամեր",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Քո կարծիքը հրապարակված ե.",
   "equipReviewError": "Կարծիքը պահել չհաջոգվեծ. Խնդրում ենք կրկին փործել.",
   "messagesReadOnly": "Այդ ձգոյցարությունը կարդարվոմ ե.",
-  "blockStaffError": "Հնարավոր չես արգելաֆել մոդերատորին կամ կարգավարին."
+  "blockStaffError": "Հնարավոր չես արգելաֆել մոդերատորին կամ կարգավարին.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

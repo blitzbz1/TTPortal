@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "დასრულებული",
   "challengeSeasonBadges": "ბეჯები",
   "challengeSeasonTracks": "ტრეკები",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "პროგრესი ვერ სინქრონიზდა",
   "challengeProgressErrorDesc": "შენი ბეჯის პროგრესი დაცულია. სცადე ხელახლა ამ თვის მონაცემების განახლებისთვის.",
   "challengeChoicesError": "გამოწვევები ვერ ჩაიტვირთა",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "დაამარცხე ორი განსხვავებული მოწინააღმდეგე ერთ სესიაში",
   "badgeChallenge_GLD020": "მოიგე გადამწყვეტი ბოლო სეტი",
   "shareCard": "გაზიარება",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "გამოხმაურება",
   "eventFeedbackTitle": "ღონისძიების შეფასება",
   "hoursPlayed": "ნათამაშები საათები",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "შენი მიმოხილვა გამოქვეყნდა.",
   "equipReviewError": "მიმოხილვა ვერ შეინახა. კვლავ სცადე.",
   "messagesReadOnly": "ეს საუბარი მხოლოდ სანახავია.",
-  "blockStaffError": "მოდერატორის ან ადმინისტრატორის დაბლოკვა შეუძლებელია."
+  "blockStaffError": "მოდერატორის ან ადმინისტრატორის დაბლოკვა შეუძლებელია.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

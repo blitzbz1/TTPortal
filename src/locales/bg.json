@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "завършени",
   "challengeSeasonBadges": "значки",
   "challengeSeasonTracks": "пътеки",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Неуспешно синхронизиране на напредъка",
   "challengeProgressErrorDesc": "Вашият напредък към значките е в безопасност. Опитайте отново за обновяване на резултатите за месеца.",
   "challengeChoicesError": "Предизвикателствата не можаха да се заредят",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Победи двама различни противника в една сесия",
   "badgeChallenge_GLD020": "Спечели финалния решаващ сет",
   "shareCard": "Сподели",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Дай обратна връзка",
   "eventFeedbackTitle": "Обратна връзка за събитие",
   "hoursPlayed": "Изиграни часове",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Рецензията ти беше публикувана.",
   "equipReviewError": "Рецензията не можа да се запази. Опитай отново.",
   "messagesReadOnly": "Тази беседа е само за четене.",
-  "blockStaffError": "Не можеш да блокираш модератор или администратор."
+  "blockStaffError": "Не можеш да блокираш модератор или администратор.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

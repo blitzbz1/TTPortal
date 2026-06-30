@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "završeno",
   "challengeSeasonBadges": "značke",
   "challengeSeasonTracks": "staze",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Nije moguće sinkronizirati napredak",
   "challengeProgressErrorDesc": "Tvoj napredak u značkama je siguran. Pokušaj ponovo za osvježavanje ovomjesečnih ukupnih vrijednosti.",
   "challengeChoicesError": "Nije moguće učitati izazove",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Pobijedi dva različita protivnika u istoj sesiji",
   "badgeChallenge_GLD020": "Osvoji odlučujući zadnji set",
   "shareCard": "Podijeli",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Daj povratnu informaciju",
   "eventFeedbackTitle": "Povratna informacija o događaju",
   "hoursPlayed": "Odigrane sati",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Tvoja recenzija je objavljena.",
   "equipReviewError": "Nije moguće spremiti recenziju. Pokušaj ponovo.",
   "messagesReadOnly": "Ovaj razgovor je samo za čitanje.",
-  "blockStaffError": "Ne možeš blokirati moderatora ili administratora."
+  "blockStaffError": "Ne možeš blokirati moderatora ili administratora.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

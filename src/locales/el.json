@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "ολοκληρώθηκαν",
   "challengeSeasonBadges": "διακριτικά",
   "challengeSeasonTracks": "τροχιές",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Αδυναμία συγχρονισμού προόδου",
   "challengeProgressErrorDesc": "Η πρόοδός σου στα διακριτικά είναι ασφαλής. Δοκίμασε ξανά για ανανέωση των συνόλων του μήνα.",
   "challengeChoicesError": "Αδυναμία φόρτωσης προκλήσεων",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Νίκησε δύο διαφορετικούς αντιπάλους στην ίδια συνεδρία",
   "badgeChallenge_GLD020": "Κέρδισε το τελευταίο αποφασιστικό σετ",
   "shareCard": "Κοινοποίηση",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Δώσε feedback",
   "eventFeedbackTitle": "Feedback εκδήλωσης",
   "hoursPlayed": "Ώρες παιχνιδιού",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Η κριτική σου δημοσιεύτηκε.",
   "equipReviewError": "Δεν ήταν δυνατή η αποθήκευση της κριτικής σου. Δοκίμασε ξανά.",
   "messagesReadOnly": "Αυτή η συνομιλία είναι μόνο για ανάγνωση.",
-  "blockStaffError": "Δεν μπορείς να αποκλείσεις έναν συντονιστή ή διαχειριστή."
+  "blockStaffError": "Δεν μπορείς να αποκλείσεις έναν συντονιστή ή διαχειριστή.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

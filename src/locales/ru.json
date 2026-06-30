@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "выполнено",
   "challengeSeasonBadges": "значки",
   "challengeSeasonTracks": "треки",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Не удалось синхронизировать прогресс",
   "challengeProgressErrorDesc": "Ваш прогресс по значкам сохранён. Повторите попытку для обновления итогов месяца.",
   "challengeChoicesError": "Не удалось загрузить испытания",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Победи двух разных соперников за одну сессию",
   "badgeChallenge_GLD020": "Выиграй решающую партию",
   "shareCard": "Поделиться",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Оставить отзыв",
   "eventFeedbackTitle": "Отзыв о событии",
   "hoursPlayed": "Часов сыграно",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Твой отзыв опубликован.",
   "equipReviewError": "Не удалось сохранить отзыв. Попробуй снова.",
   "messagesReadOnly": "Эта беседа доступна только для чтения.",
-  "blockStaffError": "Нельзя заблокировать модератора или администратора."
+  "blockStaffError": "Нельзя заблокировать модератора или администратора.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

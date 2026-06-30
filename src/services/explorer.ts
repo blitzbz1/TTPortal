@@ -29,6 +29,14 @@ export interface ExplorerProgress {
   earned_gold: boolean;
 }
 
+export interface ExplorerQuestAward {
+  id: number;
+  user_id: string;
+  quest_key: string;
+  tier: ExplorerTier;
+  awarded_at: string;
+}
+
 /**
  * The caller's explorer-quest progress, one row per quest. When `city` is
  * passed, the `progress` count for city-scoped quests is limited to that city
@@ -40,6 +48,17 @@ export async function getExplorerProgress(
   const { data, error } = await callRpc('get_explorer_progress', { p_city: city ?? null });
   const rows = (Array.isArray(data) ? data : []) as ExplorerProgress[];
   return { data: rows, error };
+}
+
+export async function getExplorerQuestAwards(
+  userId: string,
+): Promise<{ data: ExplorerQuestAward[]; error: PostgrestError | null }> {
+  const { data, error } = await supabase
+    .from('explorer_quest_awards')
+    .select('id, user_id, quest_key, tier, awarded_at')
+    .eq('user_id', userId)
+    .order('awarded_at', { ascending: true });
+  return { data: (data ?? []) as ExplorerQuestAward[], error };
 }
 
 /**

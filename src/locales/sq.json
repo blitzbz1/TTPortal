@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "të përfunduara",
   "challengeSeasonBadges": "distinktiva",
   "challengeSeasonTracks": "shtigje",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Nuk mund të sinkronizohet progresi",
   "challengeProgressErrorDesc": "Progresi juaj i distinktivave është i sigurt. Riprovo për të rifreskuar totalet e këtij muaji.",
   "challengeChoicesError": "Nuk mund të ngarkohen sfidat",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Munde dy kundërshtarë të ndryshëm në të njëjtën seancë",
   "badgeChallenge_GLD020": "Fito setin vendimtar final",
   "shareCard": "Shpërnda",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Jep koment",
   "eventFeedbackTitle": "Koment për ngjarjen",
   "hoursPlayed": "Orë të luajtura",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Vlerësimi yt u publikua.",
   "equipReviewError": "Nuk mund të ruhet vlerësimi. Provoni përsëri.",
   "messagesReadOnly": "Ky bisedë është vetëm për lexim.",
-  "blockStaffError": "Nuk mund të bllokosh një moderator ose administrator."
+  "blockStaffError": "Nuk mund të bllokosh një moderator ose administrator.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "lõpetatud",
   "challengeSeasonBadges": "märki",
   "challengeSeasonTracks": "rada",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Edenemist ei õnnestunud sünkroniseerida",
   "challengeProgressErrorDesc": "Su märgiedenemine on kaitstud. Proovi uuesti, et selle kuu tulemused värskendada.",
   "challengeChoicesError": "Väljakutseid ei õnnestunud laadida",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Alista kaks erinevat vastast samas seansis",
   "badgeChallenge_GLD020": "Võida viimane otsustav geim",
   "shareCard": "Jaga",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Anna tagasisidet",
   "eventFeedbackTitle": "Sündmuse tagasiside",
   "hoursPlayed": "Mängitud tunde",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Sinu arvustus avaldati.",
   "equipReviewError": "Arvustuse salvestamine ebaõnnestus. Proovi uuesti.",
   "messagesReadOnly": "See vestlus on kirjutuskaitstud.",
-  "blockStaffError": "Sa ei saa moderaatorit ega administraatorit blokeerida."
+  "blockStaffError": "Sa ei saa moderaatorit ega administraatorit blokeerida.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

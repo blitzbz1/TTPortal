@@ -6,15 +6,7 @@ import { Globe } from "lucide-react";
 import { useState } from "react";
 import type { Locale } from "@/i18n/routing";
 import GetStartedModal from "@/components/GetStartedModal";
-
-function BrandMark() {
-  return (
-    <span className="relative inline-flex h-9 w-9 items-center justify-center">
-      <span className="absolute inset-0 rounded-full bg-gradient-to-br from-moss-700 to-moss-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]" />
-      <span className="relative h-2 w-2 rounded-full bg-clay-500 shadow-[0_0_0_1.5px_rgba(255,255,255,0.9),0_1px_2px_rgba(194,65,12,0.5)]" />
-    </span>
-  );
-}
+import BrandLogo from "@/components/BrandLogo";
 
 export default function Header() {
   const t = useTranslations("header");
@@ -31,11 +23,8 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-ink-100/80 bg-paper/85 px-6 backdrop-blur-md md:px-20">
-      <Link href="/" className="flex items-center gap-3">
-        <BrandMark />
-        <span className="font-heading text-[22px] font-extrabold tracking-tight text-ink-900">
-          {t("brand")}
-        </span>
+      <Link href="/" className="flex items-center text-ink-900">
+        <BrandLogo markSize={25} />
       </Link>
 
       <nav className="hidden items-center gap-9 md:flex">

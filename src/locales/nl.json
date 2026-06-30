@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "voltooid",
   "challengeSeasonBadges": "badges",
   "challengeSeasonTracks": "tracks",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Voortgang kon niet worden gesynchroniseerd",
   "challengeProgressErrorDesc": "Je badge-voortgang is veilig. Probeer opnieuw om de totalen van deze maand te vernieuwen.",
   "challengeChoicesError": "Uitdagingen konden niet worden geladen",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Versla twee verschillende tegenstanders in dezelfde sessie",
   "badgeChallenge_GLD020": "Win de beslissende laatste set",
   "shareCard": "Delen",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Feedback geven",
   "eventFeedbackTitle": "Evenementfeedback",
   "hoursPlayed": "Gespeelde uren",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Je beoordeling is gepubliceerd.",
   "equipReviewError": "Kon je beoordeling niet opslaan. Probeer het opnieuw.",
   "messagesReadOnly": "Dit gesprek is alleen-lezen.",
-  "blockStaffError": "Je kunt een moderator of beheerder niet blokkeren."
+  "blockStaffError": "Je kunt een moderator of beheerder niet blokkeren.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

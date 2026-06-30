@@ -79,6 +79,33 @@ const ROMANIAN_DIACRITICS = /[ăâîșțĂÂÎȘȚ]/;
 const ROMANIAN_HTML_ENTITIES = /&#(226|259|238|537|539);/;
 
 describe('i18n completeness', () => {
+  it('ships exactly the 33 configured languages with matching loader cases', () => {
+    const provider = fs.readFileSync(path.join(ROOT, 'src/contexts/I18nProvider.tsx'), 'utf-8');
+    const supportedBlock = provider.match(/export const SUPPORTED_LANGS:[^=]+=\s*\[([\s\S]*?)\];/);
+    expect(supportedBlock).not.toBeNull();
+
+    const supported = [...supportedBlock![1].matchAll(/'([^']+)'/g)]
+      .map((match) => match[1])
+      .sort();
+    const nonEnglishSupported = supported.filter((code) => code !== 'en');
+    const localeFiles = fs.readdirSync(path.join(ROOT, 'src/locales'))
+      .filter((fileName) => fileName.endsWith('.json'))
+      .map((fileName) => path.basename(fileName, '.json'))
+      .sort();
+    const syncCases = [...provider.matchAll(/case '([^']+)': strings = require\('\.\.\/locales\/[^']+\.json'\)/g)]
+      .map((match) => match[1])
+      .sort();
+    const asyncCases = [...provider.matchAll(/case '([^']+)': mod = await import\('\.\.\/locales\/[^']+\.json'\)/g)]
+      .map((match) => match[1])
+      .sort();
+
+    expect(supported).toHaveLength(33);
+    expect(localeFiles).toEqual(supported);
+    expect(Object.keys(LOCALES).sort()).toEqual(supported);
+    expect(syncCases).toEqual(nonEnglishSupported);
+    expect(asyncCases).toEqual(nonEnglishSupported);
+  });
+
   describe('locale key parity', () => {
     const enRef = LOCALES.en;
     const enKeys = Object.keys(enRef).sort();

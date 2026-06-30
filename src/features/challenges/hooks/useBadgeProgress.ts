@@ -113,6 +113,7 @@ export function useBadgeProgress(userId?: string | null) {
   const [approvedCompletions, setApprovedCompletions] = useState<ApprovedChallengeCompletion[]>([]);
   const [badgeAwards, setBadgeAwards] = useState<BadgeAward[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   const refresh = useCallback(async () => {
@@ -138,6 +139,7 @@ export function useBadgeProgress(userId?: string | null) {
     );
     if (nextError) {
       setError(nextError);
+      setHasLoaded(true);
       return;
     }
 
@@ -149,6 +151,7 @@ export function useBadgeProgress(userId?: string | null) {
     setPendingSubmissions(pending);
     setApprovedCompletions(approved);
     setBadgeAwards(awards);
+    setHasLoaded(true);
     if (userId) saveCachedBadgeBundle(userId, { progress, pending, approved, awards });
   }, [userId]);
 
@@ -160,6 +163,7 @@ export function useBadgeProgress(userId?: string | null) {
       setApprovedCompletions([]);
       setBadgeAwards([]);
       setIsLoading(false);
+      setHasLoaded(false);
       setError(null);
       return undefined;
     }
@@ -171,9 +175,11 @@ export function useBadgeProgress(userId?: string | null) {
       setPendingSubmissions(cached.data.pending as ChallengeSubmission[]);
       setApprovedCompletions(cached.data.approved as ApprovedChallengeCompletion[]);
       setBadgeAwards(cached.data.awards as BadgeAward[]);
+      setHasLoaded(true);
       setIsLoading(false);
       if (cached.fresh) return undefined;
     } else {
+      setHasLoaded(false);
       setIsLoading(true);
     }
     setError(null);
@@ -190,6 +196,7 @@ export function useBadgeProgress(userId?: string | null) {
       );
       if (nextError) {
         setError(nextError);
+        setHasLoaded(true);
         return;
       }
 
@@ -201,6 +208,7 @@ export function useBadgeProgress(userId?: string | null) {
       setPendingSubmissions(pending);
       setApprovedCompletions(approved);
       setBadgeAwards(awards);
+      setHasLoaded(true);
       saveCachedBadgeBundle(userId, { progress, pending, approved, awards });
     });
 
@@ -235,6 +243,7 @@ export function useBadgeProgress(userId?: string | null) {
     approvedCompletions,
     approvedChallengeIds,
     badgeAwards,
+    hasLoaded,
     isLoading,
     pendingChallengeIds,
     pendingSubmissions,

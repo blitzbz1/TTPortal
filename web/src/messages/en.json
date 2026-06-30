@@ -44,7 +44,11 @@
     "subtitle": "Discover venues, see how busy they are right now, log every match and rally, and find players at your level — your whole table tennis life in one app.",
     "primaryCta": "Start Playing",
     "secondaryCta": "See How It Works",
-    "appPreview": "App Preview"
+    "appPreview": "App Preview",
+    "statLocations": "locations",
+    "statTables": "tables",
+    "statCountries": "countries",
+    "statCities": "cities"
   },
   "features": {
     "label": "FEATURES",

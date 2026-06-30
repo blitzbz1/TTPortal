@@ -80,9 +80,9 @@ export default function Hero() {
               <BallGlyph className="!h-[8px] !w-[8px]" />
               <span>
                 <strong className="font-semibold tabular-nums text-ink-900">
-                  180+
+                  30k+
                 </strong>{" "}
-                venues
+                {t("statLocations")}
               </span>
             </span>
             <span className="h-3 w-px bg-ink-200" />
@@ -90,9 +90,9 @@ export default function Hero() {
               <BallGlyph className="!h-[8px] !w-[8px]" />
               <span>
                 <strong className="font-semibold tabular-nums text-ink-900">
-                  12
+                  40k+
                 </strong>{" "}
-                cities
+                {t("statTables")}
               </span>
             </span>
             <span className="h-3 w-px bg-ink-200" />
@@ -100,9 +100,19 @@ export default function Hero() {
               <BallGlyph className="!h-[8px] !w-[8px]" />
               <span>
                 <strong className="font-semibold tabular-nums text-ink-900">
-                  2k+
+                  44
                 </strong>{" "}
-                sessions logged
+                {t("statCountries")}
+              </span>
+            </span>
+            <span className="h-3 w-px bg-ink-200" />
+            <span className="flex items-center gap-2">
+              <BallGlyph className="!h-[8px] !w-[8px]" />
+              <span>
+                <strong className="font-semibold tabular-nums text-ink-900">
+                  10k+
+                </strong>{" "}
+                {t("statCities")}
               </span>
             </span>
           </div>

@@ -889,6 +889,8 @@
   "challengeSeasonCompletions": "abgeschlossen",
   "challengeSeasonBadges": "Abzeichen",
   "challengeSeasonTracks": "Tracks",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Fortschritt konnte nicht synchronisiert werden",
   "challengeProgressErrorDesc": "Dein Abzeichenfortschritt ist sicher. Erneut versuchen, um die Monatstotale zu aktualisieren.",
   "challengeChoicesError": "Challenges konnten nicht geladen werden",
@@ -1102,6 +1104,9 @@
   "badgeChallenge_GLD144": "Zwei verschiedene Gegner in derselben Einheit schlagen",
   "badgeChallenge_GLD020": "Entscheidenden letzten Satz gewinnen",
   "shareCard": "Teilen",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Feedback geben",
   "eventFeedbackTitle": "Event-Feedback",
   "hoursPlayed": "Gespielte Stunden",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Deine Bewertung wurde veröffentlicht.",
   "equipReviewError": "Bewertung konnte nicht gespeichert werden. Bitte erneut versuchen.",
   "messagesReadOnly": "Diese Unterhaltung ist schreibgeschützt.",
-  "blockStaffError": "Du kannst keinen Moderator oder Administrator blockieren."
+  "blockStaffError": "Du kannst keinen Moderator oder Administrator blockieren.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

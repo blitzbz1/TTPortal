@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "مكتملة",
   "challengeSeasonBadges": "شارات",
   "challengeSeasonTracks": "مسارات",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "تعذّرت مزامنة التقدم",
   "challengeProgressErrorDesc": "تقدمك في الشارات آمن. أعد المحاولة لتحديث إجماليات هذا الشهر.",
   "challengeChoicesError": "تعذّر تحميل التحديات",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "اهزم منافسين مختلفين في نفس الجلسة",
   "badgeChallenge_GLD020": "اربح الشوط الفاصل الأخير",
   "shareCard": "مشاركة",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "أعطِ تعليقاً",
   "eventFeedbackTitle": "تعليق على الحدث",
   "hoursPlayed": "ساعات اللعب",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "تم نشر تقييمك.",
   "equipReviewError": "تعذّر حفظ تقييمك. يرجى المحاولة مجددًا.",
   "messagesReadOnly": "هذه المحادثة للقراءة فقط.",
-  "blockStaffError": "لا يمكنك حجب مشرف أو مدير."
+  "blockStaffError": "لا يمكنك حجب مشرف أو مدير.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

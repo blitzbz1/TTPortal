@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Twitter, Linkedin, Instagram } from "lucide-react";
+import BrandLogo from "@/components/BrandLogo";
 
 export default function Footer() {
   const t = useTranslations("footer");
@@ -40,15 +41,7 @@ export default function Footer() {
       <div className="flex flex-col gap-12">
         <div className="flex flex-col justify-between gap-12 md:flex-row">
           <div className="flex max-w-[320px] flex-col gap-4">
-            <div className="flex items-center gap-3">
-              <span className="relative inline-flex h-9 w-9 items-center justify-center">
-                <span className="absolute inset-0 rounded-full bg-gradient-to-br from-moss-600 to-moss-800" />
-                <span className="relative h-2 w-2 rounded-full bg-clay-500 ring-2 ring-paper/20" />
-              </span>
-              <span className="font-heading text-[22px] font-extrabold tracking-tight text-paper">
-                {t("brand")}
-              </span>
-            </div>
+            <BrandLogo markColor="#86BB9B" markSize={25} wordmarkColor="#FAFAF8" />
             <p className="text-[14px] leading-relaxed text-ink-400">
               {t("tagline")}
             </p>

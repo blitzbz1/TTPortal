@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "concluídos",
   "challengeSeasonBadges": "emblemas",
   "challengeSeasonTracks": "trilhos",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Não foi possível sincronizar o progresso",
   "challengeProgressErrorDesc": "O teu progresso nos emblemas está seguro. Tenta novamente para atualizar os totais deste mês.",
   "challengeChoicesError": "Não foi possível carregar os desafios",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Vence dois adversários diferentes na mesma sessão",
   "badgeChallenge_GLD020": "Vence o set decisivo final",
   "shareCard": "Partilhar",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Dar feedback",
   "eventFeedbackTitle": "Feedback do evento",
   "hoursPlayed": "Horas jogadas",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "A tua avaliação foi publicada.",
   "equipReviewError": "Não foi possível guardar a tua avaliação. Tenta novamente.",
   "messagesReadOnly": "Esta conversa é só de leitura.",
-  "blockStaffError": "Não podes bloquear um moderador ou administrador."
+  "blockStaffError": "Não podes bloquear um moderador ou administrador.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

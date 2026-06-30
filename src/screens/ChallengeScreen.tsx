@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Easing, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { showAlert } from '../lib/dialogs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -30,6 +30,7 @@ import {
   EXPLORER_QUEST_META,
   EXPLORER_TIERS,
   explorerTierEarned,
+  useExplorerQuestAwardsQuery,
   useExplorerProgressQuery,
   type ExplorerProgress,
 } from '../features/explorer';
@@ -46,9 +47,14 @@ import {
   type ChallengeCategory,
   type DbChallenge,
 } from '../features/challenges';
-import { getMonthlyMasterySummary, getTrackProgressSummaries } from '../features/challenges/progression';
+import {
+  getEarnedAtByBadgeTier,
+  getMonthlyMasterySummary,
+  getTrackProgressSummaries,
+} from '../features/challenges/progression';
 import type { BadgeTrack } from '../features/challenges/badgeDefinitions';
 import { ProductEvents, trackProductEvent } from '../lib/analytics';
+import { challengesUrl, sharePayload } from '../lib/shareLinks';
 
 type TopTab = 'challenges' | 'badges' | 'explore';
 type ChallengeCooldownReason = 'forfeit' | 'soloComplete';
@@ -58,6 +64,7 @@ interface ChallengeScreenProps {
 }
 
 const CHALLENGE_COOLDOWN_MS = 60000;
+const MONTHLY_MASTERY_ICON = require('../../assets/badge-track-icons/monthly-mastery.png');
 
 const TRACK_ROWS = [
   BADGE_TRACKS.slice(0, 4),
@@ -200,6 +207,7 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     refresh: refreshProgress,
     progressRows,
     error: progressError,
+    hasLoaded: progressLoaded,
   } = useBadgeProgress(user?.id);
   const {
     choices: challengeChoices,
@@ -214,15 +222,23 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     isError: explorerError,
     refetch: refetchExplorer,
   } = useExplorerProgressQuery(user?.id, selectedCityName);
+  const {
+    data: explorerAwards = [],
+    refetch: refetchExplorerAwards,
+  } = useExplorerQuestAwardsQuery(user?.id);
   // Pull-to-refresh + refetch-on-focus (T068): the postmortem removed
   // realtime in favor of fetch-on-focus, but this screen had neither.
   const [refreshing, setRefreshing] = useState(false);
   const focusedOnceRef = useRef(false);
+  const refetchExplorerAwardsIfSignedIn = React.useCallback(
+    () => (user?.id ? refetchExplorerAwards() : Promise.resolve()),
+    [refetchExplorerAwards, user?.id],
+  );
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([refreshProgress(), refreshChoices(), refetchExplorer()]);
+    await Promise.all([refreshProgress(), refreshChoices(), refetchExplorer(), refetchExplorerAwardsIfSignedIn()]);
     setRefreshing(false);
-  }, [refreshProgress, refreshChoices, refetchExplorer]);
+  }, [refreshProgress, refreshChoices, refetchExplorer, refetchExplorerAwardsIfSignedIn]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -233,7 +249,8 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
       void refreshProgress();
       void refreshChoices();
       void refetchExplorer();
-    }, [refreshProgress, refreshChoices, refetchExplorer]),
+      void refetchExplorerAwardsIfSignedIn();
+    }, [refreshProgress, refreshChoices, refetchExplorer, refetchExplorerAwardsIfSignedIn]),
   );
 
   const trackSummaries = useMemo(
@@ -265,39 +282,10 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const verificationLabel = (challenge: DbChallenge) => (
     requiresOtherPlayer(challenge) ? s('challengeVerificationOther') : s('challengeVerificationSelf')
   );
-  const fallbackEarnedAtByBadgeTier = useMemo(() => {
-    const grouped = new Map<ChallengeCategory, { completedAt: string }[]>();
-    approvedCompletions.forEach((completion) => {
-      const challengeRelation = completion.challenges;
-      const category = Array.isArray(challengeRelation)
-        ? challengeRelation[0]?.category
-        : challengeRelation?.category;
-      if (!category) return;
-      const completedAt = completion.reviewed_at ?? completion.submitted_at;
-      const entries = grouped.get(category) ?? [];
-      entries.push({ completedAt });
-      grouped.set(category, entries);
-    });
-
-    const earnedMap = new Map<string, string>();
-    grouped.forEach((entries, category) => {
-      const sorted = [...entries].sort((a, b) => (
-        new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime()
-      ));
-      BADGE_TIERS.forEach((tier) => {
-        const earnedAt = sorted[TIER_TARGETS[tier] - 1]?.completedAt;
-        if (earnedAt) earnedMap.set(`${category}:${tier}`, earnedAt);
-      });
-    });
-    return earnedMap;
-  }, [approvedCompletions]);
-  const earnedAtByBadgeTier = useMemo(() => {
-    const earnedMap = new Map(fallbackEarnedAtByBadgeTier);
-    badgeAwards.forEach((award) => {
-      earnedMap.set(`${award.category}:${award.tier}`, award.awarded_at);
-    });
-    return earnedMap;
-  }, [badgeAwards, fallbackEarnedAtByBadgeTier]);
+  const earnedAtByBadgeTier = useMemo(
+    () => getEarnedAtByBadgeTier(approvedCompletions, badgeAwards, progressRows),
+    [approvedCompletions, badgeAwards, progressRows],
+  );
   const latestEarnedBadgeKey = useMemo(() => {
     let latestKey = '';
     let latestTime = 0;
@@ -310,6 +298,60 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     });
     return latestKey;
   }, [earnedAtByBadgeTier]);
+  const latestEarnedBadgeOrExplorerKey = useMemo(() => {
+    let latestKey = latestEarnedBadgeKey;
+    let latestTime = latestKey ? new Date(earnedAtByBadgeTier.get(latestKey) ?? 0).getTime() : 0;
+    explorerAwards.forEach((award) => {
+      const time = new Date(award.awarded_at).getTime();
+      if (time > latestTime) {
+        latestKey = `explorer:${award.quest_key}:${award.tier}`;
+        latestTime = time;
+      }
+    });
+    return latestKey;
+  }, [earnedAtByBadgeTier, explorerAwards, latestEarnedBadgeKey]);
+  const challengeBadgeByCategory = useMemo(() => {
+    const entries = BADGE_TRACKS
+      .filter((track) => {
+        const challenges = track.challenges;
+        return challenges.bronze.length + challenges.silver.length + challenges.gold.length > 0;
+      })
+      .map((track) => [track.category, track] as const);
+    return new Map(entries);
+  }, []);
+  const seenChallengeBadgeTiersRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    seenChallengeBadgeTiersRef.current = null;
+  }, [user?.id]);
+  useEffect(() => {
+    if (!user?.id || !progressLoaded || progressError) return;
+    const current = new Set<string>();
+    earnedAtByBadgeTier.forEach((_earnedAt, key) => {
+      const [category, tier] = key.split(':') as [ChallengeCategory, BadgeTier];
+      if (challengeBadgeByCategory.has(category) && BADGE_TIERS.includes(tier)) {
+        current.add(key);
+      }
+    });
+
+    if (seenChallengeBadgeTiersRef.current === null) {
+      seenChallengeBadgeTiersRef.current = current;
+      return;
+    }
+
+    const prev = seenChallengeBadgeTiersRef.current;
+    const newlyEarned = [...current]
+      .filter((key) => !prev.has(key))
+      .sort((a, b) => (
+        new Date(earnedAtByBadgeTier.get(a) ?? 0).getTime()
+        - new Date(earnedAtByBadgeTier.get(b) ?? 0).getTime()
+      ))[0];
+    seenChallengeBadgeTiersRef.current = current;
+
+    if (!newlyEarned) return;
+    const [category, tier] = newlyEarned.split(':') as [ChallengeCategory, BadgeTier];
+    const badge = challengeBadgeByCategory.get(category);
+    if (badge) setEarnedBadgeModal({ badge, tier });
+  }, [challengeBadgeByCategory, earnedAtByBadgeTier, progressError, progressLoaded, user?.id]);
   // F051: detect a newly-earned explorer tier when the progress query result
   // crosses a target on focus/refetch (NOT in a button handler — the count
   // changes server-side from a check-in elsewhere in the app). We snapshot the
@@ -433,7 +475,6 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
     const previousCount = completedCount;
     const projectedCount = previousCount + 1;
     const earnedTier = BADGE_TIERS.find((tier) => TIER_TARGETS[tier] === projectedCount);
-    const isNewBadgeAward = !!earnedTier && !earnedAtByBadgeTier.has(`${activeCategory}:${earnedTier}`);
     setActionChallengeId(completedId);
     try {
       const { error } = await completeSelfChallenge(completedId);
@@ -456,9 +497,6 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
         category: activeCategory,
         earnedTier,
       });
-      if (earnedTier && isNewBadgeAward) {
-        setEarnedBadgeModal({ badge: activeBadge, tier: earnedTier });
-      }
     } finally {
       setActionChallengeId(null);
     }
@@ -466,13 +504,15 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
 
   const handleShareEarnedBadge = async () => {
     if (!earnedBadgeModal) return;
-    await share({
-      message: s(
-        'challengeBadgeShareMessage',
-        tierLabel(earnedBadgeModal.tier),
-        resolveModalTrackName(earnedBadgeModal.badge),
-      ),
+    const tierName = tierLabel(earnedBadgeModal.tier);
+    const badgeName = resolveModalTrackName(earnedBadgeModal.badge);
+    const message = s('challengeBadgeShareMessage', tierName, badgeName);
+    trackProductEvent(ProductEvents.shareInitiated, {
+      surface: 'challenge_badge',
+      badgeId: earnedBadgeModal.badge.id,
+      tier: earnedBadgeModal.tier,
     });
+    await share({ ...sharePayload(message, challengesUrl()), title: `${tierName} ${badgeName}` });
   };
 
   const handleInviteVerification = async () => {
@@ -578,20 +618,63 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   );
 
   const renderCurrentProgress = () => (
-    <View style={styles.progressPanel}>
-      <View style={styles.progressHeader}>
-        <View>
-          <Text style={styles.eyebrow}>{s('challengeCurrentProgress')}</Text>
-          <Text style={styles.progressTitle}>{tierLabel(currentAwardTier)}</Text>
+    <View style={[styles.selectedTrackCard, { borderColor: activeBadge.color }]}>
+      <View style={styles.explorerCardHeader}>
+        <View style={[styles.selectedTrackIcon, { backgroundColor: activeBadge.paleColor }]}>
+          <BadgeTrackIcon
+            badge={activeBadge}
+            size={54}
+            variant="hero"
+            fallbackColor={activeBadge.color}
+          />
         </View>
-        <Text style={[styles.progressCount, { color: activeBadge.color }]}>
+        <View style={styles.explorerCardCopy}>
+          <Text style={styles.explorerCardTitle}>{trackName()}</Text>
+          <Text style={styles.explorerCardSub}>{trackDescription()}</Text>
+        </View>
+        <Text style={[styles.explorerCardCount, { color: activeBadge.color }]}>
           {currentProgress}/{currentTarget}
         </Text>
       </View>
-      <View style={styles.progressBar}>
-        <View style={[styles.progressFill, { width: progressWidth, backgroundColor: activeBadge.color }]} />
+
+      <View style={styles.explorerProgressBar}>
+        <View style={[styles.explorerProgressFill, { width: progressWidth, backgroundColor: activeBadge.color }]} />
       </View>
-      <Text style={styles.progressHint}>
+
+      <View style={styles.explorerTierRow}>
+        {BADGE_TIERS.map((tier) => {
+          const earned = completedCount >= TIER_TARGETS[tier];
+          const palette = getBadgeTierPalette(tier);
+          return (
+            <View
+              key={tier}
+              style={[
+                styles.explorerTierPip,
+                {
+                  backgroundColor: earned ? palette.surface : colors.bgMuted,
+                  borderColor: earned ? palette.border : colors.borderLight,
+                },
+              ]}
+            >
+              <Lucide
+                name={earned ? 'medal' : 'lock'}
+                size={10}
+                color={earned ? palette.accent : colors.textFaint}
+              />
+              <Text
+                style={[
+                  styles.explorerTierPipText,
+                  { color: earned ? palette.accent : colors.textFaint },
+                ]}
+              >
+                {tierLabel(tier)} · {TIER_TARGETS[tier]}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+
+      <Text style={styles.explorerCardSub}>
         {getBadgeLevel(completedCount) === 'Gold'
           ? s('challengeGoldEarned')
           : sn('challengeMoreToEarn', currentTarget - currentProgress, tierLabel(currentAwardTier))}
@@ -602,41 +685,89 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
   const renderMonthlyMastery = () => {
     const strongestBadge = monthlyMastery.strongest.badge;
     const strongestProgress = Math.min(15, monthlyMastery.strongest.completedCount);
-    const monthLabel = new Date().toLocaleDateString(getDateLocale(lang), {
+    const hasTrackProgress = monthlyMastery.tracksWithProgress > 0 && strongestProgress > 0;
+    const monthlyProgressWidth = `${Math.min(100, (monthlyMastery.completed / 15) * 100)}%` as `${number}%`;
+    const now = new Date();
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const daysLeft = Math.max(0, Math.ceil((nextMonthStart.getTime() - now.getTime()) / 86400000));
+    const monthLabel = now.toLocaleDateString(getDateLocale(lang), {
       month: 'long',
       year: 'numeric',
     });
+    const closestNext = trackSummaries
+      .filter((summary) => {
+        const challenges = summary.badge.challenges;
+        const hasChallenges = challenges.bronze.length + challenges.silver.length + challenges.gold.length > 0;
+        return hasChallenges && summary.completedCount > 0 && summary.remainingToTier > 0;
+      })
+      .sort((a, b) => (
+        a.remainingToTier - b.remainingToTier
+        || b.completedCount - a.completedCount
+        || a.badge.id.localeCompare(b.badge.id)
+      ))[0];
 
     return (
-      <View style={styles.masteryPanel}>
-        <View style={styles.masteryAccent} />
-        <View style={styles.masteryTop}>
-          <View style={styles.masteryTitleCol}>
+      <View style={[styles.selectedTrackCard, { borderColor: colors.primary }]}>
+        <View style={styles.explorerCardHeader}>
+          <View style={styles.masteryCardIcon}>
+            <Image source={MONTHLY_MASTERY_ICON} resizeMode="contain" style={styles.masteryCardImage} />
+          </View>
+          <View style={styles.explorerCardCopy}>
             <View style={styles.masteryKickerRow}>
-              <Text style={styles.eyebrow}>{s('challengeSeasonTitle')}</Text>
+              <Text style={styles.explorerCardTitle}>{s('challengeSeasonTitle')}</Text>
               <Text style={styles.masteryMonth}>{monthLabel}</Text>
             </View>
-            <Text style={styles.masteryTitle}>{s('challengeSeasonSubtitle')}</Text>
+            <Text style={styles.explorerCardSub}>{s('challengeSeasonSubtitle')}</Text>
           </View>
-          <View style={styles.masteryScore}>
-            <Text style={styles.masteryScoreValue}>{monthlyMastery.completed}</Text>
-            <Text style={styles.masteryScoreLabel}>{s('challengeSeasonCompletions')}</Text>
+          <View style={styles.masteryCountBlock}>
+            <Text style={[styles.explorerCardCount, { color: colors.primary }]}>
+              {monthlyMastery.completed}
+            </Text>
+            <Text style={styles.masteryCountLabel}>{s('challengeSeasonCompletions')}</Text>
           </View>
         </View>
 
-        <View style={styles.masteryStats}>
-          <View style={styles.masteryStat}>
-            <Text style={styles.masteryStatValue}>{monthlyMastery.earnedThisMonth}</Text>
-            <Text style={styles.masteryStatLabel}>{s('challengeSeasonBadges')}</Text>
+        <View style={styles.explorerProgressBar}>
+          <View style={[styles.explorerProgressFill, { width: monthlyProgressWidth, backgroundColor: colors.primary }]} />
+        </View>
+
+        <View style={styles.explorerTierRow}>
+          <View style={styles.masteryMetricPip}>
+            <Lucide name="award" size={10} color={colors.primary} />
+            <Text style={[styles.explorerTierPipText, { color: colors.primary }]}>
+              {monthlyMastery.earnedThisMonth} {s('challengeSeasonBadges')}
+            </Text>
           </View>
-          <View style={styles.masteryStat}>
-            <Text style={styles.masteryStatValue}>{monthlyMastery.tracksWithProgress}</Text>
-            <Text style={styles.masteryStatLabel}>{s('challengeSeasonTracks')}</Text>
+          {monthlyMastery.tracksWithProgress > 0 ? (
+            <View style={styles.masteryMetricPip}>
+              <Lucide name="grid-2x2" size={10} color={colors.primary} />
+              <Text style={[styles.explorerTierPipText, { color: colors.primary }]}>
+                {monthlyMastery.tracksWithProgress} {s('challengeSeasonTracks')}
+              </Text>
+            </View>
+          ) : null}
+          <View style={styles.masteryMetricPip}>
+            <Lucide name="calendar-clock" size={10} color={colors.primary} />
+            <Text style={[styles.explorerTierPipText, { color: colors.primary }]}>
+              {daysLeft === 1 ? s('challengeSeasonDaysLeft_one') : s('challengeSeasonDaysLeft', String(daysLeft))}
+            </Text>
           </View>
-          <View style={[styles.masteryStat, styles.masteryStatFeatured]}>
-            <Text style={styles.masteryStatValue}>{strongestProgress}/15</Text>
-            <Text style={styles.masteryStatLabel}>{s(`badgeTrack_${strongestBadge.id}_short`)}</Text>
-          </View>
+          {closestNext ? (
+            <View style={[styles.masteryMetricPip, { borderColor: closestNext.badge.color, backgroundColor: closestNext.badge.paleColor }]}>
+              <Lucide name="medal" size={10} color={closestNext.badge.color} />
+              <Text style={[styles.explorerTierPipText, { color: closestNext.badge.color }]}>
+                {sn('challengeMoreToEarn', closestNext.remainingToTier, tierLabel(closestNext.currentTier))}
+              </Text>
+            </View>
+          ) : null}
+          {hasTrackProgress ? (
+            <View style={[styles.masteryMetricPip, { borderColor: strongestBadge.color, backgroundColor: strongestBadge.paleColor }]}>
+              <Lucide name="flame" size={10} color={strongestBadge.color} />
+              <Text style={[styles.explorerTierPipText, { color: strongestBadge.color }]}>
+                {strongestProgress}/15 {s(`badgeTrack_${strongestBadge.id}_short`)}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
     );
@@ -717,21 +848,6 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
         />
       ) : null}
       {renderTrackPicker()}
-
-      <View style={[styles.heroCard, { borderColor: activeBadge.color }]}>
-        <View style={[styles.heroIcon, { backgroundColor: activeBadge.paleColor }]}>
-          <BadgeTrackIcon
-            badge={activeBadge}
-            size={64}
-            variant="hero"
-            fallbackColor={activeBadge.color}
-          />
-        </View>
-        <View style={styles.heroCopy}>
-          <Text style={styles.heroTitle}>{trackName()}</Text>
-          <Text style={styles.heroDesc}>{trackDescription()}</Text>
-        </View>
-      </View>
 
       {renderCurrentProgress()}
 
@@ -897,7 +1013,9 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
       activeCategory={activeCategory}
       completedCount={completedCount}
       earnedAtByBadgeTier={earnedAtByBadgeTier}
-      latestEarnedBadgeKey={latestEarnedBadgeKey}
+      explorerAwards={explorerAwards}
+      explorerQuests={explorerQuests}
+      latestEarnedBadgeKey={latestEarnedBadgeOrExplorerKey}
       styles={styles}
       colors={colors}
       s={s}

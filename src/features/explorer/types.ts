@@ -1,9 +1,15 @@
 // F051: explorer-quest domain types. Quest definitions (predicate → map filter,
 // icon, color) live on the client; tier targets + progress come from the RPC.
+import type { ImageSourcePropType } from 'react-native';
 import type { BadgeTier } from '../challenges/badgeDefinitions';
 import type { ExplorerQuestPredicate } from '../../services/explorer';
 
-export type { ExplorerProgress, ExplorerQuestPredicate, ExplorerTier } from '../../services/explorer';
+export type {
+  ExplorerProgress,
+  ExplorerQuestAward,
+  ExplorerQuestPredicate,
+  ExplorerTier,
+} from '../../services/explorer';
 
 /** Static client metadata for a quest, keyed by the migration-127 quest key. */
 export interface ExplorerQuestMeta {
@@ -14,6 +20,8 @@ export interface ExplorerQuestMeta {
   /** Accent color (mirrors the badge-track palette feel). */
   color: string;
   paleColor: string;
+  /** Optional generated mission badge asset for the Explore card. */
+  badgeSource?: ImageSourcePropType;
   /**
    * The MapViewScreen FilterKey this quest's "Find one" jump pre-selects.
    * `undefined` for the 'all' quest (no chip pre-filter — the whole city).
@@ -32,6 +40,7 @@ export const EXPLORER_QUEST_META: Record<string, ExplorerQuestMeta> = {
     icon: 'compass',
     color: '#0f766e',
     paleColor: '#ccfbf1',
+    badgeSource: require('../../../assets/explorer-mission-badges/venue-explorer.png'),
     mapFilter: undefined,
   },
   park_hopper: {
@@ -40,6 +49,7 @@ export const EXPLORER_QUEST_META: Record<string, ExplorerQuestMeta> = {
     icon: 'map-pin',
     color: '#16a34a',
     paleColor: '#dcfce7',
+    badgeSource: require('../../../assets/explorer-mission-badges/park-hopper.png'),
     mapFilter: 'parcuri',
   },
   indoor_initiate: {
@@ -48,6 +58,7 @@ export const EXPLORER_QUEST_META: Record<string, ExplorerQuestMeta> = {
     icon: 'building-2',
     color: '#2563eb',
     paleColor: '#dbeafe',
+    badgeSource: require('../../../assets/explorer-mission-badges/indoor-initiate.png'),
     mapFilter: 'indoor',
   },
 };

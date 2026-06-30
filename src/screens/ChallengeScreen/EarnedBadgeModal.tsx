@@ -4,6 +4,7 @@ import { BadgeTrackIcon } from '../../components/BadgeTrackIcon';
 import { Lucide } from '../../components/Icon';
 import type { ThemeColors } from '../../theme';
 import type { BadgeTier, BadgeTrack } from '../../features/challenges/badgeDefinitions';
+import { getBadgeTierPalette } from '../../features/challenges/badgeDefinitions';
 import type { createStyles } from '../ChallengeScreen.styles';
 
 interface Props {
@@ -27,6 +28,8 @@ export function EarnedBadgeModal({
   onDismiss,
   onShare,
 }: Props) {
+  const tierPalette = data ? getBadgeTierPalette(data.tier) : null;
+
   return (
     <Modal visible={!!data} transparent animationType="fade" onRequestClose={onDismiss}>
       <View style={styles.modalOverlay}>
@@ -41,10 +44,19 @@ export function EarnedBadgeModal({
                   fallbackColor={colors.textOnPrimary}
                 />
               </View>
-              <Text style={styles.badgeEarnedTitle}>{s('challengeBadgeUnlocked')}</Text>
-              <Text style={styles.badgeEarnedName}>
-                {tierLabel(data.tier)} {trackName(data.badge)}
-              </Text>
+              <Text style={styles.badgeEarnedTitle}>{tierLabel(data.tier)}</Text>
+              <View
+                style={[
+                  styles.badgeEarnedCup,
+                  {
+                    backgroundColor: tierPalette?.surface,
+                    borderColor: tierPalette?.border,
+                  },
+                ]}
+              >
+                <Lucide name="trophy" size={30} color={tierPalette?.accent ?? data.badge.color} />
+              </View>
+              <Text style={styles.badgeEarnedName}>{trackName(data.badge)}</Text>
               <Text style={styles.badgeEarnedCopy}>{s('challengeBadgeUnlockedDesc')}</Text>
               <View style={styles.badgeEarnedActions}>
                 <TouchableOpacity style={styles.badgeEarnedSecondary} onPress={onDismiss}>

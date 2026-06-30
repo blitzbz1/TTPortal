@@ -1,4 +1,4 @@
-// F030: read-only chip showing a player's competitive rating (Elo). Mirrors
+﻿// F030: read-only chip showing a player's competitive rating (Elo). Mirrors
 // SkillChip. Renders nothing when rating is unset (unrated player). Shows a
 // "Provisional" hint while the player has fewer than 10 rated matches.
 import React from 'react';
@@ -31,3 +31,4 @@ const styles = StyleSheet.create({
   chip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingVertical: 3, paddingHorizontal: 8 },
   text: { fontFamily: Fonts.body, fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 });
+

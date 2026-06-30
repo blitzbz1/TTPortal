@@ -1,4 +1,5 @@
 import {
+  challengesUrl,
   eventUrl,
   joinUrl,
   parseQuickMatchUserId,
@@ -11,6 +12,10 @@ describe('Public content links', () => {
   it('builds canonical venue and event paths handled by public routes', () => {
     expect(venueUrl(11)).toMatch(/\/venue\/11$/);
     expect(eventUrl(23)).toMatch(/\/event\/23$/);
+  });
+
+  it('builds the challenges share path', () => {
+    expect(challengesUrl()).toMatch(/\/challenges$/);
   });
 });
 

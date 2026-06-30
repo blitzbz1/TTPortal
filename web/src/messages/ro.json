@@ -44,7 +44,11 @@
     "subtitle": "Descoperă săli, vezi cât de aglomerate sunt chiar acum, înregistrează fiecare meci și sesiune și găsește jucători de nivelul tău — toată viața ta de tenis de masă într-un singur loc.",
     "primaryCta": "Începe să joci",
     "secondaryCta": "Vezi cum funcționează",
-    "appPreview": "Previzualizare aplicație"
+    "appPreview": "Previzualizare aplicație",
+    "statLocations": "locații",
+    "statTables": "mese",
+    "statCountries": "țări",
+    "statCities": "orașe"
   },
   "features": {
     "label": "FUNCȚIONALITĂȚI",

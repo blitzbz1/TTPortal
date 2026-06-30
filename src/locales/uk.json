@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "виконано",
   "challengeSeasonBadges": "значки",
   "challengeSeasonTracks": "напрямки",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Не вдалося синхронізувати прогрес",
   "challengeProgressErrorDesc": "Ваш прогрес у значках збережено. Повторіть спробу, щоб оновити підсумки місяця.",
   "challengeChoicesError": "Не вдалося завантажити виклики",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Переможіть двох різних суперників за одну сесію",
   "badgeChallenge_GLD020": "Виграйте вирішальний фінальний сет",
   "shareCard": "Поділитися",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Залишити відгук",
   "eventFeedbackTitle": "Відгук про подію",
   "hoursPlayed": "Зіграно годин",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Твій відгук опубліковано.",
   "equipReviewError": "Не вдалося зберегти відгук. Спробуй ще раз.",
   "messagesReadOnly": "Ця розмова доступна лише для читання.",
-  "blockStaffError": "Не можна заблокувати модератора або адміністратора."
+  "blockStaffError": "Не можна заблокувати модератора або адміністратора.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

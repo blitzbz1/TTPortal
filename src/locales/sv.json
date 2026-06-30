@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "avklarade",
   "challengeSeasonBadges": "märken",
   "challengeSeasonTracks": "spår",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Kunde inte synka framsteg",
   "challengeProgressErrorDesc": "Dina märkesframsteg är säkra. Försök igen för att uppdatera månadens summor.",
   "challengeChoicesError": "Kunde inte ladda utmaningar",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Slå två olika motståndare i samma session",
   "badgeChallenge_GLD020": "Vinn det avgörande sista setet",
   "shareCard": "Dela",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Ge feedback",
   "eventFeedbackTitle": "Evenemangsfeedback",
   "hoursPlayed": "Spelade timmar",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Din recension har publicerats.",
   "equipReviewError": "Kunde inte spara din recension. Försök igen.",
   "messagesReadOnly": "Det här samtalet är skrivskyddat.",
-  "blockStaffError": "Du kan inte blockera en moderator eller administratör."
+  "blockStaffError": "Du kan inte blockera en moderator eller administratör.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

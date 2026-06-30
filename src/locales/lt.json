@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "atlikta",
   "challengeSeasonBadges": "ženkliukai",
   "challengeSeasonTracks": "takai",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Nepavyko sinchronizuoti pažangos",
   "challengeProgressErrorDesc": "Tavo ženkliukų pažanga saugi. Bandyk dar kartą, kad atnaujintum šio mėnesio rezultatus.",
   "challengeChoicesError": "Nepavyko įkelti iššūkių",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Nugalėk du skirtingus priešininkus per tą pačią sesiją",
   "badgeChallenge_GLD020": "Laimėk paskutinį lemiamą setą",
   "shareCard": "Dalintis",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Pateikti atsiliepimą",
   "eventFeedbackTitle": "Renginio atsiliepimas",
   "hoursPlayed": "Žaista valandų",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Tavo atsiliepimas paskelbtas.",
   "equipReviewError": "Nepavyko išsaugoti atsiliepimo. Bandyk dar kartą.",
   "messagesReadOnly": "Šis pokalbis yra tik skaitymui.",
-  "blockStaffError": "Negalima blokuoti moderatoriaus ar administratoriaus."
+  "blockStaffError": "Negalima blokuoti moderatoriaus ar administratoriaus.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

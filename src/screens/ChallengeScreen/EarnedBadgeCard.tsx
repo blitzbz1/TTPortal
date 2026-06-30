@@ -18,6 +18,7 @@ export function formatEarnedMonth(value: string | null | undefined, lang: string
   return new Date(value).toLocaleDateString(getDateLocale(lang), {
     month: 'short',
     year: 'numeric',
+    timeZone: 'UTC',
   });
 }
 
@@ -33,6 +34,7 @@ interface Props {
   s: (key: string, ...args: string[]) => string;
   sn: (key: string, count: number, ...args: string[]) => string;
   lang: string;
+  completedCountLabel?: string;
 }
 
 export function EarnedBadgeCard({
@@ -47,6 +49,7 @@ export function EarnedBadgeCard({
   s,
   sn,
   lang,
+  completedCountLabel,
 }: Props) {
   const scale = useRef(new Animated.Value(isLatest ? 0.94 : 1)).current;
   const opacity = useRef(new Animated.Value(isLatest ? 0 : 1)).current;
@@ -105,10 +108,12 @@ export function EarnedBadgeCard({
           <Lucide name="calendar-check" size={13} color={tierPalette.accent} />
           <Text style={[styles.wonMeta, { color: tierPalette.accent }]}>{s('challengeEarnedMonth', formatEarnedMonth(earnedAt, lang))}</Text>
         </View>
-        <Text style={[styles.wonSubMeta, { color: tierPalette.accent }]}>{sn(
-          badge.id === RECRUITER_TRACK_ID ? 'recruiterReferralCount' : 'challengeCompletedCount',
-          (badge.id === RECRUITER_TRACK_ID ? RECRUITER_TIER_TARGETS : TIER_TARGETS)[tier],
-        )}</Text>
+        <Text style={[styles.wonSubMeta, { color: tierPalette.accent }]}>
+          {completedCountLabel ?? sn(
+            badge.id === RECRUITER_TRACK_ID ? 'recruiterReferralCount' : 'challengeCompletedCount',
+            (badge.id === RECRUITER_TRACK_ID ? RECRUITER_TIER_TARGETS : TIER_TARGETS)[tier],
+          )}
+        </Text>
       </View>
     </Animated.View>
   );

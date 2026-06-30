@@ -7,7 +7,7 @@ import {
   type BadgeTier,
   type BadgeTrack,
 } from './badgeDefinitions';
-import type { BadgeAward, ChallengeCategory, UserBadgeProgress } from './types';
+import type { ApprovedChallengeCompletion, BadgeAward, ChallengeCategory, UserBadgeProgress } from './types';
 
 export interface TrackProgressSummary {
   badge: BadgeTrack;
@@ -55,6 +55,68 @@ export function getTrackProgressSummaries(
       earnedTiers,
     } satisfies TrackProgressSummary;
   });
+}
+
+function getCompletionCategory(completion: ApprovedChallengeCompletion) {
+  const challengeRelation = completion.challenges;
+  return Array.isArray(challengeRelation)
+    ? challengeRelation[0]?.category
+    : challengeRelation?.category;
+}
+
+export function getEarnedAtByBadgeTier(
+  approvedCompletions: ApprovedChallengeCompletion[],
+  badgeAwards: BadgeAward[],
+  progressRows: UserBadgeProgress[] = [],
+) {
+  const grouped = new Map<ChallengeCategory, Map<string, { completedAt: string }[]>>();
+  approvedCompletions.forEach((completion) => {
+    const category = getCompletionCategory(completion);
+    if (!category) return;
+    const completedAt = completion.reviewed_at ?? completion.submitted_at;
+    const completedDate = new Date(completedAt);
+    if (Number.isNaN(completedDate.getTime())) return;
+
+    const monthKey = `${completedDate.getUTCFullYear()}-${String(completedDate.getUTCMonth() + 1).padStart(2, '0')}`;
+    const byMonth = grouped.get(category) ?? new Map<string, { completedAt: string }[]>();
+    const entries = byMonth.get(monthKey) ?? [];
+    entries.push({ completedAt });
+    byMonth.set(monthKey, entries);
+    grouped.set(category, byMonth);
+  });
+
+  const earnedMap = new Map<string, string>();
+  grouped.forEach((byMonth, category) => {
+    const monthKeys = [...byMonth.keys()].sort();
+    monthKeys.forEach((monthKey) => {
+      const sorted = [...(byMonth.get(monthKey) ?? [])].sort((a, b) => (
+        new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime()
+      ));
+      BADGE_TIERS.forEach((tier) => {
+        const key = `${category}:${tier}`;
+        const earnedAt = sorted[TIER_TARGETS[tier] - 1]?.completedAt;
+        if (earnedAt && !earnedMap.has(key)) earnedMap.set(key, earnedAt);
+      });
+    });
+  });
+
+  progressRows.forEach((progress) => {
+    BADGE_TIERS.forEach((tier) => {
+      const key = `${progress.category}:${tier}`;
+      if (progress.completed_count >= TIER_TARGETS[tier] && !earnedMap.has(key)) {
+        earnedMap.set(key, progress.last_completed_at ?? progress.updated_at ?? progress.created_at);
+      }
+    });
+  });
+
+  badgeAwards.forEach((award) => {
+    const key = `${award.category}:${award.tier}`;
+    if (award.category === 'recruiter' || !earnedMap.has(key)) {
+      earnedMap.set(key, award.awarded_at);
+    }
+  });
+
+  return earnedMap;
 }
 
 /** A challenge track has at least one challenge; badge-only tracks (F041

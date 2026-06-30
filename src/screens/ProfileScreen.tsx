@@ -23,19 +23,19 @@ import { playGoalKey } from '../lib/playerAttributes';
 import { usePlayerMatchesQuery, summarizeMatches, useRivalsQuery } from '../features/matches';
 import { sendMatchInvite } from '../features/findPlayers';
 import { usePlayerRatingQuery } from '../features/ratings';
-import { RatingChip } from '../components/RatingChip';
 import { RatingSparkline } from '../components/RatingSparkline';
 import { RatingCelebrationSheet } from '../components/RatingCelebrationSheet';
 import { MilestoneCelebrationSheet } from '../components/MilestoneCelebrationSheet';
 import {
   useMilestonesQuery,
   MILESTONE_DEFS,
-  MILESTONE_DEF_BY_KEY,
+  milestoneCurrent,
   nextMilestoneGhost,
   yearsSince,
 } from '../features/milestones';
 import { QuickMatchModal } from '../components/QuickMatchModal';
 import { LogTrainingModal } from '../components/LogTrainingModal';
+import { VenuePickerModal } from '../components/VenuePickerModal';
 import { getLastSeenRating, setLastSeenRating, shouldCelebrateRating } from '../lib/ratingsCache';
 import { useHomeVenueQuery, useHomeVenueSuggestionQuery, homeVenueQueryKey } from '../features/venueIntel';
 import { useCoachProfileQuery } from '../features/coaches';
@@ -58,6 +58,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const [editorVisible, setEditorVisible] = useState(false);
   const [quickMatchVisible, setQuickMatchVisible] = useState(false);
   const [trainingVisible, setTrainingVisible] = useState(false);
+  const [homeVenuePickerVisible, setHomeVenuePickerVisible] = useState(false);
   const { data: matches = [], refetch: refetchMatches } = usePlayerMatchesQuery(user?.id);
   const confirmedMatches = useMemo(
     () => matches.filter((m) => m.status === 'confirmed' && m.winner_id),
@@ -65,9 +66,10 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   );
   const matchRecord = useMemo(() => summarizeMatches(matches, user?.id ?? ''), [matches, user?.id]);
 
-  // ── F031: rivals (most-played opponents) + Challenge.
+  // F031: rivals (most-played opponents) + Challenge.
   const { data: rivals = [] } = useRivalsQuery(user?.id);
   const [challengedRivals, setChallengedRivals] = useState<Set<string>>(new Set());
+  const [rivalsExpanded, setRivalsExpanded] = useState(false);
   const challengeRival = useCallback(async (rivalId: string) => {
     setChallengedRivals((prev) => new Set(prev).add(rivalId));
     const { error } = await sendMatchInvite(rivalId);
@@ -76,8 +78,11 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
       showAlert(s('error'), s('genericError'));
     }
   }, [s]);
+  useEffect(() => {
+    if (rivals.length <= 3) setRivalsExpanded(false);
+  }, [rivals.length]);
 
-  // ── F030: rating + celebration on rating-up.
+  // F030: rating + celebration on rating-up.
   const { data: rating, refetch: refetchRating } = usePlayerRatingQuery(user?.id);
   const [celebrate, setCelebrate] = useState(false);
   useEffect(() => {
@@ -97,12 +102,12 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
   const bestStreak = profileStats?.best_streak ?? 0;
   const [streakDetailVisible, setStreakDetailVisible] = useState(false);
 
-  // F054: TT Wrapped — the year-in-review banner only shows inside the
-  // Dec 15 – Jan 15 window; tapping it opens the swipeable story.
+  // F054: TT Wrapped: the year-in-review banner only shows inside the
+  // Dec 15 - Jan 15 window; tapping it opens the swipeable story.
   const wrappedOpen = isWrappedWindowOpen();
   const wrappedYear = wrappedYearFor();
 
-  // F053: lifetime milestones — earned set + the next locked "ghost" + a
+  // F053: lifetime milestones: earned set + the next locked "ghost" + a
   // full-screen celebration when a NEW milestone appears (e.g. crossed via a
   // review, an event, or the anniversary cron and surfaced on focus/refetch).
   const { data: milestones = [], isLoading: milestonesLoading } = useMilestonesQuery(user?.id);
@@ -114,7 +119,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
     () => ({
       checkins: profileStats?.total_checkins ?? 0,
       venues: profileStats?.unique_venues ?? 0,
-      // Combined check-in + event hours — matches what the hours milestones are
+      // Combined check-in + event hours: matches what the hours milestones are
       // awarded against (NOT the event-only total_hours_played), so the ghost
       // progress agrees with the durable earned chip.
       hours: profileStats?.total_play_hours ?? 0,
@@ -219,6 +224,60 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
     () => progressRows.reduce((total, row) => total + row.approved_count, 0),
     [progressRows],
   );
+  const visibleRivals = rivalsExpanded ? rivals : rivals.slice(0, 3);
+  const hiddenRivalCount = Math.max(rivals.length - visibleRivals.length, 0);
+  const earnedMilestoneDefs = MILESTONE_DEFS.filter((d) => earnedKeys.has(d.key));
+  const milestoneHighlights = useMemo(() => {
+    const metricOrder: Record<string, number> = {
+      checkins: 0,
+      hours: 1,
+      venues: 2,
+      reviews: 3,
+      anniversary: 4,
+    };
+    const byMetric = new Map<string, {
+      current: number;
+      def: (typeof MILESTONE_DEFS)[number];
+      ghost: boolean;
+    }>();
+
+    MILESTONE_DEFS.forEach((def) => {
+      const current = milestoneCurrent(def, milestoneCounters);
+      if (!earnedKeys.has(def.key) && current < def.threshold) return;
+      const existing = byMetric.get(def.metric);
+      if (!existing || def.threshold > existing.def.threshold) {
+        byMetric.set(def.metric, { def, current, ghost: false });
+      }
+    });
+
+    if (milestoneGhost) {
+      byMetric.set(`ghost:${milestoneGhost.def.key}`, {
+        def: milestoneGhost.def,
+        current: milestoneGhost.current,
+        ghost: true,
+      });
+    }
+
+    return [...byMetric.values()]
+      .sort((a, b) => {
+        if (a.ghost !== b.ghost) return a.ghost ? 1 : -1;
+        return (metricOrder[a.def.metric] ?? 99) - (metricOrder[b.def.metric] ?? 99);
+      })
+      .slice(0, 4);
+  }, [earnedKeys, milestoneCounters, milestoneGhost]);
+  const hiddenMilestoneCount = Math.max(
+    earnedMilestoneDefs.length + (milestoneGhost ? 1 : 0) - milestoneHighlights.length,
+    0,
+  );
+  const hasMilestoneContent = milestoneHighlights.length > 0;
+  const displayRating = Math.round(rating?.rating ?? 1200);
+  const peakRating = rating != null ? Math.round(rating.peak) : null;
+  const displayPeak = peakRating != null && peakRating > 1200 && peakRating > displayRating
+    ? peakRating
+    : null;
+  const ratingSparkPoints = rating?.spark && rating.spark.length >= 2
+    ? rating.spark
+    : [1200, 1200, 1200, 1200];
 
   const handleLogout = useCallback(async () => {
     if (Platform.OS === 'web') {
@@ -232,6 +291,14 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
       }
     }
   }, [signOut, router, s]);
+
+  const setHomeVenue = useCallback(async (venue: { id: number; name: string } | null) => {
+    if (!user) return;
+    await updateProfile(user.id, { home_venue_id: venue?.id ?? null });
+    setHomeVenuePickerVisible(false);
+    queryClient.invalidateQueries({ queryKey: profileQueryKey(user.id) });
+    queryClient.invalidateQueries({ queryKey: homeVenueQueryKey(user.id) });
+  }, [queryClient, user]);
 
   if (loading) {
     return (
@@ -263,6 +330,282 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
       </View>
     );
   }
+
+  const renderPlayerOverviewCard = () => (
+    <View style={styles.playerOverviewCard} testID="profile-player-overview-card">
+      <View style={styles.playerOverviewHeader}>
+        <View style={styles.playerOverviewIcon}>
+          <Lucide name="swords" size={20} color={colors.primary} />
+        </View>
+        <View style={styles.playerOverviewHeaderCopy}>
+          <Text style={styles.playerOverviewTitle}>{s('playProfileTitle')}</Text>
+          <Text style={styles.playerOverviewSubtitle}>
+            {profile?.skill_level || (profile?.play_goals?.length ?? 0) > 0
+              ? s('playProfileSubtitle')
+              : s('playProfileEmpty')}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={() => setEditorVisible(true)} testID="edit-play-profile" hitSlop={8}>
+          <Lucide name="pencil" size={17} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.playerOverviewPills}>
+        {profile?.skill_level ? <SkillChip skillLevel={profile.skill_level} /> : null}
+        {(profile?.play_goals ?? []).map((g) => (
+          <View key={g} style={styles.playerOverviewPill}>
+            <Text style={styles.playerOverviewPillText}>{s(playGoalKey(g))}</Text>
+          </View>
+        ))}
+      </View>
+
+      {hasMilestoneContent ? (
+        <View style={styles.playerOverviewMilestones} testID="profile-milestones-strip">
+          <View style={styles.playerOverviewMilestoneRow}>
+            {milestoneHighlights.map((item) => (
+              <View
+                key={`${item.ghost ? 'ghost' : 'earned'}-${item.def.key}`}
+                style={[
+                  styles.playerOverviewMilestonePill,
+                  item.ghost && styles.playerOverviewGhostPill,
+                ]}
+                testID={item.ghost ? 'milestone-ghost' : `milestone-earned-${item.def.key}`}
+              >
+                <Lucide
+                  name={item.ghost ? 'lock' : item.def.icon}
+                  size={12}
+                  color={item.ghost ? colors.textFaint : colors.accent}
+                />
+                <Text
+                  style={[
+                    styles.playerOverviewMilestoneText,
+                    { color: item.ghost ? colors.textFaint : colors.accent },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.ghost
+                    ? `${s('milestoneGhostProgress', String(item.current), String(item.def.threshold))} - ${s(item.def.titleKey)}`
+                    : s(item.def.titleKey)}
+                </Text>
+              </View>
+            ))}
+            {hiddenMilestoneCount > 0 ? (
+              <View style={styles.playerOverviewMilestoneMorePill}>
+                <Text style={styles.playerOverviewMetricMeta}>+{hiddenMilestoneCount}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+
+      <View style={styles.playerOverviewVenueRow}>
+        <TouchableOpacity
+          style={styles.playerOverviewVenueMain}
+          onPress={() => homeVenue
+            ? router.push({ pathname: '/venue/[id]', params: { id: String(homeVenue.id) } })
+            : setHomeVenuePickerVisible(true)}
+          activeOpacity={0.75}
+          testID={homeVenue ? 'profile-home-venue' : 'profile-home-venue-empty'}
+        >
+          <View style={styles.playerOverviewVenueIcon}>
+            <Lucide name="map-pin" size={15} color={homeVenue ? colors.primary : colors.textFaint} />
+          </View>
+          <View style={styles.playerOverviewVenueCopy}>
+            <Text style={styles.playerOverviewMetricLabel}>
+              {homeVenue ? s('homeVenueYours') : s('homeVenueChoose')}
+            </Text>
+            <Text style={styles.playerOverviewVenueTitle} numberOfLines={1}>
+              {homeVenue?.name ?? s('homeVenueChooseHint')}
+            </Text>
+          </View>
+          <Lucide name={homeVenue ? 'chevron-right' : 'plus'} size={16} color={colors.textFaint} />
+        </TouchableOpacity>
+        {homeSuggestion && !homeVenue ? (
+          <TouchableOpacity
+            style={styles.playerOverviewVenueSuggestion}
+            onPress={acceptHomeSuggestion}
+            activeOpacity={0.75}
+            testID="profile-home-venue-suggestion"
+          >
+            <Text style={styles.playerOverviewVenueSuggestionText} numberOfLines={1}>
+              {s('homeVenueSuggested')}: {homeSuggestion.name}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      <View style={styles.playerOverviewDivider} />
+
+      <View style={styles.playerOverviewRatingPanel}>
+        <View style={styles.playerOverviewRatingHeader}>
+          <View style={styles.playerOverviewRatingScore}>
+            <Text style={styles.playerOverviewMetricLabel}>{s('ratingTitle')}</Text>
+            <View style={styles.playerOverviewRatingLine}>
+              <Text style={[styles.playerOverviewRatingValue, { color: colors.accent }]}>
+                {displayRating}
+              </Text>
+            </View>
+            <View style={styles.playerOverviewRatingBadges}>
+              {displayPeak != null ? (
+                <View style={styles.playerOverviewRatingBadge}>
+                  <Text style={styles.playerOverviewRatingBadgeText}>
+                    {s('ratingPeak')} {displayPeak}
+                  </Text>
+                </View>
+              ) : null}
+              {rating?.last5?.slice(-2).map((d, i) => (
+                <View
+                  key={`${i}-${d}`}
+                  style={[
+                    styles.playerOverviewRatingBadge,
+                    { backgroundColor: d >= 0 ? colors.primaryPale : colors.redPale },
+                  ]}
+                >
+                  <Text style={[
+                    styles.playerOverviewRatingBadgeText,
+                    { color: d >= 0 ? colors.primary : colors.red },
+                  ]}>
+                    {d >= 0 ? `+${d}` : `${d}`}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.playerOverviewRatingSpark}>
+            <RatingSparkline points={ratingSparkPoints} width={148} height={42} />
+          </View>
+        </View>
+        <TouchableOpacity
+          style={styles.playerOverviewRatingCta}
+          onPress={() => setQuickMatchVisible(true)}
+          activeOpacity={0.78}
+          testID="profile-rating-quick-match"
+        >
+          <View style={styles.playerOverviewRatingCtaIcon}>
+            <Lucide name="qr-code" size={18} color={colors.textOnPrimary} />
+          </View>
+          <Text style={styles.playerOverviewRatingCtaText}>
+            {s('quickMatchTitle')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.playerOverviewMatchStrip}>
+        <Text style={styles.playerOverviewMetricLabel}>{s('matchesTitle')}</Text>
+        <View style={styles.playerOverviewRecordCompact}>
+          <Text style={[styles.playerOverviewRecordValue, { color: colors.primary }]}>{matchRecord.wins}</Text>
+          <Text style={styles.playerOverviewRecordLabel}>{s('ladderWins')}</Text>
+          <View style={styles.playerOverviewRecordDivider} />
+          <Text style={[styles.playerOverviewRecordValue, { color: colors.red }]}>{matchRecord.losses}</Text>
+          <Text style={styles.playerOverviewRecordLabel}>{s('lossesTitle')}</Text>
+        </View>
+        {confirmedMatches.length > 0 ? (
+          <View style={styles.playerOverviewResults}>
+            {confirmedMatches.slice(0, 5).map((m) => {
+              const win = m.winner_id === user?.id;
+              return (
+                <View
+                  key={m.id}
+                  style={[
+                    styles.playerOverviewResultDot,
+                    { backgroundColor: win ? colors.primaryPale : colors.redPale },
+                  ]}
+                >
+                  <Text style={[
+                    styles.playerOverviewResultText,
+                    { color: win ? colors.primary : colors.red },
+                  ]}>
+                    {win ? s('winShort') : s('lossShort')}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.playerOverviewRivalsPanel}>
+        <View style={styles.playerOverviewRivalsHeader}>
+          <Text style={styles.playerOverviewMetricLabel}>{s('rivalsTitle')}</Text>
+          {rivals.length === 0 ? (
+            <Text style={styles.playerOverviewMetricMeta} numberOfLines={1}>
+              {s('rivalsEmptyHint')}
+            </Text>
+          ) : null}
+        </View>
+        {visibleRivals.length > 0 ? (
+          <View style={styles.playerOverviewRivalsList}>
+            {visibleRivals.map((rival, index) => {
+              const challenged = challengedRivals.has(rival.user_id);
+              return (
+                <View key={rival.user_id} style={styles.playerOverviewRivalRow}>
+                  <TouchableOpacity
+                    style={styles.playerOverviewRivalCopy}
+                    onPress={() => router.push({ pathname: '/(protected)/player/[userId]', params: { userId: rival.user_id } })}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.playerOverviewRivalRank, { backgroundColor: index === 0 ? colors.purplePale : colors.bgMuted }]}>
+                      <Text style={[styles.playerOverviewRivalRankText, { color: index === 0 ? colors.purple : colors.textMuted }]}>
+                        {index + 1}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.navLabel} numberOfLines={1}>{rival.full_name ?? s('user')}</Text>
+                      <Text style={styles.playerOverviewMetricMeta}>
+                        {rival.my_wins}{s('winShort')} - {rival.their_wins}{s('lossShort')} - {s('rivalMatchesCount', String(rival.total))}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.playerOverviewChallengeButton,
+                      challenged && styles.playerOverviewChallengeButtonDisabled,
+                    ]}
+                    disabled={challenged}
+                    onPress={() => challengeRival(rival.user_id)}
+                    accessibilityRole="button"
+                    testID={`rival-challenge-${rival.user_id}`}
+                  >
+                    <Lucide
+                      name={challenged ? 'check' : 'swords'}
+                      size={13}
+                      color={challenged ? colors.textMuted : colors.primary}
+                    />
+                    <Text style={[
+                      styles.playerOverviewChallengeText,
+                      challenged && { color: colors.textMuted },
+                    ]}>
+                      {challenged ? s('findPlayersChallengeSent') : s('findPlayersChallenge')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+            {rivals.length > 3 ? (
+              <TouchableOpacity
+                style={styles.playerOverviewRivalsMore}
+                onPress={() => setRivalsExpanded((current) => !current)}
+                activeOpacity={0.76}
+                accessibilityRole="button"
+                testID="profile-rivals-toggle"
+              >
+                <Text style={styles.playerOverviewRivalsMoreText}>
+                  {rivalsExpanded
+                    ? s('profileShowLessBadges')
+                    : `${s('profileShowMoreBadges')} (${s('rivalsMore', String(hiddenRivalCount)).replace(/^\+/, '')})`}
+                </Text>
+                <Lucide
+                  name={rivalsExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={14}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -300,8 +643,6 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
                     {completedChallengeCount} {s('profileChallengesCompleted')}
                   </Text>
                 </TouchableOpacity>
-                {/* F030: rating chip */}
-                <RatingChip rating={rating?.rating} provisional={rating?.provisional} />
                 {/* F050: weekly play streak flame chip (tap for current/best). */}
                 {currentStreak > 0 ? (
                   <TouchableOpacity
@@ -321,7 +662,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
 
         </View>
 
-        {/* TT Wrapped (F054): year-in-review banner, only inside Dec 15 – Jan 15. */}
+        {/* TT Wrapped (F054): year-in-review banner, only inside Dec 15 - Jan 15. */}
         {wrappedOpen ? (
           <TouchableOpacity
             style={styles.wrappedBanner}
@@ -340,191 +681,7 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
           </TouchableOpacity>
         ) : null}
 
-        {/* Milestones (F053): earned lifetime milestones + the next locked ghost. */}
-        {(earnedKeys.size > 0 || milestoneGhost) && (
-          <View style={styles.section} testID="profile-milestones-strip">
-            <Text style={[styles.navLabel, { fontWeight: '700', marginBottom: 8 }]}>
-              {s('milestonesTitle')}
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {MILESTONE_DEFS.filter((d) => earnedKeys.has(d.key)).map((d) => (
-                <View
-                  key={d.key}
-                  style={styles.milestoneChip}
-                  testID={`milestone-earned-${d.key}`}
-                >
-                  <Lucide name={d.icon} size={13} color={colors.accent} />
-                  <Text style={styles.milestoneChipText}>{s(d.titleKey)}</Text>
-                </View>
-              ))}
-              {milestoneGhost ? (
-                <View
-                  style={styles.milestoneGhostChip}
-                  testID="milestone-ghost"
-                >
-                  <Lucide
-                    name={MILESTONE_DEF_BY_KEY[milestoneGhost.def.key]?.icon ?? 'lock'}
-                    size={13}
-                    color={colors.textFaint}
-                  />
-                  <Text style={styles.milestoneGhostText}>
-                    {s('milestoneGhostProgress', String(milestoneGhost.current), String(milestoneGhost.threshold))}
-                    {' · '}
-                    {s(milestoneGhost.def.titleKey)}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-        )}
-
-        {/* Play profile (F001): self-declared skill + goals */}
-        <View style={styles.section}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <Text style={[styles.navLabel, { fontWeight: '700' }]}>{s('playProfileTitle')}</Text>
-            <TouchableOpacity onPress={() => setEditorVisible(true)} testID="edit-play-profile" hitSlop={8}>
-              <Lucide name="pencil" size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-          {profile?.skill_level || (profile?.play_goals?.length ?? 0) > 0 ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-              <SkillChip skillLevel={profile?.skill_level ?? null} />
-              {(profile?.play_goals ?? []).map((g) => (
-                <View key={g} style={{ borderRadius: 999, paddingVertical: 3, paddingHorizontal: 8, backgroundColor: colors.bgMuted }}>
-                  <Text style={{ fontSize: 12, color: colors.textMuted, fontWeight: '600' }}>{s(playGoalKey(g))}</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <TouchableOpacity onPress={() => setEditorVisible(true)}>
-              <Text style={{ color: colors.textFaint, fontSize: 14 }}>{s('playProfileEmpty')}</Text>
-            </TouchableOpacity>
-          )}
-          {/* Home venue: "plays at X", or a suggestion when none is set (F014). */}
-          {homeVenue ? (
-            <TouchableOpacity
-              onPress={() => router.push({ pathname: '/venue/[id]', params: { id: String(homeVenue.id) } })}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 }}
-              testID="profile-home-venue"
-            >
-              <Lucide name="home" size={14} color={colors.primaryMid} />
-              <Text style={{ fontSize: 13, color: colors.textMuted }}>{s('playsAt', homeVenue.name)}</Text>
-            </TouchableOpacity>
-          ) : homeSuggestion ? (
-            <TouchableOpacity
-              onPress={acceptHomeSuggestion}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 }}
-              testID="profile-home-venue-suggestion"
-            >
-              <Lucide name="home" size={14} color={colors.primary} />
-              <Text style={{ fontSize: 13, color: colors.primaryMid, fontWeight: '600' }}>
-                {s('homeVenueSuggest', homeSuggestion.name)}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {/* Rating (F030): current/peak + 90-day sparkline + last-5 deltas */}
-        {rating != null && (
-          <View style={styles.section}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <Text style={[styles.navLabel, { fontWeight: '700' }]}>{s('ratingTitle')}</Text>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted }}>
-                {s('ratingPeak')} {Math.round(rating.peak)}
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10 }}>
-              <Text style={{ fontSize: 32, fontWeight: '800', color: colors.accent }}>{Math.round(rating.rating)}</Text>
-              {rating.provisional ? (
-                <Text style={{ fontSize: 12, color: colors.textFaint, marginBottom: 6 }}>{s('ratingProvisional')}</Text>
-              ) : null}
-              <View style={{ marginLeft: 'auto' }}>
-                <RatingSparkline points={rating.spark} width={150} height={40} />
-              </View>
-            </View>
-            {rating.last5.length > 0 && (
-              <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
-                {rating.last5.map((d, i) => (
-                  <View
-                    key={i}
-                    style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: d >= 0 ? colors.primaryPale : colors.redPale }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: d >= 0 ? colors.primary : colors.red }}>
-                      {d >= 0 ? `+${d}` : `${d}`}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Matches (F002): W/L record + last 5 results */}
-        {confirmedMatches.length > 0 && (
-          <View style={styles.section}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text style={[styles.navLabel, { fontWeight: '700' }]}>{s('matchesTitle')}</Text>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted }}>
-                {matchRecord.wins}{s('winShort')} · {matchRecord.losses}{s('lossShort')}
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              {confirmedMatches.slice(0, 5).map((m) => {
-                const win = m.winner_id === user?.id;
-                return (
-                  <View
-                    key={m.id}
-                    style={{ width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: win ? colors.primaryPale : colors.redPale }}
-                  >
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: win ? colors.primary : colors.red }}>
-                      {win ? s('winShort') : s('lossShort')}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {/* Rivals (F031): most-played opponents + Challenge */}
-        {rivals.length > 0 && (
-          <View style={styles.section}>
-            <Text style={[styles.navLabel, { fontWeight: '700', marginBottom: 4 }]}>{s('rivalsTitle')}</Text>
-            {rivals.map((r) => {
-              const challenged = challengedRivals.has(r.user_id);
-              return (
-                <View key={r.user_id} style={styles.navRow}>
-                  <TouchableOpacity
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}
-                    onPress={() => router.push({ pathname: '/(protected)/player/[userId]', params: { userId: r.user_id } })}
-                  >
-                    <View style={[styles.navIcon, { backgroundColor: colors.purplePale }]}>
-                      <Lucide name="swords" size={18} color={colors.purple} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.navLabel} numberOfLines={1}>{r.full_name ?? s('user')}</Text>
-                      <Text style={{ fontSize: 12, color: colors.textMuted }}>
-                        {r.my_wins}{s('winShort')} · {r.their_wins}{s('lossShort')}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: challenged ? colors.border : colors.primary, backgroundColor: challenged ? colors.bgAlt : colors.primaryPale }}
-                    disabled={challenged}
-                    onPress={() => challengeRival(r.user_id)}
-                    accessibilityRole="button"
-                    testID={`rival-challenge-${r.user_id}`}
-                  >
-                    <Lucide name={challenged ? 'check' : 'swords'} size={13} color={challenged ? colors.textMuted : colors.primary} />
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: challenged ? colors.textMuted : colors.primary }}>
-                      {challenged ? s('findPlayersChallengeSent') : s('findPlayersChallenge')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
-          </View>
-        )}
+        {renderPlayerOverviewCard()}
 
         {/* Navigation Links */}
         <View style={styles.section}>
@@ -535,15 +692,6 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
             <Text style={styles.navLabel}>{s('friends')}</Text>
             <Lucide name="chevron-right" size={16} color={colors.textFaint} />
           </TouchableOpacity>
-          {user?.id && (
-            <TouchableOpacity style={styles.navRow} onPress={() => setQuickMatchVisible(true)} testID="profile-quick-match">
-              <View style={[styles.navIcon, { backgroundColor: colors.primaryPale }]}>
-                <Lucide name="swords" size={18} color={colors.primaryMid} />
-              </View>
-              <Text style={styles.navLabel}>{s('quickMatchTitle')}</Text>
-              <Lucide name="chevron-right" size={16} color={colors.textFaint} />
-            </TouchableOpacity>
-          )}
           <TouchableOpacity style={styles.navRow} onPress={() => setTrainingVisible(true)} testID="profile-log-training">
             <View style={[styles.navIcon, { backgroundColor: colors.primaryPale }]}>
               <Lucide name="dumbbell" size={18} color={colors.primaryMid} />
@@ -664,6 +812,15 @@ export function ProfileScreen({ hideTabBar = false }: ProfileScreenProps) {
 
       {/* F060: log a training session from the profile. */}
       <LogTrainingModal visible={trainingVisible} onDismiss={() => setTrainingVisible(false)} />
+
+      {homeVenuePickerVisible ? (
+        <VenuePickerModal
+          visible={homeVenuePickerVisible}
+          selectedVenueId={homeVenue?.id ?? (profileRaw as any)?.home_venue_id ?? null}
+          onSelect={setHomeVenue}
+          onClose={() => setHomeVenuePickerVisible(false)}
+        />
+      ) : null}
 
       {/* F050: streak detail (current/best + which day still counts this week). */}
       <Modal

@@ -1,4 +1,5 @@
 import { Syne, DM_Sans } from "next/font/google";
+import type { Metadata } from "next";
 import "./globals.css";
 
 const syne = Syne({
@@ -14,6 +15,14 @@ const dmSans = DM_Sans({
   display: "swap",
   weight: ["400", "500", "600", "700"],
 });
+
+export const metadata: Metadata = {
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    shortcut: ["/icon.svg"],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
+};
 
 export default function RootLayout({
   children,

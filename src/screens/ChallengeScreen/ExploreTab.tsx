@@ -2,7 +2,7 @@
 // explorer quests with progress rings, earned tier pips (reusing the badge
 // tier palette), and a per-quest "Find one" jump to the pre-filtered map.
 import React from 'react';
-import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Lucide } from '../../components/Icon';
 import type { ThemeColors } from '../../theme';
 import type { BadgeTier } from '../../features/challenges/badgeDefinitions';
@@ -87,7 +87,15 @@ export function ExploreTab({
             <View key={quest.key} style={styles.explorerCard} testID={`explorer-quest-${quest.key}`}>
               <View style={styles.explorerCardHeader}>
                 <View style={[styles.explorerCardIcon, { backgroundColor: paleColor }]}>
-                  <Lucide name={icon} size={22} color={color} />
+                  {meta?.badgeSource ? (
+                    <Image
+                      source={meta.badgeSource}
+                      resizeMode="contain"
+                      style={styles.explorerBadgeImage}
+                    />
+                  ) : (
+                    <Lucide name={icon} size={22} color={color} />
+                  )}
                 </View>
                 <View style={styles.explorerCardCopy}>
                   <Text style={styles.explorerCardTitle}>{s(`explorerQuest_${quest.key}_title`)}</Text>

@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "تکمیل‌شده",
   "challengeSeasonBadges": "نشان‌ها",
   "challengeSeasonTracks": "مسیرها",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "همگام‌سازی پیشرفت ممکن نشد",
   "challengeProgressErrorDesc": "پیشرفت نشان شما محفوظ است. برای به‌روزرسانی جمع‌های این ماه دوباره تلاش کنید.",
   "challengeChoicesError": "بارگذاری چالش‌ها ممکن نشد",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "دو حریف متفاوت را در یک جلسه شکست بده",
   "badgeChallenge_GLD020": "ست تعیین‌کننده پایانی را ببر",
   "shareCard": "اشتراک‌گذاری",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "ارائه بازخورد",
   "eventFeedbackTitle": "بازخورد رویداد",
   "hoursPlayed": "ساعت‌های بازی",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "نظرت منتشر شد.",
   "equipReviewError": "نظرت ذخیره نشد. لطفاً دوباره تلاش کن.",
   "messagesReadOnly": "این مکالمه فقط خواندنی است.",
-  "blockStaffError": "نمی‌توانی یک ناظر یا مدیر را مسدود کنی."
+  "blockStaffError": "نمی‌توانی یک ناظر یا مدیر را مسدود کنی.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

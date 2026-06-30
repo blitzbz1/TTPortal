@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "suoritettu",
   "challengeSeasonBadges": "merkit",
   "challengeSeasonTracks": "polut",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Edistymistä ei voitu synkronoida",
   "challengeProgressErrorDesc": "Merkkiedistymisesi on turvassa. Yritä uudelleen päivittääksesi tämän kuun kokonaismäärät.",
   "challengeChoicesError": "Haasteita ei voitu ladata",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Voita kaksi eri vastustajaa samassa sessiossa",
   "badgeChallenge_GLD020": "Voita ratkaiseva viimeinen erä",
   "shareCard": "Jaa",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Anna palautetta",
   "eventFeedbackTitle": "Tapahtumapalaute",
   "hoursPlayed": "Pelatut tunnit",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Arvosteluasi julkaistiin.",
   "equipReviewError": "Arvostelun tallentaminen epäonnistui. Yritä uudelleen.",
   "messagesReadOnly": "Tämä keskustelu on vain luku -tilassa.",
-  "blockStaffError": "Et voi estää moderaattoria tai ylläpitäjää."
+  "blockStaffError": "Et voi estää moderaattoria tai ylläpitäjää.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

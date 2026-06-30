@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "teljesítve",
   "challengeSeasonBadges": "jelvény",
   "challengeSeasonTracks": "pálya",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Nem sikerült szinkronizálni a haladást",
   "challengeProgressErrorDesc": "A jelvényhaladásod biztonságban van. Próbáld újra a havi összesítés frissítéséhez.",
   "challengeChoicesError": "Nem sikerült betölteni a kihívásokat",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Győzz le két különböző ellenfelet ugyanazon az edzésen",
   "badgeChallenge_GLD020": "Nyerd meg a döntő szettet",
   "shareCard": "Megosztás",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Visszajelzés",
   "eventFeedbackTitle": "Esemény visszajelzés",
   "hoursPlayed": "Játszott órák",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Az értékelésed megjelent.",
   "equipReviewError": "Nem sikerült menteni az értékelést. Kérjük, próbáld újra.",
   "messagesReadOnly": "Ez a beszélgetés csak olvasható.",
-  "blockStaffError": "Nem tilthatod le a moderátorokat vagy adminisztrátorokat."
+  "blockStaffError": "Nem tilthatod le a moderátorokat vagy adminisztrátorokat.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

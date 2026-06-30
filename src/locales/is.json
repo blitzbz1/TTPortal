@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "lokið",
   "challengeSeasonBadges": "merki",
   "challengeSeasonTracks": "spor",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Gat ekki samstillt framfarir",
   "challengeProgressErrorDesc": "Merkjaframfarir þínar eru öruggar. Reyndu aftur til að uppfæra mánaðarlegar tölur.",
   "challengeChoicesError": "Gat ekki hlaðið áskorunum",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Sláðu tvo mismunandi andstæðinga í sömu lotu",
   "badgeChallenge_GLD020": "Vinndu úrslitasetið",
   "shareCard": "Deila",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Gefa endurgjöf",
   "eventFeedbackTitle": "Endurgjöf um viðburð",
   "hoursPlayed": "Klukkustundir spilaðar",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Umsögnin þín var birt.",
   "equipReviewError": "Gat ekki vistað umsögnina þína. Vinsamlegast reyndu aftur.",
   "messagesReadOnly": "Þessi samtal er skrifvarið.",
-  "blockStaffError": "Þú getur ekki lokað á umsjónarmann eða stjórnanda."
+  "blockStaffError": "Þú getur ekki lokað á umsjónarmann eða stjórnanda.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

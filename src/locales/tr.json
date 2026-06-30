@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "tamamlandı",
   "challengeSeasonBadges": "rozetler",
   "challengeSeasonTracks": "kategoriler",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "İlerleme senkronize edilemedi",
   "challengeProgressErrorDesc": "Rozet ilerlemen güvende. Bu ayın toplamlarını yenilemek için tekrar dene.",
   "challengeChoicesError": "Meydan okumalar yüklenemedi",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Aynı seansta iki farklı rakibi yen",
   "badgeChallenge_GLD020": "Son belirleyici seti kazan",
   "shareCard": "Paylaş",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Geri bildirim ver",
   "eventFeedbackTitle": "Etkinlik geri bildirimi",
   "hoursPlayed": "Oynanan saatler",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Yorumun yayınlandı.",
   "equipReviewError": "Yorumun kaydedilemedi. Lütfen tekrar dene.",
   "messagesReadOnly": "Bu konuşma salt okunur.",
-  "blockStaffError": "Bir moderatörü veya yöneticiyi engelleyemezsin."
+  "blockStaffError": "Bir moderatörü veya yöneticiyi engelleyemezsin.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

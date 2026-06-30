@@ -903,6 +903,8 @@
   "challengeSeasonCompletions": "completed",
   "challengeSeasonBadges": "badges",
   "challengeSeasonTracks": "tracks",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Could not sync progress",
   "challengeProgressErrorDesc": "Your badge progress is safe. Retry to refresh this month's totals.",
   "challengeChoicesError": "Could not load challenges",
@@ -1957,5 +1959,13 @@
   "equipReviewPublished": "Your review was published.",
   "equipReviewError": "Could not save your review. Please try again.",
   "messagesReadOnly": "This conversation is read-only.",
-  "blockStaffError": "You can’t block a moderator or administrator."
+  "blockStaffError": "You can’t block a moderator or administrator.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

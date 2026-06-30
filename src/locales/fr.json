@@ -889,6 +889,8 @@
   "challengeSeasonCompletions": "terminés",
   "challengeSeasonBadges": "badges",
   "challengeSeasonTracks": "parcours",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Impossible de synchroniser la progression",
   "challengeProgressErrorDesc": "Votre progression de badges est sécurisée. Réessayez pour actualiser les totaux du mois.",
   "challengeChoicesError": "Impossible de charger les défis",
@@ -1102,6 +1104,9 @@
   "badgeChallenge_GLD144": "Battre deux adversaires différents lors de la même session",
   "badgeChallenge_GLD020": "Gagner le set décisif final",
   "shareCard": "Partager",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Donner un retour",
   "eventFeedbackTitle": "Retour sur l'événement",
   "hoursPlayed": "Heures jouées",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Votre avis a été publié.",
   "equipReviewError": "Impossible d’enregistrer votre avis. Réessayez.",
   "messagesReadOnly": "Cette conversation est en lecture seule.",
-  "blockStaffError": "Vous ne pouvez pas bloquer un modérateur ou un administrateur."
+  "blockStaffError": "Vous ne pouvez pas bloquer un modérateur ou un administrateur.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

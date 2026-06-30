@@ -21,6 +21,10 @@ const BADGE_TRACK_ICON_SOURCES: Partial<Record<BadgeTrack['id'], ImageSourceProp
   'serve-lab': require('../../assets/badge-track-icons/serve-lab.png'),
   competitor: require('../../assets/badge-track-icons/competitor.png'),
   explorer: require('../../assets/badge-track-icons/explorer.png'),
+  recruiter: require('../../assets/badge-track-icons/recruiter.png'),
+  'explorer:venue_explorer': require('../../assets/explorer-mission-badges/venue-explorer.png'),
+  'explorer:park_hopper': require('../../assets/explorer-mission-badges/park-hopper.png'),
+  'explorer:indoor_initiate': require('../../assets/explorer-mission-badges/indoor-initiate.png'),
 };
 
 const BADGE_TRACK_ICON_TUNING: Record<BadgeTrack['id'], { scale: number }> = {
@@ -32,6 +36,10 @@ const BADGE_TRACK_ICON_TUNING: Record<BadgeTrack['id'], { scale: number }> = {
   'serve-lab': { scale: 1.05 },
   competitor: { scale: 1.02 },
   explorer: { scale: 1.03 },
+  recruiter: { scale: 1.03 },
+  'explorer:venue_explorer': { scale: 1.05 },
+  'explorer:park_hopper': { scale: 1.05 },
+  'explorer:indoor_initiate': { scale: 1.05 },
 };
 
 const VARIANT_SCALE: Record<BadgeTrackIconVariant, number> = {

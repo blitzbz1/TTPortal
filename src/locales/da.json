@@ -906,6 +906,8 @@
   "challengeSeasonCompletions": "gennemført",
   "challengeSeasonBadges": "badges",
   "challengeSeasonTracks": "spor",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Kunne ikke synkronisere fremgang",
   "challengeProgressErrorDesc": "Din badge-fremgang er sikker. Prøv igen for at opdatere denne måneds totaler.",
   "challengeChoicesError": "Kunne ikke indlæse udfordringer",
@@ -1119,6 +1121,9 @@
   "badgeChallenge_GLD144": "Slå to forskellige modstandere i samme session",
   "badgeChallenge_GLD020": "Vind det afgørende sæt",
   "shareCard": "Del",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Giv feedback",
   "eventFeedbackTitle": "Begivenhedsfeedback",
   "hoursPlayed": "Spillede timer",
@@ -1957,5 +1962,13 @@
   "equipReviewPublished": "Din anmeldelse er publiceret.",
   "equipReviewError": "Kunne ikke gemme din anmeldelse. Prøv igen.",
   "messagesReadOnly": "Denne samtale er skrivebeskyttet.",
-  "blockStaffError": "Du kan ikke blokere en moderator eller administrator."
+  "blockStaffError": "Du kan ikke blokere en moderator eller administrator.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

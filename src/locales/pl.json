@@ -893,6 +893,8 @@
   "challengeSeasonCompletions": "ukończonych",
   "challengeSeasonBadges": "odznaki",
   "challengeSeasonTracks": "ścieżki",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Nie udało się zsynchronizować postępu",
   "challengeProgressErrorDesc": "Twój postęp w odznakach jest bezpieczny. Ponów próbę, aby odświeżyć miesięczne wyniki.",
   "challengeChoicesError": "Nie udało się załadować wyzwań",
@@ -1110,6 +1112,9 @@
   "badgeChallenge_GLD144": "Pokonaj dwóch różnych przeciwników podczas jednej sesji",
   "badgeChallenge_GLD020": "Wygraj decydującego seta",
   "shareCard": "Udostępnij",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Prześlij opinię",
   "eventFeedbackTitle": "Opinia o wydarzeniu",
   "hoursPlayed": "Godziny gry",
@@ -1967,5 +1972,13 @@
   "equipReviewPublished": "Twoja recenzja została opublikowana.",
   "equipReviewError": "Nie udało się zapisać recenzji. Spróbuj ponownie.",
   "messagesReadOnly": "Ta rozmowa jest tylko do odczytu.",
-  "blockStaffError": "Nie możesz zablokować moderatora ani administratora."
+  "blockStaffError": "Nie możesz zablokować moderatora ani administratora.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }

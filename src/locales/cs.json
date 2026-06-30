@@ -891,6 +891,8 @@
   "challengeSeasonCompletions": "dokončeno",
   "challengeSeasonBadges": "odznaky",
   "challengeSeasonTracks": "okruhy",
+  "challengeSeasonDaysLeft": "{0} days left",
+  "challengeSeasonDaysLeft_one": "1 day left",
   "challengeProgressError": "Nepodařilo se synchronizovat postup",
   "challengeProgressErrorDesc": "Váš postup k odznakům je v bezpečí. Opakujte pro obnovení měsíčních součtů.",
   "challengeChoicesError": "Nepodařilo se načíst výzvy",
@@ -1106,6 +1108,9 @@
   "badgeChallenge_GLD144": "Porazte dva různé soupeře ve stejném sezení",
   "badgeChallenge_GLD020": "Vyhrajte rozhodující sadu",
   "shareCard": "Sdílet",
+  "shareOpenLink": "Open link",
+  "shareCopyLink": "Copy link",
+  "shareCopied": "Copied",
   "giveFeedback": "Poslat zpětnou vazbu",
   "eventFeedbackTitle": "Zpětná vazba k události",
   "hoursPlayed": "Odehrané hodiny",
@@ -1963,5 +1968,13 @@
   "equipReviewPublished": "Vaše recenze byla zveřejněna.",
   "equipReviewError": "Recenzi se nepodařilo uložit. Zkuste to znovu.",
   "messagesReadOnly": "Tato konverzace je jen pro čtení.",
-  "blockStaffError": "Moderátora ani administrátora nelze zablokovat."
+  "blockStaffError": "Moderátora ani administrátora nelze zablokovat.",
+  "playProfileSubtitle": "Preferences and activity",
+  "lossesTitle": "Losses",
+  "homeVenueChoose": "Choose your usual place",
+  "homeVenueChooseHint": "Set where you usually play",
+  "homeVenueSuggested": "Suggested",
+  "rivalsEmptyHint": "Play matches to surface rivals here.",
+  "rivalsMore": "+{0} more rivals",
+  "rivalMatchesCount": "{0} matches"
 }
