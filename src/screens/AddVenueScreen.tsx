@@ -5,7 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lucide } from '../components/Icon';
 import { VenueFormFields, type VenueFormFieldStyles } from '../components/VenueFormFields';
-import { useVenueForm, validateVenueSubmission } from '../hooks/useVenueForm';
+import { parseTablesCount, useVenueForm, validateVenueSubmission } from '../hooks/useVenueForm';
+import { useSession } from '../hooks/useSession';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColors } from '../theme';
 import { Fonts, FontSize, FontWeight, Spacing, Radius, Shadows } from '../theme';
@@ -339,6 +340,7 @@ export function buildNominatimAddress(
 
 export function AddVenueScreen() {
   const router = useRouter();
+  const { user, isLoading: authLoading } = useSession();
   const { s } = useI18n();
   const { colors } = useTheme();
   const { selectedCity } = useSelectedLocation();
@@ -366,6 +368,7 @@ export function AddVenueScreen() {
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
   const [citySearching, setCitySearching] = useState(false);
   const cityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const submitInFlightRef = useRef(false);
   const lastCityQueryRef = useRef('');
   // Ref to the form's ScrollView so AddressPickerField can disable parent
   // scrolling while the user pans the map.
@@ -525,12 +528,22 @@ export function AddVenueScreen() {
   }, [closeCitySuggestions, setForm, knownCityRecords]);
 
   const handleSubmit = useCallback(async () => {
+    // State updates are asynchronous, so this ref is the actual single-flight
+    // lock for rapid taps and slow network responses.
+    if (submitInFlightRef.current) return;
     // T052: shared validation (same checks, same order, same i18n keys as
     // the inline version this replaces) — see useVenueForm.
     const validationError = validateVenueSubmission(values);
     if (validationError) { showAlert(s('error'), s(validationError)); return; }
+    if (!user) { showAlert(s('error'), s('authLogin')); return; }
     const canonicalCity = canonicalizeCityName(values.city);
+    const tablesCount = values.tables
+      ? parseTablesCount(values.tables, { min: 1, max: 100, integerOnly: true }).value
+      : null;
+    submitInFlightRef.current = true;
     setLoading(true);
+
+    try {
 
     // Upsert city to get its id (city name extracted from Nominatim)
     const { id: cityId, error: cityError } = await upsertCity(
@@ -543,7 +556,7 @@ export function AddVenueScreen() {
         zoom: selectedCity?.name === canonicalCity ? selectedCity.zoom : values.cityZoom ?? 12,
       },
     );
-    if (cityError || !cityId) { setLoading(false); showAlert(s('error'), safeErrorMessage(cityError ?? 'genericError', 'genericError', s)); return; }
+    if (cityError || !cityId) { showAlert(s('error'), safeErrorMessage(cityError ?? 'genericError', 'genericError', s)); return; }
 
     const { error } = await createVenue({
       name: values.name.trim(),
@@ -553,9 +566,9 @@ export function AddVenueScreen() {
       county: null,
       sector: null,
       address: values.address.trim(),
-      lat: values.lat ?? selectedCity?.lat ?? 44.43,
-      lng: values.lng ?? selectedCity?.lng ?? 26.10,
-      tables_count: values.tables ? Number(values.tables) : null,
+      lat: values.lat!,
+      lng: values.lng!,
+      tables_count: tablesCount,
       condition: null,
       hours: null,
       description: values.description.trim() || null,
@@ -566,9 +579,10 @@ export function AddVenueScreen() {
       nets: true,
       tariff: null,
       website: null,
+      submitted_by: user.id,
       approved: false,
+      verified: false,
     });
-    setLoading(false);
     if (error) {
       const rateMsg = rateLimitMessageFor(error, s);
       // Postgres unique_violation (idx_venues_name_city / venues_name_key) →
@@ -582,7 +596,13 @@ export function AddVenueScreen() {
     }
     showAlert(s('success'), s('venueSubmitted'));
     router.back();
-  }, [values, router, selectedCity, s]);
+    } catch (error) {
+      showAlert(s('error'), safeErrorMessage(error, 'genericError', s));
+    } finally {
+      submitInFlightRef.current = false;
+      setLoading(false);
+    }
+  }, [values, user, router, selectedCity, s]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -660,7 +680,11 @@ export function AddVenueScreen() {
             <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
               <Text style={styles.cancelText}>{s('cancel')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
+            <TouchableOpacity
+              style={[styles.submitBtn, (loading || authLoading) && { opacity: 0.6 }]}
+              onPress={handleSubmit}
+              disabled={loading || authLoading}
+            >
               {loading ? (
                 <ActivityIndicator size="small" color={colors.textOnPrimary} />
               ) : (

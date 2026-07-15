@@ -68,6 +68,8 @@ describe('useVenueForm — validateVenueSubmission', () => {
   it('requires city metadata (center coords + country code)', () => {
     expect(validateVenueSubmission({ ...validValues, cityCenterLat: null })).toBe('cityRequired');
     expect(validateVenueSubmission({ ...validValues, cityCenterLng: null })).toBe('cityRequired');
+    expect(validateVenueSubmission({ ...validValues, cityCenterLat: Number.NaN })).toBe('cityRequired');
+    expect(validateVenueSubmission({ ...validValues, cityCenterLng: 181 })).toBe('cityRequired');
     expect(validateVenueSubmission({ ...validValues, countryCode: null })).toBe('cityRequired');
   });
 
@@ -79,11 +81,15 @@ describe('useVenueForm — validateVenueSubmission', () => {
     expect(validateVenueSubmission({ ...validValues, locationConfirmed: false })).toBe('dragPinHint');
     expect(validateVenueSubmission({ ...validValues, lat: null })).toBe('dragPinHint');
     expect(validateVenueSubmission({ ...validValues, lng: null })).toBe('dragPinHint');
+    expect(validateVenueSubmission({ ...validValues, lat: 91 })).toBe('dragPinHint');
+    expect(validateVenueSubmission({ ...validValues, lng: Number.POSITIVE_INFINITY })).toBe('dragPinHint');
   });
 
   it('rejects an invalid tables count but allows an empty one', () => {
     expect(validateVenueSubmission({ ...validValues, tables: '0' })).toBe('genericError');
     expect(validateVenueSubmission({ ...validValues, tables: 'abc' })).toBe('genericError');
+    expect(validateVenueSubmission({ ...validValues, tables: '3x' })).toBe('genericError');
+    expect(validateVenueSubmission({ ...validValues, tables: '3.5' })).toBe('genericError');
     expect(validateVenueSubmission({ ...validValues, tables: '' })).toBeNull();
     expect(validateVenueSubmission({ ...validValues, tables: '4' })).toBeNull();
   });

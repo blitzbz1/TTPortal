@@ -124,7 +124,7 @@ export interface TablesCountCheck {
 
 /**
  * Parse + validate the tables-count text input.
- * - default mode mirrors AddVenueScreen: parseInt, so "3x" parses as 3;
+ * - default mode retains the legacy parseInt behavior for non-submit callers;
  * - `integerOnly` mirrors VenueChangeRequestModal: Number + isInteger.
  * Whitespace-only input is "not provided" (and not valid).
  */
@@ -148,6 +148,14 @@ export type VenueSubmissionErrorKey =
   | 'dragPinHint'
   | 'genericError';
 
+function validLatitude(value: number | null): value is number {
+  return value != null && Number.isFinite(value) && value >= -90 && value <= 90;
+}
+
+function validLongitude(value: number | null): value is number {
+  return value != null && Number.isFinite(value) && value >= -180 && value <= 180;
+}
+
 /**
  * AddVenueScreen's submit gate, in its original check order. Returns the
  * i18n key of the first failing rule (existing locale keys only) or null.
@@ -155,13 +163,13 @@ export type VenueSubmissionErrorKey =
 export function validateVenueSubmission(values: VenueFormValues): VenueSubmissionErrorKey | null {
   if (!values.name.trim()) return 'nameRequired';
   if (!values.city.trim()) return 'cityRequired';
-  if (values.cityCenterLat == null || values.cityCenterLng == null || !values.countryCode) {
+  if (!validLatitude(values.cityCenterLat) || !validLongitude(values.cityCenterLng) || !values.countryCode) {
     return 'cityRequired';
   }
   if (!values.address.trim()) return 'addressRequired';
-  if (!values.locationConfirmed || values.lat == null || values.lng == null) return 'dragPinHint';
+  if (!values.locationConfirmed || !validLatitude(values.lat) || !validLongitude(values.lng)) return 'dragPinHint';
   if (values.tables) {
-    const { valid } = parseTablesCount(values.tables, { min: 1, max: 100 });
+    const { valid } = parseTablesCount(values.tables, { min: 1, max: 100, integerOnly: true });
     if (!valid) return 'genericError';
   }
   return null;
