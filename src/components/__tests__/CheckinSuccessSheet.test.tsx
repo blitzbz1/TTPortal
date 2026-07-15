@@ -14,6 +14,11 @@ jest.mock('../../hooks/useI18n', () => ({
   useI18n: () => ({ s: mockS }),
 }));
 
+const mockShare = jest.fn();
+jest.mock('../../contexts/ShareProvider', () => ({
+  useAppShare: () => ({ share: mockShare }),
+}));
+
 jest.mock('../Icon', () => ({
   Lucide: ({ name, ...props }: any) => {
     const { View } = require('react-native');
@@ -156,6 +161,16 @@ describe('CheckinSuccessSheet', () => {
       />,
     );
     expect(hapticSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  it('shares an openable venue link from the success award', () => {
+    const { getByTestId } = render(
+      <CheckinSuccessSheet visible venueName="Test Venue" venueId={42} onDismiss={jest.fn()} />,
+    );
+    fireEvent.press(getByTestId('checkin-success-share'));
+    expect(mockShare).toHaveBeenCalledWith(expect.objectContaining({
+      url: expect.stringContaining('/venue/42'),
+    }));
   });
 
   describe('Weekly streak line (F050)', () => {

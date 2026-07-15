@@ -1270,6 +1270,7 @@ export function VenueDetailScreen({ venueId }: Props) {
       <MilestoneCelebrationSheet
         visible={milestoneCelebrationVisible}
         milestoneKey={pendingMilestoneKey}
+        shareUrl={venueUrl(venueId ?? '')}
         onClose={() => {
           setMilestoneCelebrationVisible(false);
           setPendingMilestoneKey(null);

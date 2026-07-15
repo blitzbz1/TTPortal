@@ -9,9 +9,10 @@ interface Props {
   points: number[];
   width?: number;
   height?: number;
+  responsive?: boolean;
 }
 
-export function RatingSparkline({ points, width = 220, height = 44 }: Props) {
+export function RatingSparkline({ points, width = 220, height = 44, responsive = false }: Props) {
   const { colors } = useTheme();
   if (!points || points.length < 2) return null;
 
@@ -36,8 +37,17 @@ export function RatingSparkline({ points, width = 220, height = 44 }: Props) {
   const guideY = pad + innerH / 2;
 
   return (
-    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Svg width={width} height={height}>
+    <View
+      style={responsive ? { width: '100%' } : undefined}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <Svg
+        width={responsive ? '100%' : width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+      >
         <Line
           x1={pad}
           y1={guideY}

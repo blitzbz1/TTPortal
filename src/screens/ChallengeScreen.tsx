@@ -1068,7 +1068,6 @@ export function ChallengeScreen({ hideTabBar = false }: ChallengeScreenProps) {
           : renderBadgesTab()}
       <EarnedBadgeModal
         data={earnedBadgeModal}
-        styles={styles}
         colors={colors}
         tierLabel={tierLabel}
         trackName={resolveModalTrackName}

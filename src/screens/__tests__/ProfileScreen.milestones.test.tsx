@@ -75,14 +75,23 @@ jest.mock('../../features/matches', () => ({
 }));
 jest.mock('../../features/ratings', () => ({ usePlayerRatingQuery: () => ({ data: null }) }));
 jest.mock('../../features/findPlayers', () => ({ sendMatchInvite: jest.fn().mockResolvedValue({ error: null }) }));
+const mockHomeVenue = jest.fn();
 jest.mock('../../features/venueIntel', () => ({
-  useHomeVenueQuery: () => ({ data: null }),
+  useHomeVenueQuery: () => ({ data: mockHomeVenue() }),
   useHomeVenueSuggestionQuery: () => ({ data: null }),
   homeVenueQueryKey: (id: string | undefined) => ['home-venue', id],
 }));
+jest.mock('../../components/VenuePickerModal', () => {
+  const { View } = require('react-native');
+  return {
+    VenuePickerModal: ({ visible }: { visible: boolean }) => (
+      visible ? <View testID="venue-picker-modal" /> : null
+    ),
+  };
+});
 
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import { ProfileScreen } from '../ProfileScreen';
 
 describe('ProfileScreen — milestones strip (F053)', () => {
@@ -98,6 +107,7 @@ describe('ProfileScreen — milestones strip (F053)', () => {
       best_streak: 0,
     });
     mockMilestones.mockReturnValue([]);
+    mockHomeVenue.mockReturnValue(null);
   });
 
   it('hides the strip when there are no earned milestones and no measurable ghost', () => {
@@ -139,5 +149,43 @@ describe('ProfileScreen — milestones strip (F053)', () => {
     expect(ghost).toBeTruthy();
     // hours_50 is the closest (42/50). The "{current}/{threshold}" label renders.
     expect(getByTestId('profile-milestones-strip')).toBeTruthy();
+  });
+
+  it('does not show a location ghost beside an earned location achievement', () => {
+    mockMilestones.mockReturnValue([
+      { milestone_key: 'checkin_10', achieved_at: '2026-06-16T00:00:00Z' },
+      { milestone_key: 'venues_10', achieved_at: '2026-06-16T00:00:00Z' },
+    ]);
+    mockStats.mockReturnValue({
+      total_checkins: 10,
+      unique_venues: 11,
+      total_hours_played: 0,
+      reviews_written: 0,
+      member_since: null,
+      current_streak: 0,
+      best_streak: 0,
+    });
+
+    const { getByTestId, queryByTestId } = render(<ProfileScreen hideTabBar />);
+
+    expect(getByTestId('milestone-earned-venues_10')).toBeTruthy();
+    expect(queryByTestId('milestone-ghost')).toBeNull();
+  });
+
+  it('opens the venue picker when an existing home venue is pressed', () => {
+    mockHomeVenue.mockReturnValue({ id: 7, name: 'Central Table Tennis Club' });
+
+    const { getByTestId } = render(<ProfileScreen hideTabBar />);
+    fireEvent.press(getByTestId('profile-home-venue'));
+
+    expect(getByTestId('venue-picker-modal')).toBeTruthy();
+  });
+
+  it('opens the play-profile editor from the separated preference row', () => {
+    const { getByTestId, getByText } = render(<ProfileScreen hideTabBar />);
+
+    fireEvent.press(getByTestId('edit-play-profile'));
+
+    expect(getByText('Your play profile')).toBeTruthy();
   });
 });

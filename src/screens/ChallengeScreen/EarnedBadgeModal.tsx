@@ -1,15 +1,12 @@
 import React from 'react';
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
 import { BadgeTrackIcon } from '../../components/BadgeTrackIcon';
-import { Lucide } from '../../components/Icon';
+import { AwardCelebrationModal } from '../../components/AwardCelebrationModal';
 import type { ThemeColors } from '../../theme';
 import type { BadgeTier, BadgeTrack } from '../../features/challenges/badgeDefinitions';
 import { getBadgeTierPalette } from '../../features/challenges/badgeDefinitions';
-import type { createStyles } from '../ChallengeScreen.styles';
 
 interface Props {
   data: { badge: BadgeTrack; tier: BadgeTier } | null;
-  styles: ReturnType<typeof createStyles>;
   colors: ThemeColors;
   tierLabel: (tier: BadgeTier) => string;
   trackName: (badge: BadgeTrack) => string;
@@ -18,62 +15,36 @@ interface Props {
   onShare: () => void;
 }
 
-export function EarnedBadgeModal({
-  data,
-  styles,
-  colors,
-  tierLabel,
-  trackName,
-  s,
-  onDismiss,
-  onShare,
-}: Props) {
+export function EarnedBadgeModal(props: Props) {
+  const { data, colors, tierLabel, trackName, s, onDismiss, onShare } = props;
   const tierPalette = data ? getBadgeTierPalette(data.tier) : null;
 
+  if (!data || !tierPalette) return null;
+
   return (
-    <Modal visible={!!data} transparent animationType="fade" onRequestClose={onDismiss}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.badgeEarnedSheet}>
-          {data ? (
-            <>
-              <View style={[styles.badgeEarnedIcon, { backgroundColor: data.badge.color }]}>
-                <BadgeTrackIcon
-                  badge={data.badge}
-                  size={64}
-                  variant="modal"
-                  fallbackColor={colors.textOnPrimary}
-                />
-              </View>
-              <Text style={styles.badgeEarnedTitle}>{tierLabel(data.tier)}</Text>
-              <View
-                style={[
-                  styles.badgeEarnedCup,
-                  {
-                    backgroundColor: tierPalette?.surface,
-                    borderColor: tierPalette?.border,
-                  },
-                ]}
-              >
-                <Lucide name="trophy" size={30} color={tierPalette?.accent ?? data.badge.color} />
-              </View>
-              <Text style={styles.badgeEarnedName}>{trackName(data.badge)}</Text>
-              <Text style={styles.badgeEarnedCopy}>{s('challengeBadgeUnlockedDesc')}</Text>
-              <View style={styles.badgeEarnedActions}>
-                <TouchableOpacity style={styles.badgeEarnedSecondary} onPress={onDismiss}>
-                  <Text style={styles.badgeEarnedSecondaryText}>{s('challengeKeepPlaying')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.badgeEarnedPrimary, { backgroundColor: data.badge.color }]}
-                  onPress={onShare}
-                >
-                  <Lucide name="share-2" size={16} color={colors.textOnPrimary} />
-                  <Text style={styles.badgeEarnedPrimaryText}>{s('challengeShareBadge')}</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : null}
-        </View>
-      </View>
-    </Modal>
+    <AwardCelebrationModal
+      visible
+      title={tierLabel(data.tier)}
+      awardName={trackName(data.badge)}
+      description={s('challengeBadgeUnlockedDesc')}
+      accent={data.badge.color}
+      accentSurface={tierPalette.surface}
+      accentBorder={tierPalette.border}
+      visual={(
+        <BadgeTrackIcon
+          badge={data.badge}
+          size={64}
+          variant="modal"
+          fallbackColor={colors.textOnPrimary}
+        />
+      )}
+      dismissLabel={s('challengeKeepPlaying')}
+      shareLabel={s('challengeShareBadge')}
+      onDismiss={onDismiss}
+      onShare={onShare}
+      testID="badge-earned-modal"
+      dismissTestID="badge-earned-dismiss"
+      shareTestID="badge-earned-share"
+    />
   );
 }

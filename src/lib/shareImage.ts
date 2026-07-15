@@ -7,15 +7,17 @@ import { captureRef } from 'react-native-view-shot';
 import { logger } from './logger';
 import { shareContent } from './nativeShare';
 
-export async function shareCardImage(ref: RefObject<View | null>, message: string): Promise<void> {
-  if (!ref.current) return;
+export async function shareCardImage(ref: RefObject<View | null>, message: string): Promise<boolean> {
+  if (!ref.current) return false;
   try {
     const uri = await captureRef(ref as RefObject<View>, { format: 'png', quality: 1, result: 'tmpfile' });
     await shareContent(
       Platform.OS === 'ios' ? { url: uri, message } : { message, url: uri },
     );
+    return true;
   } catch (e) {
     // User-cancelled share or a capture failure — non-fatal.
     logger.warn('shareCardImage failed', e as Record<string, unknown>);
+    return false;
   }
 }
