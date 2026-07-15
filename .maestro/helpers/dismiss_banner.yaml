@@ -1,0 +1,11 @@
+# Helper: Dismiss the Expo dev tools warning banner if visible
+
+appId: com.ttportal.app
+
+---
+
+- swipe:
+    direction: DOWN
+    from: "90%, 95%"
+    to: "90%, 100%"
+    duration: 300

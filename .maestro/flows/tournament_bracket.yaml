@@ -1,0 +1,25 @@
+# Smoke: F032 tournaments — open a tournament event and set up its bracket as
+# the organizer. Destructive (creates a bracket). Run against the local stack,
+# NOT prod. testID-first per the .maestro conventions.
+appId: com.ttportal.app
+---
+- launchApp:
+    clearState: false
+- runFlow: helpers/ensure_logged_in.yaml
+
+# Reach a tournament event detail (seeded test data) and seed the bracket.
+- tapOn:
+    text: ".*Tournament.*"
+    optional: true
+- runFlow:
+    when:
+      visible:
+        id: "tournament-setup"
+    commands:
+      - tapOn:
+          id: "tournament-setup"
+      - extendedWaitUntil:
+          visible:
+            id: "bracket-slot-0"
+          timeout: 8000
+          optional: true

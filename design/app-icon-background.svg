@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="aibg-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#13524A"></stop>
+      <stop offset="1" stop-color="#0A302A"></stop>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#aibg-grad)"></rect>
+</svg>

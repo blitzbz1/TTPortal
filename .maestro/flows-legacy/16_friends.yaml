@@ -1,0 +1,31 @@
+# E2E Test: Friends Screen (Protected)
+# Verifies friends list and navigation
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+- runFlow: ../helpers/login.yaml
+
+# Navigate to profile -> Friends
+- tapOn: "Profil"
+- extendedWaitUntil:
+    visible: "Profilul meu"
+    timeout: 5000
+
+# Tap Friends quick action
+- tapOn: "Prieteni"
+
+# Wait for friends screen
+- extendedWaitUntil:
+    visible: "Invită"
+    timeout: 5000
+
+# Verify search bar
+- assertVisible: "Caută prieteni..."
+
+# Tab navigation
+- tapOn: "Online"

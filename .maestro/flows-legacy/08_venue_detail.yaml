@@ -1,0 +1,54 @@
+# E2E Test: Venue Detail Screen
+# Verifies venue detail page sections and interactions
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+- runFlow: ../helpers/login.yaml
+
+# Wait for venues to load on map
+- extendedWaitUntil:
+    visible:
+      id: "venues-count"
+    timeout: 10000
+
+# Tap the first visible venue in the list
+- tapOn: "ACS TT Energy Brașov"
+
+# Wait for venue detail to load
+- extendedWaitUntil:
+    visible: "Înapoi"
+    timeout: 5000
+
+# Verify header actions (back)
+- assertVisible: "Înapoi"
+
+# Verify venue detail sections are present
+- scrollUntilVisible:
+    element: "Evaluează starea mesei"
+    direction: DOWN
+    timeout: 5000
+
+- scrollUntilVisible:
+    element: "Check-in aici"
+    direction: DOWN
+    timeout: 5000
+
+# Verify directions section
+- scrollUntilVisible:
+    element: "Navigare"
+    direction: DOWN
+    timeout: 5000
+- assertVisible: "Google"
+- assertVisible: "Apple"
+- assertVisible: "Waze"
+
+# Go back to map
+- tapOn: "Înapoi"
+- extendedWaitUntil:
+    visible: "TT PORTAL"
+    timeout: 5000

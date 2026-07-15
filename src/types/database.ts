@@ -1,0 +1,409 @@
+import type { SkillLevel, PlayGoal } from '../lib/playerAttributes';
+
+// ── Table row types ──
+
+export interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  city: string | null;
+  lang: string;
+  auth_provider: string | null;
+  created_at: string;
+  username: string | null;
+  is_admin: boolean;
+  is_moderator: boolean;
+  skill_level: SkillLevel | null;
+  play_goals: PlayGoal[];
+  home_venue_id: number | null;
+  show_as_regular: boolean;
+  referral_code: string | null;
+}
+
+export interface City {
+  id: number;
+  name: string;
+  county: string | null;
+  lat: number | null;
+  lng: number | null;
+  zoom: number | null;
+  venue_count: number | null;
+  active: boolean;
+}
+
+export type VenueType = 'parc_exterior' | 'sala_indoor';
+export type VenueCondition =
+  | 'buna'
+  | 'acceptabila'
+  | 'deteriorata'
+  | 'necunoscuta'
+  | 'profesionala';
+
+export interface Venue {
+  id: number;
+  name: string;
+  type: VenueType;
+  city: string;
+  city_id: number;
+  county: string | null;
+  sector: string | null;
+  address: string;
+  lat: number;
+  lng: number;
+  tables_count: number | null;
+  condition: VenueCondition | null;
+  hours: string | null;
+  description: string | null;
+  tags: string[] | null;
+  photos: string[] | null;
+  free_access: boolean | null;
+  night_lighting: boolean | null;
+  nets: boolean | null;
+  verified: boolean;
+  tariff: string | null;
+  website: string | null;
+  submitted_by: string | null;
+  approved: boolean;
+  created_at: string;
+}
+
+export interface Review {
+  id: number;
+  venue_id: number;
+  user_id: string;
+  reviewer_name: string | null;
+  rating: number;
+  body: string;
+  flagged: boolean;
+  flag_count: number;
+  created_at: string;
+}
+
+export interface Favorite {
+  id: number;
+  user_id: string;
+  venue_id: number;
+  created_at: string;
+}
+
+export interface Checkin {
+  id: number;
+  user_id: string;
+  venue_id: number;
+  table_number: number | null;
+  started_at: string;
+  ended_at: string | null;
+  friends: string[] | null;
+  open_to_play?: boolean;
+  session_note?: string | null;
+}
+
+export type ConditionVoteValue = 'buna' | 'acceptabila' | 'deteriorata';
+
+export interface ConditionVote {
+  id: number;
+  user_id: string;
+  venue_id: number;
+  condition: ConditionVoteValue;
+  photo_url: string | null;
+  /** Optional free-text note attached to the rating (migration 113). */
+  note: string | null;
+  created_at: string;
+}
+
+export type VenueChangeRequestStatus =
+  | 'pending'
+  | 'applied'
+  | 'partially_applied'
+  | 'dismissed';
+
+export interface VenueChangeRequest {
+  id: number;
+  venue_id: number;
+  submitted_by: string;
+  // proposed values; null = no change proposed for that field
+  proposed_nets: boolean | null;
+  proposed_night_lighting: boolean | null;
+  proposed_tables_count: number | null;
+  mark_unavailable: boolean;
+  note: string | null;
+  photo_url: string | null;
+  status: VenueChangeRequestStatus;
+  resolution: Record<string, string> | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type FriendshipStatus = 'pending' | 'accepted' | 'declined';
+
+export interface Friendship {
+  id: number;
+  requester_id: string;
+  addressee_id: string;
+  status: FriendshipStatus;
+  created_at: string;
+}
+
+export type EventStatus = 'open' | 'confirmed' | 'closed' | 'cancelled' | 'completed';
+export type EventType = 'casual' | 'tournament';
+export type RecurrenceRule = 'daily' | 'weekly' | 'monthly';
+export type EventVisibility = 'public' | 'friends' | 'private' | 'club';
+
+export interface Event {
+  id: number;
+  title: string;
+  description: string | null;
+  venue_id: number;
+  table_number: number | null;
+  organizer_id: string;
+  starts_at: string;
+  ends_at: string | null;
+  max_participants: number | null;
+  status: EventStatus;
+  event_type: EventType;
+  visibility: EventVisibility;
+  club_id: number | null;
+  created_at: string;
+  recurrence_rule: RecurrenceRule | null;
+  recurrence_day: number | null;
+  parent_event_id: number | null;
+}
+
+export interface EventParticipant {
+  id: number;
+  event_id: number;
+  user_id: string;
+  joined_at: string;
+  hours_played: number;
+}
+
+export interface EventFeedback {
+  id: number;
+  event_id: number;
+  user_id: string;
+  reviewer_name: string | null;
+  rating: number;
+  body: string | null;
+  created_at: string;
+}
+
+export type EventFeedbackInsert = Omit<EventFeedback, 'id' | 'created_at'>;
+
+export type RubberColor = 'red' | 'black' | 'pink' | 'blue' | 'purple' | 'green';
+export type DominantHand = 'right' | 'left';
+export type PlayingStyle = 'attacker' | 'defender' | 'all_rounder';
+export type Grip = 'shakehand' | 'penhold' | 'other';
+export type EquipmentCategory = 'blade' | 'rubber';
+
+export interface EquipmentManufacturer {
+  id: string;
+  name: string;
+  models: string[];
+}
+
+export interface EquipmentSelection {
+  id: number;
+  user_id: string;
+  blade_manufacturer_id: string;
+  blade_manufacturer: string;
+  blade_model: string;
+  forehand_rubber_manufacturer_id: string;
+  forehand_rubber_manufacturer: string;
+  forehand_rubber_model: string;
+  forehand_rubber_color: RubberColor;
+  backhand_rubber_manufacturer_id: string;
+  backhand_rubber_manufacturer: string;
+  backhand_rubber_model: string;
+  backhand_rubber_color: RubberColor;
+  dominant_hand: DominantHand;
+  playing_style: PlayingStyle;
+  grip: Grip;
+  created_at: string;
+}
+
+export type EquipmentSelectionInsert = Omit<EquipmentSelection, 'id' | 'created_at'>;
+
+// ── Training sessions (F060) ──
+
+export type TrainingSessionType = 'solo' | 'partner' | 'multiball' | 'robot';
+
+/** Focus areas validated app-side; the DB only bounds the count (<= 3). */
+export type TrainingFocus =
+  | 'serves'
+  | 'receive'
+  | 'footwork'
+  | 'fh_bh_loop'
+  | 'blocking'
+  | 'match_play';
+
+export interface TrainingSession {
+  id: number;
+  user_id: string;
+  session_type: TrainingSessionType;
+  hours: number;
+  focus: TrainingFocus[];
+  venue_id: number | null;
+  partner_id: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export type TrainingSessionInsert = Omit<TrainingSession, 'id' | 'created_at'>;
+
+// ── Rubber wear tracker (F061) ──
+
+export type RubberSide = 'forehand' | 'backhand';
+
+/** One row per side returned by get_rubber_wear. estimated_hours is the user's
+ *  total play hours (check-ins + events + training) since installed_at; pct is
+ *  round(estimated / expected * 100). */
+export interface RubberWear {
+  side: RubberSide;
+  installed_at: string;
+  expected_hours: number;
+  estimated_hours: number;
+  pct: number;
+}
+
+// ── Equipment reviews (F062) ──
+
+/** How long the reviewer has used the gear. */
+export type EquipmentTimeUsed = 'lt_1m' | '1_6m' | '6_12m' | '1_2y' | 'gt_2y';
+
+/** One community review of a catalog model (category, manufacturer_id, model).
+ *  author_hand/style/grip are snapshotted from the author's latest setup. */
+export interface EquipmentReview {
+  id: number;
+  user_id: string;
+  category: EquipmentCategory;
+  manufacturer_id: string;
+  model: string;
+  rating: number;
+  speed: number | null;
+  spin: number | null;
+  control: number | null;
+  time_used: EquipmentTimeUsed | null;
+  body: string | null;
+  author_hand: DominantHand | null;
+  author_style: PlayingStyle | null;
+  author_grip: Grip | null;
+  flagged: boolean;
+  flag_count: number;
+  created_at: string;
+}
+
+/** Aggregate stats returned by get_equipment_model_summary. */
+export interface EquipmentModelSummary {
+  review_count: number;
+  avg_rating: number | null;
+  avg_speed: number | null;
+  avg_spin: number | null;
+  avg_control: number | null;
+  users_count: number;
+}
+
+/** Input to post_equipment_review. */
+export interface EquipmentReviewInput {
+  category: EquipmentCategory;
+  manufacturerId: string;
+  model: string;
+  rating: number;
+  speed?: number | null;
+  spin?: number | null;
+  control?: number | null;
+  timeUsed?: EquipmentTimeUsed | null;
+  body?: string | null;
+}
+
+// ── Coach directory (F063) ──
+
+export type CoachStatus = 'pending' | 'approved' | 'rejected';
+
+/** A coach application / profile. Public-read when status='approved'; the owner
+ *  also reads their own pending/rejected row. */
+export interface CoachProfile {
+  id: number;
+  user_id: string;
+  status: CoachStatus;
+  bio: string | null;
+  experience: string | null;
+  levels: string[];
+  languages: string[];
+  price_range: string | null;
+  contact: string | null;
+  created_at: string;
+}
+
+/** Input to apply_to_coach (the "I coach" application form). */
+export interface CoachApplicationInput {
+  bio: string | null;
+  experience: string | null;
+  levels: string[];
+  languages: string[];
+  priceRange: string | null;
+  contact: string | null;
+  venueIds: number[];
+}
+
+/** One approved coach at a venue, returned by get_venue_coaches. */
+export interface VenueCoach {
+  coach_id: number;
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
+// ── View types ──
+
+export interface VenueStats {
+  venue_id: number;
+  avg_rating: number | null;
+  review_count: number;
+  checkin_count: number;
+  favorite_count: number;
+}
+
+export interface LeaderboardCheckins {
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  city: string | null;
+  total_checkins: number;
+  unique_venues: number;
+  rank: number;
+}
+
+export interface LeaderboardReviews {
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  city: string | null;
+  total_reviews: number;
+  avg_given_rating: number | null;
+  rank: number;
+}
+
+export interface LeaderboardVenues {
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  city: string | null;
+  venues_added: number;
+  rank: number;
+}
+
+// ── Insert types (omit id, created_at) ──
+
+export type VenueInsert = Omit<Venue, 'id' | 'created_at' | 'verified' | 'approved' | 'submitted_by'> & Partial<Pick<Venue, 'verified' | 'approved' | 'submitted_by'>>;
+
+export type ReviewInsert = Omit<Review, 'id' | 'created_at' | 'flagged' | 'flag_count'> & Partial<Pick<Review, 'flagged' | 'flag_count'>>;
+
+export type EventInsert = Pick<Event, 'title' | 'organizer_id' | 'starts_at'> &
+  Partial<Omit<Event, 'id' | 'created_at' | 'title' | 'organizer_id' | 'starts_at'>>;
+
+export type ConditionVoteInsert = Omit<ConditionVote, 'id' | 'created_at'>;
+
+export type CheckinInsert = Omit<Checkin, 'id'>;

@@ -1,0 +1,81 @@
+# Daily offsite DB backup (T083). Ops job — intentionally separate from the
+# deferred app CI/CD chain (cicd_tasks.md).
+#
+# Required repository secrets:
+#   SUPABASE_DB_URL     — direct Postgres connection string (Dashboard →
+#                         Settings → Database → connection string, use the
+#                         session pooler URL)
+#   BACKUP_AGE_PUBLIC_KEY — age recipient public key ("age1...."); generate a
+#                         keypair with `age-keygen` and keep the PRIVATE key
+#                         offline (password manager). Restores: see
+#                         docs/db-restore.md.
+#   DISCORD_WEBHOOK_URL — failure alerting (same webhook the Grafana alerts use)
+#
+# Storage: encrypted dump is kept as a workflow artifact (90 days). The age
+# encryption is the security boundary — artifacts on a public repo are
+# downloadable by anyone logged in, but useless without the private key.
+# If/when an R2/S3 bucket exists, swap the upload step; nothing else changes.
+
+name: db-backup
+on:
+  schedule:
+    - cron: '40 2 * * *' # daily 02:40 UTC
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Install age
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq age
+
+      - name: Dump schema + data + roles
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p backup
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only -f backup/data_full.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f backup/roles.sql
+          ls -lh backup/
+
+      - name: Sanity-check dump size
+        run: |
+          set -euo pipefail
+          # An empty/truncated data dump means a silent auth/network failure —
+          # fail loudly instead of archiving garbage.
+          test "$(stat -c%s backup/data_full.sql)" -gt 100000
+
+      - name: Encrypt
+        env:
+          AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          tar czf backup.tar.gz backup/
+          age -r "$AGE_RECIPIENT" -o backup.tar.gz.age backup.tar.gz
+          rm -rf backup backup.tar.gz
+
+      - name: Upload encrypted artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup.tar.gz.age
+          retention-days: 90
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          [ -z "$DISCORD_WEBHOOK_URL" ] && exit 0
+          curl -sf -H 'Content-Type: application/json' \
+            -d '{"content":"🔴 **db-backup failed** — nightly Supabase dump did not complete. https://github.com/'"$GITHUB_REPOSITORY"'/actions/runs/'"$GITHUB_RUN_ID"'"}' \
+            "$DISCORD_WEBHOOK_URL"

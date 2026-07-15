@@ -1,0 +1,70 @@
+# E2E Test: Auth Form Validation
+# Verifies client-side validation for signup and login forms
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+
+# Navigate to sign-in
+- extendedWaitUntil:
+    visible: "TT PORTAL"
+    timeout: 15000
+- tapOn: "Adaugă"
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 10000
+
+# --- Signup Validation ---
+
+# Try submit with empty name
+- tapOn:
+    id: "submit-button"
+- assertVisible: "Numele este obligatoriu"
+
+# Fill name, try with invalid email
+- tapOn:
+    id: "input-name"
+- inputText: "Test User"
+- tapOn:
+    id: "input-email"
+- inputText: "not-an-email"
+- tapOn:
+    id: "submit-button"
+- assertVisible: "Email invalid"
+
+# Fix email, short password
+- tapOn:
+    id: "input-email"
+- eraseText: 20
+- inputText: "test@test.com"
+- tapOn:
+    id: "input-password"
+- inputText: "short"
+- tapOn:
+    id: "submit-button"
+- assertVisible: "Minim 8 caractere"
+
+# --- Login Validation ---
+
+# Switch to login tab (fields carry over from signup, so clear them)
+- tapOn:
+    id: "tab-login"
+
+# Clear email and password
+- tapOn:
+    id: "input-email"
+- eraseText: 30
+
+- tapOn:
+    id: "input-password"
+- eraseText: 20
+
+# Try submit with empty fields
+- tapOn:
+    id: "submit-button"
+- assertVisible: "Email invalid"

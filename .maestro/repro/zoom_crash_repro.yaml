@@ -1,0 +1,67 @@
+# Repro driver for the map-zoom clustering crash (2026-06). READ-ONLY: only
+# zoom gestures + city switches, no sign-in, no writes. Each double-tap is an
+# animated zoom-in step that crosses integer zoom levels → recluster churn;
+# the repeated runs hammer marker mount/unmount under Fabric.
+appId: com.ttportal.app
+---
+- launchApp:
+    clearState: false
+# First launch lands on the city selector; Berlin (the big OSM set) is
+# pre-selected — ideal cluster stress.
+- runFlow:
+    when:
+      visible: "Explore Berlin"
+    commands:
+      - tapOn: "Explore Berlin"
+- extendedWaitUntil:
+    visible: "TTPortal"
+    timeout: 25000
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Three full hammer cycles: zoom deep in, then re-center far out via the
+# city pill — every cycle crosses many integer zoom levels both ways.
+- repeat:
+    times: 3
+    commands:
+      - repeat:
+          times: 8
+          commands:
+            - doubleTapOn:
+                point: 50%, 30%
+            - waitForAnimationToEnd:
+                timeout: 1200
+      - tapOn:
+          point: 50%, 12%
+          optional: true
+      - waitForAnimationToEnd:
+          timeout: 2500
+
+# Zoom in hard via double-taps on the upper map area (above the sheet).
+- repeat:
+    times: 8
+    commands:
+      - doubleTapOn:
+          point: 50%, 30%
+      - waitForAnimationToEnd:
+          timeout: 1500
+
+# Pinch-style zoom out (Maestro >=1.39 supports pinch); fall back is the
+# city re-center below if this no-ops.
+- repeat:
+    times: 6
+    commands:
+      - doubleTapOn:
+          point: 48%, 28%
+      - waitForAnimationToEnd:
+          timeout: 1200
+
+# Re-center via the city pill (big animated zoom-out → mass recluster).
+- tapOn:
+    point: 50%, 12%
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# App must still be alive.
+- assertVisible: "TTPortal"

@@ -1,0 +1,3 @@
+# Local data cache: Overture stream cache, GeoNames downloads, intermediates.
+# Large + reproducible — never commit.
+data/

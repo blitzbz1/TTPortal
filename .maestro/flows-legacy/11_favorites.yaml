@@ -1,0 +1,26 @@
+# E2E Test: Favorites Screen
+# Verifies favorites listing with seeded data
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+- runFlow: ../helpers/login.yaml
+
+# Navigate to favorites tab
+- tapOn: "Favorite"
+- extendedWaitUntil:
+    visible: "Favorite"
+    timeout: 5000
+
+# Andrei has 3 seeded favorites - verify the list is not empty
+# Check for "Recent" sort button which indicates favorites loaded
+- extendedWaitUntil:
+    visible: "Recent"
+    timeout: 5000
+
+# Verify a favorite venue card is visible (Club Sportiv Dinamo)
+- assertVisible: "Club Sportiv Dinamo"

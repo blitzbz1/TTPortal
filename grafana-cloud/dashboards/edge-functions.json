@@ -1,0 +1,171 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Requests per second by route",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "expr": "sum by (function) (rate({job=\"supabase_edge_functions\", type=\"request\"}[5m]))",
+          "queryType": "range",
+          "legendFormat": "{{function}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "p95 latency by route",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "ms", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "expr": "quantile_over_time(0.95, {job=\"supabase_edge_functions\", type=\"request\"} | json | unwrap data_duration_ms [5m]) by (function)",
+          "queryType": "range",
+          "legendFormat": "{{function}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Error rate by route (4xx + 5xx)",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "expr": "sum by (function) (rate({job=\"supabase_edge_functions\", type=\"request\"} | json | data_status >= 400 [5m]))",
+          "queryType": "range",
+          "legendFormat": "{{function}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "5xx server errors by route",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 20 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "expr": "sum by (function) (rate({job=\"supabase_edge_functions\", type=\"request\"} | json | data_status >= 500 [5m]))",
+          "queryType": "range",
+          "legendFormat": "{{function}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Active routes (last hour)",
+      "type": "stat",
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "expr": "count(count by (function) (count_over_time({job=\"supabase_edge_functions\", type=\"request\"}[1h])))",
+          "queryType": "range",
+          "legendFormat": "active routes"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Total requests (last hour)",
+      "type": "stat",
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "expr": "sum(count_over_time({job=\"supabase_edge_functions\", type=\"request\"}[1h]))",
+          "queryType": "range",
+          "legendFormat": "total"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Healthz uptime % (last 24h)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "red" },
+              { "value": 99, "color": "yellow" },
+              { "value": 99.9, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "graphMode": "area", "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "100 * avg_over_time(probe_success{job=\"ttportalinfo-healthz\"}[24h])",
+          "legendFormat": "healthz"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["edge-functions", "ttportal"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "TTPortal — Edge Functions Overview",
+  "uid": "ttportalinfo-edge-functions",
+  "version": 1,
+  "weekStart": ""
+}

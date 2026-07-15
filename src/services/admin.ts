@@ -1,0 +1,414 @@
+import { supabase } from '../lib/supabase';
+import { invalidateVenueMetaCache, invalidateVenueReviewsCache } from '../lib/venueDetailCache';
+import { invalidateVenueIntelCache } from '../lib/venueIntelCache';
+import { clearCitiesCache } from '../lib/citiesPersistentCache';
+import { clearVenuesCache } from '../lib/venuesPersistentCache';
+import {
+  invalidateFlaggedReviewsCache,
+  invalidatePendingVenuesCache,
+  invalidateUserFeedbackCache,
+  invalidateVenueChangeRequestsCache,
+  invalidatePendingCoachesCache,
+} from '../lib/adminListsCache';
+
+// Slim column lists for the admin moderation lists. The admin UI renders
+// pending-venue cards with name/city/address/created_at/submitter, and the
+// edit modal touches name/address/city/type/tables_count/condition/night_lighting/nets/verified/photos/description/lat/lng
+// — fetching the full row roughly halves egress on this endpoint.
+const PENDING_VENUE_COLS =
+  'id, name, type, city, city_id, address, lat, lng, tables_count, condition, night_lighting, nets, verified, photos, description, submitted_by, created_at, cities!city_id(country_code, country_name, lat, lng, zoom)';
+// Flagged-review cards render author, venue name, flag count and date — the
+// review body itself is not shown in the list.
+const FLAGGED_REVIEW_COLS =
+  'id, user_id, venue_id, flag_count, flagged, created_at, comment, rating';
+
+// coach_profiles lands in migration 134 — not in the generated Database types
+// yet, so `.from('coach_profiles')` won't typecheck. Use an untyped view of the
+// client for that table only (same shim as services/coaches + equipmentReviews).
+type UntypedFrom = { from: (table: string) => any };
+const db = supabase as unknown as UntypedFrom;
+
+function invalidateMapVenuesCache() {
+  clearVenuesCache();
+}
+
+function invalidateLocationCatalogCache() {
+  clearCitiesCache();
+}
+
+async function verifyAdmin(userId: string): Promise<boolean> {
+  const { data } = await supabase.from('profiles').select('is_admin').eq('id', userId).single();
+  return data?.is_admin === true;
+}
+
+// Moderators (and admins) may act on flagged reviews + venue change requests.
+// Defensive early-return mirror of the DB-side can_moderate() gate.
+async function verifyCanModerate(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('is_admin, is_moderator')
+    .eq('id', userId)
+    .single();
+  return data?.is_admin === true || data?.is_moderator === true;
+}
+
+// Several admin queries used to PostgREST-embed profiles via the `<col>` FK
+// (e.g. `profiles!user_id(full_name)`). That works only when the embedded
+// FK actually points at `public.profiles`. In this schema the user-id FKs
+// point at `auth.users`, so PostgREST returns 400 "no relationship found".
+// Workaround: load profiles in a second query keyed by id and stitch them
+// onto each row under the same field name the UI already reads.
+async function attachProfiles<T extends Record<string, any>>(
+  rows: T[],
+  idKey: keyof T,
+  fieldName: string,
+  columns: string,
+): Promise<T[]> {
+  const ids = Array.from(
+    new Set(
+      rows
+        .map((r) => r[idKey])
+        .filter((id) => typeof id === 'string') as string[],
+    ),
+  );
+  if (ids.length === 0) return rows.map((r) => ({ ...r, [fieldName]: null }));
+  const { data } = await supabase.from('profiles').select(`id, ${columns}`).in('id', ids);
+  const byId = new Map<string, unknown>();
+  // Dynamic select string defeats the typed client — cast the row shape.
+  ((data ?? []) as unknown as { id: string }[]).forEach((p) => byId.set(p.id, p));
+  return rows.map((r) => ({
+    ...r,
+    [fieldName]: r[idKey] && byId.has(r[idKey] as string) ? byId.get(r[idKey] as string) : null,
+  }));
+}
+
+export async function getPendingVenues() {
+  const result = await supabase
+    .from('venues')
+    .select(PENDING_VENUE_COLS)
+    .eq('approved', false)
+    .order('created_at', { ascending: false });
+  if (result.error || !result.data) return result;
+  const data = await attachProfiles(result.data, 'submitted_by', 'profiles', 'full_name');
+  return { ...result, data };
+}
+
+export async function approveVenue(id: number, userId: string) {
+  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  const result = await supabase
+    .from('venues')
+    .update({ approved: true })
+    .eq('id', id)
+    .select()
+    .single();
+  if (!result.error) {
+    invalidateMapVenuesCache();
+    invalidateLocationCatalogCache();
+    invalidateVenueMetaCache(id);
+    invalidatePendingVenuesCache();
+  }
+  return result;
+}
+
+export async function rejectVenue(id: number, userId: string) {
+  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  const result = await supabase.from('venues').delete().eq('id', id);
+  if (!result.error) {
+    invalidateMapVenuesCache();
+    invalidateVenueMetaCache(id);
+    invalidatePendingVenuesCache();
+  }
+  return result;
+}
+
+export async function searchVenuesAdmin(query: string) {
+  // Diacritic-insensitive search via the search_venues_admin RPC
+  // (migration 050) — uses Postgres `unaccent()` so "bucuresti" matches
+  // "București". The RPC returns full venue rows; we project here to
+  // keep the wire payload slim.
+  const { data, error } = await supabase.rpc('search_venues_admin', {
+    p_query: query,
+    p_limit: 30,
+  });
+  if (error || !data) return { data: data ?? [], error };
+  const slim = (data as Record<string, unknown>[]).map((v) => ({
+    id: v.id, name: v.name, city: v.city, address: v.address, type: v.type,
+    tables_count: v.tables_count, lat: v.lat, lng: v.lng,
+    condition: v.condition, night_lighting: v.night_lighting, nets: v.nets, verified: v.verified,
+    photos: v.photos,
+    description: v.description, approved: v.approved,
+  }));
+  return { data: slim, error: null };
+}
+
+export async function updateVenue(
+  id: number,
+  userId: string,
+  updates: {
+    name?: string;
+    address?: string;
+    city?: string;
+    city_id?: number;
+    type?: string;
+    tables_count?: number | null;
+    condition?: string | null;
+    night_lighting?: boolean | null;
+    nets?: boolean | null;
+    verified?: boolean;
+    photos?: string[] | null;
+    description?: string | null;
+    lat?: number | null;
+    lng?: number | null;
+  },
+) {
+  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  // lat/lng/tables_count are NOT NULL columns — drop null entries (callers
+  // pass null to mean "leave unchanged").
+  const { lat, lng, tables_count, ...rest } = updates;
+  const payload = {
+    ...rest,
+    ...(lat != null ? { lat } : {}),
+    ...(lng != null ? { lng } : {}),
+    ...(tables_count != null ? { tables_count } : {}),
+  };
+  const result = await supabase.from('venues').update(payload).eq('id', id).select().single();
+  if (!result.error) {
+    invalidateMapVenuesCache();
+    invalidateVenueMetaCache(id);
+  }
+  return result;
+}
+
+export async function deleteVenue(id: number, userId: string) {
+  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  const result = await supabase.from('venues').delete().eq('id', id);
+  if (!result.error) {
+    invalidateMapVenuesCache();
+    invalidateVenueMetaCache(id);
+    invalidateVenueReviewsCache(id);
+    invalidatePendingVenuesCache();
+    invalidateFlaggedReviewsCache();
+  }
+  return result;
+}
+
+export async function getFlaggedReviews() {
+  // Keep the `venues!venue_id` embed — that FK does point to public.venues.
+  // Only the profiles embed is broken (FK lands on auth.users).
+  const result = await supabase
+    .from('reviews')
+    .select(`${FLAGGED_REVIEW_COLS}, venues!venue_id(name)`)
+    .eq('flagged', true)
+    .order('flag_count', { ascending: false });
+  if (result.error || !result.data) return result;
+  const data = await attachProfiles(result.data as unknown as Record<string, unknown>[], 'user_id', 'profiles', 'full_name');
+  return { ...result, data };
+}
+
+export async function keepReview(id: number, userId: string) {
+  if (!await verifyCanModerate(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  const result = await supabase
+    .from('reviews')
+    .update({ flagged: false, flag_count: 0 })
+    .eq('id', id)
+    .select()
+    .single();
+  if (!result.error) invalidateFlaggedReviewsCache();
+  return result;
+}
+
+export async function deleteReview(id: number, userId: string) {
+  if (!await verifyCanModerate(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  const result = await supabase.from('reviews').delete().eq('id', id);
+  if (!result.error) invalidateFlaggedReviewsCache();
+  return result;
+}
+
+export async function getUserFeedback(limit = 100) {
+  const result = await supabase
+    .from('user_feedback')
+    .select('id, user_id, page, category, message, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (result.error || !result.data) return result;
+  // email is no longer selectable through profiles (migration 085); admins
+  // look up a user's email via admin_search_users when they need to reply
+  // out-of-band.
+  const data = await attachProfiles(result.data, 'user_id', 'profiles', 'full_name');
+  return { ...result, data };
+}
+
+export async function deleteUserFeedback(id: string, userId: string) {
+  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  const result = await supabase.from('user_feedback').delete().eq('id', id);
+  if (!result.error) invalidateUserFeedbackCache();
+  return result;
+}
+
+export async function getFeedbackReplies(feedbackId: string) {
+  const result = await supabase
+    .from('feedback_replies')
+    .select('id, feedback_id, admin_id, reply_text, created_at')
+    .eq('feedback_id', feedbackId)
+    .order('created_at', { ascending: true });
+  if (result.error || !result.data) return result;
+  const data = await attachProfiles(result.data, 'admin_id', 'profiles', 'full_name');
+  return { ...result, data };
+}
+
+export async function replyToFeedback(feedbackId: string, adminId: string, replyText: string) {
+  if (!await verifyAdmin(adminId)) return { data: null, error: { message: 'Unauthorized' } };
+  const trimmed = replyText.trim();
+  if (!trimmed) return { data: null, error: { message: 'Reply text is required' } };
+  return supabase
+    .from('feedback_replies')
+    .insert({ feedback_id: feedbackId, admin_id: adminId, reply_text: trimmed })
+    .select()
+    .single();
+}
+
+// ── Venue change requests ──
+// Each card renders the submitter, note, and current→proposed values, so we
+// embed the current venue values (the venue_id FK points at public.venues, so
+// the embed works; submitted_by points at auth.users, so attachProfiles).
+const CHANGE_REQUEST_COLS =
+  'id, venue_id, submitted_by, proposed_nets, proposed_night_lighting, proposed_tables_count, mark_unavailable, note, photo_url, status, created_at, venues!venue_id(name, city, nets, night_lighting, tables_count, approved)';
+
+export async function getVenueChangeRequests() {
+  const result = await supabase
+    .from('venue_change_requests')
+    .select(CHANGE_REQUEST_COLS)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+  if (result.error || !result.data) return result;
+  const data = await attachProfiles(result.data, 'submitted_by', 'profiles', 'full_name');
+  return { ...result, data };
+}
+
+export type VenueChangeRequestDecision = {
+  applyNets?: boolean;
+  applyNightLighting?: boolean;
+  applyTablesCount?: boolean;
+  applyAmenities?: boolean;
+  availability?: 'none' | 'hide' | 'remove';
+};
+
+export async function resolveVenueChangeRequest(
+  requestId: number,
+  venueId: number,
+  userId: string,
+  decision: VenueChangeRequestDecision,
+) {
+  if (!await verifyCanModerate(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  const availability = decision.availability ?? 'none';
+  const result = await supabase.rpc('resolve_venue_change_request', {
+    p_request_id: requestId,
+    p_apply_nets: decision.applyNets ?? false,
+    p_apply_night_lighting: decision.applyNightLighting ?? false,
+    p_apply_tables_count: decision.applyTablesCount ?? false,
+    p_apply_amenities: decision.applyAmenities ?? false,
+    p_availability: availability,
+  });
+  if (!result.error) {
+    invalidateVenueChangeRequestsCache();
+    invalidateMapVenuesCache();
+    invalidateVenueMetaCache(venueId);
+    // Amenity edits (F012) live in the separate venue-intel cache.
+    invalidateVenueIntelCache(venueId);
+    // Hiding or removing a venue changes per-city venue counts.
+    if (availability === 'hide' || availability === 'remove') {
+      invalidateLocationCatalogCache();
+    }
+  }
+  return result;
+}
+
+export async function dismissVenueChangeRequest(requestId: number, userId: string) {
+  if (!await verifyCanModerate(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  const result = await supabase.rpc('resolve_venue_change_request', {
+    p_request_id: requestId,
+    p_apply_nets: false,
+    p_apply_night_lighting: false,
+    p_apply_tables_count: false,
+    p_availability: 'none',
+  });
+  if (!result.error) invalidateVenueChangeRequestsCache();
+  return result;
+}
+
+// ── Coach applications (F063, admin-only) ──
+// The Coaches tab lists pending coach_profiles. coach_profiles.user_id FKs to
+// public.profiles, but PostgREST still 400s embedding it (the same auth.users
+// embed quirk all admin getters hit), so attachProfiles stitches the applicant
+// name. The admin-read RLS policy returns all pending rows to an admin.
+const PENDING_COACH_COLS =
+  'id, user_id, status, bio, experience, levels, languages, price_range, contact, created_at';
+
+export async function getPendingCoaches() {
+  const result = await db
+    .from('coach_profiles')
+    .select(PENDING_COACH_COLS)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+  if (result.error || !result.data) return result;
+  const data = await attachProfiles(result.data, 'user_id', 'profiles', 'full_name');
+  return { ...result, data };
+}
+
+// Approve / reject map to a plain admin-gated UPDATE (the admin-UPDATE RLS policy
+// is the real enforcement) — exactly like approveVenue/rejectVenue. Re-checked
+// client-side via verifyAdmin and stamped with reviewed_by/reviewed_at.
+export async function approveCoach(id: number, userId: string) {
+  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  const result = await db
+    .from('coach_profiles')
+    .update({ status: 'approved', reviewed_by: userId, reviewed_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (!result.error) invalidatePendingCoachesCache();
+  return result;
+}
+
+export async function rejectCoach(id: number, userId: string) {
+  if (!await verifyAdmin(userId)) return { data: null, error: { message: 'Unauthorized' } };
+  const result = await db
+    .from('coach_profiles')
+    .update({ status: 'rejected', reviewed_by: userId, reviewed_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (!result.error) invalidatePendingCoachesCache();
+  return result;
+}
+
+// ── Moderator role management (admin-only) ──
+
+export type AdminUserSearchRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  username: string | null;
+  is_admin: boolean;
+  is_moderator: boolean;
+};
+
+// Diacritic-insensitive user search for the moderator-management UI. Gated
+// admin-only server-side (admin_search_users RPC); returns [] for non-admins.
+export async function searchUsersAdmin(query: string) {
+  const { data, error } = await supabase.rpc('admin_search_users', {
+    p_query: query,
+    p_limit: 30,
+  });
+  return { data: (data as AdminUserSearchRow[] | null) ?? [], error };
+}
+
+// Grant (true) or revoke (false) the moderator role on another user. Admin-only:
+// verified client-side here and enforced server-side by admin_set_user_moderator.
+export async function setUserModerator(adminId: string, targetUserId: string, value: boolean) {
+  if (!await verifyAdmin(adminId)) return { data: null, error: { message: 'Unauthorized' } };
+  return supabase.rpc('admin_set_user_moderator', {
+    p_user_id: targetUserId,
+    p_value: value,
+  });
+}

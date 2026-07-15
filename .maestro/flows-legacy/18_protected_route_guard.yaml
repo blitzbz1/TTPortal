@@ -1,0 +1,40 @@
+# E2E Test: Protected Route Auth Guard
+# Verifies unauthenticated access to protected routes redirects to sign-in
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+
+# Wait for map screen to load (public route)
+- extendedWaitUntil:
+    visible: "TT PORTAL"
+    timeout: 15000
+
+# Tap "Add venue" button which triggers protected route
+- tapOn: "Adaugă"
+
+# Should redirect to sign-in screen
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 10000
+
+# Verify sign-in screen elements
+- assertVisible: "TT PORTAL"
+- assertVisible: "Mese Tenis România"
+- assertVisible:
+    id: "tab-signup"
+- assertVisible:
+    id: "tab-login"
+- assertVisible:
+    id: "input-email"
+- assertVisible:
+    id: "input-password"
+- assertVisible:
+    id: "google-button"
+- assertVisible:
+    id: "apple-button"

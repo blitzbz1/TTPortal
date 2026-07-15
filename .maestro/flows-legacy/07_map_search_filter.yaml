@@ -1,0 +1,70 @@
+# E2E Test: Map Search and Filter
+# Verifies venue search and filter chip functionality
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+- runFlow: ../helpers/login.yaml
+
+# Verify map screen elements
+- assertVisible: "TT PORTAL"
+- assertVisible: "București"
+
+# Verify filter chips are visible
+- assertVisible: "Toate"
+
+# Wait for venues to load
+- extendedWaitUntil:
+    visible:
+      id: "venues-count"
+    timeout: 10000
+
+# --- Test Search ---
+- tapOn: "Caută locații..."
+- inputText: "Parc"
+- extendedWaitUntil:
+    visible:
+      id: "venues-count"
+    timeout: 5000
+
+# Clear search
+- eraseText: 4
+# Dismiss keyboard by tapping on the map area
+- tapOn:
+    point: "50%,30%"
+
+# --- Test Filter Chips ---
+
+# Filter: Parks
+- tapOn: "🌳 Parcuri"
+- extendedWaitUntil:
+    visible:
+      id: "venues-count"
+    timeout: 5000
+
+# Filter: Indoor
+- tapOn: "🏢 Indoor"
+- extendedWaitUntil:
+    visible:
+      id: "venues-count"
+    timeout: 5000
+
+# Filter: Verified
+- tapOn: "Verificat"
+
+# Reset to All
+- tapOn: "Toate"
+- extendedWaitUntil:
+    visible:
+      id: "venues-count"
+    timeout: 5000
+
+# Verify map legend is visible
+- assertVisible: "Bună"
+- assertVisible: "Acceptabilă"
+- assertVisible: "Deteriorată"
+- assertVisible: "Sală indoor"

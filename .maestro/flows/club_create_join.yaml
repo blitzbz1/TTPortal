@@ -1,0 +1,58 @@
+# Smoke: F040 clubs — open the Clubs entry from Events, create a club, and see
+# the join code on the success screen. Destructive (writes a club + membership).
+# Run against the local stack, NOT prod. testID-first per the .maestro
+# conventions (text taps break under the English-default first launch).
+appId: com.ttportal.app
+---
+- launchApp:
+    clearState: false
+- runFlow: helpers/ensure_logged_in.yaml
+
+# Go to the Events tab (no testID on the tab bar; tap its label — the app
+# launches in English so "Events" resolves), then open Clubs from the header.
+- tapOn:
+    text: "Events"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "events-clubs-button"
+    timeout: 25000
+- tapOn:
+    id: "events-clubs-button"
+
+# My Clubs screen → Create a club.
+- extendedWaitUntil:
+    visible:
+      id: "clubs-create"
+    timeout: 10000
+- tapOn:
+    id: "clubs-create"
+
+# Fill the create-club form and submit.
+- extendedWaitUntil:
+    visible:
+      id: "create-club-name"
+    timeout: 10000
+- tapOn:
+    id: "create-club-name"
+- inputText: "Maestro Club"
+- hideKeyboard
+- tapOn:
+    id: "create-club-submit"
+
+# Success screen shows the generated join code.
+- extendedWaitUntil:
+    visible:
+      id: "club-created"
+    timeout: 12000
+- assertVisible:
+    id: "club-join-code-value"
+
+# Open the club and confirm the detail screen renders the code + members.
+- tapOn:
+    id: "club-goto"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "club-detail-code"
+    timeout: 10000

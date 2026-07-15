@@ -1,0 +1,71 @@
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env
+.env*.local
+supabase/.env
+
+# Supabase local data
+supabase/volumes/db/data/
+supabase/volumes/storage/
+
+# Local database backups (contain data — do not commit)
+backups/
+
+# testing
+coverage/
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# OSM import working data (134MB of extracts) — the tooling itself is tracked
+scripts/osm-import/data/
+
+# build artifacts — never commit binaries (store them in GitHub Releases)
+*.apk
+*.aab
+
+# IDE
+.idea/
+
+# Supabase CLI scratch
+supabase/.temp/
+
+# local data dumps
+tables.jsonsupabase/seeds/osm/.geo_dedup_watermarks*
+
+# local scratch notes (kept out of git, never pushed)
+/improvement_suggestions.md
+/improvement_suggestions_tasks.md

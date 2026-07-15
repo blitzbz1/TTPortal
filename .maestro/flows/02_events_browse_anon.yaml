@@ -1,0 +1,23 @@
+# Smoke: events tab as anonymous user. Read-only.
+appId: com.ttportal.app
+---
+- launchApp:
+    clearState: false
+- runFlow:
+    when:
+      visible: "Explore Berlin"
+    commands:
+      - tapOn: "Explore Berlin"
+- extendedWaitUntil:
+    visible: "TTPortal"
+    timeout: 25000
+# Self-right: a previous flow may have left the app on another tab.
+- tapOn:
+    text: "Map"
+    optional: true
+- waitForAnimationToEnd
+- tapOn: "Events"
+- waitForAnimationToEnd:
+    timeout: 3000
+# Anonymous users see the events surface with a login affordance
+- assertVisible: "Log in"

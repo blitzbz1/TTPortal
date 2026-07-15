@@ -1,0 +1,24 @@
+# Smoke: first-launch onboarding → map. Read-only. Sim-verified 2026-06-11.
+appId: com.ttportal.app
+---
+# Dev-client builds lose their Metro URL on clearState, so clear WITHOUT
+# launching, then cold-start through the dev-client deep link with Metro
+# running on localhost:8081. (Release builds embed the bundle — swap these
+# two steps for a plain `launchApp: {clearState: true}`.)
+- clearState
+- openLink: com.ttportal.app://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081
+- extendedWaitUntil:
+    visible: "Discover public tables, clubs, events, and players"
+    timeout: 25000
+- assertVisible: "Recommended cities"
+- tapOn: "Berlin"
+- tapOn: "Explore Berlin"
+- extendedWaitUntil:
+    visible: "TTPortal"
+    timeout: 25000
+# Map chrome: legend + search + venue count
+- assertVisible: "Good"
+- assertVisible: "Indoor hall"
+- assertVisible: "Search venues..."
+- assertVisible:
+    text: ".*venues shown.*"

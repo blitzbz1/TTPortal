@@ -1,0 +1,39 @@
+# E2E Test: Write Review Button (Protected)
+# Verifies write review button is accessible in venue detail
+
+appId: com.ttportal.app
+
+---
+
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd
+- runFlow: ../helpers/login.yaml
+
+# Wait for venues to load
+- extendedWaitUntil:
+    visible:
+      id: "venues-count"
+    timeout: 10000
+
+# Tap a venue to open detail
+- tapOn: "ACS TT Energy Brașov"
+
+# Wait for venue detail
+- extendedWaitUntil:
+    visible: "Înapoi"
+    timeout: 5000
+
+# Scroll to write review button and verify it exists
+- scrollUntilVisible:
+    element:
+      id: "write-review-btn"
+    direction: DOWN
+    timeout: 10000
+    speed: 30
+
+# Go back
+- tapOn: "Înapoi"
+- extendedWaitUntil:
+    visible: "TT PORTAL"
+    timeout: 5000

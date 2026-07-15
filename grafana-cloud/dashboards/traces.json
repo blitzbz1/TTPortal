@@ -1,0 +1,108 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request rate by route",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "expr": "sum by (function) (rate({job=\"supabase_edge_functions\", type=\"request\"} [1m]))",
+          "legendFormat": "{{function}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "p95 latency by route",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "ms", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "expr": "quantile_over_time(0.95, {job=\"supabase_edge_functions\", type=\"request\"} | json | unwrap data_duration_ms [5m]) by (function)",
+          "legendFormat": "{{function}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Error rate by route (4xx + 5xx)",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 20 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+          "expr": "sum by (function) (rate({job=\"supabase_edge_functions\", type=\"request\"} | json | data_status >= 400 [5m]))",
+          "legendFormat": "{{function}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Error spans",
+      "type": "table",
+      "datasource": { "type": "tempo", "uid": "grafanacloud-traces" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 8 },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "grafanacloud-traces" },
+          "queryType": "traceql",
+          "query": "{ status = error }",
+          "tableType": "traces",
+          "limit": 20
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Recent slow traces (> 200ms)",
+      "type": "table",
+      "datasource": { "type": "tempo", "uid": "grafanacloud-traces" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 17 },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "grafanacloud-traces" },
+          "queryType": "traceql",
+          "query": "{ duration > 200ms }",
+          "tableType": "traces",
+          "limit": 20
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["traces", "otel", "ttportal"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "TTPortal — Traces",
+  "uid": "ttportal-traces-overview",
+  "version": 1,
+  "weekStart": ""
+}

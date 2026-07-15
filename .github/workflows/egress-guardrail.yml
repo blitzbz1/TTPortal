@@ -1,0 +1,76 @@
+# Egress/cost guardrail (T087, monitoring Phase 5): daily check of Supabase
+# usage; alerts Discord when daily egress jumps >5× over the previous day —
+# the early-warning before a bill surprise (relevant before/while OSM-scale
+# venue data drives map traffic).
+#
+# Required repository secrets:
+#   SUPABASE_ACCESS_TOKEN — personal access token (Dashboard → Account →
+#                           Access Tokens) with read access to the org
+#   DISCORD_WEBHOOK_URL   — alert sink
+# Project ref is not secret: vzewwlaqqgukjkqjyfoq.
+
+name: egress-guardrail
+on:
+  schedule:
+    - cron: '10 5 * * *' # daily 05:10 UTC
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fetch daily egress and compare day-over-day
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PROJECT_REF: vzewwlaqqgukjkqjyfoq
+        run: |
+          set -euo pipefail
+          end=$(date -u +%Y-%m-%d)
+          start=$(date -u -d '2 days ago' +%Y-%m-%d)
+
+          # Daily usage API (same endpoint the dashboard usage page reads).
+          resp=$(curl -sf \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/usage.api-counts/daily?start=$start&end=$end" \
+            || echo '')
+          if [ -z "$resp" ]; then
+            # API shape changes occasionally — degrade to a loud warning
+            # instead of silently passing.
+            curl -sf -H 'Content-Type: application/json' \
+              -d '{"content":"🟠 **egress-guardrail** could not read the Supabase usage API — check token/endpoint."}' \
+              "$DISCORD_WEBHOOK_URL" || true
+            exit 0
+          fi
+
+          echo "$resp" | python3 - <<'PY'
+          import json, os, sys, urllib.request
+
+          raw = sys.stdin.read()
+          try:
+              payload = json.loads(raw)
+          except json.JSONDecodeError:
+              sys.exit(0)
+          # Accept either {result: [{date, total_egress_modified}...]} or a list.
+          rows = payload.get('result', payload) if isinstance(payload, dict) else payload
+          if not isinstance(rows, list) or len(rows) < 2:
+              sys.exit(0)
+
+          def egress(row):
+              for key in ('total_egress_modified', 'egress', 'total_egress', 'count'):
+                  if isinstance(row, dict) and key in row:
+                      return float(row[key] or 0)
+              return 0.0
+
+          previous, today = egress(rows[-2]), egress(rows[-1])
+          print(f'previous={previous} today={today}')
+          if previous > 0 and today > 5 * previous:
+              msg = (f'🔴 **Egress spike**: today {today:,.0f} vs yesterday '
+                     f'{previous:,.0f} (>{today/previous:.1f}×). Check the usage page.')
+              body = json.dumps({'content': msg}).encode()
+              req = urllib.request.Request(
+                  os.environ['DISCORD_WEBHOOK_URL'], data=body,
+                  headers={'Content-Type': 'application/json'})
+              urllib.request.urlopen(req)
+          PY
